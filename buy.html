@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>상품 상세</title>
+  <link rel="stylesheet" href="style.css" />
+  <script defer src="header-loader.js"></script>
+  <script defer src="buy-script.js"></script>
+</head>
+<body>
+  <!-- 공통 헤더 -->
+  <div id="header-container"></div>
+
+  <!-- 제품 상세 페이지 -->
+  <main class="product-detail-page">
+    <div class="product-image-wrapper">
+      <img id="product-image" src="" alt="상품 이미지" />
+    </div>
+
+    <div class="product-info-wrapper">
+      <h2 id="product-name">제품명</h2>
+      <p id="product-price">₩0</p>
+
+      <div class="product-options">
+        <label for="size">사이즈 선택</label>
+        <select id="size">
+          <option>Small</option>
+          <option>Medium</option>
+          <option>Large</option>
+        </select>
+
+        <label for="color">색상 선택</label>
+        <select id="color">
+          <option>연청</option>
+          <option>중청</option>
+          <option>흑청</option>
+        </select>
+      </div>
+
+      <div class="product-actions">
+        <button class="buy-btn">BUY IT NOW</button>
+        <button>Add to Cart</button>
+        <button>Wish</button>
+      </div>
+
+      <p id="product-description" class="product-description"></p>
+    </div>
+  </main>
+</body>
+</html>
