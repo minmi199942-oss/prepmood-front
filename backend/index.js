@@ -10,18 +10,22 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 보안 미들웨어
-app.use(helmet()); // 기본 보안 헤더 설정
-
-// CORS 설정 (특정 도메인만 허용)
+// CORS 설정 (특정 도메인만 허용) - helmet보다 먼저 설정
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
     process.env.ALLOWED_ORIGINS.split(',') : 
-    ['http://localhost:8000'];
+    ['http://localhost:8000', 'http://localhost:3000', 'http://127.0.0.1:8000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5500', 'http://localhost:5500'];
+
+console.log('Allowed origins:', allowedOrigins);
 
 app.use(cors({
     origin: allowedOrigins,
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With']
 }));
+
+// 보안 미들웨어 (CORS 문제 해결을 위해 임시 비활성화)
+// app.use(helmet()); // 기본 보안 헤더 설정
 
 // Rate Limiting (API 남용 방지)
 const apiLimiter = rateLimit({
@@ -100,7 +104,8 @@ app.post('/api/send-verification', [
                 message: '인증 코드가 발송되었습니다.' 
             });
         } else {
-            console.error(`❌ 인증 코드 발송 실패: ${email}`, result.error);
+            console.error(`❌ 인증 코드 발송 실패: ${email}`);
+            console.error('📋 발송 실패 상세:', JSON.stringify(result, null, 2));
             res.status(500).json({ 
                 success: false, 
                 message: '이메일 발송에 실패했습니다.' 
@@ -108,7 +113,11 @@ app.post('/api/send-verification', [
         }
 
     } catch (error) {
-        console.error('❌ 서버 오류:', error.message); // 민감정보 제외
+        console.error('❌ 서버 오류 발생:');
+        console.error('📋 에러 상세:', JSON.stringify(error, null, 2));
+        console.error('🔍 에러 메시지:', error.message);
+        console.error('📍 에러 스택:', error.stack);
+        
         res.status(500).json({ 
             success: false, 
             message: '서버 오류가 발생했습니다.' 
@@ -209,17 +218,24 @@ app.listen(PORT, async () => {
         console.log('❌ 이메일 서비스 연결 실패 - .env 설정을 확인해주세요.');
     }
 
-    // MySQL 연결 테스트
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-        await connection.ping();
-        console.log('✅ MySQL 연결 성공!');
-        await connection.end();
-    } catch (error) {
-        console.log('❌ MySQL 연결 실패: 데이터베이스 연결을 확인해주세요');
-        // 상세 오류는 개발 환경에서만 출력
-        if (process.env.NODE_ENV === 'development') {
-            console.log('상세 오류:', error.message);
+        // MySQL 연결 테스트
+        try {
+            console.log('🔍 MySQL 연결 설정 디버깅:');
+            console.log(`📋 DB_HOST: ${process.env.DB_HOST}`);
+            console.log(`📋 DB_USER: ${process.env.DB_USER}`);
+            console.log(`📋 DB_PASSWORD: ${process.env.DB_PASSWORD ? '설정됨' : '설정되지 않음'}`);
+            console.log(`📋 DB_NAME: ${process.env.DB_NAME}`);
+            console.log(`📋 DB_PORT: ${process.env.DB_PORT || '3306'}`);
+            
+            const connection = await mysql.createConnection(dbConfig);
+            await connection.ping();
+            console.log('✅ MySQL 연결 성공!');
+            await connection.end();
+        } catch (error) {
+            console.log('❌ MySQL 연결 실패: 데이터베이스 연결을 확인해주세요');
+            console.log('📋 에러 상세:', JSON.stringify(error, null, 2));
+            console.log('🔍 에러 메시지:', error.message);
+            console.log('📍 에러 스택:', error.stack);
+            console.log('🔧 연결 설정:', JSON.stringify(dbConfig, null, 2));
         }
-    }
 });

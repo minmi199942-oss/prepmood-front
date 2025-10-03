@@ -6,12 +6,9 @@ DB_USER=prepmood_api
 DB_PASSWORD=여기에_새로운_MySQL_비밀번호_입력
 DB_NAME=prepmood
 
-# 이메일 설정 (새 앱 비밀번호)
-EMAIL_HOST=smtp.naver.com
-EMAIL_PORT=465
-EMAIL_SECURE=true
-EMAIL_USER=prepmoodcare@naver.com
-EMAIL_PASS=여기에_새로운_네이버_앱비밀번호_입력
+# MailerSend 이메일 설정 (3,000건 무료, DigitalOcean 호환)
+MAILERSEND_API_KEY=여기에_MailerSend_API_키_입력
+MAILERSEND_FROM_EMAIL=prepmoodcare@naver.com
 
 # 서버 설정
 PORT=3000
@@ -23,4 +20,5 @@ ALLOWED_ORIGINS=https://prepmood.kr
 # 추가 보안 설정 (선택사항)
 SESSION_SECRET=여기에_랜덤한_세션_시크릿_입력
 JWT_SECRET=여기에_JWT_시크릿_입력
+
 
