@@ -1,0 +1,225 @@
+const express = require('express');
+const cors = require('cors');
+const mysql = require('mysql2/promise');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const { body, validationResult } = require('express-validator');
+const { sendVerificationEmail, testConnection } = require('./mailer');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// 보안 미들웨어
+app.use(helmet()); // 기본 보안 헤더 설정
+
+// CORS 설정 (특정 도메인만 허용)
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
+    process.env.ALLOWED_ORIGINS.split(',') : 
+    ['http://localhost:8000'];
+
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true
+}));
+
+// Rate Limiting (API 남용 방지)
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15분
+    max: 10, // 15분당 최대 10회 요청
+    message: {
+        success: false,
+        message: '너무 많은 요청입니다. 잠시 후 다시 시도해주세요.'
+    }
+});
+
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15분
+    max: 100 // 15분당 최대 100회 요청
+});
+
+app.use('/api/send-verification', apiLimiter); // 이메일 발송은 더 엄격하게
+app.use('/api/', generalLimiter); // 다른 API는 일반적으로
+
+app.use(express.json({ limit: '10mb' })); // JSON 크기 제한
+
+// MySQL 연결 설정
+const dbConfig = {
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+};
+
+// 인증 코드 저장소 (실제 환경에서는 Redis 또는 DB 사용 권장)
+const verificationCodes = new Map();
+
+// 6자리 랜덤 인증 코드 생성
+const generateVerificationCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// 이메일 인증 코드 발송 API
+app.post('/api/send-verification', [
+    // 입력값 검증 미들웨어
+    body('email')
+        .isEmail()
+        .withMessage('올바른 이메일 형식이 아닙니다.')
+        .normalizeEmail()
+        .isLength({ max: 254 })
+        .withMessage('이메일이 너무 깁니다.')
+], async (req, res) => {
+    try {
+        // 검증 결과 확인
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: errors.array()[0].msg
+            });
+        }
+
+        const { email } = req.body;
+
+        // 인증 코드 생성
+        const verificationCode = generateVerificationCode();
+        
+        // 인증 코드 저장 (10분 후 만료)
+        verificationCodes.set(email, {
+            code: verificationCode,
+            expires: Date.now() + 10 * 60 * 1000 // 10분
+        });
+
+        // 이메일 전송
+        const result = await sendVerificationEmail(email, verificationCode);
+        
+        if (result.success) {
+            console.log(`✅ 인증 코드 발송 성공: ${email} -> ${verificationCode}`);
+            res.json({ 
+                success: true, 
+                message: '인증 코드가 발송되었습니다.' 
+            });
+        } else {
+            console.error(`❌ 인증 코드 발송 실패: ${email}`, result.error);
+            res.status(500).json({ 
+                success: false, 
+                message: '이메일 발송에 실패했습니다.' 
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ 서버 오류:', error.message); // 민감정보 제외
+        res.status(500).json({ 
+            success: false, 
+            message: '서버 오류가 발생했습니다.' 
+        });
+    }
+});
+
+// 인증 코드 확인 API
+app.post('/api/verify-code', [
+    // 입력값 검증 미들웨어
+    body('email')
+        .isEmail()
+        .withMessage('올바른 이메일 형식이 아닙니다.')
+        .normalizeEmail(),
+    body('code')
+        .isNumeric()
+        .withMessage('인증 코드는 숫자만 입력 가능합니다.')
+        .isLength({ min: 6, max: 6 })
+        .withMessage('인증 코드는 6자리여야 합니다.')
+], async (req, res) => {
+    try {
+        // 검증 결과 확인
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: errors.array()[0].msg
+            });
+        }
+
+        const { email, code } = req.body;
+
+        // 저장된 인증 코드 확인
+        const storedData = verificationCodes.get(email);
+        
+        if (!storedData) {
+            return res.status(400).json({ 
+                success: false, 
+                message: '인증 코드를 먼저 요청해주세요.' 
+            });
+        }
+
+        // 만료 시간 확인
+        if (Date.now() > storedData.expires) {
+            verificationCodes.delete(email);
+            return res.status(400).json({ 
+                success: false, 
+                message: '인증 코드가 만료되었습니다.' 
+            });
+        }
+
+        // 인증 코드 확인
+        if (storedData.code !== code) {
+            return res.status(400).json({ 
+                success: false, 
+                message: '인증 코드가 일치하지 않습니다.' 
+            });
+        }
+
+        // 인증 성공 - 코드 삭제
+        verificationCodes.delete(email);
+        
+        console.log(`✅ 이메일 인증 성공: ${email}`);
+        res.json({ 
+            success: true, 
+            message: '이메일 인증이 완료되었습니다.' 
+        });
+
+    } catch (error) {
+        console.error('❌ 서버 오류:', error.message); // 민감정보 제외
+        res.status(500).json({ 
+            success: false, 
+            message: '서버 오류가 발생했습니다.' 
+        });
+    }
+});
+
+// 서버 상태 확인 API
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        success: true, 
+        message: '서버가 정상적으로 작동 중입니다.',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// 서버 시작
+app.listen(PORT, async () => {
+    console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
+    
+    // SMTP 연결 테스트
+    console.log('📧 SMTP 서버 연결 테스트 중...');
+    const smtpConnected = await testConnection();
+    
+    if (smtpConnected) {
+        console.log('✅ 이메일 서비스 준비 완료!');
+    } else {
+        console.log('❌ 이메일 서비스 연결 실패 - .env 설정을 확인해주세요.');
+    }
+
+    // MySQL 연결 테스트
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        await connection.ping();
+        console.log('✅ MySQL 연결 성공!');
+        await connection.end();
+    } catch (error) {
+        console.log('❌ MySQL 연결 실패: 데이터베이스 연결을 확인해주세요');
+        // 상세 오류는 개발 환경에서만 출력
+        if (process.env.NODE_ENV === 'development') {
+            console.log('상세 오류:', error.message);
+        }
+    }
+});

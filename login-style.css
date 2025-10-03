@@ -1,0 +1,257 @@
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #fff;
+  color: #111;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Login Container - 중앙 정렬 */
+.login-container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.login-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 60px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  color: #111;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 300;
+}
+
+.close-btn span {
+  font-size: 1.1rem;
+}
+
+.close-btn:hover {
+  opacity: 0.6;
+}
+
+.login-title {
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+/* Main Content - 세로 일렬 */
+.login-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-box {
+  width: 100%;
+}
+
+/* Kakao Login Button */
+.kakao-login-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background-color: #FEE500;
+  color: #000;
+  border: none;
+  border-radius: 2px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 40px;
+  transition: opacity 0.2s;
+}
+
+.kakao-login-btn:hover {
+  opacity: 0.9;
+}
+
+/* Privacy Link */
+.privacy-link-wrapper {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.privacy-link {
+  font-size: 12px;
+  color: #666;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.privacy-link:hover {
+  color: #111;
+}
+
+/* Divider */
+.divider {
+  text-align: center;
+  position: relative;
+  margin: 40px 0;
+  color: #999;
+  font-size: 0.85rem;
+  font-weight: 300;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 42%;
+  height: 1px;
+  background-color: #e5e5e5;
+}
+
+.divider::before {
+  left: 0;
+}
+
+.divider::after {
+  right: 0;
+}
+
+/* Input Group */
+.input-group {
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: #111;
+  margin-bottom: 8px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d5d5d5;
+  border-radius: 2px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+  background-color: #fff;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #111;
+}
+
+.forgot-password {
+  position: absolute;
+  right: 0;
+  bottom: -24px;
+  font-size: 0.85rem;
+  color: #666;
+  text-decoration: none;
+  border-bottom: 1px solid #666;
+}
+
+.forgot-password:hover {
+  color: #111;
+  border-bottom-color: #111;
+}
+
+/* Login Button */
+.login-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background-color: #d5d5d5;
+  color: #999;
+  border: none;
+  border-radius: 2px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: not-allowed;
+  margin-top: 40px;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.login-btn.active {
+  background-color: #111;
+  color: #fff;
+  cursor: pointer;
+}
+
+.login-btn.active:hover {
+  background-color: #333;
+}
+
+/* Signup Area */
+.signup-area {
+  margin-top: 60px;
+  padding-top: 40px;
+  border-top: 1px solid #e5e5e5;
+  text-align: center;
+}
+
+.signup-text {
+  font-size: 0.95rem;
+  color: #666;
+  margin-bottom: 24px;
+  font-weight: 300;
+}
+
+.create-account-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background-color: #111;
+  color: #fff;
+  border: none;
+  border-radius: 2px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.create-account-btn:hover {
+  background-color: #333;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 20px 16px;
+  }
+
+  .login-header {
+    margin-bottom: 40px;
+  }
+
+  .modal-content {
+    padding: 30px 20px;
+  }
+}

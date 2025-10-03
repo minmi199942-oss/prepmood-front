@@ -1,0 +1,26 @@
+# 🔒 운영환경 설정 (.env 파일을 이것으로 교체하세요)
+
+# 데이터베이스 설정 (새 사용자 및 비밀번호)
+DB_HOST=127.0.0.1
+DB_USER=prepmood_api
+DB_PASSWORD=여기에_새로운_MySQL_비밀번호_입력
+DB_NAME=prepmood
+
+# 이메일 설정 (새 앱 비밀번호)
+EMAIL_HOST=smtp.naver.com
+EMAIL_PORT=465
+EMAIL_SECURE=true
+EMAIL_USER=prepmoodcare@naver.com
+EMAIL_PASS=여기에_새로운_네이버_앱비밀번호_입력
+
+# 서버 설정
+PORT=3000
+NODE_ENV=production
+
+# 보안 설정
+ALLOWED_ORIGINS=https://prepmood.kr
+
+# 추가 보안 설정 (선택사항)
+SESSION_SECRET=여기에_랜덤한_세션_시크릿_입력
+JWT_SECRET=여기에_JWT_시크릿_입력
+
