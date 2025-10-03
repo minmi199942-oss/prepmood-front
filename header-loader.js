@@ -141,6 +141,83 @@ window.addEventListener('DOMContentLoaded', () => {
       });
 
       console.log('Dropdown system initialized with', megaItems.length, 'menu items');
+
+      // 검색 기능 초기화
+      const searchModal = document.getElementById('search-modal');
+      const searchToggle = document.getElementById('search-toggle');
+      const searchClose = document.getElementById('search-close');
+      const searchInput = document.getElementById('search-input');
+      const searchBtn = document.getElementById('search-btn');
+      const searchResults = document.getElementById('search-results');
+      const categoryFilter = document.getElementById('category-filter');
+      const priceFilter = document.getElementById('price-filter');
+
+      if (searchModal && searchToggle) {
+        // 검색 모달 열기
+        searchToggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          searchModal.style.display = 'block';
+          if (searchInput) searchInput.focus();
+        });
+
+        // 검색 모달 닫기
+        if (searchClose) {
+          searchClose.addEventListener('click', function() {
+            searchModal.style.display = 'none';
+          });
+        }
+
+        // 모달 외부 클릭 시 닫기
+        window.addEventListener('click', function(e) {
+          if (e.target === searchModal) {
+            searchModal.style.display = 'none';
+          }
+        });
+
+        // 검색 실행 함수
+        function performSearch() {
+          const query = searchInput ? searchInput.value.trim() : '';
+
+          if (!query) {
+            if (searchResults) {
+              searchResults.innerHTML = '<p class="no-results">검색어를 입력해주세요.</p>';
+            }
+            return;
+          }
+
+          // 검색 결과 페이지로 이동
+          const searchUrl = `search.html?q=${encodeURIComponent(query)}`;
+          window.location.href = searchUrl;
+        }
+
+        // 검색 모달은 이제 검색 결과 페이지로 리다이렉트만 합니다
+
+        // 검색 버튼 클릭
+        if (searchBtn) {
+          searchBtn.addEventListener('click', performSearch);
+        }
+
+        // 엔터키로 검색
+        if (searchInput) {
+          searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+              performSearch();
+            }
+          });
+        }
+
+        // 필터 변경 시 자동 검색
+        if (categoryFilter) {
+          categoryFilter.addEventListener('change', performSearch);
+        }
+        if (priceFilter) {
+          priceFilter.addEventListener('change', performSearch);
+        }
+
+        console.log('검색 기능이 초기화되었습니다.');
+      } else {
+        console.log('검색 요소를 찾을 수 없습니다.');
+      }
     })
     .catch(err => {
       console.error('헤더 로딩 실패:', err);

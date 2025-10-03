@@ -327,7 +327,7 @@
 </head>
 <body>
     <!-- 헤더 로드 -->
-    <div id="header-placeholder"></div>
+    <div id="header-container"></div>
 
     <main class="register-page">
         <div class="register-container">
@@ -464,6 +464,7 @@
                 this.nextToStep2.addEventListener('click', () => this.goToStep2());
                 this.backToStep1.addEventListener('click', () => this.goToStep1());
                 
+                
                 // 폼 제출
                 document.getElementById('personalInfoForm').addEventListener('submit', (e) => this.handleSubmit(e));
                 
@@ -559,6 +560,7 @@
             goToStep1() {
                 this.showStep(1);
             }
+
 
             showStep(step) {
                 this.currentStep = step;
