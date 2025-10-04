@@ -4,6 +4,7 @@ const mysql = require('mysql2/promise');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcrypt');
 const { sendVerificationEmail, testConnection } = require('./mailer');
 require('dotenv').config();
 
@@ -288,7 +289,6 @@ app.post('/api/register', [
 
         // 비밀번호 해시화 (bcrypt 사용)
         console.log('🔐 비밀번호 해시화 중...');
-        const bcrypt = require('bcrypt');
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         console.log('✅ 비밀번호 해시화 완료');
