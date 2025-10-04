@@ -399,6 +399,164 @@ app.post('/api/login', [
     }
 });
 
+// 이메일 수정 API
+app.post('/api/update-email', [
+    body('userId').isInt(),
+    body('newEmail').isEmail().normalizeEmail()
+], async (req, res) => {
+    try {
+        console.log('📋 이메일 수정 요청 데이터:', JSON.stringify(req.body, null, 2));
+        
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            console.log('❌ 유효성 검사 실패:', errors.array());
+            return res.status(400).json({
+                success: false,
+                message: '올바른 이메일 주소를 입력해주세요.',
+                errors: errors.array()
+            });
+        }
+
+        const { userId, newEmail } = req.body;
+
+        // MySQL 연결
+        console.log('🔗 MySQL 연결 시도 중...');
+        const connection = await mysql.createConnection(dbConfig);
+        console.log('✅ MySQL 연결 성공');
+
+        // 이메일 중복 확인
+        console.log('🔍 이메일 중복 확인 중...');
+        const [existingUsers] = await connection.execute(
+            'SELECT user_id FROM users WHERE email = ? AND user_id != ?',
+            [newEmail, userId]
+        );
+        console.log('📧 기존 사용자 수:', existingUsers.length);
+
+        if (existingUsers.length > 0) {
+            console.log('❌ 이미 사용 중인 이메일');
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: '이미 사용 중인 이메일입니다.'
+            });
+        }
+
+        // 이메일 업데이트
+        console.log('📧 이메일 업데이트 중...');
+        await connection.execute(
+            'UPDATE users SET email = ? WHERE user_id = ?',
+            [newEmail, userId]
+        );
+        console.log('✅ 이메일 업데이트 완료');
+
+        await connection.end();
+
+        console.log(`✅ 이메일 수정 성공: 사용자 ${userId} -> ${newEmail}`);
+        res.json({
+            success: true,
+            message: '이메일이 성공적으로 변경되었습니다.'
+        });
+
+    } catch (error) {
+        console.error('❌ 이메일 수정 오류:', error.message);
+        console.error('📋 에러 스택:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: '이메일 변경 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+// 비밀번호 수정 API
+app.post('/api/update-password', [
+    body('userId').isInt(),
+    body('currentPassword').notEmpty(),
+    body('newPassword').isLength({ min: 8 })
+], async (req, res) => {
+    try {
+        console.log('📋 비밀번호 수정 요청 데이터:', JSON.stringify({...req.body, currentPassword: '[HIDDEN]', newPassword: '[HIDDEN]'}, null, 2));
+        
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            console.log('❌ 유효성 검사 실패:', errors.array());
+            return res.status(400).json({
+                success: false,
+                message: '새 비밀번호는 8자 이상이어야 합니다.',
+                errors: errors.array()
+            });
+        }
+
+        const { userId, currentPassword, newPassword } = req.body;
+
+        // MySQL 연결
+        console.log('🔗 MySQL 연결 시도 중...');
+        const connection = await mysql.createConnection(dbConfig);
+        console.log('✅ MySQL 연결 성공');
+
+        // 사용자 정보 조회
+        console.log('🔍 사용자 정보 조회 중...');
+        const [users] = await connection.execute(
+            'SELECT user_id, password_hash FROM users WHERE user_id = ?',
+            [userId]
+        );
+        console.log('👤 조회된 사용자 수:', users.length);
+
+        if (users.length === 0) {
+            console.log('❌ 사용자를 찾을 수 없음');
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '사용자를 찾을 수 없습니다.'
+            });
+        }
+
+        const user = users[0];
+
+        // 현재 비밀번호 확인
+        console.log('🔐 현재 비밀번호 확인 중...');
+        const passwordMatch = await bcrypt.compare(currentPassword, user.password_hash);
+        
+        if (!passwordMatch) {
+            console.log('❌ 현재 비밀번호 불일치');
+            await connection.end();
+            return res.status(401).json({
+                success: false,
+                message: '현재 비밀번호가 올바르지 않습니다.'
+            });
+        }
+
+        // 새 비밀번호 해시화
+        console.log('🔐 새 비밀번호 해시화 중...');
+        const saltRounds = 10;
+        const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+        console.log('✅ 새 비밀번호 해시화 완료');
+
+        // 비밀번호 업데이트
+        console.log('🔐 비밀번호 업데이트 중...');
+        await connection.execute(
+            'UPDATE users SET password_hash = ? WHERE user_id = ?',
+            [hashedNewPassword, userId]
+        );
+        console.log('✅ 비밀번호 업데이트 완료');
+
+        await connection.end();
+
+        console.log(`✅ 비밀번호 수정 성공: 사용자 ${userId}`);
+        res.json({
+            success: true,
+            message: '비밀번호가 성공적으로 변경되었습니다.'
+        });
+
+    } catch (error) {
+        console.error('❌ 비밀번호 수정 오류:', error.message);
+        console.error('📋 에러 스택:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: '비밀번호 변경 중 오류가 발생했습니다.'
+        });
+    }
+});
+
 // 서버 상태 확인 API
 app.get('/api/health', (req, res) => {
     res.json({ 
