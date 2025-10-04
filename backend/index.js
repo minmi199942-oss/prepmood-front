@@ -247,15 +247,38 @@ app.post('/api/register', [
         }
 
         // MySQL 연결
+        console.log('🔗 MySQL 연결 시도 중...');
         const connection = await mysql.createConnection(dbConfig);
+        console.log('✅ MySQL 연결 성공');
+
+        // users 테이블이 존재하는지 확인하고 생성
+        try {
+            await connection.execute(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    password VARCHAR(255) NOT NULL,
+                    name VARCHAR(255) NOT NULL,
+                    birthdate DATE NOT NULL,
+                    phone VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+            console.log('✅ users 테이블 확인/생성 완료');
+        } catch (tableError) {
+            console.error('❌ 테이블 생성 오류:', tableError.message);
+        }
 
         // 이메일 중복 확인
+        console.log('🔍 이메일 중복 확인 중...');
         const [existingUsers] = await connection.execute(
             'SELECT id FROM users WHERE email = ?',
             [email]
         );
+        console.log('📧 기존 사용자 수:', existingUsers.length);
 
         if (existingUsers.length > 0) {
+            console.log('❌ 이미 가입된 이메일');
             await connection.end();
             return res.status(400).json({
                 success: false,
@@ -264,16 +287,20 @@ app.post('/api/register', [
         }
 
         // 비밀번호 해시화 (bcrypt 사용)
+        console.log('🔐 비밀번호 해시화 중...');
         const bcrypt = require('bcrypt');
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
+        console.log('✅ 비밀번호 해시화 완료');
 
         // 사용자 정보 저장 (전화번호는 선택사항)
         const phoneValue = phone || null;
+        console.log('💾 사용자 정보 저장 중...', { email, name, birthdate, phone: phoneValue });
         await connection.execute(
             'INSERT INTO users (email, password, name, birthdate, phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
             [email, hashedPassword, name, birthdate, phoneValue]
         );
+        console.log('✅ 사용자 정보 저장 완료');
 
         await connection.end();
 
