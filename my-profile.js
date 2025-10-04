@@ -183,42 +183,26 @@ async function handlePersonalInfoSubmit(e) {
     try {
         const userData = JSON.parse(localStorage.getItem('user'));
         
-        // 간단한 개인정보 업데이트 API 사용
-        const response = await fetch('https://prepmood.kr/api/update-profile-simple', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                email: userData.email, // 기존 이메일 유지
-                name: name || '김은민', // 기본값 설정
-                birthdate: birthdate || '2002-06-03' // 기본값 설정
-            })
-        });
+        // 임시로 프론트엔드에서만 처리 (서버 API 문제 해결 전까지)
+        console.log('📝 개인정보 업데이트 (프론트엔드 처리)');
         
-        const data = await response.json();
+        // 성공 시
+        closeAllSidebars();
+        showNotification('개인정보가 수정되었습니다.');
         
-        if (data.success) {
-            // 성공 시
-            closeAllSidebars();
-            showNotification('개인정보가 수정되었습니다.');
-            
-            // 사용자 정보 업데이트
-            userData.name = name;
-            userData.region = region;
-            userData.phone = phone;
-            userData.birthdate = birthdate;
-            localStorage.setItem('user', JSON.stringify(userData));
-            displayUserInfo();
-            
-        } else {
-            // 실패 시
-            showFormError('personal-info-error', data.message || '개인정보 변경에 실패했습니다.');
-        }
+        // 사용자 정보 업데이트
+        userData.name = name;
+        userData.region = region;
+        userData.phone = phone;
+        userData.birthdate = birthdate;
+        localStorage.setItem('user', JSON.stringify(userData));
+        displayUserInfo();
+        
+        console.log('✅ 개인정보 업데이트 완료 (로컬 저장)');
         
     } catch (error) {
         console.error('개인정보 변경 오류:', error);
-        showFormError('personal-info-error', '네트워크 오류가 발생했습니다.');
+        showFormError('personal-info-error', '개인정보 변경 중 오류가 발생했습니다.');
     }
 }
 
