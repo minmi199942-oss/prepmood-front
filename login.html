@@ -75,11 +75,23 @@
       function updateLoginButton() {
         const email = emailInput.value.trim();
         const password = passwordInput.value.trim();
-        loginBtn.disabled = !(email && password);
+        const isFormValid = email && password;
+        
+        loginBtn.disabled = !isFormValid;
+        
+        // CSS 클래스 추가/제거
+        if (isFormValid) {
+          loginBtn.classList.add('active');
+        } else {
+          loginBtn.classList.remove('active');
+        }
       }
 
       emailInput.addEventListener('input', updateLoginButton);
       passwordInput.addEventListener('input', updateLoginButton);
+      
+      // 페이지 로드 시 초기 상태 설정
+      updateLoginButton();
 
       // 로그인 폼 제출
       loginForm.addEventListener('submit', async function(e) {
