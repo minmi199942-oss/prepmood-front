@@ -190,8 +190,9 @@ app.post('/api/verify-code', [
             });
         }
 
-        // 인증 성공 - 코드 삭제
-        verificationCodes.delete(email);
+        // 인증 성공 - 인증 상태만 표시 (코드는 회원가입 완료 시 삭제)
+        storedData.verified = true;
+        verificationCodes.set(email, storedData);
         
         console.log(`✅ 이메일 인증 성공: ${email}`);
         res.json({ 
@@ -236,7 +237,8 @@ app.post('/api/register', [
         console.log('📧 요청된 이메일:', email);
         console.log('📧 인증 상태:', verificationCodes.has(email));
         
-        if (!verificationCodes.has(email)) {
+        const verificationData = verificationCodes.get(email);
+        if (!verificationData || !verificationData.verified) {
             console.log('❌ 이메일 인증되지 않음');
             return res.status(400).json({
                 success: false,
