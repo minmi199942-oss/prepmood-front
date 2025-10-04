@@ -24,8 +24,11 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With']
 }));
 
-// 보안 미들웨어 (CORS 문제 해결을 위해 임시 비활성화)
-// app.use(helmet()); // 기본 보안 헤더 설정
+// 보안 미들웨어
+app.use(helmet({
+    contentSecurityPolicy: false, // CORS와 호환성을 위해 비활성화
+    crossOriginEmbedderPolicy: false
+}));
 
 // Rate Limiting (API 남용 방지)
 const apiLimiter = rateLimit({
@@ -52,11 +55,21 @@ const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 3306,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    acquireTimeout: 60000,
+    timeout: 60000,
+    reconnect: true
 };
 
 // 인증 코드 저장소 (실제 환경에서는 Redis 또는 DB 사용 권장)
 const verificationCodes = new Map();
+
+// 로그인 시도 제한 (실제 환경에서는 Redis 사용 권장)
+const loginAttempts = new Map();
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_TIME = 15 * 60 * 1000; // 15분
 
 // 6자리 랜덤 인증 코드 생성
 const generateVerificationCode = () => {
