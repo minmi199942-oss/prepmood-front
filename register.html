@@ -775,7 +775,11 @@
             validateAllStep1() {
                 const emailValid = this.validateEmail();
                 const codeValid = this.validateVerificationCode();
-                return emailValid && codeValid && this.emailVerified;
+                const code = document.getElementById('verificationCode').value;
+                
+                // 이메일이 유효하고 인증 코드가 6자리면 버튼 활성화
+                // 실제 인증은 "다음 단계" 버튼 클릭 시에만 시도
+                return emailValid && codeValid && code && code.length === 6;
             }
 
             validateAllStep2() {
