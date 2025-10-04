@@ -195,6 +195,83 @@ app.post('/api/verify-code', [
     }
 });
 
+// 회원가입 API
+app.post('/api/register', [
+    body('email').isEmail().normalizeEmail(),
+    body('password').isLength({ min: 8 }),
+    body('name').notEmpty().trim(),
+    body('birthdate').isISO8601(),
+    body('phone').notEmpty().trim()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: '입력 정보를 확인해주세요.',
+                errors: errors.array()
+            });
+        }
+
+        const { email, password, name, birthdate, phone } = req.body;
+
+        // 이메일이 인증되었는지 확인
+        if (!verificationCodes.has(email)) {
+            return res.status(400).json({
+                success: false,
+                message: '이메일 인증을 먼저 완료해주세요.'
+            });
+        }
+
+        // MySQL 연결
+        const connection = await mysql.createConnection(dbConfig);
+
+        // 이메일 중복 확인
+        const [existingUsers] = await connection.execute(
+            'SELECT id FROM users WHERE email = ?',
+            [email]
+        );
+
+        if (existingUsers.length > 0) {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: '이미 가입된 이메일입니다.'
+            });
+        }
+
+        // 비밀번호 해시화 (bcrypt 사용)
+        const bcrypt = require('bcrypt');
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // 사용자 정보 저장
+        await connection.execute(
+            'INSERT INTO users (email, password, name, birthdate, phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
+            [email, hashedPassword, name, birthdate, phone]
+        );
+
+        await connection.end();
+
+        // 인증 코드 삭제
+        verificationCodes.delete(email);
+
+        console.log(`✅ 회원가입 성공: ${email}`);
+        res.json({
+            success: true,
+            message: '회원가입이 완료되었습니다.'
+        });
+
+    } catch (error) {
+        console.error('❌ 회원가입 오류:', error.message);
+        console.error('📋 에러 스택:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: '회원가입 중 오류가 발생했습니다.'
+        });
+    }
+});
+
 // 서버 상태 확인 API
 app.get('/api/health', (req, res) => {
     res.json({ 

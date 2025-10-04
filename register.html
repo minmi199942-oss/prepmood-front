@@ -478,12 +478,31 @@
                     this.validateVerificationCode();
                     this.updateNextButton();
                 });
-                document.getElementById('lastName').addEventListener('input', () => this.validateLastName());
-                document.getElementById('firstName').addEventListener('input', () => this.validateFirstName());
-                document.getElementById('birthdate').addEventListener('input', () => this.validateBirthdate());
-                document.getElementById('phone').addEventListener('input', () => this.validatePhone());
-                document.getElementById('password').addEventListener('input', () => this.validatePassword());
-                document.getElementById('confirmPassword').addEventListener('input', () => this.validateConfirmPassword());
+                document.getElementById('lastName').addEventListener('input', () => {
+                    this.validateLastName();
+                    this.updateRegisterButton();
+                });
+                document.getElementById('firstName').addEventListener('input', () => {
+                    this.validateFirstName();
+                    this.updateRegisterButton();
+                });
+                document.getElementById('birthdate').addEventListener('input', () => {
+                    this.validateBirthdate();
+                    this.updateRegisterButton();
+                });
+                document.getElementById('phone').addEventListener('input', () => {
+                    this.validatePhone();
+                    this.updateRegisterButton();
+                });
+                document.getElementById('password').addEventListener('input', () => {
+                    this.validatePassword();
+                    this.validateConfirmPassword(); // 비밀번호 변경 시 확인도 재검증
+                    this.updateRegisterButton();
+                });
+                document.getElementById('confirmPassword').addEventListener('input', () => {
+                    this.validateConfirmPassword();
+                    this.updateRegisterButton();
+                });
             }
 
             async sendVerification() {
@@ -582,6 +601,9 @@
                     this.step2.classList.add('active');
                     this.step1Indicator.classList.remove('active');
                     this.step2Indicator.classList.add('active');
+                    
+                    // 2단계로 이동할 때 회원가입 버튼 상태 업데이트
+                    this.updateRegisterButton();
                 }
             }
 
