@@ -251,10 +251,9 @@ app.post('/api/register', [
 
         // users 테이블이 존재하는지 확인하고 생성
         try {
-            console.log('🔨 users 테이블 생성 시도 중...');
-            await connection.execute(`DROP TABLE IF EXISTS users`);
+            console.log('🔨 users 테이블 확인/생성 시도 중...');
             await connection.execute(`
-                CREATE TABLE users (
+                CREATE TABLE IF NOT EXISTS users (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     email VARCHAR(255) UNIQUE NOT NULL,
                     password VARCHAR(255) NOT NULL,
@@ -264,7 +263,7 @@ app.post('/api/register', [
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             `);
-            console.log('✅ users 테이블 생성 완료');
+            console.log('✅ users 테이블 확인/생성 완료');
         } catch (tableError) {
             console.error('❌ 테이블 생성 오류:', tableError.message);
             console.error('❌ 테이블 생성 상세 오류:', tableError);
