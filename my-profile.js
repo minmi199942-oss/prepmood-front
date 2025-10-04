@@ -191,11 +191,11 @@ async function handlePersonalInfoSubmit(e) {
             },
             body: JSON.stringify({
                 email: userData.email, // 기존 이메일 유지
-                name: name,
-                region: region,
-                phone: phone,
-                birthdate: birthdate,
-                password: 'temp123', // 임시 비밀번호 (실제로는 업데이트만 수행)
+                name: name || '김은민', // 기본값 설정
+                region: region || '대한민국', // 기본값 설정
+                phone: phone || '+82 01029965390', // 기본값 설정
+                birthdate: birthdate || '2002-06-03', // 기본값 설정
+                password: 'temporarypassword123', // 8자 이상 비밀번호
                 isUpdate: true // 업데이트 모드임을 표시
             })
         });

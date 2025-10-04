@@ -233,6 +233,7 @@ app.post('/api/register', [
         // 업데이트 모드인지 확인
         if (isUpdate) {
             console.log('🔄 개인정보 업데이트 모드');
+            // 업데이트 모드에서는 검증을 건너뛰고 바로 처리
             return await handleProfileUpdate(req, res, { email, name, birthdate, phone });
         }
 
