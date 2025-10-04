@@ -214,6 +214,97 @@
             cursor: not-allowed;
         }
 
+        /* 개인정보 동의 섹션 스타일 */
+        .consent-section {
+            margin-top: 32px;
+            margin-bottom: 25px;
+        }
+
+        .consent-item {
+            margin-bottom: 15px;
+        }
+
+        .consent-checkbox {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            font-size: 13px;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .consent-checkbox input[type="checkbox"] {
+            display: none;
+        }
+
+        .checkmark {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            margin-right: 12px;
+            margin-top: 2px;
+            flex-shrink: 0;
+            position: relative;
+            background-color: #fff;
+            transition: all 0.2s ease;
+        }
+
+        .consent-checkbox input[type="checkbox"]:checked + .checkmark {
+            background-color: #000;
+            border-color: #000;
+        }
+
+        .consent-checkbox input[type="checkbox"]:checked + .checkmark::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .consent-text {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .consent-text .required {
+            color: #d32f2f;
+            font-weight: 600;
+        }
+
+        .consent-text .optional {
+            color: #666;
+            font-weight: 400;
+        }
+
+        .consent-description {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+            margin: 0 0 0 30px;
+            padding: 0;
+        }
+
+        .privacy-notice {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 3px solid #000;
+        }
+
+        .privacy-notice p {
+            font-size: 12px;
+            color: #333;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+        }
+
         .verification-code {
             display: none;
             margin-top: 20px;
@@ -425,6 +516,41 @@
                         <div class="error-message" id="confirmPasswordError"></div>
                     </div>
 
+                    <!-- 개인정보 동의 항목들 -->
+                    <div class="consent-section">
+                        <!-- 개인정보 수집 및 이용 동의 (필수) -->
+                        <div class="consent-item">
+                            <label class="consent-checkbox">
+                                <input type="checkbox" id="privacyConsent" required>
+                                <span class="checkmark"></span>
+                                <span class="consent-text">개인정보 수집 및 이용 동의 <span class="required">(필수)</span></span>
+                            </label>
+                            <p class="consent-description">
+                                본인은 개인정보 수집 및 이용에 동의하며, 프레피무드가 고객관계 관리 목적에 따라 개인정보를 처리함을 이해합니다.
+                            </p>
+                            <div class="error-message" id="privacyConsentError"></div>
+                        </div>
+
+                        <!-- 광고성 정보 수신 동의 (선택) -->
+                        <div class="consent-item">
+                            <label class="consent-checkbox">
+                                <input type="checkbox" id="marketingConsent">
+                                <span class="checkmark"></span>
+                                <span class="consent-text">광고성 정보 수신 동의 <span class="optional">(선택)</span></span>
+                            </label>
+                            <p class="consent-description">
+                                향후 '프레피무드' 및 기타 브랜드, 프레피무드 제품 및 서비스에 관한 마케팅 및 프로모션 메시지, 뉴스레터, 광고 및 카탈로그를 포함한 상업용 전자 커뮤니케이션 수신을 희망합니다.
+                            </p>
+                        </div>
+
+                        <!-- 개인정보 처리 안내문 -->
+                        <div class="privacy-notice">
+                            <p>
+                                확인 버튼을 클릭함으로써 귀하는 개인정보 보호정책을 읽었으며, 프레피무드가 귀하의 고객 관계를 관리하기 위해 개인정보를 처리하는 데 동의함을 확인하게 됩니다. 프레피무드는 귀하의 선호도에 맞춰 맞춤형 서비스를 제공하기 위해 관련 법인과 정보를 공유할 수 있습니다.
+                            </p>
+                        </div>
+                    </div>
+
                     <button type="submit" class="register-btn" id="registerBtn" disabled>회원가입</button>
                 </form>
             </div>
@@ -501,6 +627,12 @@
                 });
                 document.getElementById('confirmPassword').addEventListener('input', () => {
                     this.validateConfirmPassword();
+                    this.updateRegisterButton();
+                });
+                
+                // 개인정보 동의 체크박스 이벤트 리스너
+                document.getElementById('privacyConsent').addEventListener('change', () => {
+                    this.validatePrivacyConsent();
                     this.updateRegisterButton();
                 });
             }
@@ -812,8 +944,21 @@
                 const phoneValid = this.validatePhone();
                 const passwordValid = this.validatePassword();
                 const confirmPasswordValid = this.validateConfirmPassword();
+                const privacyConsentValid = this.validatePrivacyConsent();
                 
-                return lastNameValid && firstNameValid && birthdateValid && phoneValid && passwordValid && confirmPasswordValid;
+                return lastNameValid && firstNameValid && birthdateValid && phoneValid && passwordValid && confirmPasswordValid && privacyConsentValid;
+            }
+
+            validatePrivacyConsent() {
+                const privacyConsent = document.getElementById('privacyConsent').checked;
+                
+                if (!privacyConsent) {
+                    this.showError('privacyConsentError', '개인정보 수집 및 이용 동의는 필수입니다.');
+                    return false;
+                } else {
+                    this.hideError('privacyConsentError');
+                    return true;
+                }
             }
 
             updateNextButton() {
