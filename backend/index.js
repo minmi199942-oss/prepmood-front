@@ -217,8 +217,11 @@ app.post('/api/register', [
     body('phone').optional().trim()
 ], async (req, res) => {
     try {
+        console.log('📋 회원가입 요청 데이터:', JSON.stringify(req.body, null, 2));
+        
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
+            console.log('❌ 유효성 검사 실패:', errors.array());
             return res.status(400).json({
                 success: false,
                 message: '입력 정보를 확인해주세요.',
@@ -229,7 +232,12 @@ app.post('/api/register', [
         const { email, password, name, birthdate, phone } = req.body;
 
         // 이메일이 인증되었는지 확인
+        console.log('📧 인증된 이메일 목록:', Array.from(verificationCodes.keys()));
+        console.log('📧 요청된 이메일:', email);
+        console.log('📧 인증 상태:', verificationCodes.has(email));
+        
         if (!verificationCodes.has(email)) {
+            console.log('❌ 이메일 인증되지 않음');
             return res.status(400).json({
                 success: false,
                 message: '이메일 인증을 먼저 완료해주세요.'
