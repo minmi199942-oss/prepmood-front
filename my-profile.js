@@ -85,6 +85,9 @@ function handleEditClick(field) {
         case 'password':
             openPasswordSidebar();
             break;
+        case 'payment':
+            openPaymentSidebar();
+            break;
         default:
             showNotification('해당 기능은 준비 중입니다.');
     }
@@ -116,6 +119,11 @@ function openPasswordSidebar() {
     setTimeout(() => {
         document.getElementById('current-password').focus();
     }, 300);
+}
+
+// 결제 방법 사이드바 열기 (추후 기능 확장용)
+function openPaymentSidebar() {
+    showNotification('결제 방법 추가 기능은 준비 중입니다.');
 }
 
 // 사이드바 이벤트 초기화
@@ -239,7 +247,7 @@ async function handleEmailSubmit(e) {
         if (data.success) {
             // 성공 시
             closeAllSidebars();
-            showNotification('수정이 완료되었습니다.');
+            showNotification('이메일이 수정되었습니다.');
             
             // 사용자 정보 업데이트
             userData.email = email;
@@ -290,7 +298,7 @@ async function handlePasswordSubmit(e) {
         if (data.success) {
             // 성공 시
             closeAllSidebars();
-            showNotification('수정이 완료되었습니다.');
+            showNotification('비밀번호가 수정되었습니다.');
             
         } else {
             // 실패 시

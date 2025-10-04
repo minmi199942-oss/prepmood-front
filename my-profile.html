@@ -51,105 +51,80 @@
             <section class="main-content">
                 <div class="content-container">
                     <!-- 페이지 제목 -->
-                    <h1 class="page-title">내 프로필</h1>
+                    <div class="page-header">
+                        <h1 class="page-title">개인정보</h1>
+                        <p class="page-subtitle">모든 계정 정보 관리</p>
+                        <p class="page-english">Profile</p>
+                    </div>
 
                     <!-- 프로필 섹션들 -->
                     <div class="profile-sections">
                         <!-- 개인정보 섹션 -->
                         <section class="profile-section">
                             <h2 class="section-title">개인정보</h2>
-                            <div class="profile-grid">
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">이름</span>
-                                        <span class="profile-value" id="user-first-name">은민</span>
-                                    </div>
-                                    <button class="edit-button" data-field="firstName">수정</button>
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-label">이름(성 제외)</span>
+                                    <span class="profile-value" id="user-first-name">은민</span>
                                 </div>
-                                
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">성</span>
-                                        <span class="profile-value" id="user-last-name">김</span>
-                                    </div>
-                                    <button class="edit-button" data-field="lastName">수정</button>
+                                <button class="edit-button" data-field="firstName">수정</button>
+                            </div>
+                            
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-label">지역</span>
+                                    <span class="profile-value" id="user-region">대한민국</span>
                                 </div>
-                                
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">지역</span>
-                                        <span class="profile-value" id="user-region">서울특별시</span>
-                                    </div>
-                                    <button class="edit-button" data-field="region">수정</button>
+                                <button class="edit-button" data-field="region">수정</button>
+                            </div>
+                            
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-label">연락처</span>
+                                    <span class="profile-value" id="user-phone">+82 01029965390</span>
                                 </div>
-                                
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">연락처</span>
-                                        <span class="profile-value" id="user-phone">+82 10-1234-5678</span>
-                                    </div>
-                                    <button class="edit-button" data-field="phone">수정</button>
+                                <button class="edit-button" data-field="phone">수정</button>
+                            </div>
+                            
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-label">생년월일(년, 월, 일)</span>
+                                    <span class="profile-value" id="user-birthdate">2002. 06. 03.</span>
                                 </div>
-                                
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">생년월일</span>
-                                        <span class="profile-value" id="user-birthdate">2002-06-03</span>
-                                    </div>
-                                    <button class="edit-button" data-field="birthdate">수정</button>
-                                </div>
-                                
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">결제수단</span>
-                                        <span class="profile-value" id="user-payment">등록된 결제수단 없음</span>
-                                    </div>
-                                    <button class="edit-button" data-field="payment">수정</button>
-                                </div>
-                                
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">이메일을 통한</span>
-                                        <span class="profile-value" id="user-email">dmsals0603@naver.com</span>
-                                    </div>
-                                    <button class="edit-button" data-field="email">수정</button>
-                                </div>
-                                
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">비밀번호</span>
-                                        <span class="profile-value">••••••••</span>
-                                    </div>
-                                    <button class="edit-button" data-field="password">수정</button>
-                                </div>
+                                <button class="edit-button" data-field="birthdate">수정</button>
                             </div>
                         </section>
 
-                        <!-- 기본 주소 섹션 -->
+                        <!-- 이메일 섹션 -->
                         <section class="profile-section">
-                            <h2 class="section-title">기본 주소</h2>
-                            <div class="profile-grid">
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">기본 배송지</span>
-                                        <span class="profile-value">등록된 주소 없음</span>
-                                    </div>
-                                    <button class="edit-button" data-field="address">수정</button>
+                            <h2 class="section-title">이메일을 통한</h2>
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-value" id="user-email">dmsals0603@naver.com</span>
                                 </div>
+                                <button class="edit-button" data-field="email">수정</button>
                             </div>
                         </section>
 
-                        <!-- 정품 인증 소유 목록 섹션 -->
+                        <!-- 비밀번호 섹션 -->
                         <section class="profile-section">
-                            <h2 class="section-title">정품 인증 소유 목록</h2>
-                            <div class="profile-grid">
-                                <div class="profile-item">
-                                    <div class="profile-info">
-                                        <span class="profile-label">인증된 제품</span>
-                                        <span class="profile-value">인증된 제품 없음</span>
-                                    </div>
-                                    <button class="edit-button" data-field="authenticated">관리</button>
+                            <h2 class="section-title">비밀번호</h2>
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-value">••••••••••</span>
                                 </div>
+                                <button class="edit-button" data-field="password">수정</button>
+                            </div>
+                        </section>
+
+                        <!-- 결제 방법 섹션 -->
+                        <section class="profile-section">
+                            <h2 class="section-title">결제 방법</h2>
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-value">등록된 결제수단 없음</span>
+                                </div>
+                                <button class="edit-button" data-field="payment">추가</button>
                             </div>
                         </section>
                     </div>
