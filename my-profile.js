@@ -183,9 +183,9 @@ async function handlePersonalInfoSubmit(e) {
     try {
         const userData = JSON.parse(localStorage.getItem('user'));
         
-        // 서버 API 호출 시도
+        // 서버 API 호출 시도 (간단한 업데이트 엔드포인트 사용)
         try {
-            const response = await fetch('https://prepmood.kr/api/register', {
+            const response = await fetch('https://prepmood.kr/api/update-profile-simple', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -193,10 +193,7 @@ async function handlePersonalInfoSubmit(e) {
                 body: JSON.stringify({
                     email: userData.email,
                     name: name,
-                    birthdate: birthdate,
-                    phone: phone,
-                    password: 'temporarypassword123',
-                    isUpdate: true
+                    birthdate: birthdate
                 })
             });
             
