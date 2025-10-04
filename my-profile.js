@@ -183,45 +183,58 @@ async function handlePersonalInfoSubmit(e) {
     try {
         const userData = JSON.parse(localStorage.getItem('user'));
         
-        // 임시로 기존 회원가입 API 활용 (isUpdate 플래그 사용)
-        const response = await fetch('https://prepmood.kr/api/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                email: userData.email,
-                name: name,
-                birthdate: birthdate,
-                phone: phone,
-                password: 'temporarypassword123', // 임시 비밀번호
-                isUpdate: true // 업데이트 모드 플래그
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // 성공 시
-            closeAllSidebars();
-            showNotification('개인정보가 수정되었습니다.');
+        // 서버 API 호출 시도
+        try {
+            const response = await fetch('https://prepmood.kr/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: userData.email,
+                    name: name,
+                    birthdate: birthdate,
+                    phone: phone,
+                    password: 'temporarypassword123',
+                    isUpdate: true
+                })
+            });
             
-            // 사용자 정보 업데이트 (로컬도 함께 업데이트)
-            userData.name = name;
-            userData.region = region;
-            userData.phone = phone;
-            userData.birthdate = birthdate;
-            localStorage.setItem('user', JSON.stringify(userData));
-            displayUserInfo();
+            const data = await response.json();
             
-        } else {
-            // 실패 시
-            showFormError('personal-info-error', data.message || '개인정보 변경에 실패했습니다.');
+            if (data.success) {
+                // 서버 저장 성공
+                closeAllSidebars();
+                showNotification('개인정보가 서버에 저장되었습니다.');
+                
+                // 로컬도 업데이트
+                userData.name = name;
+                userData.region = region;
+                userData.phone = phone;
+                userData.birthdate = birthdate;
+                localStorage.setItem('user', JSON.stringify(userData));
+                displayUserInfo();
+                return;
+            }
+        } catch (apiError) {
+            console.log('서버 API 호출 실패, 로컬 저장으로 대체:', apiError.message);
         }
+        
+        // 서버 저장 실패 시 로컬 저장
+        closeAllSidebars();
+        showNotification('개인정보가 임시로 저장되었습니다. (서버 연동 필요)');
+        
+        // 로컬 저장
+        userData.name = name;
+        userData.region = region;
+        userData.phone = phone;
+        userData.birthdate = birthdate;
+        localStorage.setItem('user', JSON.stringify(userData));
+        displayUserInfo();
         
     } catch (error) {
         console.error('개인정보 변경 오류:', error);
-        showFormError('personal-info-error', '네트워크 오류가 발생했습니다.');
+        showFormError('personal-info-error', '개인정보 변경 중 오류가 발생했습니다.');
     }
 }
 
