@@ -547,6 +547,14 @@
 
             goToStep2() {
                 if (!this.emailVerified) {
+                    // 인증 코드가 6자리인지 확인
+                    const code = document.getElementById('verificationCode').value;
+                    if (!code || code.length !== 6) {
+                        this.showError('codeError', '인증 코드 6자리를 입력해주세요.');
+                        return;
+                    }
+                    
+                    // 인증 시도
                     this.verifyCode().then(verified => {
                         if (verified) {
                             this.showStep(2);
@@ -661,49 +669,12 @@
                 } else if (code && code.length !== 6) {
                     this.showError('codeError', '인증 코드는 6자리입니다.');
                     return false;
-                } else if (code && code.length === 6) {
-                    // 6자리 코드가 입력되면 자동으로 인증 시도
-                    this.autoVerifyCode();
-                    this.hideError('codeError');
-                    return true;
                 } else {
                     this.hideError('codeError');
                     return true;
                 }
             }
 
-            async autoVerifyCode() {
-                const email = document.getElementById('email').value;
-                const code = document.getElementById('verificationCode').value;
-
-                if (!email || !code || code.length !== 6) return;
-
-                try {
-                    const response = await fetch('https://prepmood.kr/api/verify-code', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ email, code })
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        this.emailVerified = true;
-                        this.showSuccess('이메일 인증이 완료되었습니다.');
-                        this.updateNextButton();
-                    } else {
-                        this.emailVerified = false;
-                        this.showError('codeError', data.message);
-                        this.updateNextButton();
-                    }
-                } catch (error) {
-                    this.emailVerified = false;
-                    this.showError('codeError', '네트워크 오류가 발생했습니다.');
-                    this.updateNextButton();
-                }
-            }
 
             validateLastName() {
                 const lastName = document.getElementById('lastName').value;
@@ -806,7 +777,10 @@
             validateAllStep1() {
                 const emailValid = this.validateEmail();
                 const codeValid = this.validateVerificationCode();
-                return emailValid && codeValid && this.emailVerified;
+                const code = document.getElementById('verificationCode').value;
+                
+                // 이메일이 유효하고 인증 코드가 6자리면 버튼 활성화 (인증 완료 여부와 관계없이)
+                return emailValid && codeValid && code && code.length === 6;
             }
 
             validateAllStep2() {
