@@ -45,10 +45,18 @@ function displayUserInfo() {
             document.getElementById('user-full-name').textContent = user.name || '김은민';
             document.getElementById('user-email').textContent = user.email || '';
             
-            // 추가 정보는 기본값으로 설정 (실제로는 API에서 가져와야 함)
-            document.getElementById('user-region').textContent = '대한민국';
-            document.getElementById('user-phone').textContent = '+82 01029965390';
-            document.getElementById('user-birthdate').textContent = '2002. 06. 03.';
+            // 사용자 정보가 있으면 사용, 없으면 기본값
+            document.getElementById('user-region').textContent = user.region || '대한민국';
+            document.getElementById('user-phone').textContent = user.phone || '+82 01029965390';
+            
+            // 생년월일 형식 처리
+            if (user.birthdate) {
+                const birthDate = new Date(user.birthdate);
+                const formattedBirth = `${birthDate.getFullYear()}. ${String(birthDate.getMonth() + 1).padStart(2, '0')}. ${String(birthDate.getDate()).padStart(2, '0')}.`;
+                document.getElementById('user-birthdate').textContent = formattedBirth;
+            } else {
+                document.getElementById('user-birthdate').textContent = '2002. 06. 03.';
+            }
             
         } catch (error) {
             console.error('사용자 정보 파싱 오류:', error);
@@ -134,12 +142,19 @@ function openPersonalInfoSidebar() {
     const currentBirthdate = document.getElementById('user-birthdate').textContent;
     
     // 날짜 형식 변환 (2002. 06. 03. -> 2002-06-03)
-    const formattedDate = currentBirthdate.replace(/\.\s*/g, '-').replace(/\.$/, '');
+    const formattedDate = currentBirthdate.replace(/\.\s*/g, '-').replace(/\.$/, '').replace(/-$/, '');
     
     document.getElementById('edit-name').placeholder = currentName;
     document.getElementById('edit-region').placeholder = currentRegion;
     document.getElementById('edit-phone').placeholder = currentPhone;
-    document.getElementById('edit-birthdate').value = formattedDate;
+    
+    // 날짜 형식 검증 후 설정
+    if (formattedDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        document.getElementById('edit-birthdate').value = formattedDate;
+    } else {
+        // 기본값으로 현재 날짜 설정
+        document.getElementById('edit-birthdate').value = '';
+    }
     
     overlay.classList.add('show');
     sidebar.classList.add('show');
@@ -174,7 +189,7 @@ async function handlePersonalInfoSubmit(e) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                userId: userData.id,
+                userId: userData.user_id || userData.id || 1, // 임시로 1 사용
                 name: name,
                 region: region,
                 phone: phone,
@@ -191,6 +206,9 @@ async function handlePersonalInfoSubmit(e) {
             
             // 사용자 정보 업데이트
             userData.name = name;
+            userData.region = region;
+            userData.phone = phone;
+            userData.birthdate = birthdate;
             localStorage.setItem('user', JSON.stringify(userData));
             displayUserInfo();
             

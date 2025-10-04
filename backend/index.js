@@ -607,11 +607,11 @@ app.post('/api/update-profile', [
         const lastName = nameParts[0] || '';
         const firstName = nameParts.slice(1).join(' ') || '';
 
-        // 개인정보 업데이트
-        console.log('📝 개인정보 업데이트 중...', { lastName, firstName, region, phone, birthdate });
+        // 개인정보 업데이트 (기존 컬럼만 업데이트)
+        console.log('📝 개인정보 업데이트 중...', { lastName, firstName, birthdate });
         await connection.execute(
-            'UPDATE users SET last_name = ?, first_name = ?, region = ?, phone = ?, birth = ? WHERE user_id = ?',
-            [lastName, firstName, region, phone, birthdate, userId]
+            'UPDATE users SET last_name = ?, first_name = ?, birth = ? WHERE user_id = ?',
+            [lastName, firstName, birthdate, userId]
         );
         console.log('✅ 개인정보 업데이트 완료');
 
