@@ -218,8 +218,115 @@ window.addEventListener('DOMContentLoaded', () => {
       } else {
         console.log('검색 요소를 찾을 수 없습니다.');
       }
+
+      // 마이페이지 기능 초기화
+      initializeMypageFunctionality();
     })
     .catch(err => {
       console.error('헤더 로딩 실패:', err);
     });
 });
+
+// 마이페이지 기능 초기화
+function initializeMypageFunctionality() {
+  const mypageToggle = document.getElementById('mypage-toggle');
+  const mypageDropdown = document.getElementById('mypage-dropdown');
+  const mypageIcon = document.getElementById('mypage-icon');
+  const logoutBtn = document.getElementById('logout-btn');
+
+  if (!mypageToggle || !mypageDropdown || !mypageIcon) {
+    console.log('마이페이지 요소를 찾을 수 없습니다.');
+    return;
+  }
+
+  // 로그인 상태 확인
+  function checkLoginStatus() {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const userData = localStorage.getItem('user');
+    
+    if (isLoggedIn && userData) {
+      // 로그인 상태: 드롭다운 메뉴 표시, 아이콘 변경
+      mypageToggle.href = '#';
+      mypageIcon.src = 'image/loginmypage.jpg';
+      mypageIcon.classList.add('mypage-icon-logged-in');
+      console.log('로그인 상태 감지됨');
+    } else {
+      // 비로그인 상태: 로그인 페이지로 이동, 기본 아이콘
+      mypageToggle.href = 'login.html';
+      mypageIcon.src = 'image/mypage.jpg';
+      mypageIcon.classList.remove('mypage-icon-logged-in');
+      console.log('비로그인 상태 감지됨');
+    }
+  }
+
+  // 드롭다운 토글
+  function toggleDropdown() {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    
+    if (isLoggedIn) {
+      mypageDropdown.classList.toggle('show');
+    }
+  }
+
+  // 드롭다운 외부 클릭 시 닫기
+  function closeDropdown() {
+    mypageDropdown.classList.remove('show');
+  }
+
+  // 로그아웃 기능
+  function handleLogout() {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('user');
+    
+    // 페이지 새로고침하여 상태 업데이트
+    window.location.reload();
+  }
+
+  // 이벤트 리스너 등록
+  mypageToggle.addEventListener('click', function(e) {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    
+    if (isLoggedIn) {
+      e.preventDefault();
+      toggleDropdown();
+    }
+    // 비로그인 상태에서는 기본 링크 동작 (login.html로 이동)
+  });
+
+  // 로그아웃 버튼 클릭
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (confirm('로그아웃 하시겠습니까?')) {
+        handleLogout();
+      }
+    });
+  }
+
+  // 드롭다운 외부 클릭 시 닫기
+  document.addEventListener('click', function(e) {
+    if (!mypageToggle.contains(e.target) && !mypageDropdown.contains(e.target)) {
+      closeDropdown();
+    }
+  });
+
+  // ESC 키로 드롭다운 닫기
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeDropdown();
+    }
+  });
+
+  // 초기 상태 설정
+  checkLoginStatus();
+
+  // 로그인 상태 변경 감지 (다른 탭에서 로그인/로그아웃 시)
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'isLoggedIn' || e.key === 'user') {
+      checkLoginStatus();
+      closeDropdown();
+    }
+  });
+
+  console.log('마이페이지 기능이 초기화되었습니다.');
+}

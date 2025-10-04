@@ -1138,3 +1138,73 @@ nav ul li a:hover {
     padding: 12px;
   }
 }
+
+/* ===== 마이페이지 드롭다운 ===== */
+.mypage-container {
+  position: relative;
+  display: inline-block;
+}
+
+.mypage-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  margin-top: 8px;
+}
+
+.mypage-dropdown.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  display: block;
+  padding: 12px 16px;
+  color: #333;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 400;
+  border-bottom: 1px solid #f5f5f5;
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+  color: #111;
+}
+
+.dropdown-item:last-child:hover {
+  border-radius: 0 0 8px 8px;
+}
+
+.dropdown-item:first-child:hover {
+  border-radius: 8px 8px 0 0;
+}
+
+/* 로그인 상태에 따른 아이콘 전환 */
+.mypage-icon-logged-in {
+  filter: brightness(1.1) contrast(1.1);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .mypage-dropdown {
+    right: -20px;
+    min-width: 160px;
+  }
+}
