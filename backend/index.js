@@ -309,6 +309,96 @@ app.post('/api/register', [
     }
 });
 
+// 로그인 API
+app.post('/api/login', [
+    body('email').isEmail().normalizeEmail(),
+    body('password').notEmpty()
+], async (req, res) => {
+    try {
+        console.log('📋 로그인 요청 데이터:', JSON.stringify(req.body, null, 2));
+        
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            console.log('❌ 유효성 검사 실패:', errors.array());
+            return res.status(400).json({
+                success: false,
+                message: '이메일과 비밀번호를 확인해주세요.',
+                errors: errors.array()
+            });
+        }
+
+        const { email, password } = req.body;
+
+        // MySQL 연결
+        console.log('🔗 MySQL 연결 시도 중...');
+        const connection = await mysql.createConnection(dbConfig);
+        console.log('✅ MySQL 연결 성공');
+
+        // 사용자 정보 조회
+        console.log('🔍 사용자 정보 조회 중...');
+        const [users] = await connection.execute(
+            'SELECT user_id, email, password_hash, last_name, first_name, verified FROM users WHERE email = ?',
+            [email]
+        );
+        console.log('📧 조회된 사용자 수:', users.length);
+
+        if (users.length === 0) {
+            console.log('❌ 사용자를 찾을 수 없음');
+            await connection.end();
+            return res.status(401).json({
+                success: false,
+                message: '이메일 또는 비밀번호가 올바르지 않습니다.'
+            });
+        }
+
+        const user = users[0];
+
+        // 이메일 인증 상태 확인
+        if (!user.verified) {
+            console.log('❌ 이메일 미인증');
+            await connection.end();
+            return res.status(401).json({
+                success: false,
+                message: '이메일 인증이 완료되지 않았습니다.'
+            });
+        }
+
+        // 비밀번호 확인
+        console.log('🔐 비밀번호 확인 중...');
+        const passwordMatch = await bcrypt.compare(password, user.password_hash);
+        
+        if (!passwordMatch) {
+            console.log('❌ 비밀번호 불일치');
+            await connection.end();
+            return res.status(401).json({
+                success: false,
+                message: '이메일 또는 비밀번호가 올바르지 않습니다.'
+            });
+        }
+
+        await connection.end();
+
+        console.log(`✅ 로그인 성공: ${email}`);
+        res.json({
+            success: true,
+            message: '로그인에 성공했습니다.',
+            user: {
+                id: user.user_id,
+                email: user.email,
+                name: `${user.last_name} ${user.first_name}`.trim()
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ 로그인 오류:', error.message);
+        console.error('📋 에러 스택:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: '로그인 중 오류가 발생했습니다.'
+        });
+    }
+});
+
 // 서버 상태 확인 API
 app.get('/api/health', (req, res) => {
     res.json({ 
