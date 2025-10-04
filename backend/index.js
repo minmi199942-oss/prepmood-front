@@ -249,31 +249,13 @@ app.post('/api/register', [
         const connection = await mysql.createConnection(dbConfig);
         console.log('✅ MySQL 연결 성공');
 
-        // users 테이블이 존재하는지 확인하고 생성
-        try {
-            console.log('🔨 users 테이블 확인/생성 시도 중...');
-            await connection.execute(`
-                CREATE TABLE IF NOT EXISTS users (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    email VARCHAR(255) UNIQUE NOT NULL,
-                    password VARCHAR(255) NOT NULL,
-                    name VARCHAR(255) NOT NULL,
-                    birthdate DATE NOT NULL,
-                    phone VARCHAR(50),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
-            console.log('✅ users 테이블 확인/생성 완료');
-        } catch (tableError) {
-            console.error('❌ 테이블 생성 오류:', tableError.message);
-            console.error('❌ 테이블 생성 상세 오류:', tableError);
-            throw tableError; // 오류를 다시 던져서 상위에서 처리
-        }
+        // 기존 users 테이블 사용
+        console.log('✅ 기존 users 테이블 사용');
 
         // 이메일 중복 확인
         console.log('🔍 이메일 중복 확인 중...');
         const [existingUsers] = await connection.execute(
-            'SELECT id FROM users WHERE email = ?',
+            'SELECT user_id FROM users WHERE email = ?',
             [email]
         );
         console.log('📧 기존 사용자 수:', existingUsers.length);
@@ -295,10 +277,14 @@ app.post('/api/register', [
 
         // 사용자 정보 저장 (전화번호는 선택사항)
         const phoneValue = phone || null;
-        console.log('💾 사용자 정보 저장 중...', { email, name, birthdate, phone: phoneValue });
+        const nameParts = name.split(' ');
+        const lastName = nameParts[0] || '';
+        const firstName = nameParts.slice(1).join(' ') || '';
+        
+        console.log('💾 사용자 정보 저장 중...', { email, lastName, firstName, birthdate, phone: phoneValue });
         await connection.execute(
-            'INSERT INTO users (email, password, name, birthdate, phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
-            [email, hashedPassword, name, birthdate, phoneValue]
+            'INSERT INTO users (email, password_hash, last_name, first_name, birth, phone, verified) VALUES (?, ?, ?, ?, ?, ?, 1)',
+            [email, hashedPassword, lastName, firstName, birthdate, phoneValue]
         );
         console.log('✅ 사용자 정보 저장 완료');
 
