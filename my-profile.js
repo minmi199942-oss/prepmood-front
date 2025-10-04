@@ -183,8 +183,10 @@ async function handlePersonalInfoSubmit(e) {
     try {
         const userData = JSON.parse(localStorage.getItem('user'));
         
-        // 서버 API 호출 시도 (간단한 업데이트 엔드포인트 사용)
+        // 서버 API 호출 시도 (전용 업데이트 엔드포인트 사용)
         try {
+            console.log('📝 서버 API 호출 시도:', { email: userData.email, name, birthdate });
+            
             const response = await fetch('https://prepmood.kr/api/update-profile-simple', {
                 method: 'POST',
                 headers: {
@@ -197,7 +199,9 @@ async function handlePersonalInfoSubmit(e) {
                 })
             });
             
+            console.log('📡 서버 응답 상태:', response.status);
             const data = await response.json();
+            console.log('📋 서버 응답 데이터:', data);
             
             if (data.success) {
                 // 서버 저장 성공
@@ -212,9 +216,11 @@ async function handlePersonalInfoSubmit(e) {
                 localStorage.setItem('user', JSON.stringify(userData));
                 displayUserInfo();
                 return;
+            } else {
+                console.log('❌ 서버 저장 실패:', data.message);
             }
         } catch (apiError) {
-            console.log('서버 API 호출 실패, 로컬 저장으로 대체:', apiError.message);
+            console.log('❌ 서버 API 호출 실패:', apiError.message);
         }
         
         // 서버 저장 실패 시 로컬 저장
