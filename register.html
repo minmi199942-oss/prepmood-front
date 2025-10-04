@@ -491,7 +491,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="phone">전화번호</label>
+                        <label for="phone">전화번호 <span class="optional">(선택)</span></label>
                         <div class="phone-input">
                             <select id="countryCode" class="country-select">
                                 <option value="+82">🇰🇷 +82</option>
@@ -499,7 +499,7 @@
                                 <option value="+81">🇯🇵 +81</option>
                                 <option value="+86">🇨🇳 +86</option>
                             </select>
-                            <input type="tel" id="phone" class="form-input" placeholder="010-1234-5678" required>
+                            <input type="tel" id="phone" class="form-input" placeholder="010-1234-5678">
                         </div>
                         <div class="error-message" id="phoneError"></div>
                     </div>
@@ -764,9 +764,9 @@
                         document.getElementById('successMessage').style.display = 'block';
                         document.getElementById('personalInfoForm').style.display = 'none';
                         
-                        // 3초 후 로그인 페이지로 이동
+                        // 3초 후 메인 페이지로 이동
                         setTimeout(() => {
-                            window.location.href = 'login.html';
+                            window.location.href = 'index.html';
                         }, 3000);
                     } else {
                         this.showError('registerError', data.message || '회원가입에 실패했습니다.');
@@ -788,12 +788,15 @@
                 const countryCode = document.getElementById('countryCode').value;
                 const phone = document.getElementById('phone').value;
 
+                // 전화번호가 입력된 경우에만 국가코드와 함께 전송
+                const phoneValue = phone ? `${countryCode}${phone}` : null;
+
                 return {
                     email,
                     password,
                     name: `${lastName} ${firstName}`,
                     birthdate,
-                    phone: `${countryCode}${phone}`
+                    phone: phoneValue
                 };
             }
 
@@ -884,10 +887,7 @@
                 const phone = document.getElementById('phone').value;
                 const phoneRegex = /^[0-9-]+$/;
                 
-                if (!phone) {
-                    this.showError('phoneError', '전화번호를 입력해주세요.');
-                    return false;
-                } else if (!phoneRegex.test(phone)) {
+                if (phone && !phoneRegex.test(phone)) {
                     this.showError('phoneError', '올바른 전화번호 형식을 입력해주세요.');
                     return false;
                 } else {

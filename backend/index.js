@@ -201,7 +201,7 @@ app.post('/api/register', [
     body('password').isLength({ min: 8 }),
     body('name').notEmpty().trim(),
     body('birthdate').isISO8601(),
-    body('phone').notEmpty().trim()
+    body('phone').optional().trim()
 ], async (req, res) => {
     try {
         const errors = validationResult(req);
@@ -245,10 +245,11 @@ app.post('/api/register', [
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // 사용자 정보 저장
+        // 사용자 정보 저장 (전화번호는 선택사항)
+        const phoneValue = phone || null;
         await connection.execute(
             'INSERT INTO users (email, password, name, birthdate, phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
-            [email, hashedPassword, name, birthdate, phone]
+            [email, hashedPassword, name, birthdate, phoneValue]
         );
 
         await connection.end();
