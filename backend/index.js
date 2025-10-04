@@ -557,6 +557,82 @@ app.post('/api/update-password', [
     }
 });
 
+// 개인정보 수정 API
+app.post('/api/update-profile', [
+    body('userId').isInt(),
+    body('name').notEmpty().trim(),
+    body('region').notEmpty().trim(),
+    body('phone').notEmpty().trim(),
+    body('birthdate').isISO8601()
+], async (req, res) => {
+    try {
+        console.log('📋 개인정보 수정 요청 데이터:', JSON.stringify(req.body, null, 2));
+        
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            console.log('❌ 유효성 검사 실패:', errors.array());
+            return res.status(400).json({
+                success: false,
+                message: '입력 정보를 확인해주세요.',
+                errors: errors.array()
+            });
+        }
+
+        const { userId, name, region, phone, birthdate } = req.body;
+
+        // MySQL 연결
+        console.log('🔗 MySQL 연결 시도 중...');
+        const connection = await mysql.createConnection(dbConfig);
+        console.log('✅ MySQL 연결 성공');
+
+        // 사용자 존재 확인
+        console.log('🔍 사용자 존재 확인 중...');
+        const [users] = await connection.execute(
+            'SELECT user_id FROM users WHERE user_id = ?',
+            [userId]
+        );
+        console.log('👤 조회된 사용자 수:', users.length);
+
+        if (users.length === 0) {
+            console.log('❌ 사용자를 찾을 수 없음');
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '사용자를 찾을 수 없습니다.'
+            });
+        }
+
+        // 이름 분리 (성과 이름)
+        const nameParts = name.split(' ');
+        const lastName = nameParts[0] || '';
+        const firstName = nameParts.slice(1).join(' ') || '';
+
+        // 개인정보 업데이트
+        console.log('📝 개인정보 업데이트 중...', { lastName, firstName, region, phone, birthdate });
+        await connection.execute(
+            'UPDATE users SET last_name = ?, first_name = ?, region = ?, phone = ?, birth = ? WHERE user_id = ?',
+            [lastName, firstName, region, phone, birthdate, userId]
+        );
+        console.log('✅ 개인정보 업데이트 완료');
+
+        await connection.end();
+
+        console.log(`✅ 개인정보 수정 성공: 사용자 ${userId}`);
+        res.json({
+            success: true,
+            message: '개인정보가 성공적으로 변경되었습니다.'
+        });
+
+    } catch (error) {
+        console.error('❌ 개인정보 수정 오류:', error.message);
+        console.error('📋 에러 스택:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: '개인정보 변경 중 오류가 발생했습니다.'
+        });
+    }
+});
+
 // 서버 상태 확인 API
 app.get('/api/health', (req, res) => {
     res.json({ 

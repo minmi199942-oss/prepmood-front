@@ -42,15 +42,13 @@ function displayUserInfo() {
             }
             
             // 사용자 정보를 각 필드에 표시
-            const nameParts = user.name.split(' ');
-            document.getElementById('user-first-name').textContent = nameParts[1] || '';
-            document.getElementById('user-last-name').textContent = nameParts[0] || '';
+            document.getElementById('user-full-name').textContent = user.name || '김은민';
             document.getElementById('user-email').textContent = user.email || '';
             
             // 추가 정보는 기본값으로 설정 (실제로는 API에서 가져와야 함)
-            document.getElementById('user-region').textContent = '서울특별시';
-            document.getElementById('user-phone').textContent = '+82 10-1234-5678';
-            document.getElementById('user-birthdate').textContent = '2002-06-03';
+            document.getElementById('user-region').textContent = '대한민국';
+            document.getElementById('user-phone').textContent = '+82 01029965390';
+            document.getElementById('user-birthdate').textContent = '2002. 06. 03.';
             
         } catch (error) {
             console.error('사용자 정보 파싱 오류:', error);
@@ -79,6 +77,9 @@ function initializeEventListeners() {
 // 수정 버튼 클릭 처리
 function handleEditClick(field) {
     switch (field) {
+        case 'personalInfo':
+            openPersonalInfoSidebar();
+            break;
         case 'email':
             openEmailSidebar();
             break;
@@ -121,6 +122,104 @@ function openPasswordSidebar() {
     }, 300);
 }
 
+// 개인정보 수정 사이드바 열기
+function openPersonalInfoSidebar() {
+    const overlay = document.getElementById('sidebar-overlay');
+    const sidebar = document.getElementById('personal-info-sidebar');
+    
+    // 현재 값으로 placeholder 설정
+    const currentName = document.getElementById('user-full-name').textContent;
+    const currentRegion = document.getElementById('user-region').textContent;
+    const currentPhone = document.getElementById('user-phone').textContent;
+    const currentBirthdate = document.getElementById('user-birthdate').textContent;
+    
+    // 날짜 형식 변환 (2002. 06. 03. -> 2002-06-03)
+    const formattedDate = currentBirthdate.replace(/\.\s*/g, '-').replace(/\.$/, '');
+    
+    document.getElementById('edit-name').placeholder = currentName;
+    document.getElementById('edit-region').placeholder = currentRegion;
+    document.getElementById('edit-phone').placeholder = currentPhone;
+    document.getElementById('edit-birthdate').value = formattedDate;
+    
+    overlay.classList.add('show');
+    sidebar.classList.add('show');
+    
+    // 이름 입력 필드 포커스
+    setTimeout(() => {
+        document.getElementById('edit-name').focus();
+    }, 300);
+}
+
+// 개인정보 수정 처리
+async function handlePersonalInfoSubmit(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('edit-name').value.trim();
+    const region = document.getElementById('edit-region').value.trim();
+    const phone = document.getElementById('edit-phone').value.trim();
+    const birthdate = document.getElementById('edit-birthdate').value;
+    
+    // 필수값 검증
+    if (!name || !region || !phone || !birthdate) {
+        showFormError('personal-info-error', '모든 필드를 입력해주세요.');
+        return;
+    }
+    
+    try {
+        const userData = JSON.parse(localStorage.getItem('user'));
+        
+        const response = await fetch('https://prepmood.kr/api/update-profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                userId: userData.id,
+                name: name,
+                region: region,
+                phone: phone,
+                birthdate: birthdate
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // 성공 시
+            closeAllSidebars();
+            showNotification('개인정보가 수정되었습니다.');
+            
+            // 사용자 정보 업데이트
+            userData.name = name;
+            localStorage.setItem('user', JSON.stringify(userData));
+            displayUserInfo();
+            
+        } else {
+            // 실패 시
+            showFormError('personal-info-error', data.message || '개인정보 변경에 실패했습니다.');
+        }
+        
+    } catch (error) {
+        console.error('개인정보 변경 오류:', error);
+        showFormError('personal-info-error', '네트워크 오류가 발생했습니다.');
+    }
+}
+
+// 개인정보 제출 버튼 상태 업데이트
+function updatePersonalInfoSubmitButton() {
+    const name = document.getElementById('edit-name').value.trim();
+    const region = document.getElementById('edit-region').value.trim();
+    const phone = document.getElementById('edit-phone').value.trim();
+    const birthdate = document.getElementById('edit-birthdate').value;
+    
+    const submitButton = document.getElementById('personal-info-submit');
+    
+    // 모든 필드가 채워져야 활성화
+    const isValid = name && region && phone && birthdate;
+    
+    submitButton.disabled = !isValid;
+}
+
 // 결제 방법 사이드바 열기 (추후 기능 확장용)
 function openPaymentSidebar() {
     showNotification('결제 방법 추가 기능은 준비 중입니다.');
@@ -129,6 +228,7 @@ function openPaymentSidebar() {
 // 사이드바 이벤트 초기화
 function initializeSidebarEvents() {
     const overlay = document.getElementById('sidebar-overlay');
+    const closePersonalInfoBtn = document.getElementById('close-personal-info-sidebar');
     const closeEmailBtn = document.getElementById('close-email-sidebar');
     const closePasswordBtn = document.getElementById('close-password-sidebar');
     
@@ -136,6 +236,7 @@ function initializeSidebarEvents() {
     overlay.addEventListener('click', closeAllSidebars);
     
     // 닫기 버튼 클릭
+    closePersonalInfoBtn.addEventListener('click', closeAllSidebars);
     closeEmailBtn.addEventListener('click', closeAllSidebars);
     closePasswordBtn.addEventListener('click', closeAllSidebars);
     
@@ -163,6 +264,14 @@ function closeAllSidebars() {
 
 // 폼 초기화
 function resetAllForms() {
+    // 개인정보 폼 초기화
+    const personalInfoForm = document.getElementById('personal-info-form');
+    if (personalInfoForm) {
+        personalInfoForm.reset();
+        clearFormError('personal-info-error');
+        updatePersonalInfoSubmitButton();
+    }
+    
     // 이메일 폼 초기화
     const emailForm = document.getElementById('email-form');
     if (emailForm) {
@@ -182,6 +291,16 @@ function resetAllForms() {
 
 // 폼 이벤트 초기화
 function initializeFormEvents() {
+    // 개인정보 폼
+    const personalInfoForm = document.getElementById('personal-info-form');
+    personalInfoForm.addEventListener('submit', handlePersonalInfoSubmit);
+    
+    // 개인정보 폼 입력 이벤트
+    const personalInfoInputs = personalInfoForm.querySelectorAll('input');
+    personalInfoInputs.forEach(input => {
+        input.addEventListener('input', updatePersonalInfoSubmitButton);
+    });
+    
     // 이메일 폼
     const emailForm = document.getElementById('email-form');
     emailForm.addEventListener('submit', handleEmailSubmit);
@@ -400,6 +519,24 @@ function clearError(elementId) {
     const inputElement = errorElement.previousElementSibling;
     if (inputElement && inputElement.tagName === 'INPUT') {
         inputElement.classList.remove('error');
+    }
+}
+
+// 폼 에러 메시지 표시
+function showFormError(elementId, message) {
+    const errorElement = document.getElementById(elementId);
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+    }
+}
+
+// 폼 에러 메시지 숨기기
+function clearFormError(elementId) {
+    const errorElement = document.getElementById(elementId);
+    if (errorElement) {
+        errorElement.classList.remove('show');
+        errorElement.textContent = '';
     }
 }
 
