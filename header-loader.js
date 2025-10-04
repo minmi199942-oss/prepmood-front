@@ -293,6 +293,17 @@ function initializeMypageFunctionality() {
     // 비로그인 상태에서는 기본 링크 동작 (login.html로 이동)
   });
 
+  // 드롭다운 메뉴 아이템 클릭 처리
+  const dropdownItems = mypageDropdown.querySelectorAll('.dropdown-item');
+  dropdownItems.forEach(item => {
+    item.addEventListener('click', function(e) {
+      // 로그아웃 버튼이 아닌 경우에만 드롭다운 닫기
+      if (this.id !== 'logout-btn') {
+        closeDropdown();
+      }
+    });
+  });
+
   // 로그아웃 버튼 클릭
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function(e) {
