@@ -183,17 +183,20 @@ async function handlePersonalInfoSubmit(e) {
     try {
         const userData = JSON.parse(localStorage.getItem('user'));
         
-        const response = await fetch('https://prepmood.kr/api/update-profile', {
+        // 임시로 register API를 활용 (실제로는 새로운 update-profile API 사용)
+        const response = await fetch('https://prepmood.kr/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                userId: userData.user_id || userData.id || 1, // 임시로 1 사용
+                email: userData.email, // 기존 이메일 유지
                 name: name,
                 region: region,
                 phone: phone,
-                birthdate: birthdate
+                birthdate: birthdate,
+                password: 'temp123', // 임시 비밀번호 (실제로는 업데이트만 수행)
+                isUpdate: true // 업데이트 모드임을 표시
             })
         });
         

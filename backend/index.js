@@ -228,9 +228,15 @@ app.post('/api/register', [
             });
         }
 
-        const { email, password, name, birthdate, phone } = req.body;
+        const { email, password, name, birthdate, phone, isUpdate } = req.body;
 
-        // 이메일이 인증되었는지 확인
+        // 업데이트 모드인지 확인
+        if (isUpdate) {
+            console.log('🔄 개인정보 업데이트 모드');
+            return await handleProfileUpdate(req, res, { email, name, birthdate, phone });
+        }
+
+        // 이메일이 인증되었는지 확인 (회원가입 모드)
         console.log('📧 인증된 이메일 목록:', Array.from(verificationCodes.keys()));
         console.log('📧 요청된 이메일:', email);
         console.log('📧 인증 상태:', verificationCodes.has(email));
@@ -398,6 +404,66 @@ app.post('/api/login', [
         });
     }
 });
+
+// 개인정보 업데이트 처리 함수
+async function handleProfileUpdate(req, res, { email, name, birthdate, phone }) {
+    try {
+        console.log('📝 개인정보 업데이트 처리 시작');
+        
+        // MySQL 연결
+        console.log('🔗 MySQL 연결 시도 중...');
+        const connection = await mysql.createConnection(dbConfig);
+        console.log('✅ MySQL 연결 성공');
+
+        // 사용자 존재 확인
+        console.log('🔍 사용자 정보 조회 중...');
+        const [users] = await connection.execute(
+            'SELECT user_id FROM users WHERE email = ?',
+            [email]
+        );
+        console.log('👤 조회된 사용자 수:', users.length);
+
+        if (users.length === 0) {
+            console.log('❌ 사용자를 찾을 수 없음');
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '사용자를 찾을 수 없습니다.'
+            });
+        }
+
+        const userId = users[0].user_id;
+
+        // 이름 분리 (성과 이름)
+        const nameParts = name.split(' ');
+        const lastName = nameParts[0] || '';
+        const firstName = nameParts.slice(1).join(' ') || '';
+
+        // 개인정보 업데이트
+        console.log('📝 개인정보 업데이트 중...', { lastName, firstName, birthdate });
+        await connection.execute(
+            'UPDATE users SET last_name = ?, first_name = ?, birth = ? WHERE user_id = ?',
+            [lastName, firstName, birthdate, userId]
+        );
+        console.log('✅ 개인정보 업데이트 완료');
+
+        await connection.end();
+
+        console.log(`✅ 개인정보 수정 성공: 사용자 ${userId}`);
+        res.json({
+            success: true,
+            message: '개인정보가 성공적으로 변경되었습니다.'
+        });
+
+    } catch (error) {
+        console.error('❌ 개인정보 수정 오류:', error.message);
+        console.error('📋 에러 스택:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: '개인정보 변경 중 오류가 발생했습니다.'
+        });
+    }
+}
 
 // 이메일 수정 API
 app.post('/api/update-email', [
