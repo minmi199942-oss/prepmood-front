@@ -1,0 +1,387 @@
+/* ===== Reset ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  background-color: #fff;
+  color: #111;
+  line-height: 1.6;
+  font-size: clamp(14px, 2.5vw, 16px);
+}
+
+/* ===== Header ===== */
+header {
+  padding: clamp(5px, 1.5vw, 20px) clamp(20px, 5vw, 40px);
+  border-bottom: 1px solid #eee;
+  background-color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 2147483647;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 4vw, 50px);
+  flex: 1;
+  justify-content: flex-start;
+}
+
+:root { 
+  --header-height: clamp(60px, 8vw, 72px); 
+}
+
+.logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.logo-img {
+  height: clamp(25px, 4vw, 30px);
+  margin-right: clamp(8px, 1.5vw, 10px);
+}
+
+.brand-name {
+  font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+  font-weight: 600;
+  color: #111;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.slogan {
+  font-size: clamp(0.65rem, 1.8vw, 0.75rem);
+  color: #444;
+  font-weight: 300;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+
+/* 우측 액션 메뉴 */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+}
+
+.action-link {
+  text-decoration: none;
+  color: #111;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
+  font-weight: 400;
+  transition: color 0.2s ease;
+}
+
+.action-link:hover {
+  color: #666;
+}
+
+.action-icon {
+  width: clamp(50px, 8vw, 60px);
+  height: clamp(50px, 8vw, 60px);
+  object-fit: contain;
+  transition: opacity 0.2s ease;
+}
+
+.action-link:hover .action-icon {
+  opacity: 0.7;
+}
+
+nav ul {
+  display: flex;
+  gap: clamp(15px, 3vw, 30px);
+  list-style: none;
+  align-items: center;
+  margin-top: clamp(-15px, -2vw, -20px);
+}
+
+nav ul li a {
+  text-decoration: none;
+  color: #333;
+  font-weight: 500;
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+}
+
+/* ===== GNB 드롭다운 ===== */
+nav ul li {
+  position: relative;
+}
+
+.has-sub .submenu {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  padding: clamp(12px, 2vw, 16px) clamp(16px, 2.5vw, 20px);
+  min-width: clamp(160px, 25vw, 180px);
+  z-index: 1000;
+}
+
+.has-sub:hover .submenu {
+  display: block;
+}
+
+.submenu ul {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.5vw, 10px);
+  list-style: none;
+}
+
+.submenu a {
+  color: #111;
+  text-decoration: none;
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  white-space: nowrap;
+}
+
+.submenu a:hover {
+  color: #0071e3;
+}
+
+/* ===== 메가 네비 (Men/Women) ===== */
+.mega-nav {
+  padding: 0 clamp(16px, 3vw, 24px);
+  margin-top: clamp(8px, 1.5vw, 10px);
+}
+
+.mega-root {
+  display: flex;
+  gap: clamp(24px, 4vw, 36px);
+  list-style: none;
+}
+
+.mega-root > li { position: static; }
+.mega-root > li > a { text-decoration: none; color: #111; font-weight: 700; }
+.mega-root > li:hover > a { color: #0071e3; }
+
+.has-mega::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: clamp(30px, 5vw, 40px);
+  display: none;
+  z-index: 1200;
+}
+.has-mega:hover::before { display: block; }
+
+.mega-col h4 {
+  font-size: clamp(1rem, 2.2vw, 1.1rem);
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 0.5rem;
+}
+
+.mega-col a {
+  display: block;
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  color: #333;
+  font-weight: 500;
+  line-height: 1.6;
+  text-decoration: none;
+}
+
+.mega-col a:hover { color: #111; }
+
+nav ul li a:hover {
+  color: #111;
+}
+
+/* Dropdown styles */
+.has-mega {
+  position: relative !important;
+  display: inline-block !important;
+}
+
+.mega-menu {
+  display: none !important;
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  background: #fff !important;
+  border: 1px solid #eee !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  z-index: 2147483648 !important;
+  min-width: clamp(180px, 30vw, 200px) !important;
+  padding: clamp(16px, 2.5vw, 20px) !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+.mega-menu.show {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.mega-col a {
+  display: block;
+  padding: clamp(6px, 1vw, 8px) 0;
+  color: #333;
+  text-decoration: none;
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+}
+
+.mega-col a:hover {
+  color: #111;
+  font-weight: 500;
+}
+
+/* ===== 마이페이지 드롭다운 ===== */
+.mypage-container {
+  position: relative;
+  display: inline-block;
+}
+
+.mypage-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  min-width: clamp(160px, 25vw, 180px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  margin-top: clamp(6px, 1vw, 8px);
+}
+
+.mypage-dropdown.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  display: block;
+  padding: clamp(10px, 1.5vw, 12px) clamp(14px, 2vw, 16px);
+  color: #333;
+  text-decoration: none;
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  font-weight: 400;
+  border-bottom: 1px solid #f5f5f5;
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+  color: #111;
+}
+
+.dropdown-item:last-child:hover {
+  border-radius: 0 0 8px 8px;
+}
+
+.dropdown-item:first-child:hover {
+  border-radius: 8px 8px 0 0;
+}
+
+.mypage-icon-logged-in {
+  filter: brightness(1.1) contrast(1.1);
+}
+
+/* ===== Global Footer ===== */
+.global-footer {
+  background-color: #fff;
+  border-top: 1px solid #eee;
+  margin-top: auto;
+  color: #555;
+  font-size: clamp(0.8rem, 1.6vw, 0.9rem);
+  line-height: 1.6;
+  width: 100%;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 24px);
+}
+
+.footer-main {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(16px, 3vw, 24px);
+  padding: clamp(20px, 4vw, 28px) 0;
+  border-bottom: 1px solid #eee;
+}
+
+.footer-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.footer-title {
+  font-size: clamp(0.85rem, 1.8vw, 1rem);
+  font-weight: 500;
+  color: #111;
+  margin-bottom: clamp(10px, 2vw, 14px);
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+}
+
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1.2vw, 8px);
+}
+
+.footer-text {
+  margin: 0;
+  color: #555;
+  font-size: clamp(0.75rem, 1.4vw, 0.85rem);
+  line-height: 1.4;
+  letter-spacing: 0.1px;
+}
+
+.footer-link {
+  color: #555;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-weight: 400;
+}
+
+.footer-link:hover {
+  color: #111;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.footer-bottom {
+  padding: clamp(12px, 2.5vw, 20px) 0;
+  text-align: center;
+  border-top: 1px solid #eee;
+}
+
+.footer-copyright {
+  margin: 0;
+  color: #888;
+  font-size: clamp(0.7rem, 1.2vw, 0.8rem);
+  letter-spacing: 0.2px;
+  font-weight: 300;
+}

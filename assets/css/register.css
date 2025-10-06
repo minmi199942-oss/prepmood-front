@@ -1,0 +1,408 @@
+/* ===== 회원가입 페이지 전용 스타일 ===== */
+.register-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(20px, 4vw, 40px) clamp(16px, 3vw, 24px);
+    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+}
+
+.register-container {
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    padding: clamp(40px, 8vw, 60px) clamp(35px, 7vw, 50px);
+    width: 100%;
+    max-width: clamp(400px, 80vw, 480px);
+    border: 1px solid #f0f0f0;
+    position: relative;
+}
+
+.register-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #000 0%, #333 100%);
+}
+
+.register-header {
+    text-align: center;
+    margin-bottom: clamp(30px, 6vw, 40px);
+}
+
+.register-header h1 {
+    font-size: clamp(1.8rem, 4vw, 2.2rem);
+    font-weight: 300;
+    color: #000;
+    margin-bottom: clamp(8px, 1.5vw, 12px);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.register-header p {
+    font-size: clamp(0.9rem, 2vw, 1rem);
+    color: #666;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    margin-bottom: clamp(30px, 6vw, 40px);
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+    color: #999;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+}
+
+.step.active {
+    color: #000;
+    font-weight: 400;
+}
+
+.step-number {
+    width: clamp(20px, 4vw, 24px);
+    height: clamp(20px, 4vw, 24px);
+    border-radius: 50%;
+    background: #f5f5f5;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(0.7rem, 1.6vw, 0.8rem);
+    margin-right: clamp(6px, 1.2vw, 8px);
+}
+
+.step.active .step-number {
+    background: #000;
+    color: #fff;
+}
+
+.step-divider {
+    width: clamp(30px, 6vw, 40px);
+    height: 1px;
+    background: #ddd;
+    margin: 0 clamp(15px, 3vw, 20px);
+}
+
+.form-step {
+    display: none;
+}
+
+.form-step.active {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: clamp(20px, 4vw, 28px);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(12px, 2.5vw, 16px);
+}
+
+.form-group label {
+    display: block;
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+    font-weight: 400;
+    color: #000;
+    margin-bottom: clamp(6px, 1.2vw, 8px);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.form-input {
+    width: 100%;
+    padding: clamp(12px, 2.5vw, 16px) 0;
+    font-size: clamp(0.9rem, 2vw, 1rem);
+    border: none;
+    border-bottom: 1px solid #ddd;
+    background-color: transparent;
+    transition: border-color 0.3s ease;
+    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    font-weight: 300;
+}
+
+.form-input:focus {
+    outline: none;
+    border-bottom-color: #000;
+}
+
+.form-input::placeholder {
+    color: #bbb;
+    font-weight: 300;
+}
+
+.form-input.error {
+    border-color: #ff3b30;
+}
+
+.error-message {
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+    color: #ff3b30;
+    margin-top: clamp(3px, 0.8vw, 4px);
+    display: none;
+}
+
+.email-verification {
+    display: flex;
+    gap: clamp(6px, 1.2vw, 8px);
+    align-items: flex-end;
+}
+
+.email-verification .form-input {
+    flex: 1;
+}
+
+.verify-btn, .next-btn, .register-btn {
+    padding: clamp(12px, 2.5vw, 16px) clamp(24px, 5vw, 32px);
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+    font-weight: 400;
+    background-color: #000;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    min-width: clamp(100px, 20vw, 120px);
+}
+
+.verify-btn {
+    background-color: #f8f9fa;
+    color: #000;
+    border: 1px solid #ddd;
+}
+
+.verify-btn:hover {
+    background-color: #e9ecef;
+}
+
+.next-btn, .register-btn {
+    width: 100%;
+    margin-top: clamp(24px, 5vw, 32px);
+}
+
+.next-btn:hover, .register-btn:hover {
+    background-color: #333;
+}
+
+.verify-btn:disabled, .next-btn:disabled, .register-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* 개인정보 동의 섹션 스타일 */
+.consent-section {
+    margin-top: clamp(24px, 5vw, 32px);
+    margin-bottom: clamp(20px, 4vw, 25px);
+}
+
+.consent-item {
+    margin-bottom: clamp(12px, 2.5vw, 15px);
+}
+
+.consent-checkbox {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    font-size: clamp(11px, 2.5vw, 13px);
+    line-height: 1.4;
+    margin-bottom: clamp(6px, 1.2vw, 8px);
+}
+
+.consent-checkbox input[type="checkbox"] {
+    display: none;
+}
+
+.checkmark {
+    width: clamp(16px, 3vw, 18px);
+    height: clamp(16px, 3vw, 18px);
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    margin-right: clamp(10px, 2vw, 12px);
+    margin-top: 2px;
+    flex-shrink: 0;
+    position: relative;
+    background-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.consent-checkbox input[type="checkbox"]:checked + .checkmark {
+    background-color: #000;
+    border-color: #000;
+}
+
+.consent-checkbox input[type="checkbox"]:checked + .checkmark::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: clamp(10px, 2vw, 12px);
+    font-weight: bold;
+}
+
+.consent-text {
+    flex: 1;
+    font-weight: 500;
+}
+
+.consent-text .required {
+    color: #d32f2f;
+    font-weight: 600;
+}
+
+.consent-text .optional {
+    color: #666;
+    font-weight: 400;
+}
+
+.consent-description {
+    font-size: clamp(10px, 2.2vw, 12px);
+    color: #666;
+    line-height: 1.4;
+    margin: 0 0 0 clamp(26px, 5vw, 30px);
+    padding: 0;
+}
+
+.privacy-notice {
+    margin-top: clamp(12px, 2.5vw, 15px);
+    padding: clamp(12px, 2.5vw, 15px);
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #000;
+}
+
+.privacy-notice p {
+    font-size: clamp(10px, 2.2vw, 12px);
+    color: #333;
+    line-height: 1.4;
+    margin: 0;
+    padding: 0;
+}
+
+.verification-code {
+    display: none;
+    margin-top: clamp(16px, 3vw, 20px);
+}
+
+.verification-code.show {
+    display: block;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+    cursor: pointer;
+    margin-bottom: clamp(16px, 3vw, 20px);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.back-btn:hover {
+    color: #000;
+}
+
+.login-link {
+    text-align: center;
+    margin-top: clamp(20px, 4vw, 24px);
+    font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+    color: #666;
+}
+
+.login-link a {
+    color: #0071e3;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-link a:hover {
+    text-decoration: underline;
+}
+
+.success-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: clamp(10px, 2vw, 12px) clamp(14px, 2.5vw, 16px);
+    border-radius: 8px;
+    margin-bottom: clamp(16px, 3vw, 20px);
+    font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+    display: none;
+}
+
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.phone-input {
+    display: flex;
+    gap: clamp(6px, 1.2vw, 8px);
+    align-items: flex-end;
+}
+
+.country-select {
+    padding: clamp(12px, 2.5vw, 16px) clamp(10px, 2vw, 12px);
+    font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+    border: none;
+    border-bottom: 1px solid #ddd;
+    background-color: transparent;
+    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    font-weight: 300;
+    min-width: clamp(80px, 15vw, 100px);
+    cursor: pointer;
+}
+
+.country-select:focus {
+    outline: none;
+    border-bottom-color: #000;
+}
+
+.phone-input .form-input {
+    flex: 1;
+}
+
+/* 반응형 */
+@media (max-width: 480px) {
+    .register-container {
+        padding: clamp(24px, 5vw, 32px) clamp(18px, 4vw, 24px);
+        margin: clamp(15px, 3vw, 20px);
+    }
+
+    .register-header h1 {
+        font-size: clamp(1.4rem, 3.5vw, 1.6rem);
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .phone-input {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .country-select {
+        min-width: auto;
+        width: 100%;
+        margin-bottom: clamp(6px, 1.2vw, 8px);
+    }
+}
