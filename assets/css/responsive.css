@@ -1037,43 +1037,92 @@
 /* ===== 위시리스트 페이지 반응형 ===== */
 @media (max-width: 1199px) {
   .wishlist-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .wishlist-page .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: clamp(6px, 1.2vw, 8px);
   }
 }
 
 @media (max-width: 767px) {
-  .wishlist-page {
-    margin: clamp(24px, 5vw, 40px) auto;
-  }
-
   .wishlist-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: clamp(16px, 3vw, 20px);
+    grid-template-columns: repeat(2, 1fr);
+    gap: clamp(12px, 2.5vw, 16px);
   }
 
   .wishlist-card-info {
-    padding: clamp(10px, 2vw, 14px);
+    padding: clamp(6px, 1.2vw, 8px) clamp(2px, 0.5vw, 4px);
   }
 
-  .wishlist-remove-btn {
-    width: 28px;
-    height: 28px;
+  .wishlist-card-title {
+    font-size: clamp(0.8rem, 2.2vw, 0.9rem);
   }
 
-  .wishlist-remove-btn svg {
-    width: 16px;
-    height: 16px;
+  .wishlist-card-price {
+    font-size: clamp(0.85rem, 2.4vw, 0.95rem);
+  }
+
+  .wishlist-card-date {
+    font-size: clamp(0.7rem, 2vw, 0.75rem);
+  }
+
+  .wishlist-page .page-title {
+    font-size: clamp(1.2rem, 4vw, 1.4rem);
+  }
+
+  .wishlist-page .page-description {
+    font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+  }
+
+  .wishlist-count {
+    font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+  }
+
+  .empty-title {
+    font-size: clamp(1rem, 3.5vw, 1.2rem);
+  }
+
+  .empty-description {
+    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+  }
+
+  .btn-browse {
+    font-size: clamp(0.8rem, 2.3vw, 0.9rem);
+    padding: clamp(9px, 2.2vw, 11px) clamp(20px, 4.5vw, 28px);
   }
 }
 
 @media (max-width: 480px) {
   .wishlist-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: clamp(12px, 2.5vw, 16px);
+    gap: clamp(10px, 2vw, 12px);
+  }
+
+  .wishlist-remove-btn {
+    width: clamp(24px, 5vw, 26px);
+    height: clamp(24px, 5vw, 26px);
+    top: clamp(6px, 1.2vw, 8px);
+    right: clamp(6px, 1.2vw, 8px);
+  }
+
+  .wishlist-remove-btn svg {
+    width: clamp(12px, 2.5vw, 14px);
+    height: clamp(12px, 2.5vw, 14px);
   }
 
   .empty-icon {
-    font-size: 3rem;
+    font-size: clamp(2.5rem, 10vw, 3rem);
+  }
+
+  .loading-state {
+    padding: clamp(60px, 10vw, 80px) clamp(16px, 3vw, 20px);
+  }
+
+  .empty-state {
+    padding: clamp(60px, 10vw, 80px) clamp(16px, 3vw, 20px);
   }
 }
 

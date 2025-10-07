@@ -63,11 +63,13 @@
         wishlistCountSpan.textContent = data.count;
         wishlistGrid.style.display = 'grid';
         emptyState.style.display = 'none';
+        document.querySelector('.page-header').style.display = 'flex';
       } else {
         // 빈 상태 표시
         emptyState.style.display = 'flex';
         wishlistGrid.style.display = 'none';
         wishlistCountSpan.textContent = '0';
+        document.querySelector('.page-header').style.display = 'none';
       }
 
     } catch (error) {
