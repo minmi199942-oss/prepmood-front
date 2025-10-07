@@ -112,7 +112,7 @@ async function verifyCode(code) {
     resultSection.style.display = 'none';
     
     try {
-        const response = await fetch(`${window.location.origin}/authenticity?code=${encodeURIComponent(code)}`);
+        const response = await fetch(`${API_BASE_URL}/authenticity?code=${encodeURIComponent(code)}`);
         const data = await response.json();
         
         // 로딩 종료
@@ -254,7 +254,7 @@ async function registerProduct(serial) {
     
     try {
         const code = codeInput.value.trim();
-        const response = await fetch(`${window.location.origin}/api/qrcode/register`, {
+        const response = await fetch(`${API_BASE_URL}/api/qrcode/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
