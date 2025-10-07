@@ -2145,11 +2145,7 @@
   height: 100%;
   display: block;
   object-fit: cover;
-  transition: opacity 0.2s ease;
-}
-
-.wishlist-card:hover .wishlist-card-image {
-  opacity: 0.9;
+  transition: transform 0.2s ease;
 }
 
 .wishlist-card-info {
