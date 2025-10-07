@@ -3,6 +3,11 @@
 (function() {
   'use strict';
 
+  // API 기본 URL 설정 (환경에 따라 자동 변경)
+  const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000'
+    : 'https://prepmood.kr';
+
   // URL에서 제품 ID 가져오기
   const urlParams = new URLSearchParams(window.location.search);
   const productId = urlParams.get('id');
@@ -213,7 +218,7 @@
       const userEmail = sessionStorage.getItem('userEmail');
       
       // API 호출
-      const response = await fetch('http://localhost:3000/api/wishlist/toggle', {
+      const response = await fetch(`${API_BASE_URL}/api/wishlist/toggle`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -251,7 +256,7 @@
     try {
       const userEmail = sessionStorage.getItem('userEmail');
       
-      const response = await fetch(`http://localhost:3000/api/wishlist/check?productId=${currentProduct.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/wishlist/check?productId=${currentProduct.id}`, {
         method: 'GET',
         headers: {
           'X-User-Email': userEmail

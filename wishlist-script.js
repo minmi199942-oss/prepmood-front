@@ -34,6 +34,11 @@
     return null;
   }
 
+  // API 기본 URL 설정 (환경에 따라 자동 변경)
+  const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000'
+    : 'https://prepmood.kr';
+
   // 위시리스트 불러오기
   async function loadWishlist() {
     const loadingState = document.getElementById('loading-state');
@@ -44,7 +49,7 @@
     try {
       const userEmail = sessionStorage.getItem('userEmail');
 
-      const response = await fetch('http://localhost:3000/api/wishlist', {
+      const response = await fetch(`${API_BASE_URL}/api/wishlist`, {
         method: 'GET',
         headers: {
           'X-User-Email': userEmail
@@ -152,7 +157,7 @@
     try {
       const userEmail = sessionStorage.getItem('userEmail');
 
-      const response = await fetch('http://localhost:3000/api/wishlist/toggle', {
+      const response = await fetch(`${API_BASE_URL}/api/wishlist/toggle`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
