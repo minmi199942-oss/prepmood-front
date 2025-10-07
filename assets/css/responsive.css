@@ -823,8 +823,8 @@
 @media (max-width: 1199px) {
   .footer-main {
     grid-template-columns: repeat(2, 1fr);
-    gap: clamp(16px, 3vw, 24px);
-    padding: clamp(18px, 3.5vw, 26px) 0;
+    gap: clamp(8px, 1.5vw, 12px);
+    padding: clamp(9px, 1.75vw, 13px) 0;
   }
   
   .footer-container {
@@ -836,8 +836,8 @@
 @media (max-width: 767px) {
   .footer-main {
     grid-template-columns: 1fr;
-    gap: clamp(16px, 3vw, 20px);
-    padding: clamp(16px, 3vw, 20px) 0;
+    gap: clamp(8px, 1.5vw, 10px);
+    padding: clamp(8px, 1.5vw, 10px) 0;
   }
   
   .footer-container {
@@ -845,29 +845,29 @@
   }
   
   .footer-title {
-    font-size: clamp(0.8rem, 1.6vw, 0.9rem);
-    margin-bottom: clamp(8px, 1.8vw, 12px);
+    font-size: clamp(0.75rem, 1.4vw, 0.85rem);
+    margin-bottom: clamp(4px, 0.9vw, 6px);
   }
   
   .footer-text {
-    font-size: clamp(0.7rem, 1.2vw, 0.8rem);
-    line-height: 1.5;
+    font-size: clamp(0.65rem, 1vw, 0.75rem);
+    line-height: 1.4;
   }
   
   .footer-bottom {
-    padding: clamp(10px, 2vw, 16px) 0;
+    padding: clamp(5px, 1vw, 8px) 0;
   }
   
   .footer-copyright {
-    font-size: clamp(0.65rem, 1vw, 0.75rem);
+    font-size: clamp(0.6rem, 0.8vw, 0.7rem);
   }
 }
 
 /* 초소형 모바일 (≤480px) */
 @media (max-width: 480px) {
   .footer-main {
-    gap: clamp(12px, 2.5vw, 16px);
-    padding: clamp(12px, 2.5vw, 16px) 0;
+    gap: clamp(6px, 1.25vw, 8px);
+    padding: clamp(6px, 1.25vw, 8px) 0;
   }
   
   .footer-container {
@@ -875,23 +875,164 @@
   }
   
   .footer-title {
-    font-size: clamp(0.75rem, 1.4vw, 0.85rem);
-    margin-bottom: clamp(6px, 1.5vw, 10px);
+    font-size: clamp(0.7rem, 1.2vw, 0.8rem);
+    margin-bottom: clamp(3px, 0.75vw, 5px);
   }
   
   .footer-text {
-    font-size: clamp(0.65rem, 1vw, 0.75rem);
-    gap: clamp(4px, 1vw, 8px);
+    font-size: clamp(0.6rem, 0.8vw, 0.7rem);
+    gap: clamp(2px, 0.5vw, 4px);
   }
   
   .footer-bottom {
-    padding: clamp(8px, 1.5vw, 12px) 0;
+    padding: clamp(4px, 0.75vw, 6px) 0;
   }
   
   .footer-copyright {
-    font-size: clamp(0.6rem, 0.9vw, 0.7rem);
+    font-size: clamp(0.55rem, 0.7vw, 0.65rem);
   }
 }
+
+/* ===== 제품 상세 페이지 반응형 ===== */
+/* 태블릿 (768px ~ 1199px) - 1:1 비율 */
+@media (max-width: 1199px) and (min-width: 768px) {
+  .product-detail-container {
+    grid-template-columns: 1fr 1fr; /* Tablet 1:1 ratio */
+    gap: clamp(24px, 5vw, 48px);
+    padding: clamp(20px, 3.5vw, 32px) clamp(16px, 3vw, 24px);
+  }
+  
+  .product-images-section {
+    top: clamp(60px, 12vw, 100px);
+  }
+  
+  .product-images-wrapper .product-image,
+  .product-image {
+    height: clamp(350px, 45vw, 500px) !important;
+  }
+  
+  .product-title {
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+  }
+  
+  .product-tabs {
+    margin-top: clamp(20px, 4vw, 32px);
+  }
+  
+  .care-image {
+    width: clamp(200px, 40vw, 350px); /* 2.5x larger */
+  }
+  
+  .size-table th,
+  .size-table td {
+    padding: clamp(10px, 2vw, 14px);
+    font-size: clamp(0.8rem, 1.6vw, 0.9rem);
+    min-width: clamp(70px, 12vw, 100px);
+  }
+  
+  .size-table th:nth-child(1),
+  .size-table td:nth-child(1) {
+    min-width: clamp(50px, 10vw, 80px);
+  }
+  
+  .size-table th:nth-child(2),
+  .size-table td:nth-child(2) {
+    min-width: clamp(60px, 12vw, 90px);
+  }
+  
+  .size-table th:nth-child(3),
+  .size-table td:nth-child(3),
+  .size-table th:nth-child(4),
+  .size-table td:nth-child(4),
+  .size-table th:nth-child(5),
+  .size-table td:nth-child(5) {
+    min-width: clamp(70px, 14vw, 110px);
+  }
+  
+  .size-table th:nth-child(6),
+  .size-table td:nth-child(6) {
+    min-width: clamp(80px, 16vw, 120px);
+  }
+  
+  .size-table .size-label {
+    min-width: clamp(35px, 7vw, 55px);
+  }
+}
+
+/* 모바일 (≤767px) - 세로 정렬 */
+@media (max-width: 767px) {
+  .product-detail-container {
+    grid-template-columns: 1fr; /* Mobile 1-column layout */
+    gap: clamp(24px, 5vw, 32px);
+    padding: clamp(16px, 3vw, 24px) clamp(12px, 2.5vw, 20px);
+  }
+  
+  .product-images-section {
+    position: static; /* Remove sticky */
+  }
+  
+  .product-images-wrapper .product-image,
+  .product-image {
+    height: clamp(300px, 40vw, 450px) !important;
+  }
+  
+  .product-title {
+    font-size: clamp(1.3rem, 3vw, 1.6rem);
+  }
+  
+  .product-code {
+    font-size: clamp(0.65rem, 1.3vw, 0.75rem);
+  }
+  
+  .wishlist-container {
+    gap: clamp(5px, 1vw, 7px);
+  }
+  
+  .wishlist-icon {
+    width: clamp(70px, 10vw, 85px);
+    height: clamp(70px, 10vw, 85px);
+  }
+  
+  .care-image {
+    width: clamp(175px, 35vw, 300px); /* 2.5x larger */
+  }
+  
+  .size-table th,
+  .size-table td {
+    padding: clamp(8px, 1.6vw, 12px);
+    font-size: clamp(0.75rem, 1.4vw, 0.85rem);
+    min-width: clamp(60px, 10vw, 90px);
+  }
+  
+  .size-table th:nth-child(1),
+  .size-table td:nth-child(1) {
+    min-width: clamp(45px, 8vw, 70px);
+  }
+  
+  .size-table th:nth-child(2),
+  .size-table td:nth-child(2) {
+    min-width: clamp(55px, 10vw, 80px);
+  }
+  
+  .size-table th:nth-child(3),
+  .size-table td:nth-child(3),
+  .size-table th:nth-child(4),
+  .size-table td:nth-child(4),
+  .size-table th:nth-child(5),
+  .size-table td:nth-child(5) {
+    min-width: clamp(65px, 12vw, 100px);
+  }
+  
+  .size-table th:nth-child(6),
+  .size-table td:nth-child(6) {
+    min-width: clamp(70px, 14vw, 110px);
+  }
+  
+  .size-table .size-label {
+    min-width: clamp(30px, 6vw, 50px);
+  }
+}
+
 
 @media (prefers-color-scheme: dark) {
   /* 다크 모드 지원 (필요시 구현) */
