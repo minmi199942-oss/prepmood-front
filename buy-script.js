@@ -4,7 +4,7 @@
   'use strict';
 
   // API 기본 URL 설정 (환경에 따라 자동 변경)
-const API_BASE_URL = window.location.origin + '/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
   // URL에서 제품 ID 가져오기
   const urlParams = new URLSearchParams(window.location.search);

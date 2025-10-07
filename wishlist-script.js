@@ -35,7 +35,7 @@
   }
 
   // API 기본 URL 설정 (환경에 따라 자동 변경)
-const API_BASE_URL = window.location.origin + '/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
   // 위시리스트 불러오기
   async function loadWishlist() {
