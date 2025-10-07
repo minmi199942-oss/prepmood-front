@@ -101,14 +101,14 @@ singleQrForm.addEventListener('submit', async (e) => {
 function displayQrCode(data) {
     const { qrCode, product } = data;
     
-    // QR 코드 생성
-    QRCode.toCanvas(qrCanvas, qrCode, {
-        width: 300,
-        margin: 2,
-        color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-        }
+    // QR 코드 생성 (QRious 라이브러리 사용)
+    const qr = new QRious({
+        element: qrCanvas,
+        value: qrCode,
+        size: 300,
+        background: '#ffffff',
+        foreground: '#000000',
+        level: 'H'
     });
     
     // 정보 표시
@@ -294,19 +294,22 @@ downloadAllBtn.addEventListener('click', async () => {
         const data = bulkQrData[i];
         const canvas = document.createElement('canvas');
         
-        await new Promise((resolve) => {
-            QRCode.toCanvas(canvas, data.qrCode, {
-                width: 300,
-                margin: 2
-            }, () => {
-                const link = document.createElement('a');
-                link.download = `QR_${data.product.serial}.png`;
-                link.href = canvas.toDataURL();
-                link.click();
-                
-                setTimeout(resolve, 200);
-            });
+        // QRious로 QR 생성
+        const qr = new QRious({
+            element: canvas,
+            value: data.qrCode,
+            size: 300,
+            background: '#ffffff',
+            foreground: '#000000',
+            level: 'H'
         });
+        
+        const link = document.createElement('a');
+        link.download = `QR_${data.product.serial}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+        
+        await new Promise(resolve => setTimeout(resolve, 200));
     }
     
     alert('모든 QR 코드 다운로드가 완료되었습니다!');
