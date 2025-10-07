@@ -1126,6 +1126,61 @@
   }
 }
 
+/* ===== 관리자 QR 생성 페이지 반응형 ===== */
+@media (max-width: 1024px) {
+  .list-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .list-actions {
+    width: 100%;
+  }
+  
+  .search-input {
+    flex: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .qr-actions {
+    flex-direction: column;
+  }
+  
+  .btn-download,
+  .btn-reset {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .qr-form-card,
+  .bulk-card,
+  .list-card {
+    padding: clamp(20px, 4vw, 32px);
+  }
+  
+  .qr-table th,
+  .qr-table td {
+    padding: clamp(8px, 1.5vw, 12px);
+    font-size: clamp(0.75rem, 1.5vw, 0.85rem);
+  }
+  
+  .btn-table-action {
+    padding: clamp(4px, 1vw, 6px) clamp(8px, 1.5vw, 12px);
+    font-size: clamp(0.7rem, 1.4vw, 0.8rem);
+  }
+}
+
 /* ===== 정품 인증 페이지 반응형 ===== */
 @media (max-width: 1024px) {
   .authenticity-page {

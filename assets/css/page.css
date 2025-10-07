@@ -2654,3 +2654,492 @@
   font-size: clamp(0.9rem, 1.8vw, 1rem);
   color: #666;
 }
+
+/* ===== 관리자 QR 생성 페이지 ===== */
+.admin-qr-page {
+  min-height: 100vh;
+  padding: clamp(40px, 8vw, 80px) clamp(20px, 4vw, 40px);
+  background: #fafafa;
+}
+
+.admin-qr-container {
+  max-width: clamp(800px, 90vw, 1200px);
+  margin: 0 auto;
+}
+
+/* 탭 메뉴 */
+.admin-tabs {
+  display: flex;
+  gap: clamp(8px, 1.5vw, 12px);
+  margin-bottom: clamp(32px, 5vw, 48px);
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-btn {
+  padding: clamp(12px, 2vw, 16px) clamp(20px, 3vw, 28px);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: -2px;
+}
+
+.tab-btn:hover {
+  color: #111;
+}
+
+.tab-btn.active {
+  color: #111;
+  border-bottom-color: #111;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* 폼 카드 */
+.qr-form-card,
+.bulk-card,
+.list-card {
+  background: #fff;
+  border-radius: clamp(12px, 2vw, 16px);
+  padding: clamp(32px, 5vw, 48px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.form-title {
+  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  font-weight: 700;
+  color: #111;
+  margin-bottom: clamp(24px, 4vw, 32px);
+}
+
+.qr-form {
+  max-width: 600px;
+}
+
+.form-group {
+  margin-bottom: clamp(20px, 3vw, 24px);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(16px, 3vw, 20px);
+}
+
+.form-group label {
+  display: block;
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  font-weight: 600;
+  color: #111;
+  margin-bottom: clamp(8px, 1.5vw, 10px);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: clamp(12px, 2vw, 14px) clamp(14px, 2.5vw, 16px);
+  border: 2px solid #e0e0e0;
+  border-radius: clamp(6px, 1.2vw, 8px);
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #111;
+}
+
+.form-group small {
+  display: block;
+  margin-top: clamp(6px, 1vw, 8px);
+  font-size: clamp(0.8rem, 1.6vw, 0.9rem);
+  color: #999;
+}
+
+.btn-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(8px, 1.5vw, 10px);
+  padding: clamp(14px, 2.5vw, 16px) clamp(28px, 5vw, 36px);
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: clamp(8px, 1.5vw, 10px);
+  font-size: clamp(0.95rem, 2vw, 1.05rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: clamp(12px, 2vw, 16px);
+}
+
+.btn-generate:hover {
+  background: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-generate svg {
+  width: clamp(18px, 3vw, 20px);
+  height: clamp(18px, 3vw, 20px);
+}
+
+/* QR 결과 */
+.qr-result-card {
+  background: #fff;
+  border-radius: clamp(12px, 2vw, 16px);
+  padding: clamp(32px, 5vw, 48px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.result-title {
+  font-size: clamp(1.4rem, 3.5vw, 1.8rem);
+  font-weight: 700;
+  color: #111;
+  margin-bottom: clamp(24px, 4vw, 32px);
+}
+
+.qr-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 3vw, 24px);
+  margin-bottom: clamp(32px, 5vw, 40px);
+}
+
+#qrCanvas {
+  border: 2px solid #e0e0e0;
+  border-radius: clamp(8px, 1.5vw, 10px);
+  padding: clamp(12px, 2vw, 16px);
+  background: #fff;
+}
+
+.qr-info {
+  text-align: center;
+}
+
+.qr-serial {
+  font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+  font-weight: 700;
+  color: #111;
+  margin-bottom: clamp(8px, 1.5vw, 10px);
+}
+
+.qr-code {
+  font-size: clamp(0.75rem, 1.5vw, 0.85rem);
+  font-family: 'Courier New', monospace;
+  color: #666;
+  word-break: break-all;
+  max-width: 400px;
+}
+
+.qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(12px, 2vw, 16px);
+  justify-content: center;
+}
+
+.btn-download,
+.btn-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(6px, 1.2vw, 8px);
+  padding: clamp(12px, 2vw, 14px) clamp(20px, 3vw, 24px);
+  border: 2px solid #111;
+  border-radius: clamp(6px, 1.2vw, 8px);
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-download {
+  background: #111;
+  color: #fff;
+}
+
+.btn-download:hover {
+  background: #333;
+}
+
+.btn-reset {
+  background: #fff;
+  color: #111;
+}
+
+.btn-reset:hover {
+  background: #f0f0f0;
+}
+
+.btn-download svg,
+.btn-reset svg {
+  width: clamp(16px, 2.8vw, 18px);
+  height: clamp(16px, 2.8vw, 18px);
+}
+
+/* 대량 생성 */
+.bulk-description {
+  font-size: clamp(0.95rem, 2vw, 1.05rem);
+  color: #666;
+  margin-bottom: clamp(24px, 4vw, 32px);
+}
+
+.upload-area {
+  border: 2px dashed #ddd;
+  border-radius: clamp(12px, 2vw, 16px);
+  padding: clamp(40px, 6vw, 60px);
+  text-align: center;
+  transition: all 0.3s ease;
+  margin-bottom: clamp(32px, 5vw, 40px);
+}
+
+.upload-area.dragover {
+  border-color: #111;
+  background: #f8f8f8;
+}
+
+.upload-area svg {
+  color: #111;
+  margin-bottom: clamp(16px, 3vw, 20px);
+}
+
+.upload-area p {
+  font-size: clamp(0.95rem, 2vw, 1.05rem);
+  color: #666;
+  margin-bottom: clamp(16px, 3vw, 20px);
+}
+
+.btn-upload,
+.btn-download-template {
+  padding: clamp(12px, 2vw, 14px) clamp(24px, 4vw, 32px);
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: clamp(6px, 1.2vw, 8px);
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-upload:hover,
+.btn-download-template:hover {
+  background: #333;
+}
+
+.csv-template {
+  background: #f8f8f8;
+  border-radius: clamp(8px, 1.5vw, 10px);
+  padding: clamp(20px, 3vw, 24px);
+}
+
+.csv-template h3 {
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+  font-weight: 600;
+  color: #111;
+  margin-bottom: clamp(12px, 2vw, 16px);
+}
+
+.csv-template pre {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: clamp(6px, 1.2vw, 8px);
+  padding: clamp(12px, 2vw, 16px);
+  font-size: clamp(0.8rem, 1.6vw, 0.9rem);
+  overflow-x: auto;
+  margin-bottom: clamp(16px, 3vw, 20px);
+}
+
+/* 대량 생성 진행 */
+.bulk-progress {
+  text-align: center;
+  padding: clamp(40px, 6vw, 60px);
+}
+
+.bulk-progress h3 {
+  font-size: clamp(1.2rem, 2.8vw, 1.5rem);
+  font-weight: 600;
+  color: #111;
+  margin-bottom: clamp(20px, 3vw, 24px);
+}
+
+.progress-bar {
+  width: 100%;
+  height: clamp(12px, 2vw, 16px);
+  background: #e0e0e0;
+  border-radius: clamp(8px, 1.5vw, 10px);
+  overflow: hidden;
+  margin-bottom: clamp(12px, 2vw, 16px);
+}
+
+.progress-fill {
+  height: 100%;
+  background: #111;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: clamp(0.95rem, 2vw, 1.05rem);
+  color: #666;
+}
+
+.bulk-result {
+  text-align: center;
+  padding: clamp(40px, 6vw, 60px);
+}
+
+.bulk-result h3 {
+  font-size: clamp(1.4rem, 3.5vw, 1.8rem);
+  font-weight: 700;
+  color: #111;
+  margin-bottom: clamp(16px, 3vw, 20px);
+}
+
+.bulk-stats {
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+  color: #666;
+  margin-bottom: clamp(24px, 4vw, 32px);
+}
+
+/* QR 목록 */
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: clamp(16px, 3vw, 20px);
+  margin-bottom: clamp(24px, 4vw, 32px);
+}
+
+.list-actions {
+  display: flex;
+  gap: clamp(8px, 1.5vw, 12px);
+}
+
+.search-input {
+  padding: clamp(10px, 1.8vw, 12px) clamp(14px, 2.5vw, 16px);
+  border: 2px solid #e0e0e0;
+  border-radius: clamp(6px, 1.2vw, 8px);
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  min-width: clamp(200px, 30vw, 300px);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #111;
+}
+
+.btn-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(40px, 6vw, 48px);
+  height: clamp(40px, 6vw, 48px);
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: clamp(6px, 1.2vw, 8px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-refresh:hover {
+  background: #333;
+  transform: rotate(180deg);
+}
+
+.btn-refresh svg {
+  width: clamp(18px, 3vw, 20px);
+  height: clamp(18px, 3vw, 20px);
+}
+
+/* QR 테이블 */
+.qr-table-container {
+  overflow-x: auto;
+}
+
+.qr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: clamp(0.85rem, 1.7vw, 0.95rem);
+}
+
+.qr-table thead {
+  background: #f8f8f8;
+}
+
+.qr-table th,
+.qr-table td {
+  padding: clamp(12px, 2vw, 16px);
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.qr-table th {
+  font-weight: 700;
+  color: #111;
+}
+
+.qr-table td {
+  color: #666;
+}
+
+.qr-table tbody tr:hover {
+  background: #f8f8f8;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: clamp(4px, 0.8vw, 6px) clamp(10px, 1.8vw, 12px);
+  border-radius: clamp(4px, 0.8vw, 6px);
+  font-size: clamp(0.75rem, 1.5vw, 0.85rem);
+  font-weight: 600;
+}
+
+.status-badge.valid {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.invalid {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.btn-table-action {
+  padding: clamp(6px, 1.2vw, 8px) clamp(12px, 2vw, 16px);
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: clamp(4px, 0.8vw, 6px);
+  font-size: clamp(0.8rem, 1.6vw, 0.9rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: clamp(4px, 0.8vw, 6px);
+}
+
+.btn-table-action:hover {
+  background: #333;
+}
+
+.btn-table-action.danger {
+  background: #ef4444;
+}
+
+.btn-table-action.danger:hover {
+  background: #dc2626;
+}
