@@ -130,6 +130,11 @@
             localStorage.setItem('user', JSON.stringify(data.user));
             localStorage.setItem('isLoggedIn', 'true');
             
+            // sessionStorage에도 저장 (위시리스트 등 다른 기능에서 사용)
+            sessionStorage.setItem('userLoggedIn', 'true');
+            sessionStorage.setItem('userEmail', data.user.email);
+            sessionStorage.setItem('userName', data.user.name);
+            
             // 메인 페이지로 이동
             window.location.href = 'index.html';
           } else {

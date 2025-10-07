@@ -239,6 +239,15 @@ function initializeMypageFunctionality() {
     return;
   }
 
+  // localStorage에서 sessionStorage로 로그인 정보 동기화
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  if (isLoggedIn) {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    sessionStorage.setItem('userLoggedIn', 'true');
+    sessionStorage.setItem('userEmail', user.email || '');
+    sessionStorage.setItem('userName', user.name || '');
+  }
+
   // 로그인 상태 확인
   function checkLoginStatus() {
     const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -275,8 +284,14 @@ function initializeMypageFunctionality() {
 
   // 로그아웃 기능
   function handleLogout() {
+    // localStorage 정리
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('user');
+    
+    // sessionStorage 정리 (위시리스트 등에서 사용)
+    sessionStorage.removeItem('userLoggedIn');
+    sessionStorage.removeItem('userEmail');
+    sessionStorage.removeItem('userName');
     
     // 페이지 새로고침하여 상태 업데이트
     window.location.reload();
