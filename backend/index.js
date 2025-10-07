@@ -11,6 +11,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy (nginx 또는 다른 프록시 뒤에서 실행될 때 필요)
+app.set('trust proxy', true);
+
 // CORS 설정 (특정 도메인만 허용) - helmet보다 먼저 설정
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
     process.env.ALLOWED_ORIGINS.split(',') : 
