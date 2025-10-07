@@ -1391,12 +1391,11 @@
   width: clamp(80px, 12vw, 100px);
   height: clamp(80px, 12vw, 100px);
   object-fit: contain;
-  filter: grayscale(100%);
   transition: filter 0.3s ease;
 }
 
 .wishlist-btn.active .wishlist-icon {
-  filter: grayscale(0%) brightness(1.2);
+  filter: brightness(1.1);
 }
 
 /* 상품 코드 */

@@ -75,12 +75,30 @@
     } catch (error) {
       console.error('위시리스트 불러오기 오류:', error);
       loadingState.style.display = 'none';
-      emptyState.style.display = 'flex';
       
-      const emptyTitle = emptyState.querySelector('.empty-title');
-      const emptyDescription = emptyState.querySelector('.empty-description');
-      emptyTitle.textContent = '오류가 발생했습니다';
-      emptyDescription.innerHTML = '위시리스트를 불러올 수 없습니다.<br>나중에 다시 시도해주세요.';
+      // 로그인하지 않았거나 위시리스트가 비어있는 경우 - 빈 상태 표시
+      // 실제 네트워크 오류인 경우에만 오류 메시지 표시
+      const isNetworkError = error.message && (
+        error.message.includes('fetch') || 
+        error.message.includes('network') ||
+        error.message.includes('Failed to fetch')
+      );
+      
+      if (isNetworkError) {
+        // 실제 네트워크 오류
+        emptyState.style.display = 'flex';
+        const emptyTitle = emptyState.querySelector('.empty-title');
+        const emptyDescription = emptyState.querySelector('.empty-description');
+        emptyTitle.textContent = '오류가 발생했습니다';
+        emptyDescription.innerHTML = '위시리스트를 불러올 수 없습니다.<br>나중에 다시 시도해주세요.';
+        document.querySelector('.page-header').style.display = 'none';
+      } else {
+        // 빈 위시리스트
+        emptyState.style.display = 'flex';
+        wishlistGrid.style.display = 'none';
+        wishlistCountSpan.textContent = '0';
+        document.querySelector('.page-header').style.display = 'none';
+      }
     }
   }
 
