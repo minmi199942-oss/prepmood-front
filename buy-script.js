@@ -187,45 +187,85 @@
     alert('빠른 구매 기능은 준비 중입니다.\n장바구니에 추가되었습니다.');
   }
 
-  // 위시리스트 토글
-  function toggleWishlist() {
-    if (!currentProduct) return;
-
-    const wishlistBtn = document.getElementById('wishlist-btn');
-    let wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
-
-    const existingIndex = wishlist.findIndex(item => item.id === currentProduct.id);
-
-    if (existingIndex > -1) {
-      // 이미 있으면 제거
-      wishlist.splice(existingIndex, 1);
-      wishlistBtn.classList.remove('active');
-      alert('위시리스트에서 제거되었습니다.');
-    } else {
-      // 없으면 추가
-      wishlist.push({
-        id: currentProduct.id,
-        name: currentProduct.name,
-        price: currentProduct.price,
-        image: currentProduct.image,
-        addedAt: new Date().toISOString()
-      });
-      wishlistBtn.classList.add('active');
-      alert('위시리스트에 추가되었습니다.');
-    }
-
-    localStorage.setItem('wishlist', JSON.stringify(wishlist));
+  // 로그인 상태 확인
+  function isLoggedIn() {
+    // 세션 스토리지에서 로그인 상태 확인
+    return sessionStorage.getItem('userLoggedIn') === 'true';
   }
 
-  // 위시리스트 상태 확인
-  function checkWishlistStatus() {
+  // 위시리스트 토글 (API 연동)
+  async function toggleWishlist() {
     if (!currentProduct) return;
 
-    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
-    const isInWishlist = wishlist.some(item => item.id === currentProduct.id);
+    // 로그인 체크
+    if (!isLoggedIn()) {
+      if (confirm('로그인이 필요한 서비스입니다.\n로그인 페이지로 이동하시겠습니까?')) {
+        window.location.href = 'login.html';
+      }
+      return;
+    }
 
-    if (isInWishlist) {
-      document.getElementById('wishlist-btn').classList.add('active');
+    const wishlistBtn = document.getElementById('wishlist-btn');
+    const isActive = wishlistBtn.classList.contains('active');
+
+    try {
+      // 사용자 이메일 가져오기
+      const userEmail = sessionStorage.getItem('userEmail');
+      
+      // API 호출
+      const response = await fetch('http://localhost:3000/api/wishlist/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Email': userEmail
+        },
+        credentials: 'include', // 쿠키 포함
+        body: JSON.stringify({
+          productId: currentProduct.id
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        if (data.action === 'added') {
+          wishlistBtn.classList.add('active');
+          alert('위시리스트에 추가되었습니다.');
+        } else {
+          wishlistBtn.classList.remove('active');
+          alert('위시리스트에서 제거되었습니다.');
+        }
+      } else {
+        alert(data.message || '위시리스트 처리에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('위시리스트 토글 오류:', error);
+      alert('서버와의 통신에 실패했습니다.');
+    }
+  }
+
+  // 위시리스트 상태 확인 (API 연동)
+  async function checkWishlistStatus() {
+    if (!currentProduct || !isLoggedIn()) return;
+
+    try {
+      const userEmail = sessionStorage.getItem('userEmail');
+      
+      const response = await fetch(`http://localhost:3000/api/wishlist/check?productId=${currentProduct.id}`, {
+        method: 'GET',
+        headers: {
+          'X-User-Email': userEmail
+        },
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.isInWishlist) {
+        document.getElementById('wishlist-btn').classList.add('active');
+      }
+    } catch (error) {
+      console.error('위시리스트 상태 확인 오류:', error);
     }
   }
 

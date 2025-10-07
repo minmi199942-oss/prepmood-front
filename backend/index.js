@@ -762,6 +762,158 @@ app.post('/api/update-profile', [
     }
 });
 
+// ==================== 위시리스트 API ====================
+
+// 위시리스트 토글 API (추가/삭제)
+app.post('/api/wishlist/toggle', [
+    body('productId').notEmpty().trim().withMessage('상품 ID가 필요합니다.')
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: errors.array()[0].msg
+            });
+        }
+
+        const { productId } = req.body;
+        const userEmail = req.headers['x-user-email']; // 임시로 헤더에서 이메일 가져오기
+
+        if (!userEmail) {
+            return res.status(401).json({
+                success: false,
+                message: '로그인이 필요합니다.'
+            });
+        }
+
+        const connection = await mysql.createConnection(dbConfig);
+
+        // 이미 위시리스트에 있는지 확인
+        const [existing] = await connection.execute(
+            'SELECT id FROM wishlists WHERE user_email = ? AND product_id = ?',
+            [userEmail, productId]
+        );
+
+        let action;
+        if (existing.length > 0) {
+            // 제거
+            await connection.execute(
+                'DELETE FROM wishlists WHERE user_email = ? AND product_id = ?',
+                [userEmail, productId]
+            );
+            action = 'removed';
+            console.log(`🗑️ 위시리스트에서 제거: ${userEmail} - ${productId}`);
+        } else {
+            // 추가
+            await connection.execute(
+                'INSERT INTO wishlists (user_email, product_id) VALUES (?, ?)',
+                [userEmail, productId]
+            );
+            action = 'added';
+            console.log(`💝 위시리스트에 추가: ${userEmail} - ${productId}`);
+        }
+
+        await connection.end();
+
+        res.json({
+            success: true,
+            action: action,
+            message: action === 'added' ? '위시리스트에 추가되었습니다.' : '위시리스트에서 제거되었습니다.'
+        });
+
+    } catch (error) {
+        console.error('❌ 위시리스트 토글 오류:', error.message);
+        res.status(500).json({
+            success: false,
+            message: '위시리스트 처리 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+// 위시리스트 상태 확인 API
+app.get('/api/wishlist/check', async (req, res) => {
+    try {
+        const { productId } = req.query;
+        const userEmail = req.headers['x-user-email'];
+
+        if (!userEmail) {
+            return res.status(401).json({
+                success: false,
+                message: '로그인이 필요합니다.'
+            });
+        }
+
+        if (!productId) {
+            return res.status(400).json({
+                success: false,
+                message: '상품 ID가 필요합니다.'
+            });
+        }
+
+        const connection = await mysql.createConnection(dbConfig);
+
+        const [existing] = await connection.execute(
+            'SELECT id FROM wishlists WHERE user_email = ? AND product_id = ?',
+            [userEmail, productId]
+        );
+
+        await connection.end();
+
+        res.json({
+            success: true,
+            isInWishlist: existing.length > 0
+        });
+
+    } catch (error) {
+        console.error('❌ 위시리스트 확인 오류:', error.message);
+        res.status(500).json({
+            success: false,
+            message: '위시리스트 확인 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+// 위시리스트 전체 조회 API
+app.get('/api/wishlist', async (req, res) => {
+    try {
+        const userEmail = req.headers['x-user-email'];
+
+        if (!userEmail) {
+            return res.status(401).json({
+                success: false,
+                message: '로그인이 필요합니다.'
+            });
+        }
+
+        const connection = await mysql.createConnection(dbConfig);
+
+        const [wishlists] = await connection.execute(
+            'SELECT product_id, added_at FROM wishlists WHERE user_email = ? ORDER BY added_at DESC',
+            [userEmail]
+        );
+
+        await connection.end();
+
+        console.log(`📋 위시리스트 조회: ${userEmail} - ${wishlists.length}개 항목`);
+
+        res.json({
+            success: true,
+            wishlists: wishlists,
+            count: wishlists.length
+        });
+
+    } catch (error) {
+        console.error('❌ 위시리스트 조회 오류:', error.message);
+        res.status(500).json({
+            success: false,
+            message: '위시리스트 조회 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+// ==================== 기타 API ====================
+
 // 서버 상태 확인 API
 app.get('/api/health', (req, res) => {
     res.json({ 

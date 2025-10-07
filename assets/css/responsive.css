@@ -1034,6 +1034,49 @@
 }
 
 
+/* ===== 위시리스트 페이지 반응형 ===== */
+@media (max-width: 1199px) {
+  .wishlist-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .wishlist-page {
+    margin: clamp(24px, 5vw, 40px) auto;
+  }
+
+  .wishlist-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: clamp(16px, 3vw, 20px);
+  }
+
+  .wishlist-card-info {
+    padding: clamp(10px, 2vw, 14px);
+  }
+
+  .wishlist-remove-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .wishlist-remove-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .wishlist-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: clamp(12px, 2.5vw, 16px);
+  }
+
+  .empty-icon {
+    font-size: 3rem;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   /* 다크 모드 지원 (필요시 구현) */
   /* body {
