@@ -47,7 +47,7 @@ const API_BASE_URL = window.location.origin + '/api';
     try {
       const userEmail = sessionStorage.getItem('userEmail');
 
-      const response = await fetch(`${API_BASE_URL}/api/wishlist`, {
+      const response = await fetch(`${API_BASE_URL}/wishlist`, {
         method: 'GET',
         headers: {
           'X-User-Email': userEmail
@@ -155,7 +155,7 @@ const API_BASE_URL = window.location.origin + '/api';
     try {
       const userEmail = sessionStorage.getItem('userEmail');
 
-      const response = await fetch(`${API_BASE_URL}/api/wishlist/toggle`, {
+      const response = await fetch(`${API_BASE_URL}/wishlist/toggle`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
