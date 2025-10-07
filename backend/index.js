@@ -11,8 +11,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust proxy (nginx 또는 다른 프록시 뒤에서 실행될 때 필요)
-app.set('trust proxy', true);
+// Trust proxy (nginx 프록시 설정 - 보안을 위해 특정 IP만 신뢰)
+// 'loopback'은 127.0.0.1만 신뢰 (nginx가 같은 서버에서 실행될 때)
+app.set('trust proxy', 'loopback');
 
 // CORS 설정 (특정 도메인만 허용) - helmet보다 먼저 설정
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
