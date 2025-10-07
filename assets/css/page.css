@@ -2212,3 +2212,445 @@
 .wishlist-remove-btn:hover svg {
   color: #111;
 }
+
+/* ===== 정품 인증 페이지 ===== */
+.authenticity-page {
+  min-height: 100vh;
+  padding: clamp(40px, 8vw, 80px) clamp(20px, 4vw, 40px);
+  background: #fafafa;
+}
+
+.authenticity-container {
+  max-width: clamp(600px, 80vw, 800px);
+  margin: 0 auto;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: clamp(40px, 6vw, 60px);
+}
+
+.page-title {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: #111;
+  margin-bottom: clamp(12px, 2vw, 16px);
+}
+
+.page-description {
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  color: #666;
+  line-height: 1.6;
+}
+
+/* 스캔 섹션 */
+.scan-section {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(24px, 4vw, 32px);
+}
+
+.scan-card,
+.input-card {
+  background: #fff;
+  border-radius: clamp(12px, 2vw, 16px);
+  padding: clamp(32px, 5vw, 48px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.scan-icon {
+  width: clamp(60px, 10vw, 80px);
+  height: clamp(60px, 10vw, 80px);
+  margin: 0 auto clamp(16px, 3vw, 24px);
+  color: #111;
+}
+
+.scan-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.scan-title,
+.input-title {
+  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  font-weight: 600;
+  color: #111;
+  margin-bottom: clamp(8px, 1.5vw, 12px);
+}
+
+.scan-description,
+.input-description {
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  color: #666;
+  margin-bottom: clamp(24px, 4vw, 32px);
+}
+
+.btn-scan {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(8px, 1.5vw, 10px);
+  padding: clamp(14px, 2.5vw, 16px) clamp(28px, 5vw, 36px);
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: clamp(6px, 1.2vw, 8px);
+  font-size: clamp(0.95rem, 2vw, 1.05rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-scan:hover {
+  background: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-scan svg {
+  width: clamp(18px, 3vw, 20px);
+  height: clamp(18px, 3vw, 20px);
+}
+
+.divider {
+  position: relative;
+  text-align: center;
+  padding: clamp(16px, 3vw, 24px) 0;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: #ddd;
+}
+
+.divider span {
+  position: relative;
+  display: inline-block;
+  padding: 0 clamp(12px, 2vw, 16px);
+  background: #fafafa;
+  color: #999;
+  font-size: clamp(0.85rem, 1.8vw, 0.95rem);
+}
+
+/* 코드 입력 폼 */
+.code-form {
+  display: flex;
+  gap: clamp(10px, 2vw, 12px);
+}
+
+.code-input {
+  flex: 1;
+  padding: clamp(12px, 2.5vw, 14px) clamp(16px, 3vw, 20px);
+  border: 2px solid #e0e0e0;
+  border-radius: clamp(6px, 1.2vw, 8px);
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  font-family: 'Courier New', monospace;
+  transition: border-color 0.3s ease;
+}
+
+.code-input:focus {
+  outline: none;
+  border-color: #111;
+}
+
+.btn-verify {
+  padding: clamp(12px, 2.5vw, 14px) clamp(24px, 4vw, 32px);
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: clamp(6px, 1.2vw, 8px);
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-verify:hover {
+  background: #333;
+}
+
+/* 결과 섹션 */
+.result-section {
+  margin-top: clamp(32px, 5vw, 48px);
+}
+
+.result-card {
+  background: #fff;
+  border-radius: clamp(12px, 2vw, 16px);
+  padding: clamp(32px, 5vw, 48px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.result-status {
+  text-align: center;
+  margin-bottom: clamp(32px, 5vw, 40px);
+}
+
+.result-status svg {
+  width: clamp(50px, 8vw, 60px);
+  height: clamp(50px, 8vw, 60px);
+  margin: 0 auto clamp(16px, 3vw, 20px);
+}
+
+.result-status.success svg {
+  color: #22c55e;
+}
+
+.result-status.error svg {
+  color: #ef4444;
+}
+
+.result-status h3 {
+  font-size: clamp(1.4rem, 3.5vw, 1.8rem);
+  font-weight: 700;
+  color: #111;
+  margin-bottom: clamp(8px, 1.5vw, 12px);
+}
+
+.result-status p {
+  font-size: clamp(0.95rem, 2vw, 1.05rem);
+  color: #666;
+}
+
+.ownership-status {
+  padding: clamp(16px, 3vw, 20px);
+  border-radius: clamp(8px, 1.5vw, 10px);
+  margin-bottom: clamp(24px, 4vw, 32px);
+  text-align: center;
+}
+
+.ownership-status.unregistered {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ownership-status.registered {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.ownership-status p {
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  margin: clamp(4px, 0.8vw, 6px) 0;
+}
+
+/* 제품 상세 정보 */
+.product-details {
+  border-top: 1px solid #e0e0e0;
+  padding-top: clamp(24px, 4vw, 32px);
+}
+
+.product-details h4 {
+  font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+  font-weight: 600;
+  color: #111;
+  margin-bottom: clamp(16px, 3vw, 20px);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: clamp(12px, 2vw, 14px) 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  color: #666;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  color: #111;
+  font-weight: 600;
+  text-align: right;
+  max-width: 60%;
+}
+
+/* 액션 버튼 */
+.btn-register,
+.btn-login,
+.btn-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 1.5vw, 10px);
+  width: 100%;
+  padding: clamp(14px, 2.5vw, 16px);
+  margin-top: clamp(24px, 4vw, 32px);
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: clamp(8px, 1.5vw, 10px);
+  font-size: clamp(0.95rem, 2vw, 1.05rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-register:hover,
+.btn-login:hover,
+.btn-retry:hover {
+  background: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-register svg {
+  width: clamp(18px, 3vw, 20px);
+  height: clamp(18px, 3vw, 20px);
+}
+
+.btn-retry {
+  background: #ef4444;
+}
+
+.btn-retry:hover {
+  background: #dc2626;
+}
+
+/* 로딩 상태 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(40px, 6vw, 60px);
+  background: #fff;
+  border-radius: clamp(12px, 2vw, 16px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  margin-top: clamp(32px, 5vw, 48px);
+}
+
+.loading-spinner {
+  width: clamp(40px, 6vw, 50px);
+  height: clamp(40px, 6vw, 50px);
+  border: 3px solid #f0f0f0;
+  border-top-color: #111;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  margin-top: clamp(16px, 3vw, 20px);
+  font-size: clamp(0.95rem, 2vw, 1.05rem);
+  color: #666;
+}
+
+/* QR 스캔 모달 */
+.qr-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(20px, 4vw, 40px);
+}
+
+.qr-modal-content {
+  position: relative;
+  background: #fff;
+  border-radius: clamp(12px, 2vw, 16px);
+  padding: clamp(24px, 4vw, 32px);
+  max-width: clamp(400px, 80vw, 500px);
+  width: 100%;
+}
+
+.qr-modal-close {
+  position: absolute;
+  top: clamp(12px, 2vw, 16px);
+  right: clamp(12px, 2vw, 16px);
+  width: clamp(32px, 5vw, 40px);
+  height: clamp(32px, 5vw, 40px);
+  background: #f0f0f0;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.qr-modal-close:hover {
+  background: #e0e0e0;
+}
+
+.qr-modal-close svg {
+  width: clamp(18px, 3vw, 20px);
+  height: clamp(18px, 3vw, 20px);
+  color: #111;
+}
+
+.qr-modal-title {
+  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  font-weight: 700;
+  color: #111;
+  text-align: center;
+  margin-bottom: clamp(20px, 3vw, 24px);
+}
+
+.qr-video-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #000;
+  border-radius: clamp(8px, 1.5vw, 10px);
+  overflow: hidden;
+}
+
+#qrVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qr-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.qr-frame {
+  width: 70%;
+  height: 70%;
+  border: 3px solid #22c55e;
+  border-radius: clamp(8px, 1.5vw, 12px);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+.qr-hint {
+  text-align: center;
+  margin-top: clamp(16px, 3vw, 20px);
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  color: #666;
+}
