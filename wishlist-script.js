@@ -36,7 +36,7 @@
 
   // API 기본 URL 설정 (환경에 따라 자동 변경)
   const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3000'
+    ? 'https://prepmood.kr'
     : 'https://prepmood.kr';
 
   // 위시리스트 불러오기
