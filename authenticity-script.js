@@ -1,5 +1,5 @@
 // API 기본 URL 설정
-const API_BASE_URL = window.location.origin + '/api';
+const API_BASE_URL = window.location.origin;
 
 // DOM 요소
 const scanButton = document.getElementById('scanButton');
