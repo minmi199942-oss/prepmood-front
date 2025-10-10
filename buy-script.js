@@ -4,7 +4,9 @@
   'use strict';
 
   // API 기본 URL 설정 (환경에 따라 자동 변경)
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = window.location.hostname === 'prepmood.kr' 
+    ? window.location.origin + '/api'
+    : 'https://prepmood.kr/api';
 
   // URL에서 제품 ID 가져오기
   const urlParams = new URLSearchParams(window.location.search);
