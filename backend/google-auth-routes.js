@@ -61,6 +61,7 @@ router.post('/auth/google/login', async (req, res) => {
 
 // Google 로그인 상태 확인
 router.get('/auth/google/status', async (req, res) => {
+    let connection;
     try {
         const token = req.headers.authorization?.replace('Bearer ', '');
         
@@ -72,11 +73,27 @@ router.get('/auth/google/status', async (req, res) => {
         }
 
         const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        let decoded;
+        
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (jwtError) {
+            if (jwtError.name === 'TokenExpiredError') {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Token expired',
+                    expired: true
+                });
+            }
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
         
         // 사용자 정보 조회
         const mysql = require('mysql2/promise');
-        const connection = await mysql.createConnection({
+        connection = await mysql.createConnection({
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
@@ -87,8 +104,6 @@ router.get('/auth/google/status', async (req, res) => {
             'SELECT user_id, email, first_name, last_name, google_id, profile_picture FROM users WHERE user_id = ?',
             [decoded.userId]
         );
-
-        await connection.end();
 
         if (users.length === 0) {
             return res.status(404).json({
@@ -104,15 +119,20 @@ router.get('/auth/google/status', async (req, res) => {
 
     } catch (error) {
         console.error('Google 로그인 상태 확인 오류:', error);
-        res.status(401).json({
+        res.status(500).json({
             success: false,
-            error: 'Invalid token'
+            error: 'Internal server error'
         });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
     }
 });
 
 // 추가 정보 입력 API
 router.post('/auth/complete-profile', async (req, res) => {
+    let connection;
     try {
         const token = req.headers.authorization?.replace('Bearer ', '');
         
@@ -124,10 +144,27 @@ router.post('/auth/complete-profile', async (req, res) => {
         }
 
         const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        let decoded;
+        
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (jwtError) {
+            if (jwtError.name === 'TokenExpiredError') {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Token expired',
+                    expired: true
+                });
+            }
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token'
+            });
+        }
         
         const { lastName, firstName, phone, birth } = req.body;
 
+        // 입력 값 검증
         if (!lastName || !firstName) {
             return res.status(400).json({
                 success: false,
@@ -135,8 +172,24 @@ router.post('/auth/complete-profile', async (req, res) => {
             });
         }
 
+        // 이름 길이 검증
+        if (lastName.length > 50 || firstName.length > 50) {
+            return res.status(400).json({
+                success: false,
+                error: '이름이 너무 깁니다.'
+            });
+        }
+
+        // 전화번호 형식 검증 (선택적)
+        if (phone && !/^[0-9-]+$/.test(phone)) {
+            return res.status(400).json({
+                success: false,
+                error: '유효하지 않은 전화번호 형식입니다.'
+            });
+        }
+
         const mysql = require('mysql2/promise');
-        const connection = await mysql.createConnection({
+        connection = await mysql.createConnection({
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
@@ -144,12 +197,17 @@ router.post('/auth/complete-profile', async (req, res) => {
         });
 
         // 사용자 정보 업데이트
-        await connection.execute(
+        const [result] = await connection.execute(
             'UPDATE users SET last_name = ?, first_name = ?, phone = ?, birth = ? WHERE user_id = ?',
-            [lastName, firstName, phone || null, birth || null, decoded.userId]
+            [lastName.trim(), firstName.trim(), phone || null, birth || null, decoded.userId]
         );
 
-        await connection.end();
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                error: '사용자를 찾을 수 없습니다.'
+            });
+        }
 
         res.json({
             success: true,
@@ -162,6 +220,10 @@ router.post('/auth/complete-profile', async (req, res) => {
             success: false,
             error: '정보 저장 중 오류가 발생했습니다.'
         });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
     }
 });
 

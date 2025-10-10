@@ -41,14 +41,16 @@ class GoogleAuthService {
 
     // Google 사용자를 데이터베이스에서 찾거나 생성
     async findOrCreateGoogleUser(googleUser) {
-        const connection = await mysql.createConnection({
-            host: process.env.DB_HOST,
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME
-        });
-
+        let connection;
+        
         try {
+            connection = await mysql.createConnection({
+                host: process.env.DB_HOST,
+                user: process.env.DB_USER,
+                password: process.env.DB_PASSWORD,
+                database: process.env.DB_NAME
+            });
+
             // 기존 사용자 찾기
             const [existingUsers] = await connection.execute(
                 'SELECT * FROM users WHERE google_id = ? OR email = ?',
@@ -66,7 +68,6 @@ class GoogleAuthService {
                     );
                 }
 
-                await connection.end();
                 return {
                     success: true,
                     user: {
@@ -96,7 +97,6 @@ class GoogleAuthService {
                     ]
                 );
 
-                await connection.end();
                 return {
                     success: true,
                     user: {
@@ -110,11 +110,14 @@ class GoogleAuthService {
             }
         } catch (error) {
             console.error('Google 사용자 처리 실패:', error);
-            await connection.end();
             return {
                 success: false,
                 error: 'Database error'
             };
+        } finally {
+            if (connection) {
+                await connection.end();
+            }
         }
     }
 
