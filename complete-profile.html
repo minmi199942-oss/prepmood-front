@@ -143,11 +143,16 @@
         }
 
         /* 추가 정보 입력 페이지에서 검색 기능 숨기기 */
+        #search-toggle,
+        #search-modal,
+        .search-modal,
         .search-container,
         .search-icon,
         .search-input,
-        .search-results {
+        .search-results,
+        .search-modal-content {
             display: none !important;
+            visibility: hidden !important;
         }
     </style>
 </head>
@@ -200,13 +205,41 @@
     <script src="header-loader.js"></script>
     <script src="footer-loader.js"></script>
     <script>
-        // 헤더 로드 후 검색 기능 숨기기
-        setTimeout(() => {
-            const searchContainer = document.querySelector('.search-container');
-            const searchIcon = document.querySelector('.search-icon');
-            if (searchContainer) searchContainer.style.display = 'none';
-            if (searchIcon) searchIcon.style.display = 'none';
-        }, 500);
+        // 헤더 로드 후 검색 기능 완전히 숨기기
+        function hideSearchFeatures() {
+            const elementsToHide = [
+                '#search-toggle',
+                '#search-modal',
+                '.search-modal',
+                '.search-container',
+                '.search-icon',
+                '.search-input',
+                '.search-results',
+                '.search-modal-content'
+            ];
+            
+            elementsToHide.forEach(selector => {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(el => {
+                    if (el) {
+                        el.style.display = 'none';
+                        el.style.visibility = 'hidden';
+                        el.style.opacity = '0';
+                        el.style.pointerEvents = 'none';
+                    }
+                });
+            });
+        }
+        
+        // 헤더 로드 후 여러 번 시도
+        setTimeout(hideSearchFeatures, 100);
+        setTimeout(hideSearchFeatures, 300);
+        setTimeout(hideSearchFeatures, 500);
+        setTimeout(hideSearchFeatures, 1000);
+        
+        // DOM 변경 감지해서 계속 숨기기
+        const observer = new MutationObserver(hideSearchFeatures);
+        observer.observe(document.body, { childList: true, subtree: true });
     </script>
     <script>
         const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
