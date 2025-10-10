@@ -233,7 +233,10 @@ const API_BASE_URL = 'http://localhost:3000/api';
       if (data.success) {
         if (data.action === 'added') {
           wishlistBtn.classList.add('active');
-          alert('위시리스트에 추가되었습니다.');
+          // 위시리스트 추가 후 페이지로 이동
+          if (confirm('위시리스트에 추가되었습니다.\n위시리스트 페이지로 이동하시겠습니까?')) {
+            window.location.href = 'wishlist.html';
+          }
         } else {
           wishlistBtn.classList.remove('active');
           alert('위시리스트에서 제거되었습니다.');
