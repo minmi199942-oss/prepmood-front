@@ -146,9 +146,23 @@
       }
 
       // Google 로그인 버튼 클릭 핸들러
+      let googleLoginAttempts = 0;
       document.querySelector('.google-login-btn').addEventListener('click', function() {
         if (typeof google !== 'undefined') {
-          google.accounts.id.prompt();
+          try {
+            google.accounts.id.prompt((notification) => {
+              if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                // FedCM이 차단된 경우
+                googleLoginAttempts++;
+                if (googleLoginAttempts > 1) {
+                  alert('Google 로그인을 취소하셨습니다.\n\n다시 시도하려면 페이지를 새로고침(F5)해주세요.');
+                }
+              }
+            });
+          } catch (error) {
+            console.error('Google prompt 오류:', error);
+            alert('Google 로그인을 취소하셨습니다.\n\n다시 시도하려면 페이지를 새로고침(F5)해주세요.');
+          }
         } else {
           alert('Google 로그인 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
         }
