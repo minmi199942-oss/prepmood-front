@@ -242,9 +242,10 @@
         observer.observe(document.body, { childList: true, subtree: true });
     </script>
     <script>
-        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'http://localhost:3000' 
-            : window.location.origin;
+        // 로컬 개발 환경에서도 실제 서버 API 사용 (로컬 DB 설정이 없을 경우)
+        const API_BASE_URL = window.location.hostname === 'prepmood.kr' 
+            ? window.location.origin 
+            : 'https://prepmood.kr';
 
         // 로그인 여부 확인
         const user = JSON.parse(localStorage.getItem('user') || 'null');
