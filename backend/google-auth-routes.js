@@ -8,7 +8,7 @@ const googleAuth = new GoogleAuthService();
 // Rate limiting 미들웨어
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15분
-    max: 10, // 15분당 10번 요청 허용
+    max: process.env.NODE_ENV === 'production' ? 10 : 100, // 프로덕션: 10회, 개발: 100회
     message: {
         success: false,
         error: '너무 많은 요청입니다. 15분 후에 다시 시도해주세요.'
@@ -196,11 +196,11 @@ router.post('/auth/complete-profile', authLimiter, async (req, res) => {
             });
         }
 
-        // 이름 형식 검증 (한글, 영문, 공백만 허용)
-        if (!/^[가-힣a-zA-Z\s]+$/.test(sanitizedLastName) || !/^[가-힣a-zA-Z\s]+$/.test(sanitizedFirstName)) {
+        // 이름 형식 검증 (한글, 영문, 공백, 하이픈, 아포스트로피 허용)
+        if (!/^[가-힣a-zA-Z\s'-]+$/.test(sanitizedLastName) || !/^[가-힣a-zA-Z\s'-]+$/.test(sanitizedFirstName)) {
             return res.status(400).json({
                 success: false,
-                error: '이름에는 한글과 영문만 입력 가능합니다.'
+                error: '이름에는 한글, 영문, 하이픈(-), 아포스트로피(\')만 입력 가능합니다.'
             });
         }
 
@@ -216,6 +216,7 @@ router.post('/auth/complete-profile', authLimiter, async (req, res) => {
         if (birth) {
             const birthDate = new Date(birth);
             const today = new Date();
+            today.setHours(23, 59, 59, 999); // 오늘 끝까지 허용
             const minDate = new Date('1900-01-01');
             
             if (isNaN(birthDate.getTime()) || birthDate > today || birthDate < minDate) {
