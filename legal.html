@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>법적 고지 - Pre.pMood</title>
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/page.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+    <script src="header-loader.js" defer></script>
+    <script src="footer-loader.js" defer></script>
+    <style>
+        .legal-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            display: flex;
+            gap: 40px;
+            min-height: 80vh;
+            align-items: flex-start;
+        }
+
+        .legal-sidebar {
+            flex: 0 0 280px;
+            background-color: #f8f9fa;
+            padding: 30px 20px;
+            border-radius: 8px;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+            min-height: 400px;
+        }
+
+        .legal-sidebar h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .legal-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .legal-nav li {
+            margin-bottom: 8px;
+            width: 100%;
+        }
+
+        .legal-nav a {
+            display: block;
+            padding: 12px 16px;
+            color: #666;
+            text-decoration: none;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .legal-nav a:hover {
+            background-color: #e9ecef;
+            color: #333;
+        }
+
+        .legal-nav a.active {
+            background-color: #333;
+            color: white;
+        }
+
+        .legal-content {
+            flex: 1;
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            max-width: calc(100% - 320px);
+        }
+
+        .legal-content h1 {
+            font-size: 2.2rem;
+            font-weight: 300;
+            color: #333;
+            margin-bottom: 40px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+
+        .legal-section {
+            margin-bottom: 50px;
+        }
+
+        .legal-section h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .legal-section h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #444;
+            margin: 25px 0 15px 0;
+        }
+
+        .legal-section p {
+            line-height: 1.7;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .legal-section ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+
+        .legal-section li {
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .highlight {
+            font-weight: 600;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .legal-page {
+                flex-direction: column;
+                padding: 20px 10px;
+                gap: 20px;
+            }
+            
+            .legal-sidebar {
+                flex: none;
+                position: static;
+                margin-bottom: 0;
+                min-height: auto;
+            }
+            
+            .legal-nav {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .legal-nav li {
+                flex: 1;
+                min-width: 120px;
+                margin-bottom: 0;
+            }
+            
+            .legal-nav a {
+                font-size: 0.75rem;
+                padding: 8px 12px;
+                text-align: center;
+            }
+            
+            .legal-content {
+                padding: 20px;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header-container"></div>
+    
+    <div class="legal-page">
+        <!-- 좌측 사이드바 -->
+        <nav class="legal-sidebar">
+            <h3>법적 고지</h3>
+            <ul class="legal-nav">
+                <li><a href="#section-1" class="nav-link active">I. 웹사이트 및 서비스 안내</a></li>
+                <li><a href="#section-2" class="nav-link">II. 지적재산권</a></li>
+                <li><a href="#section-3" class="nav-link">III. 개인정보 처리방침</a></li>
+                <li><a href="#section-4" class="nav-link">IV. 주문 및 결제</a></li>
+                <li><a href="#section-5" class="nav-link">V. 배송 안내</a></li>
+                <li><a href="#section-6" class="nav-link">VI. 반품 및 교환</a></li>
+                <li><a href="#section-7" class="nav-link">VII. 애프터 서비스</a></li>
+                <li><a href="#section-8" class="nav-link">VIII. 불가항력</a></li>
+                <li><a href="#section-9" class="nav-link">IX. 웹사이트 이용 권한</a></li>
+                <li><a href="#section-10" class="nav-link">X. 분쟁 해결 및 준거법</a></li>
+            </ul>
+        </nav>
+
+        <!-- 우측 메인 콘텐츠 -->
+        <main class="legal-content">
+            <h1>법적 고지</h1>
+
+            <section id="section-1" class="legal-section">
+                <h2>I. 웹사이트 및 서비스 안내</h2>
+                <ul>
+                    <li>본 웹사이트(www.prepmood.kr)는 <span class="highlight">Pre.pMood</span>에서 운영하며, 전 세계 고객님께 안전하고 신뢰할 수 있는 쇼핑 환경과 서비스를 제공합니다.</li>
+                    <li>본 웹사이트를 방문하고 이용하는 모든 고객님은 약관과 정책 내용을 충분히 이해하고 동의한 것으로 간주됩니다.</li>
+                    <li>웹사이트 이용을 통해 고객님과 <span class="highlight">Pre.pMood</span> 사이에 계약관계가 성립하며, 제공되는 서비스와 제품과 관련된 권리와 의무가 발생합니다.</li>
+                    <li>글로벌 고객의 경우, 본 약관과 개인정보 처리방침은 각 국가의 법률을 존중하며, <span class="highlight">Pre.pMood</span>의 운영 기준을 기반으로 안내됩니다.</li>
+                </ul>
+            </section>
+
+            <section id="section-2" class="legal-section">
+                <h2>II. 지적재산권</h2>
+                <h3>1. 소유권</h3>
+                <ul>
+                    <li>본 웹사이트와 이를 구성하는 모든 요소(텍스트, 이미지, 영상, 그래픽, 로고, 디자인 등)는 <span class="highlight">Pre.pMood</span>의 독점적 재산이며, 국내외 지적재산권법에 따라 보호됩니다.</li>
+                    <li>사전 승인 없이 복제, 전송, 배포, 상업적 이용하는 행위는 엄격히 금지됩니다.</li>
+                </ul>
+                
+                <h3>2. 하이퍼링크 생성 금지</h3>
+                <ul>
+                    <li><span class="highlight">Pre.pMood</span>의 사전 승인 없이 웹사이트 요소에 대한 하이퍼링크 생성은 금지됩니다.</li>
+                    <li>승인된 링크도 <span class="highlight">Pre.pMood</span>가 언제든 철회할 수 있으며, 링크된 외부 사이트나 콘텐츠에 대한 책임은 지지 않습니다.</li>
+                </ul>
+            </section>
+
+            <section id="section-3" class="legal-section">
+                <h2>III. 개인정보 처리방침 (Privacy Policy)</h2>
+                
+                <h3>1. 수집 항목</h3>
+                <ul>
+                    <li><strong>필수:</strong> 성명, 이메일, 배송지 주소, 전화번호, 결제 정보</li>
+                    <li><strong>선택:</strong> 뉴스레터 수신, 이벤트 참여, 맞춤 마케팅 안내</li>
+                </ul>
+
+                <h3>2. 수집 목적</h3>
+                <ul>
+                    <li><strong>주문 처리 및 안전한 배송:</strong> 고객님의 주문을 정확하게 확인하고 결제를 처리하며, 안전하게 제품을 전달</li>
+                    <li><strong>고객 상담 및 서비스 품질 향상:</strong> 문의나 요청 사항을 신속하고 정확하게 처리하며, 서비스 경험 개선</li>
+                    <li><strong>마케팅 및 뉴스레터 안내:</strong> 이벤트, 신상품, 프로모션 및 뉴스레터 안내(고객 동의 기반)</li>
+                    <li><strong>서비스 개선 및 통계 분석:</strong> 웹사이트 이용 기록과 쿠키 정보를 분석하여 맞춤형 경험을 제공하고, 서비스 개선</li>
+                </ul>
+
+                <h3>3. 보관 기간 및 제3자 제공</h3>
+                <ul>
+                    <li>개인정보는 수집일부터 5년간 안전하게 보관하며, 목적 달성 후 지체 없이 파기</li>
+                    <li>단, 법령에서 보관 의무가 있는 경우 해당 기간 동안 안전하게 보관</li>
+                    <li><span class="highlight">Pre.pMood</span>는 고객님 동의 없이는 개인정보를 제3자에게 제공하지 않으며, 단 배송, 결제, CS 처리 등 서비스 제공에 필요한 경우와 법령에 따른 요청 시에만 제한적으로 제공</li>
+                </ul>
+
+                <h3>4. 개인정보 처리 책임자</h3>
+                <ul>
+                    <li><strong>책임자:</strong> 프레피무드 <span class="highlight">Pre.pMood</span></li>
+                    <li><strong>연락처:</strong> 1555-6035</li>
+                    <li><strong>이메일:</strong> prepmoodcare@naver.com</li>
+                    <li><strong>역할:</strong> 개인정보 안전 처리, 고객 문의 대응, 권리 보장</li>
+                </ul>
+
+                <h3>5. 고객 권리</h3>
+                <ul>
+                    <li>개인정보 열람, 수정, 삭제 요청 가능</li>
+                    <li>쿠키 사용 동의 및 거부 가능</li>
+                    <li>개인정보 처리 동의 철회 시 맞춤 서비스 및 뉴스레터 수신이 제한될 수 있습니다</li>
+                </ul>
+
+                <h3>6. 쿠키 사용 안내</h3>
+                <ul>
+                    <li>웹사이트 이용 편의 및 맞춤형 서비스 제공을 위해 브라우저에 저장되는 작은 데이터 파일입니다.</li>
+                    <li>로그인 상태 유지, 장바구니 저장, 방문 통계, 맞춤 추천 및 광고 제공에 사용됩니다.</li>
+                    <li>브라우저 설정을 통해 수락 또는 거부할 수 있으며, 일부 서비스 이용 제한이 있을 수 있습니다.</li>
+                </ul>
+
+                <h3>7. 개인정보 안전성 확보 조치</h3>
+                <ul>
+                    <li>개인정보 암호화 저장</li>
+                    <li>SSL 적용 (웹사이트와 브라우저 간 안전 통신)</li>
+                    <li>접근 권한 관리 및 직원 교육</li>
+                    <li>주기적 보안 점검 및 외부 솔루션 적용</li>
+                </ul>
+
+                <h3>8. 법적 근거</h3>
+                <ul>
+                    <li>「개인정보 보호법」, 전자상거래 등에서의 소비자 보호에 관한 법률, GDPR, CCPA 등 관련 법령 준수</li>
+                </ul>
+            </section>
+
+            <section id="section-4" class="legal-section">
+                <h2>IV. 주문 및 결제</h2>
+                <ul>
+                    <li><strong>주문:</strong> 웹사이트 또는 고객센터 통해 가능</li>
+                    <li><strong>결제:</strong> 신용카드, 계좌이체 등 승인 결제 수단, SSL 128비트 암호화 적용</li>
+                    <li>주문 확인 후 배송 절차 시작</li>
+                </ul>
+            </section>
+
+            <section id="section-5" class="legal-section">
+                <h2>V. 배송 안내</h2>
+                
+                <h3>1. 국내 배송</h3>
+                <ul>
+                    <li>무료 배송, 주문 완료 후 익일 발송(주말/공휴일 제외)</li>
+                    <li>일부 제품 재고 문제 시 발송 지연 가능</li>
+                </ul>
+
+                <h3>2. 해외 배송</h3>
+                <ul>
+                    <li>유료 배송, 국가별 배송비/관세 고객 부담</li>
+                    <li>배송 기간: 5~14일(국가별 상이)</li>
+                    <li>송장 번호 제공</li>
+                </ul>
+
+                <h3>3. 주문 취소</h3>
+                <ul>
+                    <li>발송 전: 주문 취소 가능</li>
+                    <li>발송 후: 취소 불가, 단 반품·교환 규정 적용</li>
+                </ul>
+            </section>
+
+            <section id="section-6" class="legal-section">
+                <h2>VI. 반품 및 교환</h2>
+                <ul>
+                    <li><strong>반품 가능 기간:</strong> 상품 수령일 기준 7일 이내 신청 가능</li>
+                    <li><strong>교환:</strong> 하자 상품에 한정</li>
+                    <li><strong>조건:</strong> 사용 흔적, 세탁, 향수 냄새, 부속품 누락 시 제한 가능</li>
+                    <li>보증서 및 QR 인증 카드 동봉 필수</li>
+                    <li>원래 포장 상태 유지 필수</li>
+                    <li><strong>신청 방법:</strong> 마이페이지 '반품 요청' 또는 이메일 접수</li>
+                    <li><strong>검수 후 처리:</strong> 단순 변심 시 왕복 배송비 고객 부담, 하자 상품은 <span class="highlight">Pre.pMood</span> 부담</li>
+                </ul>
+            </section>
+
+            <section id="section-7" class="legal-section">
+                <h2>VII. 애프터 서비스(AS)</h2>
+                <ul>
+                    <li>하자 상품 교환/환불로 처리</li>
+                </ul>
+            </section>
+
+            <section id="section-8" class="legal-section">
+                <h2>VIII. 불가항력</h2>
+                <ul>
+                    <li>천재지변 등 불가항력 발생 시, <span class="highlight">Pre.pMood</span> 의무 일부 또는 전부 중단 가능</li>
+                    <li>15일 이상 중단 시, 고객은 주문 취소 가능, 금액은 신속히 환불</li>
+                </ul>
+            </section>
+
+            <section id="section-9" class="legal-section">
+                <h2>IX. 지적재산권 및 웹사이트 이용 권한</h2>
+                <ul>
+                    <li>웹사이트 콘텐츠, 이미지, 로고, 디자인 등 모든 자료는 <span class="highlight">Pre.pMood</span>의 독점 재산</li>
+                    <li>무단 복제, 다운로드, 수정, 상업적 이용 금지</li>
+                    <li>사전 승인 없는 하이퍼링크 생성 금지</li>
+                </ul>
+            </section>
+
+            <section id="section-10" class="legal-section">
+                <h2>X. 분쟁 해결 및 준거법</h2>
+                
+                <h3>1. 준거법</h3>
+                <ul>
+                    <li>본 약관 및 개인정보 처리방침은 <span class="highlight">Pre.pMood</span> 운영 기준을 기반으로 하며, 대한민국 법률을 준거법으로 합니다.</li>
+                </ul>
+
+                <h3>2. 분쟁 해결 우선순위: 중재 및 조정</h3>
+                <ul>
+                    <li><span class="highlight">Pre.pMood</span>와 고객 간 분쟁이 발생한 경우, 고객은 계약에 의한 중재 또는 조정 절차를 우선 선택할 수 있습니다.</li>
+                    <li>중재·조정 과정에서 고객은 참여 여부와 결과 수용 여부를 자유롭게 결정할 수 있습니다.</li>
+                    <li><strong>중재 신청 방법:</strong> 지정 중재기관 웹사이트 양식 작성, 우편/등기우편 또는 이메일 제출</li>
+                    <li>신청서에는 고객 연락처, <span class="highlight">Pre.pMood</span> 전체 이름 및 주소, 최초 분쟁 내용과 관련 증거를 간략히 포함해야 합니다.</li>
+                </ul>
+
+                <h3>3. 중재 실패 시 법적 소송</h3>
+                <ul>
+                    <li>중재 또는 조정으로 분쟁이 해결되지 않는 경우, <span class="highlight">Pre.pMood</span> 소재지 관할법원에서 소송을 제기할 수 있습니다.</li>
+                </ul>
+
+                <h3>4. 소비자 권리 보호</h3>
+                <ul>
+                    <li>국내외 모든 고객은 현지 소비자보호법에 따른 권리를 보장받습니다.</li>
+                    <li>본 약관 준수는 고객 권리 제한 목적이 아니며, <span class="highlight">Pre.pMood</span>는 고객이 안전하게 서비스를 이용할 수 있도록 최선을 다합니다.</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <div id="footer-container"></div>
+
+    <script>
+        // 사이드바 네비게이션 기능
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('.legal-section');
+
+            // 스크롤 위치에 따른 활성 링크 업데이트
+            function updateActiveNav() {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop - 150;
+                    const sectionHeight = section.clientHeight;
+                    if (window.scrollY >= sectionTop && window.scrollY < sectionTop + sectionHeight) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + current) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+
+            // 클릭 시 해당 섹션으로 부드럽게 스크롤
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    const targetSection = document.getElementById(targetId);
+                    
+                    if (targetSection) {
+                        const offsetTop = targetSection.offsetTop - 120;
+                        window.scrollTo({
+                            top: offsetTop,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+
+            // 스크롤 이벤트 리스너
+            window.addEventListener('scroll', updateActiveNav);
+            
+            // 초기 활성 상태 설정
+            updateActiveNav();
+        });
+    </script>
+</body>
+</html>

@@ -927,6 +927,10 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Google 소셜 로그인 라우트
+const googleAuthRoutes = require('./google-auth-routes');
+app.use('/api', googleAuthRoutes);
+
 // 서버 시작
 app.listen(PORT, async () => {
     console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);

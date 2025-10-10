@@ -29,13 +29,13 @@
         <h3 class="footer-title">정책 및 약관</h3>
         <div class="footer-content">
           <p class="footer-text">
-            <a href="privacy.html" class="footer-link">이용약관</a>
+            <a href="legal.html" class="footer-link">이용약관</a>
           </p>
           <p class="footer-text">
             <a href="privacy.html" class="footer-link">개인정보 처리방침</a>
           </p>
           <p class="footer-text">
-            <a href="privacy.html" class="footer-link">법적 고지</a>
+            <a href="legal.html" class="footer-link">법적 고지</a>
           </p>
         </div>
       </div>
@@ -52,7 +52,7 @@
 
     <!-- 푸터 하단 -->
     <div class="footer-bottom">
-      <p class="footer-copyright">© Prepmood 2025. All rights reserved.</p>
+      <p class="footer-copyright">© Pre.pMood 2025. All rights reserved.</p>
     </div>
   </div>
 </footer>
