@@ -87,6 +87,21 @@
   margin-bottom: clamp(20px, 4vw, 24px);
 }
 
+/* Google Sign-In 버튼 컨테이너 */
+#googleSignInButton {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+#googleSignInButton > div {
+  width: 100% !important;
+}
+
+#googleSignInButton iframe {
+  width: 100% !important;
+}
+
 /* ===== 소셜 로그인 버튼 기본 스타일 ===== */
 .social-login-btn {
   width: 100%;
