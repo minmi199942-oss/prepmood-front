@@ -112,7 +112,7 @@ class GoogleAuthService {
             console.error('Google 사용자 처리 실패:', error);
             return {
                 success: false,
-                error: 'Database error'
+                error: '사용자 정보 처리 중 오류가 발생했습니다.'
             };
         } finally {
             if (connection) {
