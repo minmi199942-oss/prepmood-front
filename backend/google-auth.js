@@ -73,6 +73,8 @@ class GoogleAuthService {
                         id: user.user_id,
                         email: user.email,
                         name: user.first_name || user.last_name || googleUser.name,
+                        firstName: user.first_name,
+                        lastName: user.last_name,
                         googleId: googleUser.googleId,
                         profilePicture: googleUser.picture
                     }

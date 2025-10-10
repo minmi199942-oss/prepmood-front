@@ -39,11 +39,15 @@ router.post('/auth/google/login', async (req, res) => {
         // JWT 토큰 생성
         const jwtToken = googleAuth.generateJWT(userResult.user);
 
+        // 추가 정보 입력 필요 여부 확인
+        const needsAdditionalInfo = !userResult.user.lastName || !userResult.user.firstName;
+
         res.json({
             success: true,
             message: 'Google 로그인 성공',
             user: userResult.user,
-            token: jwtToken
+            token: jwtToken,
+            needsAdditionalInfo: needsAdditionalInfo
         });
 
     } catch (error) {
@@ -103,6 +107,60 @@ router.get('/auth/google/status', async (req, res) => {
         res.status(401).json({
             success: false,
             error: 'Invalid token'
+        });
+    }
+});
+
+// 추가 정보 입력 API
+router.post('/auth/complete-profile', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                error: 'No token provided'
+            });
+        }
+
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const { lastName, firstName, phone, birth } = req.body;
+
+        if (!lastName || !firstName) {
+            return res.status(400).json({
+                success: false,
+                error: '성과 이름은 필수 항목입니다.'
+            });
+        }
+
+        const mysql = require('mysql2/promise');
+        const connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME
+        });
+
+        // 사용자 정보 업데이트
+        await connection.execute(
+            'UPDATE users SET last_name = ?, first_name = ?, phone = ?, birth = ? WHERE user_id = ?',
+            [lastName, firstName, phone || null, birth || null, decoded.userId]
+        );
+
+        await connection.end();
+
+        res.json({
+            success: true,
+            message: '추가 정보가 저장되었습니다.'
+        });
+
+    } catch (error) {
+        console.error('추가 정보 저장 오류:', error);
+        res.status(500).json({
+            success: false,
+            error: '정보 저장 중 오류가 발생했습니다.'
         });
     }
 });
