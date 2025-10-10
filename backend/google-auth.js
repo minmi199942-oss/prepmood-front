@@ -61,8 +61,8 @@ class GoogleAuthService {
                 // Google ID가 없으면 업데이트
                 if (!user.google_id) {
                     await connection.execute(
-                        'UPDATE users SET google_id = ? WHERE id = ?',
-                        [googleUser.googleId, user.id]
+                        'UPDATE users SET google_id = ?, profile_picture = ? WHERE user_id = ?',
+                        [googleUser.googleId, googleUser.picture, user.user_id]
                     );
                 }
 
@@ -70,9 +70,9 @@ class GoogleAuthService {
                 return {
                     success: true,
                     user: {
-                        id: user.id,
+                        id: user.user_id,
                         email: user.email,
-                        name: user.name,
+                        name: user.first_name || user.last_name || googleUser.name,
                         googleId: googleUser.googleId,
                         profilePicture: googleUser.picture
                     }
@@ -82,14 +82,15 @@ class GoogleAuthService {
                 const hashedPassword = await bcrypt.hash(googleUser.googleId, 10);
                 
                 const [result] = await connection.execute(
-                    'INSERT INTO users (email, name, password, google_id, profile_picture, email_verified, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+                    'INSERT INTO users (email, first_name, password_hash, google_id, profile_picture, email_verified, verified) VALUES (?, ?, ?, ?, ?, ?, ?)',
                     [
                         googleUser.email,
                         googleUser.name,
                         hashedPassword,
                         googleUser.googleId,
                         googleUser.picture,
-                        googleUser.emailVerified ? 1 : 0
+                        googleUser.emailVerified ? 1 : 0,
+                        1  // Google 로그인 사용자는 자동으로 인증됨
                     ]
                 );
 

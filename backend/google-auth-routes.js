@@ -80,7 +80,7 @@ router.get('/auth/google/status', async (req, res) => {
         });
 
         const [users] = await connection.execute(
-            'SELECT id, email, name, google_id, profile_picture FROM users WHERE id = ?',
+            'SELECT user_id, email, first_name, last_name, google_id, profile_picture FROM users WHERE user_id = ?',
             [decoded.userId]
         );
 
