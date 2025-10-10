@@ -1,5 +1,10 @@
 window.addEventListener('DOMContentLoaded', () => {
   const headerContainer = document.getElementById('header-container');
+  
+  if (!headerContainer) {
+    console.warn('header-container 요소를 찾을 수 없습니다.');
+    return;
+  }
 
   fetch('header.partial')
     .then(res => res.text())
