@@ -348,7 +348,7 @@ app.post('/api/login', [
         // 사용자 정보 조회
         console.log('🔍 사용자 정보 조회 중...');
         const [users] = await connection.execute(
-            'SELECT user_id, email, password_hash, last_name, first_name, verified FROM users WHERE email = ?',
+            'SELECT user_id, email, password_hash, last_name, first_name, phone, birth, verified FROM users WHERE email = ?',
             [email]
         );
         console.log('📧 조회된 사용자 수:', users.length);
@@ -396,7 +396,9 @@ app.post('/api/login', [
             user: {
                 id: user.user_id,
                 email: user.email,
-                name: `${user.last_name} ${user.first_name}`.trim()
+                name: `${user.last_name} ${user.first_name}`.trim(),
+                phone: user.phone || null,
+                birthdate: user.birth || null
             }
         });
 

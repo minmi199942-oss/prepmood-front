@@ -53,7 +53,7 @@ class GoogleAuthService {
 
             // 기존 사용자 찾기
             const [existingUsers] = await connection.execute(
-                'SELECT * FROM users WHERE google_id = ? OR email = ?',
+                'SELECT user_id, email, first_name, last_name, phone, birth, google_id, profile_picture FROM users WHERE google_id = ? OR email = ?',
                 [googleUser.googleId, googleUser.email]
             );
 
@@ -76,6 +76,8 @@ class GoogleAuthService {
                         name: user.first_name || user.last_name || googleUser.name,
                         firstName: user.first_name,
                         lastName: user.last_name,
+                        phone: user.phone || null,
+                        birthdate: user.birth || null,
                         googleId: googleUser.googleId,
                         profilePicture: googleUser.picture
                     }
@@ -103,6 +105,8 @@ class GoogleAuthService {
                         id: result.insertId,
                         email: googleUser.email,
                         name: googleUser.name,
+                        phone: null,
+                        birthdate: null,
                         googleId: googleUser.googleId,
                         profilePicture: googleUser.picture
                     }

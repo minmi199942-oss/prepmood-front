@@ -42,12 +42,12 @@ function displayUserInfo() {
             }
             
             // 사용자 정보를 각 필드에 표시
-            document.getElementById('user-full-name').textContent = user.name || '김은민';
+            document.getElementById('user-full-name').textContent = user.name || '정보 없음';
             document.getElementById('user-email').textContent = user.email || '';
             
-            // 사용자 정보가 있으면 사용, 없으면 기본값
+            // 사용자 정보가 있으면 사용, 없으면 "정보 없음" 또는 기본값
             document.getElementById('user-region').textContent = user.region || '대한민국';
-            document.getElementById('user-phone').textContent = user.phone || '+82 01029965390';
+            document.getElementById('user-phone').textContent = user.phone || '정보 없음';
             
             // 생년월일 형식 처리
             if (user.birthdate) {
@@ -55,7 +55,7 @@ function displayUserInfo() {
                 const formattedBirth = `${birthDate.getFullYear()}. ${String(birthDate.getMonth() + 1).padStart(2, '0')}. ${String(birthDate.getDate()).padStart(2, '0')}.`;
                 document.getElementById('user-birthdate').textContent = formattedBirth;
             } else {
-                document.getElementById('user-birthdate').textContent = '2002. 06. 03.';
+                document.getElementById('user-birthdate').textContent = '정보 없음';
             }
             
         } catch (error) {
