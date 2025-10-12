@@ -308,7 +308,8 @@
       };
 
       // 이미지 업로드 처리
-      const imageFile = document.getElementById('productImage').files[0];
+      const imageInput = document.getElementById('productImage');
+      const imageFile = imageInput ? imageInput.files[0] : null;
       if (imageFile) {
         productData.image = await uploadImage(imageFile);
       } else if (currentEditingProduct && currentEditingProduct.image) {
