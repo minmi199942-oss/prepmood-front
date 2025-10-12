@@ -322,6 +322,13 @@
         : `${API_BASE_URL}/admin/products`;
       
       const method = isEditing ? 'PUT' : 'POST';
+      
+      // 디버깅: URL과 데이터 확인
+      console.log('🔍 디버깅 정보:');
+      console.log('- isEditing:', isEditing);
+      console.log('- productData.id:', productData.id);
+      console.log('- URL:', url);
+      console.log('- Method:', method);
 
       const response = await fetch(url, {
         method: method,
