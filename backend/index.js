@@ -26,7 +26,7 @@ app.use(cors({
     origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'X-User-Email']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-Admin-Key']
 }));
 
 // 보안 미들웨어
@@ -54,6 +54,10 @@ app.use('/api/send-verification', apiLimiter); // 이메일 발송은 더 엄격
 app.use('/api/', generalLimiter); // 다른 API는 일반적으로
 
 app.use(express.json({ limit: '10mb' })); // JSON 크기 제한
+
+// 정적 파일 서빙 (이미지 업로드)
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MySQL 연결 설정
 const dbConfig = {
@@ -931,7 +935,10 @@ app.get('/api/health', (req, res) => {
 
 // Google 소셜 로그인 라우트
 const googleAuthRoutes = require('./google-auth-routes');
+const productRoutes = require('./product-routes');
+
 app.use('/api', googleAuthRoutes);
+app.use('/api', productRoutes);
 
 // 서버 시작
 app.listen(PORT, async () => {

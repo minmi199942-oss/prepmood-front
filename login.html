@@ -164,17 +164,27 @@
 
       // Google 로그인 버튼 클릭 핸들러 (팝업 방식)
       document.getElementById('googleLoginBtn').addEventListener('click', function() {
+        // 현재 URL이 127.0.0.1이면 localhost로 리디렉션
+        if (window.location.hostname === '127.0.0.1') {
+          window.location.href = window.location.href.replace('127.0.0.1', 'localhost');
+          return;
+        }
+        
         const width = 500;
         const height = 600;
         const left = (window.screen.width / 2) - (width / 2);
         const top = (window.screen.height / 2) - (height / 2);
         
+        // 현재 origin을 정확히 사용
+        const currentOrigin = window.location.origin;
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
           `client_id=${GOOGLE_CLIENT_ID}&` +
-          `redirect_uri=${encodeURIComponent(window.location.origin + '/google-callback.html')}&` +
+          `redirect_uri=${encodeURIComponent(currentOrigin + '/google-callback.html')}&` +
           `response_type=token id_token&` +
           `scope=openid email profile&` +
           `nonce=random_nonce_${Date.now()}`;
+        
+        console.log('Auth URL:', authUrl);
         
         const popup = window.open(
           authUrl,
@@ -182,15 +192,46 @@
           `width=${width},height=${height},top=${top},left=${left}`
         );
         
+        if (!popup) {
+          alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+          return;
+        }
+        
         // 팝업에서 메시지 수신
-        window.addEventListener('message', async function(event) {
-          if (event.origin !== window.location.origin) return;
+        const messageHandler = async function(event) {
+          if (event.origin !== currentOrigin) return;
           
           if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-            popup.close();
+            // 팝업 닫기 (에러 무시)
+            try {
+              popup.close();
+            } catch (e) {
+              // Cross-Origin-Opener-Policy 에러 무시
+              console.log('팝업 닫기 에러 무시:', e.message);
+            }
             await handleGoogleSignIn({ credential: event.data.idToken });
+            window.removeEventListener('message', messageHandler);
+          } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
+            // 팝업 닫기 (에러 무시)
+            try {
+              popup.close();
+            } catch (e) {
+              console.log('팝업 닫기 에러 무시:', e.message);
+            }
+            alert('Google 로그인에 실패했습니다: ' + event.data.error);
+            window.removeEventListener('message', messageHandler);
           }
-        }, { once: true });
+        };
+        
+        window.addEventListener('message', messageHandler);
+        
+        // 팝업이 닫혔는지 확인
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', messageHandler);
+          }
+        }, 1000);
       });
 
       // 실시간 버튼 활성화/비활성화

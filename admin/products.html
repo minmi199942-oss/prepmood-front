@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>상품 관리 | Pre.pMood Admin</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body>
+  <!-- 관리자 헤더 -->
+  <header class="admin-header">
+    <div class="admin-header-content">
+      <h1>Pre.pMood 관리자</h1>
+      <nav class="admin-nav">
+        <a href="products.html" class="active">상품 관리</a>
+        <a href="admin-qr.html">QR 관리</a>
+        <a href="../index.html">사이트로 이동</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 메인 컨텐츠 -->
+  <main class="admin-main">
+    <div class="admin-container">
+      <!-- 상단 액션 바 -->
+      <div class="admin-toolbar">
+        <h2>상품 관리</h2>
+        <div class="toolbar-actions">
+          <input type="text" id="searchInput" placeholder="상품 검색..." class="search-input">
+          <select id="categoryFilter" class="filter-select">
+            <option value="">전체 카테고리</option>
+            <option value="tops">상의</option>
+            <option value="bottoms">하의</option>
+            <option value="outer">아우터</option>
+            <option value="bags">가방</option>
+            <option value="accessories">액세서리</option>
+          </select>
+          <button id="addProductBtn" class="btn-primary">+ 새 상품 추가</button>
+        </div>
+      </div>
+
+      <!-- 로딩 상태 -->
+      <div class="loading-state" id="loadingState">
+        <p>상품 목록을 불러오는 중...</p>
+      </div>
+
+      <!-- 상품 목록 -->
+      <div class="products-grid" id="productsGrid">
+        <!-- 상품 카드가 JavaScript로 동적 생성됨 -->
+      </div>
+
+      <!-- 빈 상태 -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">📦</div>
+        <h3>등록된 상품이 없습니다</h3>
+        <p>새 상품을 추가해보세요.</p>
+        <button class="btn-primary" onclick="document.getElementById('addProductBtn').click()">+ 상품 추가</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 상품 추가/수정 모달 -->
+  <div class="modal" id="productModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">새 상품 추가</h3>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      
+      <form id="productForm" class="product-form">
+        <!-- 상품 ID -->
+        <div class="form-group">
+          <label for="productId">상품 ID *</label>
+          <input type="text" id="productId" name="id" placeholder="예: m-sh-010" required>
+          <small>형식: {gender}-{category}-{number} (예: m-sh-001, w-pn-002)</small>
+        </div>
+
+        <!-- 상품명 -->
+        <div class="form-group">
+          <label for="productName">상품명 *</label>
+          <input type="text" id="productName" name="name" placeholder="상품명을 입력하세요" required>
+        </div>
+
+        <!-- 가격 -->
+        <div class="form-group">
+          <label for="productPrice">가격 (원) *</label>
+          <input type="number" id="productPrice" name="price" placeholder="129000" required>
+        </div>
+
+        <!-- 이미지 -->
+        <div class="form-group">
+          <label for="productImage">상품 이미지</label>
+          <div class="image-upload-area">
+            <div class="image-preview" id="imagePreview">
+              <img id="previewImg" src="" alt="미리보기" style="display: none;">
+              <div class="upload-placeholder" id="uploadPlaceholder">
+                <span>📷</span>
+                <p>이미지를 업로드하세요</p>
+              </div>
+            </div>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+            <input type="text" id="productImage" name="image" style="display: none;">
+            <button type="button" class="btn-secondary" onclick="document.getElementById('imageInput').click()">이미지 선택</button>
+          </div>
+        </div>
+
+        <!-- 성별 -->
+        <div class="form-group">
+          <label for="productGender">성별 *</label>
+          <select id="productGender" name="gender" required>
+            <option value="">선택하세요</option>
+            <option value="men">남성</option>
+            <option value="women">여성</option>
+          </select>
+        </div>
+
+        <!-- 카테고리 -->
+        <div class="form-group">
+          <label for="productCategory">카테고리 *</label>
+          <select id="productCategory" name="category" required>
+            <option value="">선택하세요</option>
+            <option value="tops">상의 (Tops)</option>
+            <option value="bottoms">하의 (Bottoms)</option>
+            <option value="outer">아우터 (Outer)</option>
+            <option value="bags">가방 (Bags)</option>
+            <option value="accessories">액세서리 (Accessories)</option>
+          </select>
+        </div>
+
+        <!-- 타입 -->
+        <div class="form-group">
+          <label for="productType">타입 *</label>
+          <select id="productType" name="type" required>
+            <option value="">선택하세요</option>
+            <!-- 동적으로 변경됨 -->
+          </select>
+        </div>
+
+        <!-- 설명 -->
+        <div class="form-group">
+          <label for="productDescription">상품 설명</label>
+          <textarea id="productDescription" name="description" rows="4" placeholder="상품 설명을 입력하세요 (선택사항)"></textarea>
+        </div>
+
+        <!-- 버튼 -->
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="cancelBtn">취소</button>
+          <button type="submit" class="btn-primary" id="submitBtn">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin-products.js"></script>
+</body>
+</html>
+

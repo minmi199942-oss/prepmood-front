@@ -307,3 +307,5 @@ if (req.body.userId && decoded.userId !== req.body.userId) {
 
 본 보고서는 코드 검토를 기반으로 작성되었으며, 실제 침투 테스트는 수행되지 않았습니다. 프로덕션 환경에서는 전문 보안 감사를 권장합니다.
 
+
+
