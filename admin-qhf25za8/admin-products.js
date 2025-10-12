@@ -188,7 +188,7 @@
           <h2>${isEditing ? '상품 수정' : '새 상품 추가'}</h2>
           <button class="modal-close" onclick="closeModal()">&times;</button>
         </div>
-        <form id="productForm" class="modal-body">
+        <form id="productForm" class="modal-body" onsubmit="event.preventDefault(); saveProduct();">
           <div class="form-group">
             <label for="productId">상품 ID</label>
             <input type="text" id="productId" name="id" value="${product.id || ''}" 
@@ -244,7 +244,7 @@
         </form>
         <div class="modal-footer">
           <button type="button" onclick="closeModal()" class="btn-secondary">취소</button>
-          <button type="button" onclick="saveProduct()" class="btn-primary">저장</button>
+          <button type="submit" class="btn-primary">저장</button>
         </div>
       </div>
     `;
