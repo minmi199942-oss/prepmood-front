@@ -48,6 +48,12 @@
 
     try {
       const userEmail = sessionStorage.getItem('userEmail');
+      
+      // 🔍 디버깅: API URL과 사용자 이메일 확인
+      console.log('🔍 위시리스트 조회 시작');
+      console.log('📍 API_BASE_URL:', API_BASE_URL);
+      console.log('📧 User Email:', userEmail);
+      console.log('🌐 Request URL:', `${API_BASE_URL}/wishlist`);
 
       const response = await fetch(`${API_BASE_URL}/wishlist`, {
         method: 'GET',
@@ -56,6 +62,10 @@
         },
         credentials: 'include'
       });
+      
+      // 🔍 디버깅: 응답 상태 확인
+      console.log('📨 Response Status:', response.status);
+      console.log('📨 Response OK:', response.ok);
 
       // 서버 연결 실패 시 빈 상태 표시
       if (!response.ok) {
