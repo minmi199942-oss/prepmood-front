@@ -4,9 +4,9 @@
   'use strict';
 
   // API 기본 URL 설정 (환경에 따라 자동 변경)
-const API_BASE_URL = window.location.hostname === 'prepmood.kr' 
-    ? window.location.origin + '/api'
-    : 'https://prepmood.kr/api';
+  const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'https://prepmood.kr/api'  // 로컬 개발 시에도 프로덕션 API 사용
+    : 'https://prepmood.kr/api';  // 프로덕션
 
   // URL에서 제품 ID 가져오기
   const urlParams = new URLSearchParams(window.location.search);
@@ -235,10 +235,7 @@ const API_BASE_URL = window.location.hostname === 'prepmood.kr'
       if (data.success) {
         if (data.action === 'added') {
           wishlistBtn.classList.add('active');
-          // 위시리스트 추가 후 페이지로 이동
-          if (confirm('위시리스트에 추가되었습니다.\n위시리스트 페이지로 이동하시겠습니까?')) {
-            window.location.href = 'wishlist.html';
-          }
+          alert('위시리스트에 추가되었습니다.');
         } else {
           wishlistBtn.classList.remove('active');
           alert('위시리스트에서 제거되었습니다.');
