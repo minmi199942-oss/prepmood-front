@@ -294,8 +294,25 @@
   // 상품 저장
   async function saveProduct() {
     try {
+      console.log('🚀 saveProduct 함수 시작!');
+      console.log('📝 폼 데이터 처리 시작...');
+      
+      // 폼 참조 디버깅 추가
       const form = document.getElementById('productForm');
+      console.log('🔍 폼 요소:', form);
+      
+      if (!form) {
+        alert('폼을 찾을 수 없습니다!');
+        return;
+      }
+      
       const formData = new FormData(form);
+      
+      // 폼 데이터 디버깅 추가
+      console.log('📋 폼 필드들:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`- ${key}: "${value}"`);
+      }
       
       const productData = {
         id: formData.get('id'),
@@ -306,6 +323,8 @@
         type: formData.get('type'),
         description: formData.get('description')
       };
+      
+      console.log('📦 productData:', productData);
 
       // 이미지 업로드 처리
       const imageInput = document.getElementById('productImage');
