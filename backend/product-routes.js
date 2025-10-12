@@ -179,7 +179,7 @@ router.post('/admin/products', adminAuth, async (req, res) => {
         
         // 중복 ID 확인
         const [existing] = await connection.execute(
-            'SELECT id FROM products WHERE id = ?',
+            'SELECT id FROM admin_products WHERE id = ?',
             [id]
         );
         
@@ -192,7 +192,7 @@ router.post('/admin/products', adminAuth, async (req, res) => {
         
         // 상품 추가
         await connection.execute(
-            'INSERT INTO products (id, name, price, image, gender, category, type, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO admin_products (id, name, price, image, gender, category, type, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             [id, name, price, image || null, gender, category, type, description || null]
         );
         
@@ -226,7 +226,7 @@ router.put('/admin/products/:id', adminAuth, async (req, res) => {
         
         // 상품 존재 확인
         const [existing] = await connection.execute(
-            'SELECT id FROM products WHERE id = ?',
+            'SELECT id FROM admin_products WHERE id = ?',
             [id]
         );
         
@@ -239,7 +239,7 @@ router.put('/admin/products/:id', adminAuth, async (req, res) => {
         
         // 상품 수정
         await connection.execute(
-            'UPDATE products SET name = ?, price = ?, image = ?, gender = ?, category = ?, type = ?, description = ?, updated_at = NOW() WHERE id = ?',
+            'UPDATE admin_products SET name = ?, price = ?, image = ?, gender = ?, category = ?, type = ?, description = ?, updated_at = NOW() WHERE id = ?',
             [name, price, image || null, gender, category, type, description || null, id]
         );
         
@@ -271,7 +271,7 @@ router.delete('/admin/products/:id', adminAuth, async (req, res) => {
         
         // 상품 존재 확인 및 이미지 URL 가져오기
         const [existing] = await connection.execute(
-            'SELECT id, image FROM products WHERE id = ?',
+            'SELECT id, image FROM admin_products WHERE id = ?',
             [id]
         );
         
@@ -284,7 +284,7 @@ router.delete('/admin/products/:id', adminAuth, async (req, res) => {
         
         // 상품 삭제
         await connection.execute(
-            'DELETE FROM products WHERE id = ?',
+            'DELETE FROM admin_products WHERE id = ?',
             [id]
         );
         
