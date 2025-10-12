@@ -58,7 +58,7 @@ router.get('/products', async (req, res) => {
         connection = await mysql.createConnection(dbConfig);
         
         const [products] = await connection.execute(
-            'SELECT * FROM products ORDER BY created_at DESC'
+            'SELECT * FROM admin_products ORDER BY created_at DESC'
         );
         
         res.json({
@@ -87,7 +87,7 @@ router.get('/products/:id', async (req, res) => {
         connection = await mysql.createConnection(dbConfig);
         
         const [products] = await connection.execute(
-            'SELECT * FROM products WHERE id = ?',
+            'SELECT * FROM admin_products WHERE id = ?',
             [id]
         );
         
