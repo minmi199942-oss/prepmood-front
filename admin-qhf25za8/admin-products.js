@@ -297,8 +297,11 @@
       console.log('🚀 saveProduct 함수 시작!');
       console.log('📝 폼 데이터 처리 시작...');
       
-      // 폼 참조 디버깅 추가
-      const form = document.getElementById('productForm');
+      // 현재 열려있는 모달에서 폼 찾기
+      const modal = document.querySelector('.modal-overlay');
+      const form = modal ? modal.querySelector('#productForm') : document.getElementById('productForm');
+      
+      console.log('🔍 모달 요소:', modal);
       console.log('🔍 폼 요소:', form);
       
       if (!form) {
