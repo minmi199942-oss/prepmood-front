@@ -113,22 +113,16 @@
 
     elements.productsGrid.innerHTML = productsToRender.map(product => `
       <div class="product-card" data-id="${product.id}">
-        <div class="product-image">
-          <img src="${product.image || 'image/default.jpg'}" alt="${escapeHtml(product.name)}" 
-               onerror="this.src='image/default.jpg'">
+        <img class="product-card-image" src="${product.image || 'image/default.jpg'}" alt="${escapeHtml(product.name)}" 
+             onerror="this.src='image/default.jpg'">
+        <div class="product-card-name">${escapeHtml(product.name)}</div>
+        <div class="product-card-price">${formatKRW(product.price)}</div>
+        <div class="product-card-meta">
+          ${escapeHtml(product.gender)} • ${escapeHtml(product.category)} • ${escapeHtml(product.type)}
         </div>
-        <div class="product-info">
-          <h3 class="product-name">${escapeHtml(product.name)}</h3>
-          <p class="product-price">${formatKRW(product.price)}</p>
-          <div class="product-meta">
-            <span class="product-gender">${escapeHtml(product.gender)}</span>
-            <span class="product-category">${escapeHtml(product.category)}</span>
-            <span class="product-type">${escapeHtml(product.type)}</span>
-          </div>
-          <div class="product-actions">
-            <button onclick="openEditProductModal('${product.id}')" class="btn-secondary btn-sm">수정</button>
-            <button onclick="deleteProduct('${product.id}')" class="btn-danger btn-sm">삭제</button>
-          </div>
+        <div class="product-card-actions">
+          <button onclick="openEditProductModal('${product.id}')" class="btn-secondary">수정</button>
+          <button onclick="deleteProduct('${product.id}')" class="btn-danger">삭제</button>
         </div>
       </div>
     `).join('');
