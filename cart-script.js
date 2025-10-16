@@ -15,43 +15,29 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCart();
 });
 
-// 로그인 체크
+// 로그인 체크 (로컬 테스트용 - 항상 true)
 function checkLogin() {
-  const userEmail = sessionStorage.getItem('userEmail');
-  if (!userEmail) {
-    alert('로그인이 필요한 서비스입니다.');
-    window.location.href = 'login.html';
-    return false;
-  }
-  return true;
+  return true; // 로컬 테스트용으로 항상 통과
 }
 
-// 장바구니 불러오기
-async function loadCart() {
+// 장바구니 불러오기 (로컬 테스트용)
+function loadCart() {
   try {
-    const userEmail = sessionStorage.getItem('userEmail');
+    // 로컬 스토리지에서 장바구니 데이터 가져오기
+    const cartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
     
-    const response = await fetch(`${API_BASE_URL}/cart`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Email': userEmail
-      },
-      credentials: 'include'
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      cartData = data;
-      displayCart(data);
-    } else {
-      console.error('장바구니 조회 실패:', data.message);
-      showError('장바구니를 불러오는데 실패했습니다.');
-    }
+    console.log('로컬 장바구니 데이터:', cartItems);
+    
+    const cartData = {
+      items: cartItems,
+      totalItems: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+      totalPrice: cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    };
+    
+    displayCart(cartData);
   } catch (error) {
     console.error('장바구니 불러오기 오류:', error);
-    showError('서버와의 통신에 실패했습니다.');
+    showError('장바구니를 불러오는데 실패했습니다.');
   } finally {
     document.getElementById('loading').style.display = 'none';
   }
@@ -110,98 +96,59 @@ function updateOrderSummary(data) {
   document.getElementById('total').textContent = `₩${total.toLocaleString()}`;
 }
 
-// 수량 변경
-async function updateQuantity(itemId, newQuantity) {
+// 수량 변경 (로컬 테스트용)
+function updateQuantity(itemId, newQuantity) {
   if (newQuantity < 1) return;
 
   try {
-    const userEmail = sessionStorage.getItem('userEmail');
-
-    const response = await fetch(`${API_BASE_URL}/cart/item/${itemId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Email': userEmail
-      },
-      credentials: 'include',
-      body: JSON.stringify({ quantity: newQuantity })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
+    let cartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
+    
+    const itemIndex = cartItems.findIndex(item => item.id == itemId);
+    if (itemIndex !== -1) {
+      cartItems[itemIndex].quantity = newQuantity;
+      localStorage.setItem('cartItems', JSON.stringify(cartItems));
+      
       // 장바구니 새로고침
-      await loadCart();
-    } else {
-      alert(data.message || '수량 변경에 실패했습니다.');
+      loadCart();
     }
   } catch (error) {
     console.error('수량 변경 오류:', error);
-    alert('서버와의 통신에 실패했습니다.');
+    alert('수량 변경에 실패했습니다.');
   }
 }
 
-// 아이템 삭제
-async function removeItem(itemId) {
+// 아이템 삭제 (로컬 테스트용)
+function removeItem(itemId) {
   if (!confirm('이 상품을 장바구니에서 삭제하시겠습니까?')) {
     return;
   }
 
   try {
-    const userEmail = sessionStorage.getItem('userEmail');
-
-    const response = await fetch(`${API_BASE_URL}/cart/item/${itemId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Email': userEmail
-      },
-      credentials: 'include'
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      // 장바구니 새로고침
-      await loadCart();
-    } else {
-      alert(data.message || '삭제에 실패했습니다.');
-    }
+    let cartItems = JSON.parse(localStorage.getItem('cartItems') || '[]');
+    
+    cartItems = cartItems.filter(item => item.id != itemId);
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+    
+    // 장바구니 새로고침
+    loadCart();
   } catch (error) {
     console.error('삭제 오류:', error);
-    alert('서버와의 통신에 실패했습니다.');
+    alert('삭제에 실패했습니다.');
   }
 }
 
-// 장바구니 전체 비우기
-async function clearCart() {
+// 장바구니 전체 비우기 (로컬 테스트용)
+function clearCart() {
   if (!confirm('장바구니를 비우시겠습니까?')) {
     return;
   }
 
   try {
-    const userEmail = sessionStorage.getItem('userEmail');
-
-    const response = await fetch(`${API_BASE_URL}/cart/clear`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Email': userEmail
-      },
-      credentials: 'include'
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      // 장바구니 새로고침
-      await loadCart();
-    } else {
-      alert(data.message || '장바구니 비우기에 실패했습니다.');
-    }
+    localStorage.removeItem('cartItems');
+    loadCart();
   } catch (error) {
     console.error('장바구니 비우기 오류:', error);
-    alert('서버와의 통신에 실패했습니다.');
+    alert('장바구니 비우기에 실패했습니다.');
   }
 }
 
