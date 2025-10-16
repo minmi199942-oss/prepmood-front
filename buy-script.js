@@ -21,38 +21,30 @@ function getProductIdFromURL() {
   return params.get('id');
 }
 
-// 상품 상세 정보 로드
-async function loadProductDetails() {
-  const productId = getProductIdFromURL();
+// 상품 상세 정보 로드 (간단 버전)
+function loadProductDetails() {
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  // URL 파라미터에서 상품 정보 가져오기
+  const productData = {
+    id: urlParams.get('id'),
+    name: urlParams.get('name'),
+    price: parseInt(urlParams.get('price')),
+    image: urlParams.get('image'),
+    category: urlParams.get('category'),
+    type: urlParams.get('type'),
+    description: `${urlParams.get('name')}입니다. 고품질 소재로 제작된 프리미엄 상품입니다.`
+  };
 
-  if (!productId) {
+  if (!productData.id) {
     alert('상품 정보를 찾을 수 없습니다.');
     window.location.href = 'catalog.html';
     return;
   }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const data = await response.json();
-
-    if (data.success && data.product) {
-      currentProduct = data.product;
-      displayProductDetails(data.product);
-      checkWishlistStatus();
-    } else {
-      alert('상품을 찾을 수 없습니다.');
-      window.location.href = 'catalog.html';
-    }
-  } catch (error) {
-    console.error('상품 정보 로드 오류:', error);
-    alert('상품 정보를 불러오는데 실패했습니다.');
-  }
+  currentProduct = productData;
+  displayProductDetails(productData);
+  checkWishlistStatus();
 }
 
 // 상품 상세 정보 표시
