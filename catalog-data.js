@@ -1,4 +1,4 @@
-// DB 연동 상품 데이터 로더
+// 상품 데이터 로더 (로컬/프로덕션 자동 전환)
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'https://prepmood.kr/api'  // 로컬 개발 시에도 프로덕션 API 사용
   : 'https://prepmood.kr/api';  // 프로덕션
@@ -6,6 +6,21 @@ const API_BASE_URL = window.location.hostname === 'localhost' || window.location
 // 전역 변수로 상품 데이터 저장
 window.CATALOG_DATA = null;
 window.productsLoaded = false;
+
+// 로컬 개발용 하드코딩된 데이터 로드
+function loadLocalProducts() {
+  console.log('🔄 로컬 하드코딩된 상품 데이터 로드 중...');
+  
+  // product-data.js에서 정의된 데이터 사용
+  if (window.CATALOG_DATA) {
+    console.log('✅ 로컬 상품 데이터 로드 완료');
+    window.productsLoaded = true;
+    window.dispatchEvent(new CustomEvent('productsLoaded'));
+    return window.CATALOG_DATA;
+  }
+  
+  return null;
+}
 
 // DB에서 상품 데이터 로드
 async function loadProductsFromDB() {
@@ -37,7 +52,13 @@ async function loadProductsFromDB() {
   } catch (error) {
     console.error('❌ 상품 로드 오류:', error);
     
-    // 오류 시 기본 데이터 구조 반환 (빈 상태)
+    // 오류 시 로컬 데이터 시도
+    const localData = loadLocalProducts();
+    if (localData) {
+      return localData;
+    }
+    
+    // 로컬 데이터도 없으면 기본 구조 반환 (빈 상태)
     window.CATALOG_DATA = {
       men: { tops: {}, bottoms: {}, shoes: {}, bags: {}, hats: {}, scarves: {}, accessories: {} },
       women: { tops: {}, bottoms: {}, shoes: {}, bags: {}, hats: {}, scarves: {}, accessories: {} }
