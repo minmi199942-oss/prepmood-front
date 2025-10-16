@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>장바구니 - PREPMOOD</title>
+    <link rel="stylesheet" href="cart.css">
+</head>
+<body>
+    <!-- 헤더는 동적으로 로드됩니다 -->
+    <div id="header-container"></div>
+
+    <main class="cart-container">
+        <h1 class="cart-title">장바구니</h1>
+
+        <!-- 로딩 상태 -->
+        <div id="loading" class="loading-container">
+            <p>장바구니를 불러오는 중...</p>
+        </div>
+
+        <!-- 빈 장바구니 -->
+        <div id="empty-cart" class="empty-cart" style="display: none;">
+            <p>장바구니가 비어있습니다.</p>
+            <a href="catalog.html" class="btn-continue-shopping">쇼핑 계속하기</a>
+        </div>
+
+        <!-- 장바구니 아이템 목록 -->
+        <div id="cart-content" style="display: none;">
+            <div class="cart-items-container">
+                <div id="cart-items"></div>
+            </div>
+
+            <!-- 주문 요약 -->
+            <div class="order-summary">
+                <h2>주문 요약</h2>
+                <div class="summary-row">
+                    <span>상품 금액</span>
+                    <span id="subtotal">₩0</span>
+                </div>
+                <div class="summary-row">
+                    <span>배송비</span>
+                    <span id="shipping">무료</span>
+                </div>
+                <hr>
+                <div class="summary-row total">
+                    <span>총 결제 금액</span>
+                    <span id="total">₩0</span>
+                </div>
+                <button class="btn-checkout" onclick="checkout()">주문하기</button>
+                <button class="btn-clear-cart" onclick="clearCart()">장바구니 비우기</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 푸터는 동적으로 로드됩니다 -->
+    <div id="footer-container"></div>
+
+    <script defer src="header-loader.js?v=3"></script>
+    <script defer src="footer-loader.js?v=3"></script>
+    <script defer src="cart-script.js?v=1"></script>
+</body>
+</html>
+

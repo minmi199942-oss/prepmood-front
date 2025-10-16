@@ -361,3 +361,52 @@ function initializeMypageFunctionality() {
 
   console.log('마이페이지 기능이 초기화되었습니다.');
 }
+
+// 장바구니 개수 업데이트 함수
+async function updateCartCount() {
+  const cartBadge = document.getElementById('cart-badge');
+  if (!cartBadge) return;
+
+  const userEmail = sessionStorage.getItem('userEmail');
+  if (!userEmail) {
+    cartBadge.style.display = 'none';
+    return;
+  }
+
+  try {
+    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'https://prepmood.kr/api'
+      : 'https://prepmood.kr/api';
+
+    const response = await fetch(`${API_BASE_URL}/cart/count`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Email': userEmail
+      },
+      credentials: 'include'
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.count > 0) {
+      cartBadge.textContent = data.count > 99 ? '99+' : data.count;
+      cartBadge.style.display = 'inline-block';
+    } else {
+      cartBadge.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('장바구니 개수 조회 오류:', error);
+    cartBadge.style.display = 'none';
+  }
+}
+
+// 페이지 로드 시 장바구니 개수 업데이트
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    updateCartCount();
+  }, 500);
+});
+
+// 다른 페이지에서 호출할 수 있도록 전역으로 노출
+window.updateCartCount = updateCartCount;
