@@ -1,6 +1,19 @@
 // API 기본 URL 설정
 const API_BASE_URL = window.location.origin;
 
+// 사용자 이메일 가져오기 (JWT 기반)
+async function getUserEmail() {
+    try {
+        const response = await fetch('https://prepmood.kr/api/auth/me', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        return data.success && data.user ? data.user.email : null;
+    } catch (error) {
+        return null;
+    }
+}
+
 // DOM 요소
 const scanButton = document.getElementById('scanButton');
 const codeForm = document.getElementById('codeForm');
@@ -152,7 +165,7 @@ function displayResult(data) {
             </div>
         `;
         
-        const userEmail = sessionStorage.getItem('userEmail');
+        const userEmail = await getUserEmail();
         if (userEmail) {
             actionHTML = `
                 <button class="btn-register" onclick="registerProduct('${product.serial}')">
@@ -244,7 +257,7 @@ function displayError(message) {
 
 // 제품 등록
 async function registerProduct(serial) {
-    const userEmail = sessionStorage.getItem('userEmail');
+    const userEmail = await getUserEmail();
     
     if (!userEmail) {
         alert('로그인이 필요합니다.');

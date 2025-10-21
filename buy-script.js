@@ -233,10 +233,30 @@
     alert('빠른 구매 기능은 준비 중입니다.\n장바구니에 추가되었습니다.');
   }
 
-  // 로그인 상태 확인
-  function isLoggedIn() {
-    // 세션 스토리지에서 로그인 상태 확인
-    return sessionStorage.getItem('userLoggedIn') === 'true';
+  // 로그인 상태 확인 (JWT 기반)
+  async function isLoggedIn() {
+    try {
+      const response = await fetch('https://prepmood.kr/api/auth/me', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      return data.success && data.user;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // 사용자 이메일 가져오기 (JWT 기반)
+  async function getUserEmail() {
+    try {
+      const response = await fetch('https://prepmood.kr/api/auth/me', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      return data.success && data.user ? data.user.email : null;
+    } catch (error) {
+      return null;
+    }
   }
 
   // 위시리스트 토글 (API 연동)
@@ -244,7 +264,7 @@
     if (!currentProduct) return;
 
     // 로그인 체크
-    if (!isLoggedIn()) {
+    if (!(await isLoggedIn())) {
       if (confirm('로그인이 필요한 서비스입니다.\n로그인 페이지로 이동하시겠습니까?')) {
         window.location.href = 'login.html';
       }
@@ -255,8 +275,8 @@
     const isActive = wishlistBtn.classList.contains('active');
 
     try {
-      // 사용자 이메일 가져오기
-      const userEmail = sessionStorage.getItem('userEmail');
+      // 사용자 이메일 가져오기 (JWT에서 추출)
+      const userEmail = await getUserEmail();
       
       // API 호출
       const response = await fetch(`${API_BASE_URL}/wishlist/toggle`, {
@@ -292,10 +312,10 @@
 
   // 위시리스트 상태 확인 (API 연동)
   async function checkWishlistStatus() {
-    if (!currentProduct || !isLoggedIn()) return;
+    if (!currentProduct || !(await isLoggedIn())) return;
 
     try {
-      const userEmail = sessionStorage.getItem('userEmail');
+      const userEmail = await getUserEmail();
       
       const response = await fetch(`${API_BASE_URL}/wishlist/check?productId=${currentProduct.id}`, {
         method: 'GET',

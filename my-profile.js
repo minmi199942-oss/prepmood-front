@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     checkLoginStatus();
     
     // 사용자 정보 표시
-    displayUserInfo();
+    await displayUserInfo();
     
     // 이벤트 리스너 초기화
     initializeEventListeners();
@@ -44,13 +44,16 @@ async function checkLoginStatus() {
     }
 }
 
-// 사용자 정보 표시
-function displayUserInfo() {
-    const userData = localStorage.getItem('user');
-    
-    if (userData) {
-        try {
-            const user = JSON.parse(userData);
+// 사용자 정보 표시 (JWT 기반)
+async function displayUserInfo() {
+    try {
+        const response = await fetch('https://prepmood.kr/api/auth/me', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success && data.user) {
+            const user = data.user;
             const welcomeText = document.getElementById('user-welcome-text');
             
             if (welcomeText && user.name) {
@@ -73,10 +76,9 @@ function displayUserInfo() {
             } else {
                 document.getElementById('user-birthdate').textContent = '정보 없음';
             }
-            
-        } catch (error) {
-            console.error('사용자 정보 파싱 오류:', error);
         }
+    } catch (error) {
+        console.error('사용자 정보 로드 오류:', error);
     }
 }
 
