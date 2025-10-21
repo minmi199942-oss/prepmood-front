@@ -199,11 +199,20 @@ async function handlePersonalInfoSubmit(e) {
     }
     
     try {
-        const userData = JSON.parse(localStorage.getItem('user'));
+        // JWT 기반으로 사용자 정보 가져오기
+        const userResponse = await fetch('https://prepmood.kr/api/auth/me', {
+            credentials: 'include'
+        });
+        const userData = await userResponse.json();
+        
+        if (!userData.success) {
+            showFormError('personal-info-error', '로그인이 필요합니다.');
+            return;
+        }
         
         // 서버 API 호출 시도 (전용 업데이트 엔드포인트 사용)
         try {
-            console.log('📝 서버 API 호출 시도:', { email: userData.email, name, birthdate });
+            console.log('📝 서버 API 호출 시도:', { email: userData.user.email, name, birthdate });
             
             const response = await fetch('https://prepmood.kr/api/update-profile-simple', {
                 method: 'POST',
@@ -211,7 +220,7 @@ async function handlePersonalInfoSubmit(e) {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: userData.email,
+                    email: userData.user.email,
                     name: name,
                     birthdate: birthdate
                 })
@@ -402,7 +411,16 @@ async function handleEmailSubmit(e) {
     }
     
     try {
-        const userData = JSON.parse(localStorage.getItem('user'));
+        // JWT 기반으로 사용자 정보 가져오기
+        const userResponse = await fetch('https://prepmood.kr/api/auth/me', {
+            credentials: 'include'
+        });
+        const userData = await userResponse.json();
+        
+        if (!userData.success) {
+            showError('email-error', '로그인이 필요합니다.');
+            return;
+        }
         
         const response = await fetch('https://prepmood.kr/api/update-email', {
             method: 'POST',
@@ -410,7 +428,7 @@ async function handleEmailSubmit(e) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                userId: userData.id,
+                userId: userData.user.userId,
                 newEmail: email
             })
         });
@@ -423,8 +441,6 @@ async function handleEmailSubmit(e) {
             showNotification('이메일이 수정되었습니다.');
             
             // 사용자 정보 업데이트
-            userData.email = email;
-            localStorage.setItem('user', JSON.stringify(userData));
             displayUserInfo();
             
         } else {
@@ -452,7 +468,16 @@ async function handlePasswordSubmit(e) {
     }
     
     try {
-        const userData = JSON.parse(localStorage.getItem('user'));
+        // JWT 기반으로 사용자 정보 가져오기
+        const userResponse = await fetch('https://prepmood.kr/api/auth/me', {
+            credentials: 'include'
+        });
+        const userData = await userResponse.json();
+        
+        if (!userData.success) {
+            showError('current-password-error', '로그인이 필요합니다.');
+            return;
+        }
         
         const response = await fetch('https://prepmood.kr/api/update-password', {
             method: 'POST',
@@ -460,7 +485,7 @@ async function handlePasswordSubmit(e) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                userId: userData.id,
+                userId: userData.user.userId,
                 currentPassword: currentPassword,
                 newPassword: newPassword
             })
