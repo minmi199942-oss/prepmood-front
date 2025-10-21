@@ -244,20 +244,18 @@ function initializeMypageFunctionality() {
     return;
   }
 
-  // localStorage에서 sessionStorage로 로그인 정보 동기화
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  if (isLoggedIn) {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    sessionStorage.setItem('userLoggedIn', 'true');
-    sessionStorage.setItem('userEmail', user.email || '');
-    sessionStorage.setItem('userName', user.name || '');
-  }
+  // ✅ localStorage 사용하지 않음 (JWT 기반 인증으로 변경됨)
 
   // 로그인 상태 확인 (JWT 기반)
   async function checkLoginStatus() {
     try {
+      // ✅ 환경에 따라 API URL 자동 설정
+      const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:3000/api'
+        : 'https://prepmood.kr/api';
+      
       // ✅ 서버에 인증 상태 확인 요청 (JWT 토큰 자동 전송)
-      const response = await fetch('https://prepmood.kr/api/auth/me', {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
         credentials: 'include'  // httpOnly 쿠키 포함
       });
       
@@ -308,8 +306,13 @@ function initializeMypageFunctionality() {
   // 로그아웃 기능
   async function handleLogout() {
     try {
+      // ✅ 환경에 따라 API URL 자동 설정
+      const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:3000/api'
+        : 'https://prepmood.kr/api';
+      
       // ✅ 서버에 로그아웃 요청 (JWT 쿠키 삭제)
-      await fetch('https://prepmood.kr/api/logout', {
+      await fetch(`${API_BASE_URL}/logout`, {
         method: 'POST',
         credentials: 'include'  // httpOnly 쿠키 포함
       });
@@ -331,7 +334,8 @@ function initializeMypageFunctionality() {
 
   // 이벤트 리스너 등록
   mypageToggle.addEventListener('click', function(e) {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    // ✅ JWT 기반: mypage 아이콘 클래스로 로그인 상태 확인
+    const isLoggedIn = mypageIcon.classList.contains('mypage-icon-logged-in');
     
     if (isLoggedIn) {
       e.preventDefault();
@@ -378,13 +382,7 @@ function initializeMypageFunctionality() {
   // 초기 상태 설정
   checkLoginStatus();
 
-  // 로그인 상태 변경 감지 (다른 탭에서 로그인/로그아웃 시)
-  window.addEventListener('storage', function(e) {
-    if (e.key === 'isLoggedIn' || e.key === 'user') {
-      checkLoginStatus();
-      closeDropdown();
-    }
-  });
+  // ✅ JWT 기반에서는 localStorage 감지 불필요 (서버 쿠키 기반)
 
   console.log('마이페이지 기능이 초기화되었습니다.');
 
