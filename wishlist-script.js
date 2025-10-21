@@ -47,14 +47,10 @@
     const wishlistCountSpan = document.getElementById('wishlist-count');
 
     try {
-      const userEmail = sessionStorage.getItem('userEmail');
-
+      // ✅ JWT 토큰은 httpOnly 쿠키로 자동 전송됨
       const response = await fetch(`${API_BASE_URL}/wishlist`, {
         method: 'GET',
-        headers: {
-          'X-User-Email': userEmail
-        },
-        credentials: 'include'
+        credentials: 'include'  // httpOnly 쿠키 포함
       });
 
       // 서버 연결 실패 시 빈 상태 표시
@@ -119,17 +115,17 @@
       const card = document.createElement('div');
       card.className = 'wishlist-card';
       card.innerHTML = `
-        <a href="buy.html?id=${product.id}" class="wishlist-card-link">
+        <a href="buy.html?id=${escapeHtml(product.id)}" class="wishlist-card-link">
           <div class="wishlist-card-image-wrapper">
-            <img src="${product.image}" alt="${escapeHtml(product.name)}" class="wishlist-card-image">
+            <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" class="wishlist-card-image">
           </div>
           <div class="wishlist-card-info">
             <h3 class="wishlist-card-title">${escapeHtml(product.name)}</h3>
             <p class="wishlist-card-price">${formatPrice(product.price)}</p>
-            <p class="wishlist-card-date">추가일: ${formatDate(item.added_at)}</p>
+            <p class="wishlist-card-date">추가일: ${escapeHtml(formatDate(item.added_at))}</p>
           </div>
         </a>
-        <button class="wishlist-remove-btn" data-product-id="${product.id}" aria-label="위시리스트에서 제거">
+        <button class="wishlist-remove-btn" data-product-id="${escapeHtml(product.id)}" aria-label="위시리스트에서 제거">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
@@ -202,17 +198,7 @@
     return `${year}.${month}.${day}`;
   }
 
-  // HTML 이스케이프
-  function escapeHtml(text) {
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, m => map[m]);
-  }
+  // escapeHtml은 utils.js에서 전역으로 제공됨 (중복 제거)
 
   // 초기화
   function init() {

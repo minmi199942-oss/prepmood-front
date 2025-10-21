@@ -195,15 +195,15 @@ function displayResult(data) {
             <h4>제품 정보</h4>
             <div class="detail-row">
                 <span class="detail-label">시리얼 번호</span>
-                <span class="detail-value">${product.serial}</span>
+                <span class="detail-value">${escapeHtml(product.serial)}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">제품명</span>
-                <span class="detail-value">${product.name}</span>
+                <span class="detail-value">${escapeHtml(product.name)}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">카테고리</span>
-                <span class="detail-value">${product.category}</span>
+                <span class="detail-value">${escapeHtml(product.category)}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">가격</span>
@@ -212,7 +212,7 @@ function displayResult(data) {
             ${product.description ? `
             <div class="detail-row">
                 <span class="detail-label">설명</span>
-                <span class="detail-value">${product.description}</span>
+                <span class="detail-value">${escapeHtml(product.description)}</span>
             </div>
             ` : ''}
         </div>
@@ -233,7 +233,7 @@ function displayError(message) {
                 <line x1="9" y1="9" x2="15" y2="15"/>
             </svg>
             <h3>확인 실패</h3>
-            <p>${message}</p>
+            <p>${escapeHtml(message)}</p>
         </div>
         <button class="btn-retry" onclick="location.reload()">다시 시도</button>
     `;

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const GoogleAuthService = require('./google-auth');
 const rateLimit = require('express-rate-limit');
+const { authenticateToken, setTokenCookie } = require('./auth-middleware');
 
 const googleAuth = new GoogleAuthService();
 
@@ -50,6 +51,9 @@ router.post('/auth/google/login', authLimiter, async (req, res) => {
         // JWT 토큰 생성
         const jwtToken = googleAuth.generateJWT(userResult.user);
 
+        // httpOnly 쿠키로 토큰 설정
+        setTokenCookie(res, jwtToken);
+
         // 추가 정보 입력 필요 여부 확인
         const needsAdditionalInfo = !userResult.user.lastName || !userResult.user.firstName;
 
@@ -57,7 +61,7 @@ router.post('/auth/google/login', authLimiter, async (req, res) => {
             success: true,
             message: 'Google 로그인 성공',
             user: userResult.user,
-            token: jwtToken,
+            // ✅ token은 httpOnly 쿠키로 전송되므로 응답 본문에 포함하지 않음
             needsAdditionalInfo: needsAdditionalInfo
         });
 
@@ -70,38 +74,10 @@ router.post('/auth/google/login', authLimiter, async (req, res) => {
     }
 });
 
-// Google 로그인 상태 확인
-router.get('/auth/google/status', async (req, res) => {
+// Google 로그인 상태 확인 (새로운 인증 미들웨어 사용)
+router.get('/auth/google/status', authenticateToken, async (req, res) => {
     let connection;
     try {
-        const token = req.headers.authorization?.replace('Bearer ', '');
-        
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                error: 'No token provided'
-            });
-        }
-
-        const jwt = require('jsonwebtoken');
-        let decoded;
-        
-        try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET);
-        } catch (jwtError) {
-            if (jwtError.name === 'TokenExpiredError') {
-                return res.status(401).json({
-                    success: false,
-                    error: 'Token expired',
-                    expired: true
-                });
-            }
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid token'
-            });
-        }
-        
         // 사용자 정보 조회
         const mysql = require('mysql2/promise');
         connection = await mysql.createConnection({
@@ -113,7 +89,7 @@ router.get('/auth/google/status', async (req, res) => {
 
         const [users] = await connection.execute(
             'SELECT user_id, email, first_name, last_name, google_id, profile_picture FROM users WHERE user_id = ?',
-            [decoded.userId]
+            [req.user.userId]
         );
 
         if (users.length === 0) {

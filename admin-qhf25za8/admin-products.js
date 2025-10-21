@@ -113,8 +113,8 @@
 
     elements.productsGrid.innerHTML = productsToRender.map(product => `
       <div class="product-card" data-id="${product.id}">
-        <img class="product-card-image" src="${product.image || 'image/default.jpg'}" alt="${escapeHtml(product.name)}" 
-             onerror="this.src='image/default.jpg'">
+        <img class="product-card-image" src="${product.image || 'image/shirt.jpg'}" alt="${escapeHtml(product.name)}" 
+             onerror="this.src='image/shirt.jpg'">
         <div class="product-card-name">${escapeHtml(product.name)}</div>
         <div class="product-card-price">${formatKRW(product.price)}</div>
         <div class="product-card-meta">

@@ -14,18 +14,34 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeNavigation();
 });
 
-// 로그인 상태 확인
-function checkLoginStatus() {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const userData = localStorage.getItem('user');
-    
-    if (!isLoggedIn || !userData) {
-        // 비로그인 상태: 로그인 페이지로 리다이렉트
+// 로그인 상태 확인 (JWT 기반)
+async function checkLoginStatus() {
+    try {
+        // ✅ 서버에 인증 상태 확인
+        const response = await fetch('https://prepmood.kr/api/auth/me', {
+            credentials: 'include'  // httpOnly 쿠키 포함
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success || !data.user) {
+            // 비로그인 상태: 로그인 페이지로 리다이렉트
+            alert('로그인이 필요한 페이지입니다.');
+            window.location.href = 'login.html';
+            return false;
+        }
+        
+        // 로그인 상태: 사용자 정보 sessionStorage에 저장
+        sessionStorage.setItem('userEmail', data.user.email);
+        sessionStorage.setItem('userName', data.user.name);
+        
+        return true;
+    } catch (error) {
+        console.error('로그인 확인 오류:', error);
         alert('로그인이 필요한 페이지입니다.');
         window.location.href = 'login.html';
         return false;
     }
-    return true;
 }
 
 // 사용자 정보 표시

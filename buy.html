@@ -7,9 +7,11 @@
   <link rel="stylesheet" href="assets/css/global.css">
   <link rel="stylesheet" href="assets/css/page.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
+  <script defer src="utils.js"></script>
+  <script defer src="catalog-data.js"></script>
+  <script defer src="mini-cart.js"></script>
   <script defer src="header-loader.js"></script>
   <script defer src="footer-loader.js"></script>
-  <script defer src="catalog-data.js"></script>
   <script defer src="buy-script.js"></script>
 </head>
 <body>
@@ -51,6 +53,7 @@
             <option value="L">L</option>
             <option value="XL">XL</option>
           </select>
+          <div class="error-message" id="size-error" style="display: none;"></div>
         </div>
 
         <!-- 색상 선택 -->
@@ -60,19 +63,20 @@
             <option value="">색상을 선택해주세요</option>
             <!-- 색상 옵션이 JavaScript로 동적 생성됨 -->
           </select>
+          <div class="error-message" id="color-error" style="display: none;"></div>
         </div>
       </div>
 
       <!-- 구매 버튼들 -->
       <div class="product-actions">
         <!-- 장바구니 버튼 -->
-        <button class="cart-btn" id="cart-btn" disabled>
+        <button class="cart-btn" id="cart-btn">
           <span class="cart-btn-text">장바구니</span>
           <span class="cart-btn-price" id="cart-btn-price">₩0</span>
         </button>
 
         <!-- 빠른 구매 버튼 -->
-        <button class="quick-buy-btn" id="quick-buy-btn" disabled>
+        <button class="quick-buy-btn" id="quick-buy-btn">
           빠른 구매
         </button>
       </div>

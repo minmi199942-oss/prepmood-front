@@ -5,7 +5,9 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
+const cookieParser = require('cookie-parser');
 const { sendVerificationEmail, testConnection } = require('./mailer');
+const { authenticateToken, optionalAuth, generateToken, setTokenCookie, clearTokenCookie } = require('./auth-middleware');
 require('dotenv').config();
 
 const app = express();
@@ -54,6 +56,7 @@ app.use('/api/send-verification', apiLimiter); // 이메일 발송은 더 엄격
 app.use('/api/', generalLimiter); // 다른 API는 일반적으로
 
 app.use(express.json({ limit: '10mb' })); // JSON 크기 제한
+app.use(cookieParser()); // 쿠키 파서 추가 (JWT 토큰용)
 
 // 정적 파일 서빙 (이미지 업로드)
 const path = require('path');
@@ -393,6 +396,16 @@ app.post('/api/login', [
 
         await connection.end();
 
+        // JWT 토큰 생성
+        const token = generateToken({
+            id: user.user_id,
+            email: user.email,
+            name: `${user.last_name} ${user.first_name}`.trim()
+        });
+
+        // httpOnly 쿠키로 토큰 설정
+        setTokenCookie(res, token);
+
         console.log(`✅ 로그인 성공: ${email}`);
         res.json({
             success: true,
@@ -404,6 +417,7 @@ app.post('/api/login', [
                 phone: user.phone || null,
                 birthdate: user.birth || null
             }
+            // ✅ token은 httpOnly 쿠키로 전송되므로 응답 본문에 포함하지 않음
         });
 
     } catch (error) {
@@ -775,7 +789,7 @@ app.post('/api/update-profile', [
 // ==================== 위시리스트 API ====================
 
 // 위시리스트 토글 API (추가/삭제)
-app.post('/api/wishlist/toggle', [
+app.post('/api/wishlist/toggle', authenticateToken, [
     body('productId').notEmpty().trim().withMessage('상품 ID가 필요합니다.')
 ], async (req, res) => {
     try {
@@ -788,14 +802,7 @@ app.post('/api/wishlist/toggle', [
         }
 
         const { productId } = req.body;
-        const userEmail = req.headers['x-user-email']; // 임시로 헤더에서 이메일 가져오기
-
-        if (!userEmail) {
-            return res.status(401).json({
-                success: false,
-                message: '로그인이 필요합니다.'
-            });
-        }
+        const userEmail = req.user.email; // ✅ JWT 토큰에서 이메일 추출 (신뢰 가능)
 
         const connection = await mysql.createConnection(dbConfig);
 
@@ -842,17 +849,10 @@ app.post('/api/wishlist/toggle', [
 });
 
 // 위시리스트 상태 확인 API
-app.get('/api/wishlist/check', async (req, res) => {
+app.get('/api/wishlist/check', authenticateToken, async (req, res) => {
     try {
         const { productId } = req.query;
-        const userEmail = req.headers['x-user-email'];
-
-        if (!userEmail) {
-            return res.status(401).json({
-                success: false,
-                message: '로그인이 필요합니다.'
-            });
-        }
+        const userEmail = req.user.email; // ✅ JWT 토큰에서 이메일 추출
 
         if (!productId) {
             return res.status(400).json({
@@ -885,16 +885,9 @@ app.get('/api/wishlist/check', async (req, res) => {
 });
 
 // 위시리스트 전체 조회 API
-app.get('/api/wishlist', async (req, res) => {
+app.get('/api/wishlist', authenticateToken, async (req, res) => {
     try {
-        const userEmail = req.headers['x-user-email'];
-
-        if (!userEmail) {
-            return res.status(401).json({
-                success: false,
-                message: '로그인이 필요합니다.'
-            });
-        }
+        const userEmail = req.user.email; // ✅ JWT 토큰에서 이메일 추출
 
         const connection = await mysql.createConnection(dbConfig);
 
@@ -920,6 +913,29 @@ app.get('/api/wishlist', async (req, res) => {
             message: '위시리스트 조회 중 오류가 발생했습니다.'
         });
     }
+});
+
+// ==================== 인증 관련 API ====================
+
+// 로그인 상태 확인 API (JWT 토큰 검증)
+app.get('/api/auth/me', authenticateToken, (req, res) => {
+    res.json({
+        success: true,
+        user: {
+            userId: req.user.userId,
+            email: req.user.email,
+            name: req.user.name
+        }
+    });
+});
+
+// 로그아웃 API
+app.post('/api/logout', (req, res) => {
+    clearTokenCookie(res);
+    res.json({
+        success: true,
+        message: '로그아웃되었습니다.'
+    });
 });
 
 // ==================== 기타 API ====================

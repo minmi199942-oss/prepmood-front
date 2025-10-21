@@ -253,31 +253,49 @@ function initializeMypageFunctionality() {
     sessionStorage.setItem('userName', user.name || '');
   }
 
-  // 로그인 상태 확인
-  function checkLoginStatus() {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const userData = localStorage.getItem('user');
-    
-    if (isLoggedIn && userData) {
-      // 로그인 상태: 드롭다운 메뉴 표시, 아이콘 변경
-      mypageToggle.href = '#';
-      mypageIcon.src = 'image/loginmypage.jpg';
-      mypageIcon.classList.add('mypage-icon-logged-in');
-      console.log('로그인 상태 감지됨');
-    } else {
-      // 비로그인 상태: 로그인 페이지로 이동, 기본 아이콘
-      mypageToggle.href = 'login.html';
-      mypageIcon.src = 'image/mypage.jpg';
-      mypageIcon.classList.remove('mypage-icon-logged-in');
-      console.log('비로그인 상태 감지됨');
+  // 로그인 상태 확인 (JWT 기반)
+  async function checkLoginStatus() {
+    try {
+      // ✅ 서버에 인증 상태 확인 요청 (JWT 토큰 자동 전송)
+      const response = await fetch('https://prepmood.kr/api/auth/me', {
+        credentials: 'include'  // httpOnly 쿠키 포함
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.user) {
+        // 로그인 상태: 드롭다운 메뉴 표시, 아이콘 변경
+        mypageToggle.href = '#';
+        mypageIcon.src = 'image/loginmypage.jpg';
+        mypageIcon.classList.add('mypage-icon-logged-in');
+        
+        // 환영 메시지용으로 이름만 저장
+        sessionStorage.setItem('userName', data.user.name);
+        
+        console.log('✅ 로그인 상태:', data.user.email);
+      } else {
+        // 비로그인 상태
+        setLoggedOutState();
+      }
+    } catch (error) {
+      // 인증 실패 또는 네트워크 오류
+      console.log('⚠️ 인증 확인 실패:', error.message);
+      setLoggedOutState();
     }
+  }
+  
+  function setLoggedOutState() {
+    mypageToggle.href = 'login.html';
+    mypageIcon.src = 'image/mypage.jpg';
+    mypageIcon.classList.remove('mypage-icon-logged-in');
+    sessionStorage.clear();
+    console.log('❌ 비로그인 상태');
   }
 
   // 드롭다운 토글
   function toggleDropdown() {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    
-    if (isLoggedIn) {
+    // 로그인 상태인지 확인 (mypage 아이콘 클래스로 판단)
+    if (mypageIcon.classList.contains('mypage-icon-logged-in')) {
       mypageDropdown.classList.toggle('show');
     }
   }
@@ -288,18 +306,27 @@ function initializeMypageFunctionality() {
   }
 
   // 로그아웃 기능
-  function handleLogout() {
-    // localStorage 정리
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('user');
-    
-    // sessionStorage 정리 (위시리스트 등에서 사용)
-    sessionStorage.removeItem('userLoggedIn');
-    sessionStorage.removeItem('userEmail');
-    sessionStorage.removeItem('userName');
-    
-    // 페이지 새로고침하여 상태 업데이트
-    window.location.reload();
+  async function handleLogout() {
+    try {
+      // ✅ 서버에 로그아웃 요청 (JWT 쿠키 삭제)
+      await fetch('https://prepmood.kr/api/logout', {
+        method: 'POST',
+        credentials: 'include'  // httpOnly 쿠키 포함
+      });
+      
+      // sessionStorage 정리
+      sessionStorage.clear();
+      
+      console.log('✅ 로그아웃 완료');
+      
+      // 페이지 새로고침하여 상태 업데이트
+      window.location.reload();
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+      // 오류가 발생해도 로컬 상태는 정리
+      sessionStorage.clear();
+      window.location.reload();
+    }
   }
 
   // 이벤트 리스너 등록
@@ -360,4 +387,33 @@ function initializeMypageFunctionality() {
   });
 
   console.log('마이페이지 기능이 초기화되었습니다.');
+
+  // 미니 카트 스크립트 동적 로드 (간단한 방법)
+  console.log('🛒 미니 카트 로딩 시작...');
+  console.log('현재 상태:', {
+    hasCatalogData: !!window.CATALOG_DATA,
+    hasMiniCart: !!window.miniCart
+  });
+  
+  if (!window.CATALOG_DATA) {
+    console.log('📦 catalog-data.js 로딩 중...');
+    const catalogScript = document.createElement('script');
+    catalogScript.src = 'catalog-data.js';
+    catalogScript.defer = true;
+    catalogScript.onload = () => console.log('✅ catalog-data.js 로드 완료');
+    catalogScript.onerror = () => console.error('❌ catalog-data.js 로드 실패');
+    document.head.appendChild(catalogScript);
+  }
+  
+  if (!window.miniCart) {
+    console.log('🛒 mini-cart.js 로딩 중...');
+    const miniCartScript = document.createElement('script');
+    miniCartScript.src = 'mini-cart.js';
+    miniCartScript.defer = true;
+    miniCartScript.onload = () => console.log('✅ mini-cart.js 로드 완료');
+    miniCartScript.onerror = () => console.error('❌ mini-cart.js 로드 실패');
+    document.head.appendChild(miniCartScript);
+  } else {
+    console.log('✅ mini-cart가 이미 로드되어 있습니다.');
+  }
 }

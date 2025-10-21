@@ -28,13 +28,13 @@
     document.getElementById('product-count').textContent = `${list.length} items`;
 
     grid.innerHTML = list.map(item => `
-      <a class="product-card-lg" href="buy.html?id=${item.id}">
+      <a class="product-card-lg" href="buy.html?id=${escapeHtml(item.id)}">
         <figure>
-          <img src="${item.image}" alt="${escapeHtml(item.name)}"/>
+          <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}"/>
         </figure>
         <div class="meta">
           <div class="name">${escapeHtml(item.name)}</div>
-          <div class="price">${window.formatKRW ? window.formatKRW(item.price) : item.price}</div>
+          <div class="price">${window.formatKRW ? window.formatKRW(item.price) : escapeHtml(item.price)}</div>
         </div>
       </a>
     `).join('');
@@ -57,7 +57,7 @@
 
   function capitalize(s){ return s.replace(/(^|[-_\s])(\w)/g, (_,b,c)=> (b?b:'') + c.toUpperCase()); }
   function humanize(s){ return s.replace(/-/g,' ').replace(/\b\w/g, c=>c.toUpperCase()); }
-  function escapeHtml(str){ return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+  // escapeHtml은 utils.js에서 전역으로 제공됨
 })();
 
 
