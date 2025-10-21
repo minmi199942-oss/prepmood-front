@@ -3,14 +3,22 @@
 (function() {
   'use strict';
 
-  // 로그인 상태 확인
-  function isLoggedIn() {
-    return sessionStorage.getItem('userLoggedIn') === 'true';
+  // 로그인 상태 확인 (JWT 기반)
+  async function isLoggedIn() {
+    try {
+      const response = await fetch('https://prepmood.kr/api/auth/me', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      return data.success && data.user;
+    } catch (error) {
+      return false;
+    }
   }
 
   // 로그인 체크
-  function checkLogin() {
-    if (!isLoggedIn()) {
+  async function checkLogin() {
+    if (!(await isLoggedIn())) {
       alert('로그인이 필요한 서비스입니다.');
       window.location.href = 'login.html';
       return false;
@@ -201,9 +209,9 @@
   // escapeHtml은 utils.js에서 전역으로 제공됨 (중복 제거)
 
   // 초기화
-  function init() {
+  async function init() {
     // 로그인 체크
-    if (!checkLogin()) {
+    if (!(await checkLogin())) {
       return;
     }
 
