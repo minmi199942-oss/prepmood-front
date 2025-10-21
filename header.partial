@@ -68,7 +68,7 @@
       
       <!-- 마이페이지 (로그인 상태에 따라 다르게 동작) -->
       <div class="mypage-container">
-        <a href="#" class="action-link" id="mypage-toggle">
+        <a href="login.html" class="action-link" id="mypage-toggle">
           <img src="image/mypage.jpg" alt="마이페이지" class="action-icon" id="mypage-icon" />
         </a>
         
