@@ -918,15 +918,42 @@ app.get('/api/wishlist', authenticateToken, async (req, res) => {
 // ==================== 인증 관련 API ====================
 
 // 로그인 상태 확인 API (JWT 토큰 검증)
-app.get('/api/auth/me', authenticateToken, (req, res) => {
-    res.json({
-        success: true,
-        user: {
-            userId: req.user.userId,
-            email: req.user.email,
-            name: req.user.name
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+    try {
+        // 사용자 상세 정보 조회
+        const connection = await mysql.createConnection(dbConfig);
+        const [users] = await connection.execute(
+            'SELECT user_id, email, last_name, first_name, phone, birth, region FROM users WHERE user_id = ?',
+            [req.user.userId]
+        );
+        connection.end();
+
+        if (users.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '사용자 정보를 찾을 수 없습니다.'
+            });
         }
-    });
+
+        const user = users[0];
+        res.json({
+            success: true,
+            user: {
+                userId: user.user_id,
+                email: user.email,
+                name: `${user.last_name} ${user.first_name}`.trim(),
+                phone: user.phone || null,
+                birthdate: user.birth || null,
+                region: user.region || null
+            }
+        });
+    } catch (error) {
+        console.error('사용자 정보 조회 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '사용자 정보 조회 중 오류가 발생했습니다.'
+        });
+    }
 });
 
 // 로그아웃 API
