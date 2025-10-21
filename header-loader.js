@@ -249,10 +249,8 @@ function initializeMypageFunctionality() {
   // 로그인 상태 확인 (JWT 기반)
   async function checkLoginStatus() {
     try {
-      // ✅ 환경에 따라 API URL 자동 설정
-      const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:3000/api'
-        : 'https://prepmood.kr/api';
+      // ✅ 항상 프로덕션 API 사용 (로컬 개발 시에도)
+      const API_BASE_URL = 'https://prepmood.kr/api';
       
       // ✅ 서버에 인증 상태 확인 요청 (JWT 토큰 자동 전송)
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -267,8 +265,7 @@ function initializeMypageFunctionality() {
         mypageIcon.src = 'image/loginmypage.jpg';
         mypageIcon.classList.add('mypage-icon-logged-in');
         
-        // 환영 메시지용으로 이름만 저장
-        sessionStorage.setItem('userName', data.user.name);
+        // JWT 기반 - sessionStorage 불필요
         
         console.log('✅ 로그인 상태:', data.user.email);
       } else {
@@ -286,7 +283,7 @@ function initializeMypageFunctionality() {
     mypageToggle.href = 'login.html';
     mypageIcon.src = 'image/mypage.jpg';
     mypageIcon.classList.remove('mypage-icon-logged-in');
-    sessionStorage.clear();
+    // JWT 기반 - sessionStorage 불필요
     console.log('❌ 비로그인 상태');
   }
 
@@ -306,10 +303,8 @@ function initializeMypageFunctionality() {
   // 로그아웃 기능
   async function handleLogout() {
     try {
-      // ✅ 환경에 따라 API URL 자동 설정
-      const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:3000/api'
-        : 'https://prepmood.kr/api';
+      // ✅ 항상 프로덕션 API 사용 (로컬 개발 시에도)
+      const API_BASE_URL = 'https://prepmood.kr/api';
       
       // ✅ 서버에 로그아웃 요청 (JWT 쿠키 삭제)
       await fetch(`${API_BASE_URL}/logout`, {
@@ -317,8 +312,7 @@ function initializeMypageFunctionality() {
         credentials: 'include'  // httpOnly 쿠키 포함
       });
       
-      // sessionStorage 정리
-      sessionStorage.clear();
+      // JWT 기반 - sessionStorage 불필요
       
       console.log('✅ 로그아웃 완료');
       
@@ -326,8 +320,7 @@ function initializeMypageFunctionality() {
       window.location.reload();
     } catch (error) {
       console.error('로그아웃 오류:', error);
-      // 오류가 발생해도 로컬 상태는 정리
-      sessionStorage.clear();
+      // JWT 기반 - sessionStorage 불필요
       window.location.reload();
     }
   }

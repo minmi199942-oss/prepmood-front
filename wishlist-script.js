@@ -26,6 +26,19 @@
     return true;
   }
 
+  // 사용자 이메일 가져오기 (JWT 기반)
+  async function getUserEmail() {
+    try {
+      const response = await fetch('https://prepmood.kr/api/auth/me', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      return data.success && data.user ? data.user.email : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   // 카탈로그 데이터에서 상품 ID로 상품 찾기
   function findProductById(id) {
     if (!window.CATALOG_DATA) return null;
@@ -159,7 +172,7 @@
     }
 
     try {
-      const userEmail = sessionStorage.getItem('userEmail');
+      const userEmail = await getUserEmail();
 
       const response = await fetch(`${API_BASE_URL}/wishlist/toggle`, {
         method: 'POST',

@@ -31,9 +31,7 @@ async function checkLoginStatus() {
             return false;
         }
         
-        // 로그인 상태: 사용자 정보 sessionStorage에 저장
-        sessionStorage.setItem('userEmail', data.user.email);
-        sessionStorage.setItem('userName', data.user.name);
+        // JWT 기반 로그인 - sessionStorage 불필요
         
         return true;
     } catch (error) {
@@ -239,8 +237,7 @@ async function handlePersonalInfoSubmit(e) {
                 userData.name = name;
                 userData.region = region;
                 userData.phone = phone;
-                userData.birthdate = birthdate;
-                localStorage.setItem('user', JSON.stringify(userData));
+                // JWT 기반 - localStorage 불필요
                 displayUserInfo();
                 return;
             } else {
@@ -258,8 +255,7 @@ async function handlePersonalInfoSubmit(e) {
         userData.name = name;
         userData.region = region;
         userData.phone = phone;
-        userData.birthdate = birthdate;
-        localStorage.setItem('user', JSON.stringify(userData));
+        // JWT 기반 - localStorage 불필요
         displayUserInfo();
         
     } catch (error) {
@@ -675,8 +671,7 @@ function handleNavigation(page) {
 
 // 로그아웃 처리 (헤더에서 호출될 수 있음)
 function handleLogout() {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('user');
+    // JWT 기반 - localStorage 불필요, 서버에서 쿠키 삭제
     window.location.href = 'index.html';
 }
 
