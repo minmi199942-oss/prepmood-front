@@ -956,6 +956,10 @@ const productRoutes = require('./product-routes');
 app.use('/api', googleAuthRoutes);
 app.use('/api', productRoutes);
 
+// 장바구니 라우트
+const cartRoutes = require('./cart-routes');
+app.use('/api', cartRoutes);
+
 // 서버 시작
 app.listen(PORT, async () => {
     console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);

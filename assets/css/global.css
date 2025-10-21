@@ -414,6 +414,26 @@ header {
   opacity: 0.7;
 }
 
+/* 장바구니 배지 */
+.cart-link {
+  position: relative;
+}
+
+.cart-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: #e74c3c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.2;
+}
+
 nav ul {
   display: flex;
   gap: clamp(15px, 3vw, 30px);
