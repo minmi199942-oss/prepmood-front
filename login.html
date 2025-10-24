@@ -140,8 +140,9 @@
               // 429 오류인 경우 잠시 대기 후 재시도
               retryCount++;
               if (retryCount < maxRetries) {
-                console.log(`Rate Limiting 감지, ${retryCount * 2}초 후 재시도...`);
-                await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
+                const waitTime = retryCount * 5; // 5초, 10초, 15초로 증가
+                console.log(`Rate Limiting 감지, ${waitTime}초 후 재시도...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
               }
             } catch (fetchError) {
               if (retryCount >= maxRetries - 1) {
@@ -175,9 +176,9 @@
         } catch (error) {
           console.error('Google 로그인 오류:', error);
           if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-            alert('서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
+            alert('서버가 일시적으로 과부하 상태입니다.\n\n잠시 후 다시 시도해주세요.\n또는 일반 로그인을 사용해주세요.');
           } else {
-            alert('Google 로그인 처리 중 오류가 발생했습니다.');
+            alert('Google 로그인 처리 중 오류가 발생했습니다.\n\n일반 로그인을 사용해주세요.');
           }
         }
       }
