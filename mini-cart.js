@@ -192,6 +192,15 @@ class MiniCart {
     }
   }
 
+  // 로그아웃 시 장바구니 비우기 (보안상 필요)
+  clearCart() {
+    this.cartItems = [];
+    this.saveCartItems();
+    this.updateCartDisplay();
+    this.renderMiniCart();
+    console.log('🛒 장바구니가 비워졌습니다 (로그아웃)');
+  }
+
   updateCartDisplay() {
     const totalItems = this.cartItems.reduce((sum, item) => sum + item.quantity, 0);
     const badge = document.getElementById('cart-badge');

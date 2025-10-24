@@ -268,6 +268,13 @@ function initializeMypageFunctionality() {
     mypageIcon.src = 'image/mypage.jpg';
     mypageIcon.classList.remove('mypage-icon-logged-in');
     // JWT 기반 - sessionStorage 불필요
+    
+    // 비로그인 상태일 때 장바구니 비우기 (보안상 필요)
+    if (window.miniCart) {
+      window.miniCart.clearCart();
+      console.log('🛒 비로그인 상태 - 장바구니 비움');
+    }
+    
     console.log('❌ 비로그인 상태');
   }
 
@@ -299,6 +306,12 @@ function initializeMypageFunctionality() {
       // JWT 기반 - sessionStorage 불필요
       
       console.log('✅ 로그아웃 완료');
+      
+      // 로그아웃 시 장바구니 비우기 (보안상 필요)
+      if (window.miniCart) {
+        window.miniCart.clearCart();
+        console.log('🛒 로그아웃 시 장바구니 비움');
+      }
       
       // 페이지 새로고침하여 상태 업데이트
       window.location.reload();
