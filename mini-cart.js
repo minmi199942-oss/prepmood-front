@@ -293,15 +293,22 @@ window.MiniCart = MiniCart;
 // 전역 인스턴스 생성
 let miniCart;
 
-// DOM 로드 완료 후 초기화
-document.addEventListener('DOMContentLoaded', () => {
-  // header-loader.js에서 이미 초기화했는지 확인
+// 초기화 함수
+function initializeMiniCart() {
   if (!window.miniCart) {
     miniCart = new MiniCart();
     window.miniCart = miniCart;
     console.log('✅ 미니 카트 초기화 완료 (mini-cart.js)');
   }
-});
+}
+
+// DOM 로드 완료 후 초기화
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeMiniCart);
+} else {
+  // 이미 DOM이 로드된 경우 즉시 초기화
+  initializeMiniCart();
+}
 
 
 
