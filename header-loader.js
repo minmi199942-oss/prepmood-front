@@ -264,8 +264,14 @@ function initializeMypageFunctionality() {
       }
     } catch (error) {
       // 인증 실패 또는 네트워크 오류
-      console.log('⚠️ 인증 확인 실패:', error.message);
-      setLoggedOutState();
+      if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+        console.log('⚠️ Rate Limiting 감지 - 로그인 상태 확인 불가');
+        // Rate Limiting인 경우 기본적으로 로그아웃 상태로 처리
+        setLoggedOutState();
+      } else {
+        console.log('⚠️ 인증 확인 실패:', error.message);
+        setLoggedOutState();
+      }
     }
   }
   
