@@ -99,7 +99,7 @@
 
                     <div class="form-group">
                         <label for="password">비밀번호</label>
-                        <input type="password" id="password" class="form-input" placeholder="8자 이상 입력해주세요" required>
+                        <input type="password" id="password" class="form-input" placeholder="8자 이상, 대소문자, 숫자, 특수문자 포함" required>
                         <div class="error-message" id="passwordError"></div>
                     </div>
 
@@ -503,6 +503,21 @@
                     return false;
                 } else if (password.length < 8) {
                     this.showError('passwordError', '비밀번호는 8자 이상이어야 합니다.');
+                    return false;
+                } else if (!/(?=.*[a-z])/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 소문자를 포함해야 합니다.');
+                    return false;
+                } else if (!/(?=.*[A-Z])/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 대문자를 포함해야 합니다.');
+                    return false;
+                } else if (!/(?=.*\d)/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 숫자를 포함해야 합니다.');
+                    return false;
+                } else if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 특수문자를 포함해야 합니다.');
+                    return false;
+                } else if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 영문, 숫자, 특수문자만 사용 가능합니다.');
                     return false;
                 } else {
                     this.hideError('passwordError');
