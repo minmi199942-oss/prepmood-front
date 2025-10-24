@@ -233,8 +233,27 @@ function initializeMypageFunctionality() {
   // 로그인 상태 확인 (JWT 기반)
   async function checkLoginStatus() {
     try {
-      // 공통 API URL 사용
+      // 로컬/프로덕션 API URL 사용
       const API_BASE_URL = window.getApiBaseUrl();
+      
+      // 로컬에서는 localStorage 방식 사용
+      if (API_BASE_URL === 'LOCAL_STORAGE') {
+        // 로컬 개발용: localStorage 방식
+        const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        if (isLoggedIn && user.email) {
+          // 로그인 상태: 드롭다운 메뉴 표시, 아이콘 변경
+          mypageToggle.href = '#';
+          mypageIcon.src = 'image/loginmypage.jpg';
+          mypageIcon.classList.add('mypage-icon-logged-in');
+          console.log('✅ 로그인 상태 (로컬):', user.email);
+        } else {
+          // 비로그인 상태
+          setLoggedOutState();
+        }
+        return;
+      }
       
       // ✅ 서버에 인증 상태 확인 요청 (JWT 토큰 자동 전송)
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -287,8 +306,27 @@ function initializeMypageFunctionality() {
   // 로그아웃 기능
   async function handleLogout() {
     try {
-      // 공통 API URL 사용
+      // 로컬/프로덕션 API URL 사용
       const API_BASE_URL = window.getApiBaseUrl();
+      
+      // 로컬에서는 localStorage 방식 사용
+      if (API_BASE_URL === 'LOCAL_STORAGE') {
+        // 로컬 개발용: localStorage 방식
+        const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        if (isLoggedIn && user.email) {
+          // 로그인 상태: 드롭다운 메뉴 표시, 아이콘 변경
+          mypageToggle.href = '#';
+          mypageIcon.src = 'image/loginmypage.jpg';
+          mypageIcon.classList.add('mypage-icon-logged-in');
+          console.log('✅ 로그인 상태 (로컬):', user.email);
+        } else {
+          // 비로그인 상태
+          setLoggedOutState();
+        }
+        return;
+      }
       
       // ✅ 서버에 로그아웃 요청 (JWT 쿠키 삭제)
       await fetch(`${API_BASE_URL}/logout`, {
