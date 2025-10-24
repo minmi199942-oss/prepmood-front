@@ -134,13 +134,8 @@ class MiniCart {
     }
   }
 
-  // 로그인 상태 확인 (Rate Limiting 방지)
+  // 로그인 상태 확인
   async checkLoginStatus() {
-    // 이미 확인한 경우 재사용
-    if (this.isLoggedIn !== null) {
-      return this.isLoggedIn;
-    }
-
     try {
       const response = await fetch('https://prepmood.kr/api/auth/me', {
         credentials: 'include'
@@ -149,7 +144,6 @@ class MiniCart {
       this.isLoggedIn = data.success && data.user;
       return this.isLoggedIn;
     } catch (error) {
-      console.log('로그인 상태 확인 실패, 기본값 사용:', error.message);
       this.isLoggedIn = false;
       return false;
     }
