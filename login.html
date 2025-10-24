@@ -111,7 +111,7 @@
         }
       }
 
-      // Google 로그인 콜백 함수 (단순화)
+      // Google 로그인 콜백 함수 (429 오류 처리 개선)
       async function handleGoogleSignIn(response) {
         try {
           console.log('Google 로그인 토큰 수신:', response.credential);
@@ -125,6 +125,13 @@
             credentials: 'include',
             body: JSON.stringify({ idToken: response.credential })
           });
+
+          // 429 오류인 경우 특별 처리
+          if (backendResponse.status === 429) {
+            console.log('⚠️ Rate Limiting 감지 - 서버 과부하 상태');
+            alert('서버가 일시적으로 과부하 상태입니다.\n\n잠시 후 다시 시도해주세요.\n또는 일반 로그인을 사용해주세요.');
+            return;
+          }
 
           const data = await backendResponse.json();
           console.log('백엔드 응답:', data);
@@ -144,7 +151,11 @@
           }
         } catch (error) {
           console.error('Google 로그인 오류:', error);
-          alert('Google 로그인 처리 중 오류가 발생했습니다.\n\n일반 로그인을 사용해주세요.');
+          if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+            alert('서버가 일시적으로 과부하 상태입니다.\n\n잠시 후 다시 시도해주세요.\n또는 일반 로그인을 사용해주세요.');
+          } else {
+            alert('Google 로그인 처리 중 오류가 발생했습니다.\n\n일반 로그인을 사용해주세요.');
+          }
         }
       }
 
