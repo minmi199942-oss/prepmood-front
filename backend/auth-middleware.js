@@ -125,7 +125,7 @@ function setTokenCookie(res, token, maxAge = 7 * 24 * 60 * 60 * 1000) {
     res.cookie('accessToken', token, {
         httpOnly: true,      // JavaScript로 접근 불가 (XSS 방지)
         secure: process.env.NODE_ENV === 'production',  // HTTPS만 (프로덕션)
-        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',  // 로컬 테스트 위해 lax
+        sameSite: 'none',  // 크로스 오리진 쿠키 허용
         maxAge: maxAge,      // 쿠키 만료 시간
         path: '/'            // 모든 경로에서 사용
     });

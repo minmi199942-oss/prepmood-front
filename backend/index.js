@@ -20,7 +20,7 @@ app.set('trust proxy', 'loopback');
 // CORS 설정 (특정 도메인만 허용) - helmet보다 먼저 설정
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
     process.env.ALLOWED_ORIGINS.split(',') : 
-    ['http://localhost:8000', 'http://localhost:3000', 'http://127.0.0.1:8000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5500', 'http://localhost:5500'];
+    ['http://localhost:8000', 'http://localhost:3000', 'http://127.0.0.1:8000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5500', 'http://localhost:5500', 'https://prepmood.kr'];
 
 console.log('Allowed origins:', allowedOrigins);
 
