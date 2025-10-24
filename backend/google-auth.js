@@ -51,19 +51,11 @@ class GoogleAuthService {
                 database: process.env.DB_NAME
             });
 
-            // 기존 사용자 찾기 (Google ID 우선, 없으면 이메일로 검색)
-            let [existingUsers] = await connection.execute(
+            // 기존 사용자 찾기 (Google ID로만 검색)
+            const [existingUsers] = await connection.execute(
                 'SELECT user_id, email, first_name, last_name, phone, birth, google_id, profile_picture FROM users WHERE google_id = ?',
                 [googleUser.googleId]
             );
-            
-            // Google ID로 찾지 못한 경우 이메일로 검색
-            if (existingUsers.length === 0) {
-                [existingUsers] = await connection.execute(
-                    'SELECT user_id, email, first_name, last_name, phone, birth, google_id, profile_picture FROM users WHERE email = ?',
-                    [googleUser.email]
-                );
-            }
 
             if (existingUsers.length > 0) {
                 const user = existingUsers[0];
