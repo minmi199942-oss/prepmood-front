@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mysql = require('mysql2/promise');
+const { authenticateToken } = require('./auth-middleware');
 require('dotenv').config();
 
 // 데이터베이스 연결 설정
@@ -16,41 +17,12 @@ const dbConfig = {
 // 장바구니 API 라우트
 // ====================================
 
-// 사용자 인증 미들웨어
-const authenticateUser = async (req, res, next) => {
-  try {
-    const userEmail = req.headers['x-user-email'];
-    
-    if (!userEmail) {
-      return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
-    }
-
-    const connection = await mysql.createConnection(dbConfig);
-    try {
-      const [users] = await connection.execute(
-        'SELECT user_id, email FROM users WHERE email = ?',
-        [userEmail]
-      );
-
-      if (users.length === 0) {
-        return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
-      }
-
-      req.user = users[0];
-      next();
-    } finally {
-      connection.end();
-    }
-  } catch (error) {
-    console.error('❌ 사용자 인증 오류:', error);
-    res.status(500).json({ success: false, message: '인증 처리 중 오류가 발생했습니다.' });
-  }
-};
+// JWT 인증 미들웨어 사용 (auth-middleware.js에서 import)
 
 // 장바구니 조회
-router.get('/cart', authenticateUser, async (req, res) => {
+router.get('/cart', authenticateToken, async (req, res) => {
   try {
-    console.log('🛒 장바구니 조회 시도:', req.user.email);
+    console.log('🛒 장바구니 조회 시도:', req.user.userId);
     
     const connection = await mysql.createConnection(dbConfig);
     console.log('✅ 데이터베이스 연결 성공');
@@ -59,7 +31,7 @@ router.get('/cart', authenticateUser, async (req, res) => {
       // 사용자의 장바구니 조회 또는 생성
       let [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
-        [req.user.user_id]
+        [req.user.userId]
       );
 
       let cartId;
@@ -67,7 +39,7 @@ router.get('/cart', authenticateUser, async (req, res) => {
         // 장바구니가 없으면 생성
         const [result] = await connection.execute(
           'INSERT INTO carts (user_id) VALUES (?)',
-          [req.user.user_id]
+          [req.user.userId]
         );
         cartId = result.insertId;
         console.log('🆕 새 장바구니 생성:', cartId);
@@ -95,7 +67,7 @@ router.get('/cart', authenticateUser, async (req, res) => {
         ORDER BY ci.created_at DESC
       `, [cartId]);
 
-      console.log(`📋 장바구니 조회: ${req.user.email} - ${items.length}개 항목`);
+      console.log(`📋 장바구니 조회: 사용자 ${req.user.userId} - ${items.length}개 항목`);
 
       res.json({
         success: true,
@@ -118,7 +90,7 @@ router.get('/cart', authenticateUser, async (req, res) => {
 });
 
 // 장바구니에 상품 추가
-router.post('/cart/add', authenticateUser, async (req, res) => {
+router.post('/cart/add', authenticateToken, async (req, res) => {
   try {
     const { productId, quantity = 1, size = null, color = null } = req.body;
 
@@ -131,14 +103,14 @@ router.post('/cart/add', authenticateUser, async (req, res) => {
       // 사용자의 장바구니 조회 또는 생성
       let [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
-        [req.user.user_id]
+        [req.user.userId]
       );
 
       let cartId;
       if (carts.length === 0) {
         const [result] = await connection.execute(
           'INSERT INTO carts (user_id) VALUES (?)',
-          [req.user.user_id]
+          [req.user.userId]
         );
         cartId = result.insertId;
       } else {
@@ -159,14 +131,14 @@ router.post('/cart/add', authenticateUser, async (req, res) => {
           'UPDATE cart_items SET quantity = quantity + ? WHERE item_id = ?',
           [quantity, existing[0].item_id]
         );
-        console.log(`🔄 장바구니 수량 업데이트: ${req.user.email} - ${productId} (${existing[0].quantity} → ${existing[0].quantity + quantity})`);
+        console.log(`🔄 장바구니 수량 업데이트: 사용자 ${req.user.userId} - ${productId} (${existing[0].quantity} → ${existing[0].quantity + quantity})`);
       } else {
         // 없으면 새로 추가
         await connection.execute(
           'INSERT INTO cart_items (cart_id, product_id, quantity, size, color) VALUES (?, ?, ?, ?, ?)',
           [cartId, productId, quantity, size, color]
         );
-        console.log(`➕ 장바구니에 추가: ${req.user.email} - ${productId}`);
+        console.log(`➕ 장바구니에 추가: 사용자 ${req.user.userId} - ${productId}`);
       }
 
       // 업데이트된 장바구니 정보 조회
@@ -199,7 +171,7 @@ router.post('/cart/add', authenticateUser, async (req, res) => {
 });
 
 // 장바구니 아이템 수량 변경
-router.put('/cart/item/:itemId', authenticateUser, async (req, res) => {
+router.put('/cart/item/:itemId', authenticateToken, async (req, res) => {
   try {
     const { itemId } = req.params;
     const { quantity } = req.body;
@@ -215,7 +187,7 @@ router.put('/cart/item/:itemId', authenticateUser, async (req, res) => {
         SELECT ci.item_id FROM cart_items ci
         JOIN carts c ON ci.cart_id = c.cart_id
         WHERE ci.item_id = ? AND c.user_id = ?
-      `, [itemId, req.user.user_id]);
+      `, [itemId, req.user.userId]);
 
       if (items.length === 0) {
         return res.status(404).json({ success: false, message: '장바구니 아이템을 찾을 수 없습니다.' });
@@ -227,7 +199,7 @@ router.put('/cart/item/:itemId', authenticateUser, async (req, res) => {
         [quantity, itemId]
       );
 
-      console.log(`🔄 장바구니 수량 변경: ${req.user.email} - 아이템 ${itemId} → 수량 ${quantity}`);
+      console.log(`🔄 장바구니 수량 변경: 사용자 ${req.user.userId} - 아이템 ${itemId} → 수량 ${quantity}`);
 
       res.json({ success: true, message: '수량이 변경되었습니다.' });
     } finally {
@@ -240,7 +212,7 @@ router.put('/cart/item/:itemId', authenticateUser, async (req, res) => {
 });
 
 // 장바구니 아이템 삭제
-router.delete('/cart/item/:itemId', authenticateUser, async (req, res) => {
+router.delete('/cart/item/:itemId', authenticateToken, async (req, res) => {
   try {
     const { itemId } = req.params;
 
@@ -251,7 +223,7 @@ router.delete('/cart/item/:itemId', authenticateUser, async (req, res) => {
         SELECT ci.item_id, ci.product_id FROM cart_items ci
         JOIN carts c ON ci.cart_id = c.cart_id
         WHERE ci.item_id = ? AND c.user_id = ?
-      `, [itemId, req.user.user_id]);
+      `, [itemId, req.user.userId]);
 
       if (items.length === 0) {
         return res.status(404).json({ success: false, message: '장바구니 아이템을 찾을 수 없습니다.' });
@@ -263,7 +235,7 @@ router.delete('/cart/item/:itemId', authenticateUser, async (req, res) => {
         [itemId]
       );
 
-      console.log(`🗑️ 장바구니에서 삭제: ${req.user.email} - ${items[0].product_id}`);
+      console.log(`🗑️ 장바구니에서 삭제: 사용자 ${req.user.userId} - ${items[0].product_id}`);
 
       res.json({ success: true, message: '장바구니에서 삭제되었습니다.' });
     } finally {
@@ -276,14 +248,14 @@ router.delete('/cart/item/:itemId', authenticateUser, async (req, res) => {
 });
 
 // 장바구니 전체 비우기
-router.delete('/cart/clear', authenticateUser, async (req, res) => {
+router.delete('/cart/clear', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     try {
       // 사용자의 장바구니 조회
       const [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
-        [req.user.user_id]
+        [req.user.userId]
       );
 
       if (carts.length > 0) {
@@ -291,7 +263,7 @@ router.delete('/cart/clear', authenticateUser, async (req, res) => {
           'DELETE FROM cart_items WHERE cart_id = ?',
           [carts[0].cart_id]
         );
-        console.log(`🗑️ 장바구니 전체 비우기: ${req.user.email}`);
+        console.log(`🗑️ 장바구니 전체 비우기: 사용자 ${req.user.userId}`);
       }
 
       res.json({ success: true, message: '장바구니가 비워졌습니다.' });
@@ -305,13 +277,13 @@ router.delete('/cart/clear', authenticateUser, async (req, res) => {
 });
 
 // 장바구니 아이템 개수 조회 (헤더용)
-router.get('/cart/count', authenticateUser, async (req, res) => {
+router.get('/cart/count', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     try {
       const [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
-        [req.user.user_id]
+        [req.user.userId]
       );
 
       if (carts.length === 0) {
