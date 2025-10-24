@@ -111,30 +111,57 @@
         }
       }
 
-      // Google 로그인 콜백 함수
+      // Google 로그인 콜백 함수 (Rate Limiting 방지)
       async function handleGoogleSignIn(response) {
         try {
           console.log('Google 로그인 토큰 수신:', response.credential);
           
-          // Google ID 토큰을 백엔드로 전송
-          const backendResponse = await fetch('https://prepmood.kr/api/auth/google/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include', // ✅ JWT 쿠키 받기 위해 필수!
-            body: JSON.stringify({ idToken: response.credential })
-          });
+          // Rate Limiting 방지를 위해 재시도 로직 추가
+          let retryCount = 0;
+          const maxRetries = 3;
+          let backendResponse;
+          
+          while (retryCount < maxRetries) {
+            try {
+              backendResponse = await fetch('https://prepmood.kr/api/auth/google/login', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ idToken: response.credential })
+              });
+              
+              // 429 오류가 아닌 경우 루프 종료
+              if (backendResponse.status !== 429) {
+                break;
+              }
+              
+              // 429 오류인 경우 잠시 대기 후 재시도
+              retryCount++;
+              if (retryCount < maxRetries) {
+                console.log(`Rate Limiting 감지, ${retryCount * 2}초 후 재시도...`);
+                await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
+              }
+            } catch (fetchError) {
+              if (retryCount >= maxRetries - 1) {
+                throw fetchError;
+              }
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
+            }
+          }
+
+          if (!backendResponse) {
+            throw new Error('서버 응답을 받을 수 없습니다.');
+          }
 
           const data = await backendResponse.json();
           console.log('백엔드 응답:', data);
 
           if (data.success) {
-            // ✅ JWT 토큰은 httpOnly 쿠키로 자동 설정됨 (localStorage 사용 안 함)
-            // 최소한의 정보만 sessionStorage에 저장 (환영 메시지용)
             sessionStorage.setItem('userName', data.user.name);
             
-            // 추가 정보 입력이 필요한지 확인
             if (data.needsAdditionalInfo) {
               alert(`환영합니다, ${data.user.name}님! 추가 정보를 입력해주세요.`);
               window.location.href = 'complete-profile.html';
@@ -147,7 +174,11 @@
           }
         } catch (error) {
           console.error('Google 로그인 오류:', error);
-          alert('Google 로그인 처리 중 오류가 발생했습니다.');
+          if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+            alert('서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
+          } else {
+            alert('Google 로그인 처리 중 오류가 발생했습니다.');
+          }
         }
       }
 
