@@ -19,11 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initializeCartPage() {
   console.log('🛒 장바구니 페이지 초기화 시작');
   
-  // 서버에서 최신 장바구니 데이터 로드
-  await window.miniCart.loadCartFromServer();
-  
-  // 장바구니 아이템 렌더링
-  renderCartItems();
+  // 장바구니 아이템 렌더링 (내부에서 서버 데이터 로드)
+  await renderCartItems();
   
   // 이벤트 리스너 등록
   bindEventListeners();
@@ -31,9 +28,11 @@ async function initializeCartPage() {
   console.log('✅ 장바구니 페이지 초기화 완료');
 }
 
-function renderCartItems() {
+async function renderCartItems() {
   console.log('🎨 장바구니 아이템 렌더링 시작');
   
+  // 서버에서 최신 장바구니 데이터 다시 로드
+  await window.miniCart.loadCartFromServer();
   const cartItems = window.miniCart.getCartItems();
   const cartItemsContainer = document.getElementById('cart-items');
   const cartItemCount = document.getElementById('cart-item-count');
@@ -116,8 +115,7 @@ async function editCartItem(itemId) {
   if (newQuantity && !isNaN(newQuantity) && parseInt(newQuantity) > 0) {
     await window.miniCart.updateQuantity(itemId, parseInt(newQuantity));
     // 서버에서 최신 데이터 로드 후 렌더링
-    await window.miniCart.loadCartFromServer();
-    renderCartItems();
+    await renderCartItems();
   }
 }
 
@@ -127,8 +125,7 @@ async function removeCartItem(itemId) {
   if (confirm('이 상품을 장바구니에서 제거하시겠습니까?')) {
     await window.miniCart.removeFromCart(itemId);
     // 서버에서 최신 데이터 로드 후 렌더링
-    await window.miniCart.loadCartFromServer();
-    renderCartItems();
+    await renderCartItems();
   }
 }
 
