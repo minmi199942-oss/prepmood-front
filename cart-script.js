@@ -16,8 +16,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-function initializeCartPage() {
+async function initializeCartPage() {
   console.log('🛒 장바구니 페이지 초기화 시작');
+  
+  // 서버에서 최신 장바구니 데이터 로드
+  await window.miniCart.loadCartFromServer();
   
   // 장바구니 아이템 렌더링
   renderCartItems();
@@ -105,23 +108,27 @@ function bindEventListeners() {
   });
 }
 
-function editCartItem(itemId) {
+async function editCartItem(itemId) {
   console.log('✏️ 장바구니 아이템 수정:', itemId);
   
   // 현재는 간단한 수량 수정만 지원
   const newQuantity = prompt('수량을 입력하세요:');
   if (newQuantity && !isNaN(newQuantity) && parseInt(newQuantity) > 0) {
-    window.miniCart.updateQuantity(itemId, parseInt(newQuantity));
-    renderCartItems(); // 페이지 다시 렌더링
+    await window.miniCart.updateQuantity(itemId, parseInt(newQuantity));
+    // 서버에서 최신 데이터 로드 후 렌더링
+    await window.miniCart.loadCartFromServer();
+    renderCartItems();
   }
 }
 
-function removeCartItem(itemId) {
+async function removeCartItem(itemId) {
   console.log('🗑️ 장바구니 아이템 제거:', itemId);
   
   if (confirm('이 상품을 장바구니에서 제거하시겠습니까?')) {
-    window.miniCart.removeFromCart(itemId);
-    renderCartItems(); // 페이지 다시 렌더링
+    await window.miniCart.removeFromCart(itemId);
+    // 서버에서 최신 데이터 로드 후 렌더링
+    await window.miniCart.loadCartFromServer();
+    renderCartItems();
   }
 }
 
