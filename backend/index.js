@@ -982,9 +982,9 @@ const productRoutes = require('./product-routes');
 app.use('/api', googleAuthRoutes);
 app.use('/api', productRoutes);
 
-// 장바구니 라우트 (임시 비활성화 - 오류 해결 후 활성화)
-// const cartRoutes = require('./cart-routes');
-// app.use('/api', cartRoutes);
+// 장바구니 라우트
+const cartRoutes = require('./cart-routes');
+app.use('/api', cartRoutes);
 
 // 서버 시작
 app.listen(PORT, async () => {

@@ -50,7 +50,11 @@ const authenticateUser = async (req, res, next) => {
 // 장바구니 조회
 router.get('/cart', authenticateUser, async (req, res) => {
   try {
+    console.log('🛒 장바구니 조회 시도:', req.user.email);
+    
     const connection = await mysql.createConnection(dbConfig);
+    console.log('✅ 데이터베이스 연결 성공');
+    
     try {
       // 사용자의 장바구니 조회 또는 생성
       let [carts] = await connection.execute(
@@ -66,8 +70,10 @@ router.get('/cart', authenticateUser, async (req, res) => {
           [req.user.user_id]
         );
         cartId = result.insertId;
+        console.log('🆕 새 장바구니 생성:', cartId);
       } else {
         cartId = carts[0].cart_id;
+        console.log('📋 기존 장바구니 사용:', cartId);
       }
 
       // 장바구니 아이템 조회 (상품 정보 포함)
@@ -103,7 +109,11 @@ router.get('/cart', authenticateUser, async (req, res) => {
     }
   } catch (error) {
     console.error('❌ 장바구니 조회 오류:', error);
-    res.status(500).json({ success: false, message: '장바구니 조회에 실패했습니다.' });
+    res.status(500).json({ 
+      success: false, 
+      message: '장바구니 조회에 실패했습니다.',
+      error: error.message 
+    });
   }
 });
 
