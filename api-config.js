@@ -2,10 +2,7 @@
 
 // 로컬 개발용 API URL 설정
 function getApiBaseUrl() {
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    // 로컬에서는 localStorage 방식 사용 (쿠키 문제 해결)
-    return 'LOCAL_STORAGE';
-  }
+  // 모든 환경에서 프로덕션 API 사용
   return 'https://prepmood.kr/api';
 }
 
