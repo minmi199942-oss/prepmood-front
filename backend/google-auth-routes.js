@@ -54,8 +54,8 @@ router.post('/auth/google/login', authLimiter, async (req, res) => {
         // httpOnly 쿠키로 토큰 설정
         setTokenCookie(res, jwtToken);
 
-        // 추가 정보 입력 필요 여부 확인
-        const needsAdditionalInfo = !userResult.user.lastName || !userResult.user.firstName;
+        // 추가 정보 입력 필요 여부 확인 (Google 로그인 시에는 기본 정보로 충분)
+        const needsAdditionalInfo = false; // Google 로그인 시 추가 정보 입력 건너뛰기
 
         res.json({
             success: true,

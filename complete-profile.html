@@ -308,21 +308,15 @@
             };
 
             try {
-                const token = localStorage.getItem('authToken');
-                
-                if (!token) {
-                    throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
-                }
-
                 console.log('API 호출 URL:', `${API_BASE_URL}/api/auth/complete-profile`);
                 console.log('전송 데이터:', formData);
 
                 const response = await fetch(`${API_BASE_URL}/api/auth/complete-profile`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
+                    credentials: 'include', // JWT 쿠키 포함
                     body: JSON.stringify(formData)
                 });
 
