@@ -9,7 +9,7 @@ const googleAuth = new GoogleAuthService();
 // Rate limiting 미들웨어
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15분
-    max: process.env.NODE_ENV === 'production' ? 10 : 100, // 프로덕션: 10회, 개발: 100회
+    max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 프로덕션: 100회, 개발: 1000회로 증가
     message: {
         success: false,
         error: '너무 많은 요청입니다. 15분 후에 다시 시도해주세요.'

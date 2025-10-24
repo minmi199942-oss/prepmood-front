@@ -40,7 +40,7 @@ app.use(helmet({
 // Rate Limiting (API 남용 방지)
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15분
-    max: 10, // 15분당 최대 10회 요청
+    max: 100, // 15분당 최대 100회 요청으로 증가
     message: {
         success: false,
         message: '너무 많은 요청입니다. 잠시 후 다시 시도해주세요.'
