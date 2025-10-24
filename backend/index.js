@@ -923,7 +923,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         // 사용자 상세 정보 조회
         const connection = await mysql.createConnection(dbConfig);
         const [users] = await connection.execute(
-            'SELECT user_id, email, last_name, first_name, phone, birth, region FROM users WHERE user_id = ?',
+            'SELECT user_id, email, last_name, first_name, phone, birth FROM users WHERE user_id = ?',
             [req.user.userId]
         );
         connection.end();
@@ -943,8 +943,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
                 email: user.email,
                 name: `${user.last_name} ${user.first_name}`.trim(),
                 phone: user.phone || null,
-                birthdate: user.birth || null,
-                region: user.region || null
+                birthdate: user.birth || null
             }
         });
     } catch (error) {
