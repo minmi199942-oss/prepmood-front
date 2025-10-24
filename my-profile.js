@@ -212,11 +212,12 @@ async function handlePersonalInfoSubmit(e) {
         try {
             console.log('📝 서버 API 호출 시도:', { email: userData.user.email, name, birthdate });
             
-            const response = await fetch('https://prepmood.kr/api/update-profile-simple', {
+            const response = await fetch('https://prepmood.kr/api/update-profile', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     email: userData.user.email,
                     name: name,
@@ -423,6 +424,7 @@ async function handleEmailSubmit(e) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({
                 userId: userData.user.userId,
                 newEmail: email
@@ -480,6 +482,7 @@ async function handlePasswordSubmit(e) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({
                 userId: userData.user.userId,
                 currentPassword: currentPassword,
