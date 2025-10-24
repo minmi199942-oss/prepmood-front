@@ -406,3 +406,49 @@
         margin-bottom: clamp(6px, 1.2vw, 8px);
     }
 }
+
+/* ===== 비밀번호 조건 안내 스타일 ===== */
+.password-requirements {
+    margin-top: clamp(8px, 1.5vw, 12px);
+    padding: clamp(10px, 2vw, 14px);
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    font-size: clamp(12px, 2.2vw, 14px);
+    line-height: 1.4;
+}
+
+.requirement-text {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: clamp(6px, 1.2vw, 8px);
+    font-size: clamp(13px, 2.4vw, 15px);
+}
+
+.requirement-item {
+    color: #6c757d;
+    margin-bottom: clamp(3px, 0.8vw, 4px);
+    font-size: clamp(11px, 2vw, 13px);
+}
+
+.requirement-item:last-child {
+    margin-bottom: 0;
+}
+
+/* 모바일에서 비밀번호 조건 스타일 조정 */
+@media (max-width: 768px) {
+    .password-requirements {
+        padding: clamp(8px, 1.8vw, 12px);
+        margin-top: clamp(6px, 1.2vw, 10px);
+    }
+    
+    .requirement-text {
+        font-size: clamp(12px, 2.2vw, 14px);
+        margin-bottom: clamp(4px, 1vw, 6px);
+    }
+    
+    .requirement-item {
+        font-size: clamp(10px, 1.8vw, 12px);
+        margin-bottom: clamp(2px, 0.6vw, 3px);
+    }
+}
