@@ -95,8 +95,8 @@ async function renderCartItems() {
             <div class="cart-item-quantity">수량: ${escapeHtml(item.quantity)}</div>
           </div>
           <div class="cart-item-actions">
-            <button class="cart-item-edit" onclick="editCartItem('${escapeHtml(item.id)}')">수정</button>
-            <button class="cart-item-remove" onclick="removeCartItem('${escapeHtml(item.id)}')">제거</button>
+            <button class="cart-item-edit" onclick="editCartItem('${escapeHtml(item.item_id)}')">수정</button>
+            <button class="cart-item-remove" onclick="removeCartItem('${escapeHtml(item.item_id)}')">제거</button>
           </div>
         </div>
       </div>
