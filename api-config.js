@@ -1,10 +1,8 @@
 // api-config.js - API URL 설정
 
-// 로컬 개발용 API URL 설정
+// 로컬 개발용 API URL 설정 (MySQL 문제로 프로덕션 사용)
 function getApiBaseUrl() {
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:3000/api';
-  }
+  // 로컬 MySQL 문제로 인해 프로덕션 API 사용
   return 'https://prepmood.kr/api';
 }
 
