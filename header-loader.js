@@ -233,8 +233,8 @@ function initializeMypageFunctionality() {
   // 로그인 상태 확인 (JWT 기반)
   async function checkLoginStatus() {
     try {
-      // ✅ 항상 프로덕션 API 사용 (로컬 개발 시에도)
-      const API_BASE_URL = 'https://prepmood.kr/api';
+      // 공통 API URL 사용
+      const API_BASE_URL = window.getApiBaseUrl();
       
       // ✅ 서버에 인증 상태 확인 요청 (JWT 토큰 자동 전송)
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -287,8 +287,8 @@ function initializeMypageFunctionality() {
   // 로그아웃 기능
   async function handleLogout() {
     try {
-      // ✅ 항상 프로덕션 API 사용 (로컬 개발 시에도)
-      const API_BASE_URL = 'https://prepmood.kr/api';
+      // 공통 API URL 사용
+      const API_BASE_URL = window.getApiBaseUrl();
       
       // ✅ 서버에 로그아웃 요청 (JWT 쿠키 삭제)
       await fetch(`${API_BASE_URL}/logout`, {
