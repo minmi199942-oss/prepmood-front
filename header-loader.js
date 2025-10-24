@@ -251,8 +251,8 @@ function initializeMypageFunctionality() {
         
         // JWT 기반 - sessionStorage 불필요
         
-        // 로그인 상태일 때 장바구니 복원
-        if (window.miniCart) {
+        // 로그인 상태일 때 장바구니 복원 (중복 호출 방지)
+        if (window.miniCart && !window.miniCart.isLoggedIn) {
           window.miniCart.restoreCartForLogin();
           console.log('🛒 로그인 상태 - 장바구니 복원');
         }

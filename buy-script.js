@@ -310,29 +310,11 @@
     }
   }
 
-  // 위시리스트 상태 확인 (API 연동)
+  // 위시리스트 상태 확인 (API 연동) - Rate Limiting 방지를 위해 비활성화
   async function checkWishlistStatus() {
-    if (!currentProduct || !(await isLoggedIn())) return;
-
-    try {
-      const userEmail = await getUserEmail();
-      
-      const response = await fetch(`${API_BASE_URL}/wishlist/check?productId=${currentProduct.id}`, {
-        method: 'GET',
-        headers: {
-          'X-User-Email': userEmail
-        },
-        credentials: 'include'
-      });
-
-      const data = await response.json();
-
-      if (data.success && data.isInWishlist) {
-        document.getElementById('wishlist-btn').classList.add('active');
-      }
-    } catch (error) {
-      console.error('위시리스트 상태 확인 오류:', error);
-    }
+    // Rate Limiting 방지를 위해 임시 비활성화
+    console.log('위시리스트 상태 확인 비활성화됨 (Rate Limiting 방지)');
+    return;
   }
 
   // 탭 전환 기능
