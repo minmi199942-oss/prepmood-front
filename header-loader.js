@@ -386,6 +386,13 @@ function initializeMypageFunctionality() {
     hasMiniCart: !!window.miniCart
   });
   
+  // 중복 로드 방지
+  if (window.scriptsLoading) {
+    console.log('✅ 스크립트 로딩 중...');
+    return;
+  }
+  window.scriptsLoading = true;
+  
   if (!window.CATALOG_DATA) {
     console.log('📦 catalog-data.js 로딩 중...');
     const catalogScript = document.createElement('script');
@@ -401,10 +408,17 @@ function initializeMypageFunctionality() {
     const miniCartScript = document.createElement('script');
     miniCartScript.src = 'mini-cart.js';
     miniCartScript.defer = true;
-    miniCartScript.onload = () => console.log('✅ mini-cart.js 로드 완료');
-    miniCartScript.onerror = () => console.error('❌ mini-cart.js 로드 실패');
+    miniCartScript.onload = () => {
+      console.log('✅ mini-cart.js 로드 완료');
+      window.scriptsLoading = false;
+    };
+    miniCartScript.onerror = () => {
+      console.error('❌ mini-cart.js 로드 실패');
+      window.scriptsLoading = false;
+    };
     document.head.appendChild(miniCartScript);
   } else {
     console.log('✅ mini-cart가 이미 로드되어 있습니다.');
+    window.scriptsLoading = false;
   }
 }

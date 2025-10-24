@@ -1,6 +1,6 @@
 // 내 프로필 페이지 JavaScript
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // 로그인 상태 확인
     checkLoginStatus();
     
