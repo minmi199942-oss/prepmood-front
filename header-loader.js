@@ -35,7 +35,6 @@ window.addEventListener('DOMContentLoaded', () => {
           }
         });
         currentOpenMenu = null;
-        console.log('All dropdowns closed');
       };
 
       // 각 .has-mega에 이벤트 바인딩
@@ -51,7 +50,6 @@ window.addEventListener('DOMContentLoaded', () => {
           e.stopPropagation();
           
           clearTimeout(closeTimer); // 기존 타이머 취소
-          console.log('Mouse enter on item:', link ? link.textContent : 'Unknown');
           
           // 다른 메뉴 닫기
           closeAllDropdowns();
@@ -60,7 +58,6 @@ window.addEventListener('DOMContentLoaded', () => {
           if (menu) {
             menu.classList.add('show');
             currentOpenMenu = item;
-            console.log('Dropdown opened:', link ? link.textContent : 'Unknown');
           }
         });
 
@@ -69,17 +66,14 @@ window.addEventListener('DOMContentLoaded', () => {
           e.preventDefault();
           e.stopPropagation();
           
-          console.log('Mouse leave on item:', link ? link.textContent : 'Unknown');
-          
           closeTimer = setTimeout(() => {
             if (menu) {
               menu.classList.remove('show');
-              console.log('Dropdown closed:', link ? link.textContent : 'Unknown');
             }
             if (currentOpenMenu === item) {
               currentOpenMenu = null;
             }
-          }, 200);
+          }, 150); // 150ms 지연으로 안정성 향상
         });
 
         // 링크에도 동일한 이벤트 추가
@@ -89,14 +83,11 @@ window.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             
             clearTimeout(closeTimer);
-            console.log('Mouse enter on link:', link.textContent);
-            
             closeAllDropdowns();
             
             if (menu) {
               menu.classList.add('show');
               currentOpenMenu = item;
-              console.log('Dropdown opened via link:', link.textContent);
             }
           });
 
@@ -104,17 +95,14 @@ window.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             e.stopPropagation();
             
-            console.log('Mouse leave on link:', link.textContent);
-            
             closeTimer = setTimeout(() => {
               if (menu) {
                 menu.classList.remove('show');
-                console.log('Dropdown closed via link:', link.textContent);
               }
               if (currentOpenMenu === item) {
                 currentOpenMenu = null;
               }
-            }, 200);
+            }, 150);
           });
         }
 
@@ -125,22 +113,18 @@ window.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             
             clearTimeout(closeTimer);
-            console.log('Mouse enter on dropdown:', link ? link.textContent : 'Unknown');
           });
 
           menu.addEventListener('mouseleave', (e) => {
             e.preventDefault();
             e.stopPropagation();
             
-            console.log('Mouse leave on dropdown:', link ? link.textContent : 'Unknown');
-            
             closeTimer = setTimeout(() => {
               menu.classList.remove('show');
-              console.log('Dropdown closed via dropdown area:', link ? link.textContent : 'Unknown');
               if (currentOpenMenu === item) {
                 currentOpenMenu = null;
               }
-            }, 200);
+            }, 150);
           });
         }
       });
