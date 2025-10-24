@@ -983,9 +983,9 @@ const productRoutes = require('./product-routes');
 app.use('/api', googleAuthRoutes);
 app.use('/api', productRoutes);
 
-// 장바구니 라우트 (db.js 없어서 주석 처리)
-// const cartRoutes = require('./cart-routes');
-// app.use('/api', cartRoutes);
+// 장바구니 라우트
+const cartRoutes = require('./cart-routes');
+app.use('/api', cartRoutes);
 
 // 서버 시작
 app.listen(PORT, async () => {

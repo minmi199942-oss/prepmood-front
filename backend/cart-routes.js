@@ -1,6 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const db = require('./db');
+const mysql = require('mysql2/promise');
+require('dotenv').config();
+
+// 데이터베이스 연결 설정
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'prepmood',
+  charset: 'utf8mb4'
+};
 
 // ====================================
 // 장바구니 API 라우트
@@ -15,7 +25,7 @@ const authenticateUser = async (req, res, next) => {
       return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
     }
 
-    const connection = await db.getConnection();
+    const connection = await mysql.createConnection(dbConfig);
     try {
       const [users] = await connection.execute(
         'SELECT user_id, email FROM users WHERE email = ?',
@@ -29,7 +39,7 @@ const authenticateUser = async (req, res, next) => {
       req.user = users[0];
       next();
     } finally {
-      connection.release();
+      connection.end();
     }
   } catch (error) {
     console.error('❌ 사용자 인증 오류:', error);
@@ -40,7 +50,7 @@ const authenticateUser = async (req, res, next) => {
 // 장바구니 조회
 router.get('/cart', authenticateUser, async (req, res) => {
   try {
-    const connection = await db.getConnection();
+    const connection = await mysql.createConnection(dbConfig);
     try {
       // 사용자의 장바구니 조회 또는 생성
       let [carts] = await connection.execute(
@@ -89,7 +99,7 @@ router.get('/cart', authenticateUser, async (req, res) => {
         totalPrice: items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
       });
     } finally {
-      connection.release();
+      connection.end();
     }
   } catch (error) {
     console.error('❌ 장바구니 조회 오류:', error);
@@ -106,7 +116,7 @@ router.post('/cart/add', authenticateUser, async (req, res) => {
       return res.status(400).json({ success: false, message: '상품 ID가 필요합니다.' });
     }
 
-    const connection = await db.getConnection();
+    const connection = await mysql.createConnection(dbConfig);
     try {
       // 사용자의 장바구니 조회 또는 생성
       let [carts] = await connection.execute(
@@ -164,7 +174,7 @@ router.post('/cart/add', authenticateUser, async (req, res) => {
         }
       });
     } finally {
-      connection.release();
+      connection.end();
     }
   } catch (error) {
     console.error('❌ 장바구니 추가 오류:', error);
@@ -188,7 +198,7 @@ router.put('/cart/item/:itemId', authenticateUser, async (req, res) => {
       return res.status(400).json({ success: false, message: '수량은 1 이상이어야 합니다.' });
     }
 
-    const connection = await db.getConnection();
+    const connection = await mysql.createConnection(dbConfig);
     try {
       // 아이템이 사용자의 장바구니에 속하는지 확인
       const [items] = await connection.execute(`
@@ -211,7 +221,7 @@ router.put('/cart/item/:itemId', authenticateUser, async (req, res) => {
 
       res.json({ success: true, message: '수량이 변경되었습니다.' });
     } finally {
-      connection.release();
+      connection.end();
     }
   } catch (error) {
     console.error('❌ 장바구니 수량 변경 오류:', error);
@@ -224,7 +234,7 @@ router.delete('/cart/item/:itemId', authenticateUser, async (req, res) => {
   try {
     const { itemId } = req.params;
 
-    const connection = await db.getConnection();
+    const connection = await mysql.createConnection(dbConfig);
     try {
       // 아이템이 사용자의 장바구니에 속하는지 확인
       const [items] = await connection.execute(`
@@ -247,7 +257,7 @@ router.delete('/cart/item/:itemId', authenticateUser, async (req, res) => {
 
       res.json({ success: true, message: '장바구니에서 삭제되었습니다.' });
     } finally {
-      connection.release();
+      connection.end();
     }
   } catch (error) {
     console.error('❌ 장바구니 삭제 오류:', error);
@@ -258,7 +268,7 @@ router.delete('/cart/item/:itemId', authenticateUser, async (req, res) => {
 // 장바구니 전체 비우기
 router.delete('/cart/clear', authenticateUser, async (req, res) => {
   try {
-    const connection = await db.getConnection();
+    const connection = await mysql.createConnection(dbConfig);
     try {
       // 사용자의 장바구니 조회
       const [carts] = await connection.execute(
@@ -276,7 +286,7 @@ router.delete('/cart/clear', authenticateUser, async (req, res) => {
 
       res.json({ success: true, message: '장바구니가 비워졌습니다.' });
     } finally {
-      connection.release();
+      connection.end();
     }
   } catch (error) {
     console.error('❌ 장바구니 비우기 오류:', error);
@@ -287,7 +297,7 @@ router.delete('/cart/clear', authenticateUser, async (req, res) => {
 // 장바구니 아이템 개수 조회 (헤더용)
 router.get('/cart/count', authenticateUser, async (req, res) => {
   try {
-    const connection = await db.getConnection();
+    const connection = await mysql.createConnection(dbConfig);
     try {
       const [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
@@ -305,7 +315,7 @@ router.get('/cart/count', authenticateUser, async (req, res) => {
 
       res.json({ success: true, count: result[0].count || 0 });
     } finally {
-      connection.release();
+      connection.end();
     }
   } catch (error) {
     console.error('❌ 장바구니 개수 조회 오류:', error);
