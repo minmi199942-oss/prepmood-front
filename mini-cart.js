@@ -2,20 +2,28 @@
 
 class MiniCart {
   constructor() {
-    this.cartItems = this.loadCartItems();
+    this.cartItems = [];
+    this.isLoggedIn = false;
     this.init();
   }
 
-  init() {
+  async init() {
     // 헤더가 로드될 때까지 대기
     let attempts = 0;
-    const waitForHeader = setInterval(() => {
+    const waitForHeader = setInterval(async () => {
       const cartToggle = document.getElementById('cart-toggle');
       attempts++;
       
       if (cartToggle) {
         clearInterval(waitForHeader);
         this.bindEvents();
+        
+        // 로그인 상태 확인 및 장바구니 로드
+        await this.checkLoginStatus();
+        if (this.isLoggedIn) {
+          await this.loadCartFromServer();
+        }
+        
         this.updateCartDisplay();
         this.renderMiniCart();
         console.log('✅ 미니 카트 초기화 완료 (시도 횟수:', attempts, ')');
@@ -126,84 +134,168 @@ class MiniCart {
     }
   }
 
-  loadCartItems() {
-    const saved = localStorage.getItem('cartItems');
-    return saved ? JSON.parse(saved) : [];
+  // 로그인 상태 확인
+  async checkLoginStatus() {
+    try {
+      const response = await fetch('https://prepmood.kr/api/auth/me', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      this.isLoggedIn = data.success && data.user;
+      return this.isLoggedIn;
+    } catch (error) {
+      this.isLoggedIn = false;
+      return false;
+    }
   }
 
-  saveCartItems() {
-    localStorage.setItem('cartItems', JSON.stringify(this.cartItems));
+  // 서버에서 장바구니 로드
+  async loadCartFromServer() {
+    if (!this.isLoggedIn) {
+      this.cartItems = [];
+      return;
+    }
+
+    try {
+      const response = await fetch('https://prepmood.kr/api/cart', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        this.cartItems = data.items || [];
+        console.log('🛒 서버에서 장바구니 로드:', this.cartItems.length, '개 상품');
+      } else {
+        this.cartItems = [];
+      }
+    } catch (error) {
+      console.error('❌ 장바구니 로드 실패:', error);
+      this.cartItems = [];
+    }
   }
 
-  addToCart(product) {
+  async addToCart(product) {
     console.log('🛒 addToCart 호출됨:', product);
     
-    const existingItem = this.cartItems.find(item => 
-      item.productId === product.id && 
-      item.size === product.size && 
-      item.color === product.color
-    );
-
-    if (existingItem) {
-      existingItem.quantity += 1;
-      console.log('📦 기존 상품 수량 증가:', existingItem);
-    } else {
-      const newItem = {
-        id: Date.now(),
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        size: product.size || 'ONE SIZE',
-        color: product.color || 'DEFAULT',
-        quantity: 1,
-        addedAt: new Date().toISOString()
-      };
-      this.cartItems.push(newItem);
-      console.log('✨ 새 상품 추가:', newItem);
+    // 로그인 상태 확인
+    const isLoggedIn = await this.checkLoginStatus();
+    if (!isLoggedIn) {
+      alert('로그인이 필요한 서비스입니다.');
+      window.location.href = 'login.html';
+      return;
     }
 
-    this.saveCartItems();
-    this.updateCartDisplay();
-    
-    // 항상 미니 카트 렌더링 (열려있든 닫혀있든)
-    this.renderMiniCart();
-    console.log('✅ 장바구니 렌더링 완료, 총', this.cartItems.length, '개 상품');
-  }
+    try {
+      const response = await fetch('https://prepmood.kr/api/cart/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          productId: product.id,
+          quantity: product.quantity || 1,
+          size: product.size,
+          color: product.color
+        })
+      });
 
-  removeFromCart(itemId) {
-    this.cartItems = this.cartItems.filter(item => item.id !== itemId);
-    this.saveCartItems();
-    this.updateCartDisplay();
-    this.renderMiniCart();
-  }
-
-  updateQuantity(itemId, newQuantity) {
-    const item = this.cartItems.find(item => item.id === itemId);
-    if (item) {
-      if (newQuantity <= 0) {
-        this.removeFromCart(itemId);
-      } else {
-        item.quantity = newQuantity;
-        this.saveCartItems();
+      const data = await response.json();
+      
+      if (data.success) {
+        // 서버에서 장바구니 다시 로드
+        await this.loadCartFromServer();
         this.updateCartDisplay();
         this.renderMiniCart();
+        console.log('✅ 장바구니에 추가됨:', data.message);
+      } else {
+        alert(data.message || '장바구니 추가에 실패했습니다.');
       }
+    } catch (error) {
+      console.error('❌ 장바구니 추가 오류:', error);
+      alert('서버와의 통신에 실패했습니다.');
     }
   }
 
-  // 로그아웃 시 장바구니 숨기기 (데이터는 보존)
-  hideCartForLogout() {
+  async removeFromCart(itemId) {
+    if (!this.isLoggedIn) return;
+
+    try {
+      const response = await fetch(`https://prepmood.kr/api/cart/item/${itemId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // 서버에서 장바구니 다시 로드
+        await this.loadCartFromServer();
+        this.updateCartDisplay();
+        this.renderMiniCart();
+        console.log('✅ 장바구니에서 삭제됨:', data.message);
+      } else {
+        alert(data.message || '삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('❌ 장바구니 삭제 오류:', error);
+      alert('서버와의 통신에 실패했습니다.');
+    }
+  }
+
+  async updateQuantity(itemId, newQuantity) {
+    if (!this.isLoggedIn) return;
+
+    if (newQuantity <= 0) {
+      await this.removeFromCart(itemId);
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://prepmood.kr/api/cart/item/${itemId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ quantity: newQuantity })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // 서버에서 장바구니 다시 로드
+        await this.loadCartFromServer();
+        this.updateCartDisplay();
+        this.renderMiniCart();
+        console.log('✅ 수량 변경됨:', data.message);
+      } else {
+        alert(data.message || '수량 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('❌ 수량 변경 오류:', error);
+      alert('서버와의 통신에 실패했습니다.');
+    }
+  }
+
+  // 로그아웃 시 장바구니 숨기기
+  async hideCartForLogout() {
+    this.isLoggedIn = false;
+    this.cartItems = [];
     this.updateCartDisplay();
     this.renderMiniCart();
-    console.log('🛒 로그아웃 상태 - 장바구니 숨김 (데이터 보존)');
+    console.log('🛒 로그아웃 상태 - 장바구니 숨김');
   }
 
   // 로그인 시 장바구니 복원
-  restoreCartForLogin() {
-    this.updateCartDisplay();
-    this.renderMiniCart();
-    console.log('🛒 로그인 상태 - 장바구니 복원');
+  async restoreCartForLogin() {
+    await this.checkLoginStatus();
+    if (this.isLoggedIn) {
+      await this.loadCartFromServer();
+      this.updateCartDisplay();
+      this.renderMiniCart();
+      console.log('🛒 로그인 상태 - 장바구니 복원');
+    }
   }
 
   updateCartDisplay() {
@@ -268,11 +360,11 @@ class MiniCart {
         <div class="mini-cart-item-info">
           <div class="mini-cart-item-name">${escapeHtml(item.name)}</div>
           <div class="mini-cart-item-details">
-            <div class="mini-cart-item-color">색상: ${escapeHtml(item.color)}</div>
+            <div class="mini-cart-item-color">색상: ${escapeHtml(item.color || 'DEFAULT')}</div>
             <div class="mini-cart-item-quantity">수량: ${escapeHtml(item.quantity)}</div>
           </div>
           <div class="mini-cart-item-price">${this.formatPrice(item.price)}</div>
-          <button class="mini-cart-item-remove" onclick="miniCart.removeFromCart('${escapeHtml(item.id)}')">제거</button>
+          <button class="mini-cart-item-remove" onclick="miniCart.removeFromCart('${escapeHtml(item.item_id)}')">제거</button>
         </div>
       </div>
     `).join('');
