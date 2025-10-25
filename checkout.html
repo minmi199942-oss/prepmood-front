@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>체크아웃 | Pre.p Mood</title>
+  <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/page.css">
+  <link rel="stylesheet" href="assets/css/responsive.css">
+  <link rel="stylesheet" href="assets/css/checkout.css">
+  <script defer src="utils.js"></script>
+  <script defer src="catalog-data.js"></script>
+  <script defer src="mini-cart.js"></script>
+  <script defer src="header-loader.js"></script>
+  <script defer src="footer-loader.js"></script>
+  <script defer src="checkout-script.js"></script>
+</head>
+<body>
+  <!-- 공통 헤더 -->
+  <div id="header-container"></div>
+
+  <!-- 체크아웃 페이지 -->
+  <main class="checkout-page">
+    <div class="checkout-container">
+      <!-- 좌측: 배송 및 결제 정보 -->
+      <div class="checkout-form-section">
+        <div class="checkout-header">
+          <h1 class="checkout-title">체크아웃</h1>
+        </div>
+        
+        <!-- 배송 정보 -->
+        <div class="form-section">
+          <h2 class="section-title">배송 정보</h2>
+          <form class="checkout-form" id="shipping-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="firstName">이름 *</label>
+                <input type="text" id="firstName" name="firstName" required>
+              </div>
+              <div class="form-group">
+                <label for="lastName">성 *</label>
+                <input type="text" id="lastName" name="lastName" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="email">이메일 *</label>
+              <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="phone">전화번호 *</label>
+              <input type="tel" id="phone" name="phone" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="address">주소 *</label>
+              <input type="text" id="address" name="address" required>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="city">도시 *</label>
+                <input type="text" id="city" name="city" required>
+              </div>
+              <div class="form-group">
+                <label for="postalCode">우편번호 *</label>
+                <input type="text" id="postalCode" name="postalCode" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="country">국가 *</label>
+              <select id="country" name="country" required>
+                <option value="">국가를 선택하세요</option>
+                <option value="KR">대한민국</option>
+                <option value="US">미국</option>
+                <option value="JP">일본</option>
+                <option value="CN">중국</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        
+        <!-- 결제 정보 -->
+        <div class="form-section">
+          <h2 class="section-title">결제 정보</h2>
+          <form class="checkout-form" id="payment-form">
+            <div class="form-group">
+              <label for="cardNumber">카드 번호 *</label>
+              <input type="text" id="cardNumber" name="cardNumber" placeholder="1234 5678 9012 3456" required>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="expiryDate">만료일 *</label>
+                <input type="text" id="expiryDate" name="expiryDate" placeholder="MM/YY" required>
+              </div>
+              <div class="form-group">
+                <label for="cvv">CVV *</label>
+                <input type="text" id="cvv" name="cvv" placeholder="123" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="cardName">카드 소유자명 *</label>
+              <input type="text" id="cardName" name="cardName" required>
+            </div>
+          </form>
+        </div>
+        
+        <!-- 주문 완료 버튼 -->
+        <div class="checkout-actions">
+          <button class="complete-order-btn" id="complete-order-btn">주문 완료</button>
+        </div>
+      </div>
+
+      <!-- 우측: 주문 요약 -->
+      <div class="order-summary-section">
+        <div class="order-summary">
+          <h2 class="summary-title">주문 요약</h2>
+          
+          <div class="order-items" id="order-items">
+            <!-- 주문 아이템들이 여기에 표시됩니다 -->
+          </div>
+          
+          <div class="order-totals">
+            <div class="total-row">
+              <span>소계</span>
+              <span id="subtotal">₩0</span>
+            </div>
+            <div class="total-row">
+              <span>배송비</span>
+              <span id="shipping">무료</span>
+            </div>
+            <div class="total-row total-final">
+              <span>총계</span>
+              <span id="total">₩0</span>
+            </div>
+          </div>
+          
+          <div class="shipping-info">
+            <h3>배송 정보</h3>
+            <p>• 무료 배송 (3-5 영업일)</p>
+            <p>• 안전한 포장</p>
+            <p>• 배송 추적 가능</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 푸터 컨테이너 -->
+  <div id="footer-container"></div>
+</body>
+</html>
+
+
+
+
+
+

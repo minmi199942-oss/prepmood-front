@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 - Pre.p Mood</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/page.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+    <link rel="stylesheet" href="assets/css/register.css">
+</head>
+<body>
+    <!-- 헤더 로드 -->
+    <div id="header-container"></div>
+
+    <main class="register-page">
+        <div class="register-container">
+            <div class="register-header">
+                <h1>회원가입</h1>
+                <p>Pre.p Mood에 오신 것을 환영합니다</p>
+            </div>
+
+            <!-- 단계 표시기 -->
+            <div class="step-indicator">
+                <div class="step active" id="step1Indicator">
+                    <div class="step-number">1</div>
+                    <span>이메일 인증</span>
+                </div>
+                <div class="step-divider"></div>
+                <div class="step" id="step2Indicator">
+                    <div class="step-number">2</div>
+                    <span>개인정보 입력</span>
+                </div>
+            </div>
+
+            <div class="success-message" id="successMessage">
+                회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.
+            </div>
+
+            <!-- 1단계: 이메일 인증 -->
+            <div class="form-step active" id="step1">
+                <form id="emailVerificationForm">
+                    <div class="form-group">
+                        <label for="email">이메일</label>
+                        <div class="email-verification">
+                            <input type="email" id="email" class="form-input" placeholder="example@email.com" required>
+                            <button type="button" class="verify-btn" id="verifyBtn">인증 코드 발송</button>
+                        </div>
+                        <div class="error-message" id="emailError"></div>
+                        
+                        <div class="verification-code" id="verificationSection">
+                            <input type="text" id="verificationCode" class="form-input" placeholder="인증 코드 6자리" maxlength="6">
+                            <div class="error-message" id="codeError"></div>
+                        </div>
+                    </div>
+
+                    <button type="button" class="next-btn" id="nextToStep2" disabled>다음 단계</button>
+                </form>
+            </div>
+
+            <!-- 2단계: 개인정보 입력 -->
+            <div class="form-step" id="step2">
+                <button type="button" class="back-btn" id="backToStep1">← 이메일 인증으로 돌아가기</button>
+                
+                <form id="personalInfoForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="lastName">성</label>
+                            <input type="text" id="lastName" class="form-input" placeholder="홍" required>
+                            <div class="error-message" id="lastNameError"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="firstName">이름</label>
+                            <input type="text" id="firstName" class="form-input" placeholder="길동" required>
+                            <div class="error-message" id="firstNameError"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="birthdate">생년월일</label>
+                        <input type="date" id="birthdate" class="form-input" required>
+                        <div class="error-message" id="birthdateError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">전화번호 <span class="optional">(선택)</span></label>
+                        <div class="phone-input">
+                            <select id="countryCode" class="country-select">
+                                <option value="+82">🇰🇷 +82</option>
+                                <option value="+1">🇺🇸 +1</option>
+                                <option value="+81">🇯🇵 +81</option>
+                                <option value="+86">🇨🇳 +86</option>
+                            </select>
+                            <input type="tel" id="phone" class="form-input" placeholder="010-1234-5678">
+                        </div>
+                        <div class="error-message" id="phoneError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">비밀번호</label>
+                        <input type="password" id="password" class="form-input" placeholder="8자 이상, 대소문자, 숫자, 특수문자 포함" required>
+                        <div class="password-requirements">
+                            <div class="requirement-text">비밀번호 조건:</div>
+                            <div class="requirement-item">• 8자 이상</div>
+                            <div class="requirement-item">• 대문자 포함</div>
+                            <div class="requirement-item">• 소문자 포함</div>
+                            <div class="requirement-item">• 숫자 포함</div>
+                            <div class="requirement-item">• 특수문자 포함</div>
+                        </div>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmPassword">비밀번호 확인</label>
+                        <input type="password" id="confirmPassword" class="form-input" placeholder="비밀번호를 다시 입력해주세요" required>
+                        <div class="error-message" id="confirmPasswordError"></div>
+                    </div>
+
+                    <!-- 개인정보 동의 항목들 -->
+                    <div class="consent-section">
+                        <!-- 개인정보 수집 및 이용 동의 (필수) -->
+                        <div class="consent-item">
+                            <label class="consent-checkbox">
+                                <input type="checkbox" id="privacyConsent" required>
+                                <span class="checkmark"></span>
+                                <span class="consent-text">개인정보 수집 및 이용 동의 <span class="required">(필수)</span></span>
+                            </label>
+                            <p class="consent-description">
+                                본인은 개인정보 수집 및 이용에 동의하며, 프레피무드가 고객관계 관리 목적에 따라 개인정보를 처리함을 이해합니다.
+                            </p>
+                            <div class="error-message" id="privacyConsentError"></div>
+                        </div>
+
+                        <!-- 광고성 정보 수신 동의 (선택) -->
+                        <div class="consent-item">
+                            <label class="consent-checkbox">
+                                <input type="checkbox" id="marketingConsent">
+                                <span class="checkmark"></span>
+                                <span class="consent-text">광고성 정보 수신 동의 <span class="optional">(선택)</span></span>
+                            </label>
+                            <p class="consent-description">
+                                향후 '프레피무드' 및 기타 브랜드, 프레피무드 제품 및 서비스에 관한 마케팅 및 프로모션 메시지, 뉴스레터, 광고 및 카탈로그를 포함한 상업용 전자 커뮤니케이션 수신을 희망합니다.
+                            </p>
+                        </div>
+
+                        <!-- 개인정보 처리 안내문 -->
+                        <div class="privacy-notice">
+                            <p>
+                                확인 버튼을 클릭함으로써 귀하는 개인정보 보호정책을 읽었으며, 프레피무드가 귀하의 고객 관계를 관리하기 위해 개인정보를 처리하는 데 동의함을 확인하게 됩니다. 프레피무드는 귀하의 선호도에 맞춰 맞춤형 서비스를 제공하기 위해 관련 법인과 정보를 공유할 수 있습니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="register-btn" id="registerBtn" disabled>회원가입</button>
+                </form>
+            </div>
+
+            <div class="login-link">
+                이미 계정이 있으신가요? <a href="login.html">로그인</a>
+            </div>
+        </div>
+    </main>
+
+    <script src="header-loader.js"></script>
+    <script src="footer-loader.js"></script>
+    <script>
+        // 2단계 회원가입 폼 처리
+        class RegisterForm {
+            constructor() {
+                this.currentStep = 1;
+                this.emailVerified = false;
+                this.isLoading = false;
+                
+                // DOM 요소들
+                this.step1 = document.getElementById('step1');
+                this.step2 = document.getElementById('step2');
+                this.step1Indicator = document.getElementById('step1Indicator');
+                this.step2Indicator = document.getElementById('step2Indicator');
+                
+                this.verifyBtn = document.getElementById('verifyBtn');
+                this.nextToStep2 = document.getElementById('nextToStep2');
+                this.backToStep1 = document.getElementById('backToStep1');
+                this.registerBtn = document.getElementById('registerBtn');
+                this.verificationSection = document.getElementById('verificationSection');
+                
+                this.init();
+            }
+
+            init() {
+                // 이벤트 리스너 등록
+                this.verifyBtn.addEventListener('click', () => this.sendVerification());
+                this.nextToStep2.addEventListener('click', () => this.goToStep2());
+                this.backToStep1.addEventListener('click', () => this.goToStep1());
+                
+                
+                // 폼 제출
+                document.getElementById('personalInfoForm').addEventListener('submit', (e) => this.handleSubmit(e));
+                
+                // 실시간 유효성 검사
+                document.getElementById('email').addEventListener('input', () => {
+                    this.validateEmail();
+                    this.updateNextButton();
+                });
+                document.getElementById('verificationCode').addEventListener('input', () => {
+                    this.validateVerificationCode();
+                    this.updateNextButton();
+                });
+                document.getElementById('lastName').addEventListener('input', () => {
+                    this.validateLastName();
+                    this.updateRegisterButton();
+                });
+                document.getElementById('firstName').addEventListener('input', () => {
+                    this.validateFirstName();
+                    this.updateRegisterButton();
+                });
+                document.getElementById('birthdate').addEventListener('input', () => {
+                    this.validateBirthdate();
+                    this.updateRegisterButton();
+                });
+                document.getElementById('phone').addEventListener('input', () => {
+                    this.validatePhone();
+                    this.updateRegisterButton();
+                });
+                document.getElementById('password').addEventListener('input', () => {
+                    this.validatePassword();
+                    this.validateConfirmPassword(); // 비밀번호 변경 시 확인도 재검증
+                    this.updateRegisterButton();
+                });
+                document.getElementById('confirmPassword').addEventListener('input', () => {
+                    this.validateConfirmPassword();
+                    this.updateRegisterButton();
+                });
+                
+                // 개인정보 동의 체크박스 이벤트 리스너
+                document.getElementById('privacyConsent').addEventListener('change', () => {
+                    this.validatePrivacyConsent();
+                    this.updateRegisterButton();
+                });
+            }
+
+            async sendVerification() {
+                const email = document.getElementById('email').value;
+                
+                if (!this.validateEmail()) return;
+
+                this.setLoading(true);
+                this.verifyBtn.textContent = '발송중...';
+
+                try {
+                    const response = await fetch('https://prepmood.kr/api/send-verification', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.verificationSection.classList.add('show');
+                        this.verifyBtn.textContent = '재발송';
+                        this.showSuccess('인증 코드가 발송되었습니다.');
+                        this.updateNextButton();
+                    } else {
+                        this.showError('emailError', data.message);
+                    }
+                } catch (error) {
+                    this.showError('emailError', '네트워크 오류가 발생했습니다.');
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            async verifyCode() {
+                const email = document.getElementById('email').value;
+                const code = document.getElementById('verificationCode').value;
+
+                if (!this.validateVerificationCode()) return false;
+
+                try {
+                    const response = await fetch('https://prepmood.kr/api/verify-code', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email, code })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.emailVerified = true;
+                        this.showSuccess('이메일 인증이 완료되었습니다.');
+                        this.updateNextButton();
+                        return true;
+                    } else {
+                        this.showError('codeError', data.message);
+                        return false;
+                    }
+                } catch (error) {
+                    this.showError('codeError', '네트워크 오류가 발생했습니다.');
+                    return false;
+                }
+            }
+
+            goToStep2() {
+                if (!this.emailVerified) {
+                    this.verifyCode().then(verified => {
+                        if (verified) {
+                            this.showStep(2);
+                        }
+                    });
+                } else {
+                    this.showStep(2);
+                }
+            }
+
+            goToStep1() {
+                this.showStep(1);
+            }
+
+
+            showStep(step) {
+                this.currentStep = step;
+                
+                if (step === 1) {
+                    this.step1.classList.add('active');
+                    this.step2.classList.remove('active');
+                    this.step1Indicator.classList.add('active');
+                    this.step2Indicator.classList.remove('active');
+                } else {
+                    this.step1.classList.remove('active');
+                    this.step2.classList.add('active');
+                    this.step1Indicator.classList.remove('active');
+                    this.step2Indicator.classList.add('active');
+                    
+                    // 2단계로 이동할 때 회원가입 버튼 상태 업데이트
+                    this.updateRegisterButton();
+                }
+            }
+
+            async handleSubmit(e) {
+                e.preventDefault();
+
+                if (!this.validateAllStep2()) return;
+
+                this.setLoading(true);
+                this.registerBtn.textContent = '가입 중...';
+
+                try {
+                    // 실제 회원가입 API 호출
+                    const formData = this.getFormData();
+                    console.log('📤 전송할 데이터:', formData);
+                    
+                    const response = await fetch('https://prepmood.kr/api/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    console.log('📥 응답 상태:', response.status);
+
+                    const data = await response.json();
+                    console.log('📥 응답 데이터:', data);
+
+                    if (data.success) {
+                        document.getElementById('successMessage').style.display = 'block';
+                        document.getElementById('personalInfoForm').style.display = 'none';
+                        
+                        // 3초 후 메인 페이지로 이동
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 3000);
+                    } else {
+                        this.showError('registerError', data.message || '회원가입에 실패했습니다.');
+                    }
+                } catch (error) {
+                    this.showError('registerError', '네트워크 오류가 발생했습니다.');
+                } finally {
+                    this.setLoading(false);
+                    this.registerBtn.textContent = '회원가입';
+                }
+            }
+
+            getFormData() {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const lastName = document.getElementById('lastName').value;
+                const firstName = document.getElementById('firstName').value;
+                const birthdate = document.getElementById('birthdate').value;
+                const countryCode = document.getElementById('countryCode').value;
+                const phone = document.getElementById('phone').value;
+
+                // 전화번호가 입력된 경우에만 국가코드와 함께 전송
+                const phoneValue = phone ? `${countryCode}${phone}` : null;
+
+                return {
+                    email,
+                    password,
+                    name: `${lastName} ${firstName}`,
+                    birthdate,
+                    phone: phoneValue
+                };
+            }
+
+            validateEmail() {
+                const email = document.getElementById('email').value;
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                
+                if (!email) {
+                    this.showError('emailError', '이메일을 입력해주세요.');
+                    return false;
+                } else if (!emailRegex.test(email)) {
+                    this.showError('emailError', '올바른 이메일 형식을 입력해주세요.');
+                    return false;
+                } else {
+                    this.hideError('emailError');
+                    return true;
+                }
+            }
+
+            validateVerificationCode() {
+                const code = document.getElementById('verificationCode').value;
+                
+                if (this.verificationSection.classList.contains('show') && !code) {
+                    this.showError('codeError', '인증 코드를 입력해주세요.');
+                    return false;
+                } else if (code && code.length !== 6) {
+                    this.showError('codeError', '인증 코드는 6자리입니다.');
+                    return false;
+                } else {
+                    this.hideError('codeError');
+                    return true;
+                }
+            }
+
+
+            validateLastName() {
+                const lastName = document.getElementById('lastName').value;
+                
+                if (!lastName) {
+                    this.showError('lastNameError', '성을 입력해주세요.');
+                    return false;
+                } else if (lastName.length < 1) {
+                    this.showError('lastNameError', '올바른 성을 입력해주세요.');
+                    return false;
+                } else {
+                    this.hideError('lastNameError');
+                    return true;
+                }
+            }
+
+            validateFirstName() {
+                const firstName = document.getElementById('firstName').value;
+                
+                if (!firstName) {
+                    this.showError('firstNameError', '이름을 입력해주세요.');
+                    return false;
+                } else if (firstName.length < 1) {
+                    this.showError('firstNameError', '올바른 이름을 입력해주세요.');
+                    return false;
+                } else {
+                    this.hideError('firstNameError');
+                    return true;
+                }
+            }
+
+            validateBirthdate() {
+                const birthdate = document.getElementById('birthdate').value;
+                
+                if (!birthdate) {
+                    this.showError('birthdateError', '생년월일을 선택해주세요.');
+                    return false;
+                } else {
+                    const birth = new Date(birthdate);
+                    const today = new Date();
+                    const age = today.getFullYear() - birth.getFullYear();
+                    
+                    if (age < 14) {
+                        this.showError('birthdateError', '만 14세 이상만 가입 가능합니다.');
+                        return false;
+                    } else {
+                        this.hideError('birthdateError');
+                        return true;
+                    }
+                }
+            }
+
+            validatePhone() {
+                const phone = document.getElementById('phone').value;
+                const phoneRegex = /^[0-9-]+$/;
+                
+                if (phone && !phoneRegex.test(phone)) {
+                    this.showError('phoneError', '올바른 전화번호 형식을 입력해주세요.');
+                    return false;
+                } else {
+                    this.hideError('phoneError');
+                    return true;
+                }
+            }
+
+            validatePassword() {
+                const password = document.getElementById('password').value;
+                
+                if (!password) {
+                    this.showError('passwordError', '비밀번호를 입력해주세요.');
+                    return false;
+                } else if (password.length < 8) {
+                    this.showError('passwordError', '비밀번호는 8자 이상이어야 합니다.');
+                    return false;
+                } else if (!/(?=.*[a-z])/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 소문자를 포함해야 합니다.');
+                    return false;
+                } else if (!/(?=.*[A-Z])/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 대문자를 포함해야 합니다.');
+                    return false;
+                } else if (!/(?=.*\d)/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 숫자를 포함해야 합니다.');
+                    return false;
+                } else if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 특수문자를 포함해야 합니다.');
+                    return false;
+                } else if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/.test(password)) {
+                    this.showError('passwordError', '비밀번호는 영문, 숫자, 특수문자만 사용 가능합니다.');
+                    return false;
+                } else {
+                    this.hideError('passwordError');
+                    return true;
+                }
+            }
+
+            validateConfirmPassword() {
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                
+                if (!confirmPassword) {
+                    this.showError('confirmPasswordError', '비밀번호 확인을 입력해주세요.');
+                    return false;
+                } else if (password !== confirmPassword) {
+                    this.showError('confirmPasswordError', '비밀번호가 일치하지 않습니다.');
+                    return false;
+                } else {
+                    this.hideError('confirmPasswordError');
+                    return true;
+                }
+            }
+
+            validateAllStep1() {
+                const emailValid = this.validateEmail();
+                const codeValid = this.validateVerificationCode();
+                const code = document.getElementById('verificationCode').value;
+                
+                // 이메일이 유효하고 인증 코드가 6자리면 버튼 활성화
+                // 실제 인증은 "다음 단계" 버튼 클릭 시에만 시도
+                return emailValid && codeValid && code && code.length === 6;
+            }
+
+            validateAllStep2() {
+                const lastNameValid = this.validateLastName();
+                const firstNameValid = this.validateFirstName();
+                const birthdateValid = this.validateBirthdate();
+                const phoneValid = this.validatePhone();
+                const passwordValid = this.validatePassword();
+                const confirmPasswordValid = this.validateConfirmPassword();
+                const privacyConsentValid = this.validatePrivacyConsent();
+                
+                return lastNameValid && firstNameValid && birthdateValid && phoneValid && passwordValid && confirmPasswordValid && privacyConsentValid;
+            }
+
+            validatePrivacyConsent() {
+                const privacyConsent = document.getElementById('privacyConsent').checked;
+                
+                if (!privacyConsent) {
+                    this.showError('privacyConsentError', '개인정보 수집 및 이용 동의는 필수입니다.');
+                    return false;
+                } else {
+                    this.hideError('privacyConsentError');
+                    return true;
+                }
+            }
+
+            updateNextButton() {
+                const step1Valid = this.validateAllStep1();
+                this.nextToStep2.disabled = !step1Valid;
+            }
+
+            updateRegisterButton() {
+                const step2Valid = this.validateAllStep2();
+                this.registerBtn.disabled = !step2Valid;
+            }
+
+            showError(elementId, message) {
+                const errorElement = document.getElementById(elementId);
+                if (!errorElement) return;
+                
+                const inputElement = errorElement.previousElementSibling;
+                
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+                
+                if (inputElement && inputElement.classList) {
+                    inputElement.classList.add('error');
+                }
+            }
+
+            hideError(elementId) {
+                const errorElement = document.getElementById(elementId);
+                if (!errorElement) return;
+                
+                const inputElement = errorElement.previousElementSibling;
+                
+                errorElement.style.display = 'none';
+                
+                if (inputElement && inputElement.classList) {
+                    inputElement.classList.remove('error');
+                }
+            }
+
+            showSuccess(message) {
+                // 간단한 성공 메시지 표시 (실제로는 더 정교한 UI 사용)
+                console.log('Success:', message);
+                // TODO: 더 나은 성공 메시지 UI 구현
+            }
+
+            setLoading(loading) {
+                this.isLoading = loading;
+                const container = document.querySelector('.register-container');
+                
+                if (loading) {
+                    container.classList.add('loading');
+                } else {
+                    container.classList.remove('loading');
+                }
+            }
+        }
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            new RegisterForm();
+        });
+    </script>
+  <!-- 푸터 컨테이너 -->
+  <div id="footer-container"></div>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이메일 인증 - Pre.p Mood</title>
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/page.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+    <script defer src="header-loader.js"></script>
+    <script defer src="footer-loader.js"></script>
+    <style>
+        /* 이메일 인증 페이지 스타일 */
+        .verification-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 24px;
+            font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+        }
+
+        .verification-container {
+            background: #fff;
+            border-radius: 2px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            padding: 60px 50px;
+            width: 100%;
+            max-width: 480px;
+            border: 1px solid #f0f0f0;
+            position: relative;
+            text-align: center;
+        }
+
+        .verification-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #000 0%, #333 100%);
+        }
+
+        .verification-header {
+            margin-bottom: 40px;
+        }
+
+        .verification-header h1 {
+            font-size: 2.2rem;
+            font-weight: 300;
+            color: #000;
+            margin-bottom: 12px;
+        }
+
+        .verification-header p {
+            color: #666;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .email-display {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #007bff;
+        }
+
+        .email-display .email {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .email-display .instruction {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .verification-form {
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #333;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .code-input {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .code-input input {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #fff;
+            transition: all 0.2s ease;
+        }
+
+        .code-input input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        .code-input input.filled {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+
+        .code-input input.error {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .verify-btn {
+            width: 100%;
+            padding: 16px;
+            background-color: #000;
+            color: white;
+            border: none;
+            border-radius: 2px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .verify-btn:hover:not(:disabled) {
+            background-color: #333;
+        }
+
+        .verify-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .resend-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .resend-btn {
+            background: none;
+            border: none;
+            color: #007bff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-bottom: 10px;
+        }
+
+        .resend-btn:hover {
+            color: #0056b3;
+        }
+
+        .resend-btn:disabled {
+            color: #ccc;
+            cursor: not-allowed;
+            text-decoration: none;
+        }
+
+        .countdown {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .back-link {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .back-link a {
+            color: #666;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .back-link a:hover {
+            color: #000;
+            text-decoration: underline;
+        }
+
+        /* 반응형 */
+        @media (max-width: 480px) {
+            .verification-container {
+                padding: 40px 30px;
+            }
+
+            .verification-header h1 {
+                font-size: 1.8rem;
+            }
+
+            .code-input {
+                gap: 8px;
+            }
+
+            .code-input input {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 로드 -->
+    <div id="header-container"></div>
+    
+    <main class="verification-page">
+        <div class="verification-container">
+            <div class="verification-header">
+                <h1>이메일 인증</h1>
+                <p>회원가입을 완료하기 위해 이메일 인증이 필요합니다.</p>
+            </div>
+
+            <div class="email-display">
+                <div class="email" id="emailDisplay">user@example.com</div>
+                <div class="instruction">위 이메일 주소로 인증 코드를 발송했습니다.</div>
+            </div>
+
+            <div class="success-message" id="successMessage">
+                ✅ 이메일 인증이 완료되었습니다!
+            </div>
+
+            <div class="error-message" id="errorMessage">
+                ❌ 인증 코드가 올바르지 않습니다.
+            </div>
+
+            <form class="verification-form" id="verificationForm">
+                <div class="form-group">
+                    <label>인증 코드</label>
+                    <div class="code-input">
+                        <input type="text" maxlength="1" class="code-digit" data-index="0">
+                        <input type="text" maxlength="1" class="code-digit" data-index="1">
+                        <input type="text" maxlength="1" class="code-digit" data-index="2">
+                        <input type="text" maxlength="1" class="code-digit" data-index="3">
+                        <input type="text" maxlength="1" class="code-digit" data-index="4">
+                        <input type="text" maxlength="1" class="code-digit" data-index="5">
+                    </div>
+                </div>
+
+                <button type="submit" class="verify-btn" id="verifyBtn" disabled>인증하기</button>
+            </form>
+
+            <div class="resend-section">
+                <button class="resend-btn" id="resendBtn">인증 코드 재발송</button>
+                <div class="countdown" id="countdown"></div>
+            </div>
+
+            <div class="back-link">
+                <a href="register.html">← 회원가입으로 돌아가기</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        class EmailVerification {
+            constructor() {
+                this.email = this.getEmailFromURL();
+                this.resendCooldown = 0;
+                this.isLoading = false;
+                
+                this.init();
+            }
+
+            init() {
+                // 이메일 표시
+                document.getElementById('emailDisplay').textContent = this.email;
+
+                // 이벤트 리스너 등록
+                this.setupCodeInputs();
+                this.setupFormSubmit();
+                this.setupResendButton();
+                this.startCountdown();
+            }
+
+            getEmailFromURL() {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get('email') || 'user@example.com';
+            }
+
+            setupCodeInputs() {
+                const inputs = document.querySelectorAll('.code-digit');
+                
+                inputs.forEach((input, index) => {
+                    input.addEventListener('input', (e) => {
+                        const value = e.target.value;
+                        
+                        // 숫자만 허용
+                        if (!/^\d$/.test(value)) {
+                            e.target.value = '';
+                            return;
+                        }
+
+                        // 다음 입력으로 이동
+                        if (value && index < inputs.length - 1) {
+                            inputs[index + 1].focus();
+                        }
+
+                        // 입력 상태 업데이트
+                        this.updateInputState(input, value);
+                        this.updateVerifyButton();
+                    });
+
+                    input.addEventListener('keydown', (e) => {
+                        // 백스페이스 처리
+                        if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                            inputs[index - 1].focus();
+                        }
+                    });
+
+                    input.addEventListener('paste', (e) => {
+                        e.preventDefault();
+                        const pastedData = e.clipboardData.getData('text');
+                        const digits = pastedData.replace(/\D/g, '').slice(0, 6);
+                        
+                        digits.split('').forEach((digit, i) => {
+                            if (inputs[i]) {
+                                inputs[i].value = digit;
+                                this.updateInputState(inputs[i], digit);
+                            }
+                        });
+                        
+                        this.updateVerifyButton();
+                    });
+                });
+            }
+
+            updateInputState(input, value) {
+                input.classList.remove('filled', 'error');
+                if (value) {
+                    input.classList.add('filled');
+                }
+            }
+
+            updateVerifyButton() {
+                const inputs = document.querySelectorAll('.code-digit');
+                const allFilled = Array.from(inputs).every(input => input.value);
+                const verifyBtn = document.getElementById('verifyBtn');
+                
+                verifyBtn.disabled = !allFilled || this.isLoading;
+            }
+
+            setupFormSubmit() {
+                document.getElementById('verificationForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.verifyCode();
+                });
+            }
+
+            setupResendButton() {
+                document.getElementById('resendBtn').addEventListener('click', () => {
+                    this.resendCode();
+                });
+            }
+
+            async verifyCode() {
+                const inputs = document.querySelectorAll('.code-digit');
+                const code = Array.from(inputs).map(input => input.value).join('');
+                
+                if (code.length !== 6) {
+                    this.showError('인증 코드를 모두 입력해주세요.');
+                    return;
+                }
+
+                this.setLoading(true);
+                this.hideMessages();
+
+                try {
+                    const response = await fetch('http://localhost:3000/api/verify-code', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: this.email,
+                            code: code
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.showSuccess();
+                        setTimeout(() => {
+                            window.location.href = 'login.html?verified=true';
+                        }, 2000);
+                    } else {
+                        this.showError(data.message || '인증 코드가 올바르지 않습니다.');
+                        this.markInputsAsError();
+                    }
+                } catch (error) {
+                    this.showError('네트워크 오류가 발생했습니다.');
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            async resendCode() {
+                if (this.resendCooldown > 0) return;
+
+                this.setLoading(true);
+                this.hideMessages();
+
+                try {
+                    const response = await fetch('http://localhost:3000/api/send-verification', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email: this.email })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.showSuccess('인증 코드가 재발송되었습니다.');
+                        this.startCountdown();
+                        this.clearInputs();
+                    } else {
+                        this.showError(data.message || '인증 코드 발송에 실패했습니다.');
+                    }
+                } catch (error) {
+                    this.showError('네트워크 오류가 발생했습니다.');
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            startCountdown() {
+                this.resendCooldown = 60; // 60초 대기
+                const resendBtn = document.getElementById('resendBtn');
+                const countdown = document.getElementById('countdown');
+                
+                resendBtn.disabled = true;
+                
+                const timer = setInterval(() => {
+                    this.resendCooldown--;
+                    countdown.textContent = `${this.resendCooldown}초 후 재발송 가능`;
+                    
+                    if (this.resendCooldown <= 0) {
+                        clearInterval(timer);
+                        resendBtn.disabled = false;
+                        countdown.textContent = '';
+                    }
+                }, 1000);
+            }
+
+            clearInputs() {
+                const inputs = document.querySelectorAll('.code-digit');
+                inputs.forEach(input => {
+                    input.value = '';
+                    input.classList.remove('filled', 'error');
+                });
+                this.updateVerifyButton();
+            }
+
+            markInputsAsError() {
+                const inputs = document.querySelectorAll('.code-digit');
+                inputs.forEach(input => {
+                    input.classList.add('error');
+                });
+            }
+
+            showSuccess(message = '이메일 인증이 완료되었습니다!') {
+                const successMessage = document.getElementById('successMessage');
+                successMessage.textContent = `✅ ${message}`;
+                successMessage.style.display = 'block';
+                
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 5000);
+            }
+
+            showError(message) {
+                const errorMessage = document.getElementById('errorMessage');
+                errorMessage.textContent = `❌ ${message}`;
+                errorMessage.style.display = 'block';
+                
+                setTimeout(() => {
+                    errorMessage.style.display = 'none';
+                }, 5000);
+            }
+
+            hideMessages() {
+                document.getElementById('successMessage').style.display = 'none';
+                document.getElementById('errorMessage').style.display = 'none';
+            }
+
+            setLoading(loading) {
+                this.isLoading = loading;
+                const container = document.querySelector('.verification-container');
+                const verifyBtn = document.getElementById('verifyBtn');
+                
+                if (loading) {
+                    container.classList.add('loading');
+                    verifyBtn.textContent = '인증 중...';
+                } else {
+                    container.classList.remove('loading');
+                    verifyBtn.textContent = '인증하기';
+                }
+                
+                this.updateVerifyButton();
+            }
+        }
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            new EmailVerification();
+        });
+    </script>
+  <!-- 푸터 컨테이너 -->
+  <div id="footer-container"></div>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pre.p Mood Store</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/page.css">
+  <link rel="stylesheet" href="assets/css/responsive.css">
+  <script src="utils.js" defer></script> <!-- ✅ 보안 유틸리티 함수 -->
+  <script src="catalog-data.js" defer></script> <!-- ✅ 상품 데이터 로드 -->
+  <script src="mini-cart.js" defer></script> <!-- ✅ 장바구니 기능 -->
+  <script src="header-loader.js" defer></script> <!-- ✅ header.html 불러오기 -->
+  <script src="footer-loader.js" defer></script> <!-- ✅ footer.partial 불러오기 -->
+</head>
+<body>
+
+  <!-- ✅ 헤더가 삽입될 영역 -->
+  <div id="header-container"></div>
+
+  <!-- 인덱스에는 별도 메가 네비를 두지 않습니다: 헤더 포함 사용 -->
+
+  <!-- ✅ 카테고리 배너 섹션 (Apple 스타일) -->
+  <main class="home-banners">
+    <section class="category-hero" style="background-image:url('image/shirt.jpg')">
+      <div class="hero-content">
+        <h2>상의</h2>
+        <p>Timeless Essentials</p>
+      </div>
+    </section>
+
+    <section class="category-hero" style="background-image:url('image/pants.jpg')">
+      <div class="hero-content">
+        <h2>하의</h2>
+        <p>Refined Everyday</p>
+      </div>
+    </section>
+
+    <section class="category-hero" style="background-image:url('image/denim.jpg')">
+      <div class="hero-content">
+        <h2>양복</h2>
+        <p>Tailored Confidence</p>
+      </div>
+    </section>
+
+    <section class="category-hero" style="background-image:url('image/knit.jpg')">
+      <div class="hero-content">
+        <h2>목도리</h2>
+        <p>Soft Warmth</p>
+      </div>
+    </section>
+
+    <section class="category-hero" style="background-image:url('image/hat.jpg')">
+      <div class="hero-content">
+        <h2>신발</h2>
+        <p>Move in Style</p>
+      </div>
+    </section>
+
+    <section class="category-hero" style="background-image:url('image/earring.jpg')">
+      <div class="hero-content">
+        <h2>ACC</h2>
+        <p>Subtle Statements</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- 푸터 컨테이너 -->
+  <div id="footer-container"></div>
+
+</body>
+</html>
