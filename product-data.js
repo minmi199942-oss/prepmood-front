@@ -14,13 +14,13 @@ window.CATALOG_DATA = {
 // API에서 상품 데이터 로드
 async function loadProducts() {
   try {
-        Logger.log('🔄 API에서 상품 데이터 로드 중...');
+    console.log('🔄 API에서 상품 데이터 로드 중...');
     
     const response = await fetch('/api/products');
     const data = await response.json();
     
     if (data.success && data.products) {
-      Logger.log('✅ API 데이터 로드 성공:', data.products.length, '개 제품');
+      console.log('✅ API 데이터 로드 성공:', data.products.length, '개 제품');
       
       // 제품을 카테고리별로 분류
       const catalogData = {
@@ -39,19 +39,19 @@ async function loadProducts() {
       
       // CATALOG_DATA 업데이트
       window.CATALOG_DATA = catalogData;
-      Logger.log('📦 업데이트된 CATALOG_DATA:', window.CATALOG_DATA);
+      console.log('📦 업데이트된 CATALOG_DATA:', window.CATALOG_DATA);
       
       // 상품 데이터가 로드되었음을 표시
       window.productsLoaded = true;
       window.dispatchEvent(new CustomEvent('productsLoaded'));
       
     } else {
-      Logger.error('❌ API 데이터 로드 실패:', data);
+      console.error('❌ API 데이터 로드 실패:', data);
       window.dispatchEvent(new CustomEvent('productsLoadError'));
     }
     
   } catch (error) {
-    Logger.error('❌ 상품 데이터 로드 오류:', error);
+    console.error('❌ 상품 데이터 로드 오류:', error);
     window.dispatchEvent(new CustomEvent('productsLoadError'));
   }
 }
