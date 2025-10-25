@@ -3,8 +3,7 @@
 (function(){
   function qs(key){ return new URLSearchParams(location.search).get(key); }
 
-  const gender = (qs('gender') || 'men').toLowerCase();
-  const category = (qs('category') || 'accessories').toLowerCase();
+  const category = (qs('category') || 'tops').toLowerCase();
   const type = qs('type') ? qs('type').toLowerCase() : null;
 
   const title = document.getElementById('catalog-title');
@@ -16,12 +15,12 @@
     // type이 없으면 해당 카테고리의 모든 하위 항목 합치기
     if (!type || type === 'all') {
       // 카테고리의 모든 하위 타입 데이터 합치기
-      const categoryData = ((window.CATALOG_DATA || {})[gender] || {})[category] || {};
+      const categoryData = (window.CATALOG_DATA || {})[category] || {};
       list = Object.values(categoryData).flat();
       title.textContent = `${capitalize(category)} · All`;
     } else {
       // 특정 타입만 가져오기
-      list = (((window.CATALOG_DATA || {})[gender] || {})[category] || {})[type] || [];
+      list = ((window.CATALOG_DATA || {})[category] || {})[type] || [];
       title.textContent = `${capitalize(category)} · ${humanize(type)}`;
     }
 
