@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const mysql = require('mysql2/promise');
 const { authenticateToken } = require('./auth-middleware');
+const Logger = require('./logger');
 require('dotenv').config();
 
-// ?�이?�베?�스 ?�결 ?�정
+// ?�이?�베?�스 ?�결 ?�정
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -14,21 +15,21 @@ const dbConfig = {
 };
 
 // ====================================
-// ?�바구니 API ?�우??
+// ?�바구니 API ?�우??
 // ====================================
 
-// JWT ?�증 미들?�어 ?�용 (auth-middleware.js?�서 import)
+// JWT ?�증 미들?�어 ?�용 (auth-middleware.js?�서 import)
 
-// ?�바구니 조회
+// ?�바구니 조회
 router.get('/cart', authenticateToken, async (req, res) => {
   try {
-    Logger.log('?�� ?�바구니 조회 ?�도:', req.user.userId);
+    Logger.log('?�� ?�바구니 조회 ?�도:', req.user.userId);
     
     const connection = await mysql.createConnection(dbConfig);
-    Logger.log('???�이?�베?�스 ?�결 ?�공');
+    Logger.log('???�이?�베?�스 ?�결 ?�공');
     
     try {
-      // ?�용?�의 ?�바구니 조회 ?�는 ?�성
+      // ?�용?�의 ?�바구니 조회 ?�는 ?�성
       let [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
         [req.user.userId]
@@ -36,19 +37,19 @@ router.get('/cart', authenticateToken, async (req, res) => {
 
       let cartId;
       if (carts.length === 0) {
-        // ?�바구니가 ?�으�??�성
+        // ?�바구니가 ?�으�??�성
         const [result] = await connection.execute(
           'INSERT INTO carts (user_id) VALUES (?)',
           [req.user.userId]
         );
         cartId = result.insertId;
-        Logger.log('?�� ???�바구니 ?�성:', cartId);
+        Logger.log('?�� ???�바구니 ?�성:', cartId);
       } else {
         cartId = carts[0].cart_id;
-        Logger.log('?�� 기존 ?�바구니 ?�용:', cartId);
+        Logger.log('?�� 기존 ?�바구니 ?�용:', cartId);
       }
 
-      // ?�바구니 ?�이??조회 (?�품 ?�보 ?�함)
+      // ?�바구니 ?�이??조회 (?�품 ?�보 ?�함)
       const [items] = await connection.execute(`
         SELECT 
           ci.item_id,
@@ -67,7 +68,7 @@ router.get('/cart', authenticateToken, async (req, res) => {
         ORDER BY ci.created_at DESC
       `, [cartId]);
 
-      Logger.log(`?�� ?�바구니 조회: ?�용??${req.user.userId} - ${items.length}�???��`);
+      Logger.log(`?�� ?�바구니 조회: ?�용??${req.user.userId} - ${items.length}�???��`);
 
       res.json({
         success: true,
@@ -80,27 +81,27 @@ router.get('/cart', authenticateToken, async (req, res) => {
       connection.end();
     }
   } catch (error) {
-    console.error('???�바구니 조회 ?�류:', error);
+    console.error('???�바구니 조회 ?�류:', error);
     res.status(500).json({ 
       success: false, 
-      message: '?�바구니 조회???�패?�습?�다.',
+      message: '?�바구니 조회???�패?�습?�다.',
       error: error.message 
     });
   }
 });
 
-// ?�바구니???�품 추�?
+// ?�바구니???�품 추�?
 router.post('/cart/add', authenticateToken, async (req, res) => {
   try {
     const { productId, quantity = 1, size = null, color = null } = req.body;
 
     if (!productId) {
-      return res.status(400).json({ success: false, message: '?�품 ID가 ?�요?�니??' });
+      return res.status(400).json({ success: false, message: '?�품 ID가 ?�요?�니??' });
     }
 
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // ?�용?�의 ?�바구니 조회 ?�는 ?�성
+      // ?�용?�의 ?�바구니 조회 ?�는 ?�성
       let [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
         [req.user.userId]
@@ -117,7 +118,7 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
         cartId = carts[0].cart_id;
       }
 
-      // ?�품???��? ?�바구니???�는지 ?�인
+      // ?�품???��? ?�바구니???�는지 ?�인
       const [existing] = await connection.execute(`
         SELECT item_id, quantity FROM cart_items 
         WHERE cart_id = ? AND product_id = ? AND 
@@ -126,22 +127,22 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
       `, [cartId, productId, size, size, color, color]);
 
       if (existing.length > 0) {
-        // ?��? ?�으�??�량 증�?
+        // ?��? ?�으�??�량 증�?
         await connection.execute(
           'UPDATE cart_items SET quantity = quantity + ? WHERE item_id = ?',
           [quantity, existing[0].item_id]
         );
-        Logger.log(`?�� ?�바구니 ?�량 ?�데?�트: ?�용??${req.user.userId} - ${productId} (${existing[0].quantity} ??${existing[0].quantity + quantity})`);
+        Logger.log(`?�� ?�바구니 ?�량 ?�데?�트: ?�용??${req.user.userId} - ${productId} (${existing[0].quantity} ??${existing[0].quantity + quantity})`);
       } else {
-        // ?�으�??�로 추�?
+        // ?�으�??�로 추�?
         await connection.execute(
           'INSERT INTO cart_items (cart_id, product_id, quantity, size, color) VALUES (?, ?, ?, ?, ?)',
           [cartId, productId, quantity, size, color]
         );
-        Logger.log(`???�바구니??추�?: ?�용??${req.user.userId} - ${productId}`);
+        Logger.log(`???�바구니??추�?: ?�용??${req.user.userId} - ${productId}`);
       }
 
-      // ?�데?�트???�바구니 ?�보 조회
+      // ?�데?�트???�바구니 ?�보 조회
       const [items] = await connection.execute(`
         SELECT COUNT(*) as count, SUM(quantity) as total_quantity
         FROM cart_items WHERE cart_id = ?
@@ -149,7 +150,7 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
 
       res.json({
         success: true,
-        message: '?�바구니??추�??�었?�니??',
+        message: '?�바구니??추�??�었?�니??',
         cartSummary: {
           itemCount: items[0].count,
           totalQuantity: items[0].total_quantity
@@ -159,30 +160,30 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
       connection.end();
     }
   } catch (error) {
-    console.error('???�바구니 추�? ?�류:', error);
+    console.error('???�바구니 추�? ?�류:', error);
     
-    // 중복 ???�류 처리
+    // 중복 ???�류 처리
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ success: false, message: '?��? ?�바구니???�는 ?�품?�니??' });
+      return res.status(400).json({ success: false, message: '?��? ?�바구니???�는 ?�품?�니??' });
     }
     
-    res.status(500).json({ success: false, message: '?�바구니 추�????�패?�습?�다.' });
+    res.status(500).json({ success: false, message: '?�바구니 추�????�패?�습?�다.' });
   }
 });
 
-// ?�바구니 ?�이???�량 변�?
+// ?�바구니 ?�이???�량 변�?
 router.put('/cart/item/:itemId', authenticateToken, async (req, res) => {
   try {
     const { itemId } = req.params;
     const { quantity } = req.body;
 
     if (!quantity || quantity < 1) {
-      return res.status(400).json({ success: false, message: '?�량?� 1 ?�상?�어???�니??' });
+      return res.status(400).json({ success: false, message: '?�량?� 1 ?�상?�어???�니??' });
     }
 
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // ?�이?�이 ?�용?�의 ?�바구니???�하?��? ?�인
+      // ?�이?�이 ?�용?�의 ?�바구니???�하?��? ?�인
       const [items] = await connection.execute(`
         SELECT ci.item_id FROM cart_items ci
         JOIN carts c ON ci.cart_id = c.cart_id
@@ -190,35 +191,35 @@ router.put('/cart/item/:itemId', authenticateToken, async (req, res) => {
       `, [itemId, req.user.userId]);
 
       if (items.length === 0) {
-        return res.status(404).json({ success: false, message: '?�바구니 ?�이?�을 찾을 ???�습?�다.' });
+        return res.status(404).json({ success: false, message: '?�바구니 ?�이?�을 찾을 ???�습?�다.' });
       }
 
-      // ?�량 ?�데?�트
+      // ?�량 ?�데?�트
       await connection.execute(
         'UPDATE cart_items SET quantity = ? WHERE item_id = ?',
         [quantity, itemId]
       );
 
-      Logger.log(`?�� ?�바구니 ?�량 변�? ?�용??${req.user.userId} - ?�이??${itemId} ???�량 ${quantity}`);
+      Logger.log(`?�� ?�바구니 ?�량 변�? ?�용??${req.user.userId} - ?�이??${itemId} ???�량 ${quantity}`);
 
-      res.json({ success: true, message: '?�량??변경되?�습?�다.' });
+      res.json({ success: true, message: '?�량??변경되?�습?�다.' });
     } finally {
       connection.end();
     }
   } catch (error) {
-    console.error('???�바구니 ?�량 변�??�류:', error);
-    res.status(500).json({ success: false, message: '?�량 변경에 ?�패?�습?�다.' });
+    console.error('???�바구니 ?�량 변�??�류:', error);
+    res.status(500).json({ success: false, message: '?�량 변경에 ?�패?�습?�다.' });
   }
 });
 
-// ?�바구니 ?�이????��
+// ?�바구니 ?�이????��
 router.delete('/cart/item/:itemId', authenticateToken, async (req, res) => {
   try {
     const { itemId } = req.params;
 
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // ?�이?�이 ?�용?�의 ?�바구니???�하?��? ?�인
+      // ?�이?�이 ?�용?�의 ?�바구니???�하?��? ?�인
       const [items] = await connection.execute(`
         SELECT ci.item_id, ci.product_id FROM cart_items ci
         JOIN carts c ON ci.cart_id = c.cart_id
@@ -226,33 +227,33 @@ router.delete('/cart/item/:itemId', authenticateToken, async (req, res) => {
       `, [itemId, req.user.userId]);
 
       if (items.length === 0) {
-        return res.status(404).json({ success: false, message: '?�바구니 ?�이?�을 찾을 ???�습?�다.' });
+        return res.status(404).json({ success: false, message: '?�바구니 ?�이?�을 찾을 ???�습?�다.' });
       }
 
-      // ?�이????��
+      // ?�이????��
       await connection.execute(
         'DELETE FROM cart_items WHERE item_id = ?',
         [itemId]
       );
 
-      Logger.log(`?���??�바구니?�서 ??��: ?�용??${req.user.userId} - ${items[0].product_id}`);
+      Logger.log(`?���??�바구니?�서 ??��: ?�용??${req.user.userId} - ${items[0].product_id}`);
 
-      res.json({ success: true, message: '?�바구니?�서 ??��?�었?�니??' });
+      res.json({ success: true, message: '?�바구니?�서 ??��?�었?�니??' });
     } finally {
       connection.end();
     }
   } catch (error) {
-    console.error('???�바구니 ??�� ?�류:', error);
-    res.status(500).json({ success: false, message: '??��???�패?�습?�다.' });
+    console.error('???�바구니 ??�� ?�류:', error);
+    res.status(500).json({ success: false, message: '??��???�패?�습?�다.' });
   }
 });
 
-// ?�바구니 ?�체 비우�?
+// ?�바구니 ?�체 비우�?
 router.delete('/cart/clear', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // ?�용?�의 ?�바구니 조회
+      // ?�용?�의 ?�바구니 조회
       const [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
         [req.user.userId]
@@ -263,20 +264,20 @@ router.delete('/cart/clear', authenticateToken, async (req, res) => {
           'DELETE FROM cart_items WHERE cart_id = ?',
           [carts[0].cart_id]
         );
-        Logger.log(`?���??�바구니 ?�체 비우�? ?�용??${req.user.userId}`);
+        Logger.log(`?���??�바구니 ?�체 비우�? ?�용??${req.user.userId}`);
       }
 
-      res.json({ success: true, message: '?�바구니가 비워졌습?�다.' });
+      res.json({ success: true, message: '?�바구니가 비워졌습?�다.' });
     } finally {
       connection.end();
     }
   } catch (error) {
-    console.error('???�바구니 비우�??�류:', error);
-    res.status(500).json({ success: false, message: '?�바구니 비우기에 ?�패?�습?�다.' });
+    console.error('???�바구니 비우�??�류:', error);
+    res.status(500).json({ success: false, message: '?�바구니 비우기에 ?�패?�습?�다.' });
   }
 });
 
-// ?�바구니 ?�이??개수 조회 (?�더??
+// ?�바구니 ?�이??개수 조회 (?�더??
 router.get('/cart/count', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
@@ -300,8 +301,8 @@ router.get('/cart/count', authenticateToken, async (req, res) => {
       connection.end();
     }
   } catch (error) {
-    console.error('???�바구니 개수 조회 ?�류:', error);
-    res.json({ success: true, count: 0 }); // ?�류 ??0 반환
+    console.error('???�바구니 개수 조회 ?�류:', error);
+    res.json({ success: true, count: 0 }); // ?�류 ??0 반환
   }
 });
 
