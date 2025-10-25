@@ -60,7 +60,8 @@ const Logger = {
                  window.location.hostname.includes('dev'),
   
   log: function(...args) {
-    if (this.isDevelopment) {
+    // 중요한 로그는 프로덕션에서도 출력
+    if (this.isDevelopment || args[0]?.includes('🔄') || args[0]?.includes('✅') || args[0]?.includes('📦')) {
       console.log(...args);
     }
   },
