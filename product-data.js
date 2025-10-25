@@ -7,7 +7,7 @@ window.CATALOG_DATA = {
   tops: { shirts: [], knits: [], 't-shirts': [] },
   bottoms: { pants: [] },
   outer: { jackets: [], suits: [] },
-  bags: { tote: [], backpack: [], crossbody: [] },
+  bags: { briefcases: [], backpacks: [], crossbody: [], handbags: [], totes: [], clutches: [] },
   accessories: { caps: [], wallets: [], belts: [] }
 };
 

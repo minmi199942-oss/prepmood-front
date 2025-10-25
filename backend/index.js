@@ -8,6 +8,7 @@ const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const { sendVerificationEmail, testConnection } = require('./mailer');
 const { authenticateToken, optionalAuth, generateToken, setTokenCookie, clearTokenCookie } = require('./auth-middleware');
+const Logger = require('./logger');
 require('dotenv').config();
 
 const app = express();
@@ -22,7 +23,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS ?
     process.env.ALLOWED_ORIGINS.split(',') : 
     ['http://localhost:8000', 'http://localhost:3000', 'http://127.0.0.1:8000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5500', 'http://localhost:5500', 'https://prepmood.kr'];
 
-console.log('Allowed origins:', allowedOrigins);
+Logger.log('Allowed origins:', allowedOrigins);
 
 app.use(cors({
     origin: allowedOrigins,
@@ -120,7 +121,7 @@ app.post('/api/send-verification', [
         const result = await sendVerificationEmail(email, verificationCode);
         
         if (result.success) {
-            console.log(`✅ 인증 코드 발송 성공: ${email} -> ${verificationCode}`);
+            Logger.log(`✅ 인증 코드 발송 성공: ${email} -> ${verificationCode}`);
             res.json({ 
                 success: true, 
                 message: '인증 코드가 발송되었습니다.' 
@@ -203,7 +204,7 @@ app.post('/api/verify-code', [
         storedData.verified = true;
         verificationCodes.set(email, storedData);
         
-        console.log(`✅ 이메일 인증 성공: ${email}`);
+        Logger.log(`✅ 이메일 인증 성공: ${email}`);
         res.json({ 
             success: true, 
             message: '이메일 인증이 완료되었습니다.' 
@@ -227,7 +228,7 @@ app.post('/api/register', [
     body('phone').optional().trim()
 ], async (req, res) => {
     try {
-        console.log('📋 회원가입 요청 데이터:', JSON.stringify(req.body, null, 2));
+        Logger.log('📋 회원가입 요청 데이터:', JSON.stringify(req.body, null, 2));
         
         const errors = validationResult(req);
         if (!errors.isEmpty()) {

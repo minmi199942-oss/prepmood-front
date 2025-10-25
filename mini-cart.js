@@ -26,7 +26,7 @@ class MiniCart {
         
         this.updateCartDisplay();
         this.renderMiniCart();
-        console.log('✅ 미니 카트 초기화 완료 (시도 횟수:', attempts, ')');
+        Logger.log('✅ 미니 카트 초기화 완료 (시도 횟수:', attempts, ')');
       } else if (attempts > 50) {
         // 5초 후에도 안 되면 포기
         clearInterval(waitForHeader);
@@ -42,7 +42,7 @@ class MiniCart {
     const miniCartClose = document.getElementById('mini-cart-close');
     const overlay = document.getElementById('mini-cart-overlay');
 
-    console.log('🔗 이벤트 바인딩 중...', {
+    Logger.log('🔗 이벤트 바인딩 중...', {
       cartToggle: !!cartToggle,
       miniCart: !!miniCart,
       miniCartClose: !!miniCartClose,
@@ -52,10 +52,10 @@ class MiniCart {
     if (cartToggle) {
       cartToggle.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log('🛒 장바구니 버튼 클릭됨!');
+        Logger.log('🛒 장바구니 버튼 클릭됨!');
         this.toggleMiniCart();
       });
-      console.log('✅ 장바구니 버튼 이벤트 리스너 추가 완료');
+      Logger.log('✅ 장바구니 버튼 이벤트 리스너 추가 완료');
     } else {
       console.error('❌ 장바구니 버튼을 찾을 수 없습니다!');
     }
@@ -115,7 +115,7 @@ class MiniCart {
       // 스크롤 방지 (프라다 스타일)
       document.body.style.overflow = 'hidden';
       
-      console.log('✅ 미니 카트 열림 + 스크롤 방지');
+      Logger.log('✅ 미니 카트 열림 + 스크롤 방지');
     }
   }
 
@@ -130,7 +130,7 @@ class MiniCart {
       // 스크롤 복원 (프라다 스타일)
       document.body.style.overflow = '';
       
-      console.log('✅ 미니 카트 닫힘 + 스크롤 복원');
+      Logger.log('✅ 미니 카트 닫힘 + 스크롤 복원');
     }
   }
 
@@ -164,7 +164,7 @@ class MiniCart {
       
       if (data.success) {
         this.cartItems = data.items || [];
-        console.log('🛒 서버에서 장바구니 로드:', this.cartItems.length, '개 상품');
+        Logger.log('🛒 서버에서 장바구니 로드:', this.cartItems.length, '개 상품');
       } else {
         this.cartItems = [];
       }
@@ -175,7 +175,7 @@ class MiniCart {
   }
 
   async addToCart(product) {
-    console.log('🛒 addToCart 호출됨:', product);
+    Logger.log('🛒 addToCart 호출됨:', product);
     
     // 로그인 상태 확인
     const isLoggedIn = await this.checkLoginStatus();
@@ -207,7 +207,7 @@ class MiniCart {
         await this.loadCartFromServer();
         this.updateCartDisplay();
         this.renderMiniCart();
-        console.log('✅ 장바구니에 추가됨:', data.message);
+        Logger.log('✅ 장바구니에 추가됨:', data.message);
       } else {
         alert(data.message || '장바구니 추가에 실패했습니다.');
       }

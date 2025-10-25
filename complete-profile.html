@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>추가 정보 입력 - Pre.pMood</title>
+    <title>추�? ?�보 ?�력 - Pre.pMood</title>
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/login.css">
     <style>
@@ -142,7 +142,7 @@
             text-decoration: underline;
         }
 
-        /* 추가 정보 입력 페이지에서 검색 기능 숨기기 */
+        /* 추�? ?�보 ?�력 ?�이지?�서 검??기능 ?�기�?*/
         #search-toggle,
         #search-modal,
         .search-modal,
@@ -161,42 +161,42 @@
 
     <div class="complete-profile-container">
         <div class="profile-header">
-            <h1>추가 정보 입력</h1>
-            <p>원활한 서비스 이용을 위해 추가 정보를 입력해주세요</p>
+            <h1>추�? ?�보 ?�력</h1>
+            <p>?�활???�비???�용???�해 추�? ?�보�??�력?�주?�요</p>
         </div>
 
         <div class="google-info" id="googleInfo">
-            <!-- Google 정보가 여기에 표시됩니다 -->
+            <!-- Google ?�보가 ?�기???�시?�니??-->
         </div>
 
         <div class="error-message" id="errorMessage"></div>
 
         <form id="completeProfileForm">
             <div class="form-group">
-                <label for="lastName">성 *</label>
+                <label for="lastName">??*</label>
                 <input type="text" id="lastName" name="lastName" required>
             </div>
 
             <div class="form-group">
-                <label for="firstName">이름 *</label>
+                <label for="firstName">?�름 *</label>
                 <input type="text" id="firstName" name="firstName" required>
             </div>
 
             <div class="form-group">
-                <label for="phone">전화번호 <span class="optional">(선택)</span></label>
+                <label for="phone">?�화번호 <span class="optional">(?�택)</span></label>
                 <input type="tel" id="phone" name="phone" placeholder="010-0000-0000">
             </div>
 
             <div class="form-group">
-                <label for="birth">생년월일 <span class="optional">(선택)</span></label>
+                <label for="birth">?�년?�일 <span class="optional">(?�택)</span></label>
                 <input type="date" id="birth" name="birth">
             </div>
 
-            <button type="submit" class="submit-btn" id="submitBtn">완료</button>
+            <button type="submit" class="submit-btn" id="submitBtn">?�료</button>
         </form>
 
         <div class="skip-link">
-            <a href="index.html">나중에 입력하기</a>
+            <a href="index.html">?�중???�력?�기</a>
         </div>
     </div>
 
@@ -205,8 +205,7 @@
     <script src="header-loader.js"></script>
     <script src="footer-loader.js"></script>
     <script>
-        // 헤더 로드 후 검색 기능 완전히 숨기기
-        function hideSearchFeatures() {
+        // ?�더 로드 ??검??기능 ?�전???�기�?        function hideSearchFeatures() {
             const elementsToHide = [
                 '#search-toggle',
                 '#search-modal',
@@ -231,38 +230,37 @@
             });
         }
         
-        // 헤더 로드 후 여러 번 시도
+        // ?�더 로드 ???�러 �??�도
         setTimeout(hideSearchFeatures, 100);
         setTimeout(hideSearchFeatures, 300);
         setTimeout(hideSearchFeatures, 500);
         setTimeout(hideSearchFeatures, 1000);
         
-        // DOM 변경 감지해서 계속 숨기기
-        const observer = new MutationObserver(hideSearchFeatures);
+        // DOM 변�?감�??�서 계속 ?�기�?        const observer = new MutationObserver(hideSearchFeatures);
         observer.observe(document.body, { childList: true, subtree: true });
     </script>
     <script>
-        // 로컬 개발 환경에서도 실제 서버 API 사용 (로컬 DB 설정이 없을 경우)
+        // 로컬 개발 ?�경?�서???�제 ?�버 API ?�용 (로컬 DB ?�정???�을 경우)
         const API_BASE_URL = window.location.hostname === 'prepmood.kr' 
             ? window.location.origin 
             : 'https://prepmood.kr';
 
-        // 로그인 여부 확인
+        // 로그???��? ?�인
         const user = JSON.parse(localStorage.getItem('user') || 'null');
         const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
         if (!isLoggedIn || !user) {
-            alert('로그인이 필요합니다.');
+            alert('로그?�이 ?�요?�니??');
             window.location.href = 'login.html';
         }
 
-        // Google 정보 표시
+        // Google ?�보 ?�시
         document.addEventListener('DOMContentLoaded', function() {
             const googleInfoDiv = document.getElementById('googleInfo');
             
             if (user.profilePicture) {
                 googleInfoDiv.innerHTML = `
-                    <img src="${user.profilePicture}" alt="프로필 사진">
+                    <img src="${user.profilePicture}" alt="?�로???�진">
                     <div class="google-info-text">
                         <p><strong>${user.name || user.email}</strong></p>
                         <p class="email">${user.email}</p>
@@ -277,7 +275,7 @@
                 `;
             }
 
-            // Google 이름을 성/이름으로 자동 분리 (선택적)
+            // Google ?�름?????�름?�로 ?�동 분리 (?�택??
             if (user.name) {
                 const nameParts = user.name.trim().split(' ');
                 if (nameParts.length === 2) {
@@ -289,7 +287,7 @@
             }
         });
 
-        // 폼 제출
+        // ???�출
         document.getElementById('completeProfileForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -297,7 +295,7 @@
             const errorMessage = document.getElementById('errorMessage');
 
             submitBtn.disabled = true;
-            submitBtn.textContent = '처리 중...';
+            submitBtn.textContent = '처리 �?..';
             errorMessage.style.display = 'none';
 
             const formData = {
@@ -308,47 +306,47 @@
             };
 
             try {
-                console.log('API 호출 URL:', `${API_BASE_URL}/api/auth/complete-profile`);
-                console.log('전송 데이터:', formData);
+                Logger.log('API ?�출 URL:', `${API_BASE_URL}/api/auth/complete-profile`);
+                Logger.log('?�송 ?�이??', formData);
 
                 const response = await fetch(`${API_BASE_URL}/api/auth/complete-profile`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    credentials: 'include', // JWT 쿠키 포함
+                    credentials: 'include', // JWT 쿠키 ?�함
                     body: JSON.stringify(formData)
                 });
 
-                console.log('응답 상태:', response.status);
+                Logger.log('?�답 ?�태:', response.status);
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('응답 에러:', errorText);
-                    throw new Error(`서버 오류: ${response.status}`);
+                    console.error('?�답 ?�러:', errorText);
+                    throw new Error(`?�버 ?�류: ${response.status}`);
                 }
 
                 const data = await response.json();
-                console.log('응답 데이터:', data);
+                Logger.log('?�답 ?�이??', data);
 
                 if (data.success) {
-                    alert('추가 정보가 저장되었습니다!');
+                    alert('추�? ?�보가 ?�?�되?�습?�다!');
                     
-                    // 사용자 정보 업데이트
+                    // ?�용???�보 ?�데?�트
                     const updatedUser = { ...user, ...formData };
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     
-                    // 홈으로 리디렉션
+                    // ?�으�?리디?�션
                     window.location.href = 'index.html';
                 } else {
-                    throw new Error(data.error || '정보 저장에 실패했습니다.');
+                    throw new Error(data.error || '?�보 ?�?�에 ?�패?�습?�다.');
                 }
             } catch (error) {
-                console.error('추가 정보 저장 오류:', error);
+                console.error('추�? ?�보 ?�???�류:', error);
                 
-                let errorMsg = '정보 저장 중 오류가 발생했습니다.';
+                let errorMsg = '?�보 ?�??�??�류가 발생?�습?�다.';
                 if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
-                    errorMsg = '백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.';
+                    errorMsg = '백엔???�버???�결?????�습?�다. ?�버가 ?�행 중인지 ?�인?�주?�요.';
                 } else if (error.message) {
                     errorMsg = error.message;
                 }
@@ -357,7 +355,7 @@
                 errorMessage.style.display = 'block';
                 
                 submitBtn.disabled = false;
-                submitBtn.textContent = '완료';
+                submitBtn.textContent = '?�료';
             }
         });
     </script>

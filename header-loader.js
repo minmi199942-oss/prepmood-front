@@ -42,7 +42,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const menu = item.querySelector('.mega-menu');
         const link = item.querySelector('a');
         
-        console.log(`Setting up menu item ${index}:`, link ? link.textContent : 'No link found');
+        Logger.log(`Setting up menu item ${index}:`, link ? link.textContent : 'No link found');
 
         // mouseenter 이벤트
         item.addEventListener('mouseenter', (e) => {
@@ -129,7 +129,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      console.log('Dropdown system initialized with', megaItems.length, 'menu items');
+      Logger.log('Dropdown system initialized with', megaItems.length, 'menu items');
 
       // 검색 기능 초기화
       const searchModal = document.getElementById('search-modal');
@@ -203,9 +203,9 @@ window.addEventListener('DOMContentLoaded', () => {
           priceFilter.addEventListener('change', performSearch);
         }
 
-        console.log('검색 기능이 초기화되었습니다.');
+        Logger.log('검색 기능이 초기화되었습니다.');
       } else {
-        console.log('검색 요소를 찾을 수 없습니다.');
+        Logger.log('검색 요소를 찾을 수 없습니다.');
       }
 
       // 마이페이지 기능 초기화
@@ -224,7 +224,7 @@ function initializeMypageFunctionality() {
   const logoutBtn = document.getElementById('logout-btn');
 
   if (!mypageToggle || !mypageDropdown || !mypageIcon) {
-    console.log('마이페이지 요소를 찾을 수 없습니다.');
+    Logger.log('마이페이지 요소를 찾을 수 없습니다.');
     return;
   }
 
@@ -254,10 +254,10 @@ function initializeMypageFunctionality() {
         // 로그인 상태일 때 장바구니 복원
         if (window.miniCart) {
           window.miniCart.restoreCartForLogin();
-          console.log('🛒 로그인 상태 - 장바구니 복원');
+          Logger.log('🛒 로그인 상태 - 장바구니 복원');
         }
         
-        console.log('✅ 로그인 상태:', data.user.email);
+        Logger.log('✅ 로그인 상태:', data.user.email);
       } else {
         // 비로그인 상태
         setLoggedOutState();
@@ -265,11 +265,11 @@ function initializeMypageFunctionality() {
     } catch (error) {
       // 인증 실패 또는 네트워크 오류
       if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-        console.log('⚠️ Rate Limiting 감지 - 로그인 상태 확인 불가');
+        Logger.log('⚠️ Rate Limiting 감지 - 로그인 상태 확인 불가');
         // Rate Limiting인 경우 기본적으로 로그아웃 상태로 처리
         setLoggedOutState();
       } else {
-        console.log('⚠️ 인증 확인 실패:', error.message);
+        Logger.log('⚠️ 인증 확인 실패:', error.message);
         setLoggedOutState();
       }
     }

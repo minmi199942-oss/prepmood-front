@@ -4,7 +4,7 @@ const mysql = require('mysql2/promise');
 const { authenticateToken } = require('./auth-middleware');
 require('dotenv').config();
 
-// 데이터베이스 연결 설정
+// ?�이?�베?�스 ?�결 ?�정
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -14,21 +14,21 @@ const dbConfig = {
 };
 
 // ====================================
-// 장바구니 API 라우트
+// ?�바구니 API ?�우??
 // ====================================
 
-// JWT 인증 미들웨어 사용 (auth-middleware.js에서 import)
+// JWT ?�증 미들?�어 ?�용 (auth-middleware.js?�서 import)
 
-// 장바구니 조회
+// ?�바구니 조회
 router.get('/cart', authenticateToken, async (req, res) => {
   try {
-    console.log('🛒 장바구니 조회 시도:', req.user.userId);
+    Logger.log('?�� ?�바구니 조회 ?�도:', req.user.userId);
     
     const connection = await mysql.createConnection(dbConfig);
-    console.log('✅ 데이터베이스 연결 성공');
+    Logger.log('???�이?�베?�스 ?�결 ?�공');
     
     try {
-      // 사용자의 장바구니 조회 또는 생성
+      // ?�용?�의 ?�바구니 조회 ?�는 ?�성
       let [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
         [req.user.userId]
@@ -36,19 +36,19 @@ router.get('/cart', authenticateToken, async (req, res) => {
 
       let cartId;
       if (carts.length === 0) {
-        // 장바구니가 없으면 생성
+        // ?�바구니가 ?�으�??�성
         const [result] = await connection.execute(
           'INSERT INTO carts (user_id) VALUES (?)',
           [req.user.userId]
         );
         cartId = result.insertId;
-        console.log('🆕 새 장바구니 생성:', cartId);
+        Logger.log('?�� ???�바구니 ?�성:', cartId);
       } else {
         cartId = carts[0].cart_id;
-        console.log('📋 기존 장바구니 사용:', cartId);
+        Logger.log('?�� 기존 ?�바구니 ?�용:', cartId);
       }
 
-      // 장바구니 아이템 조회 (상품 정보 포함)
+      // ?�바구니 ?�이??조회 (?�품 ?�보 ?�함)
       const [items] = await connection.execute(`
         SELECT 
           ci.item_id,
@@ -67,7 +67,7 @@ router.get('/cart', authenticateToken, async (req, res) => {
         ORDER BY ci.created_at DESC
       `, [cartId]);
 
-      console.log(`📋 장바구니 조회: 사용자 ${req.user.userId} - ${items.length}개 항목`);
+      Logger.log(`?�� ?�바구니 조회: ?�용??${req.user.userId} - ${items.length}�???��`);
 
       res.json({
         success: true,
@@ -80,27 +80,27 @@ router.get('/cart', authenticateToken, async (req, res) => {
       connection.end();
     }
   } catch (error) {
-    console.error('❌ 장바구니 조회 오류:', error);
+    console.error('???�바구니 조회 ?�류:', error);
     res.status(500).json({ 
       success: false, 
-      message: '장바구니 조회에 실패했습니다.',
+      message: '?�바구니 조회???�패?�습?�다.',
       error: error.message 
     });
   }
 });
 
-// 장바구니에 상품 추가
+// ?�바구니???�품 추�?
 router.post('/cart/add', authenticateToken, async (req, res) => {
   try {
     const { productId, quantity = 1, size = null, color = null } = req.body;
 
     if (!productId) {
-      return res.status(400).json({ success: false, message: '상품 ID가 필요합니다.' });
+      return res.status(400).json({ success: false, message: '?�품 ID가 ?�요?�니??' });
     }
 
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // 사용자의 장바구니 조회 또는 생성
+      // ?�용?�의 ?�바구니 조회 ?�는 ?�성
       let [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
         [req.user.userId]
@@ -117,7 +117,7 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
         cartId = carts[0].cart_id;
       }
 
-      // 상품이 이미 장바구니에 있는지 확인
+      // ?�품???��? ?�바구니???�는지 ?�인
       const [existing] = await connection.execute(`
         SELECT item_id, quantity FROM cart_items 
         WHERE cart_id = ? AND product_id = ? AND 
@@ -126,22 +126,22 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
       `, [cartId, productId, size, size, color, color]);
 
       if (existing.length > 0) {
-        // 이미 있으면 수량 증가
+        // ?��? ?�으�??�량 증�?
         await connection.execute(
           'UPDATE cart_items SET quantity = quantity + ? WHERE item_id = ?',
           [quantity, existing[0].item_id]
         );
-        console.log(`🔄 장바구니 수량 업데이트: 사용자 ${req.user.userId} - ${productId} (${existing[0].quantity} → ${existing[0].quantity + quantity})`);
+        Logger.log(`?�� ?�바구니 ?�량 ?�데?�트: ?�용??${req.user.userId} - ${productId} (${existing[0].quantity} ??${existing[0].quantity + quantity})`);
       } else {
-        // 없으면 새로 추가
+        // ?�으�??�로 추�?
         await connection.execute(
           'INSERT INTO cart_items (cart_id, product_id, quantity, size, color) VALUES (?, ?, ?, ?, ?)',
           [cartId, productId, quantity, size, color]
         );
-        console.log(`➕ 장바구니에 추가: 사용자 ${req.user.userId} - ${productId}`);
+        Logger.log(`???�바구니??추�?: ?�용??${req.user.userId} - ${productId}`);
       }
 
-      // 업데이트된 장바구니 정보 조회
+      // ?�데?�트???�바구니 ?�보 조회
       const [items] = await connection.execute(`
         SELECT COUNT(*) as count, SUM(quantity) as total_quantity
         FROM cart_items WHERE cart_id = ?
@@ -149,7 +149,7 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
 
       res.json({
         success: true,
-        message: '장바구니에 추가되었습니다.',
+        message: '?�바구니??추�??�었?�니??',
         cartSummary: {
           itemCount: items[0].count,
           totalQuantity: items[0].total_quantity
@@ -159,30 +159,30 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
       connection.end();
     }
   } catch (error) {
-    console.error('❌ 장바구니 추가 오류:', error);
+    console.error('???�바구니 추�? ?�류:', error);
     
-    // 중복 키 오류 처리
+    // 중복 ???�류 처리
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ success: false, message: '이미 장바구니에 있는 상품입니다.' });
+      return res.status(400).json({ success: false, message: '?��? ?�바구니???�는 ?�품?�니??' });
     }
     
-    res.status(500).json({ success: false, message: '장바구니 추가에 실패했습니다.' });
+    res.status(500).json({ success: false, message: '?�바구니 추�????�패?�습?�다.' });
   }
 });
 
-// 장바구니 아이템 수량 변경
+// ?�바구니 ?�이???�량 변�?
 router.put('/cart/item/:itemId', authenticateToken, async (req, res) => {
   try {
     const { itemId } = req.params;
     const { quantity } = req.body;
 
     if (!quantity || quantity < 1) {
-      return res.status(400).json({ success: false, message: '수량은 1 이상이어야 합니다.' });
+      return res.status(400).json({ success: false, message: '?�량?� 1 ?�상?�어???�니??' });
     }
 
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // 아이템이 사용자의 장바구니에 속하는지 확인
+      // ?�이?�이 ?�용?�의 ?�바구니???�하?��? ?�인
       const [items] = await connection.execute(`
         SELECT ci.item_id FROM cart_items ci
         JOIN carts c ON ci.cart_id = c.cart_id
@@ -190,35 +190,35 @@ router.put('/cart/item/:itemId', authenticateToken, async (req, res) => {
       `, [itemId, req.user.userId]);
 
       if (items.length === 0) {
-        return res.status(404).json({ success: false, message: '장바구니 아이템을 찾을 수 없습니다.' });
+        return res.status(404).json({ success: false, message: '?�바구니 ?�이?�을 찾을 ???�습?�다.' });
       }
 
-      // 수량 업데이트
+      // ?�량 ?�데?�트
       await connection.execute(
         'UPDATE cart_items SET quantity = ? WHERE item_id = ?',
         [quantity, itemId]
       );
 
-      console.log(`🔄 장바구니 수량 변경: 사용자 ${req.user.userId} - 아이템 ${itemId} → 수량 ${quantity}`);
+      Logger.log(`?�� ?�바구니 ?�량 변�? ?�용??${req.user.userId} - ?�이??${itemId} ???�량 ${quantity}`);
 
-      res.json({ success: true, message: '수량이 변경되었습니다.' });
+      res.json({ success: true, message: '?�량??변경되?�습?�다.' });
     } finally {
       connection.end();
     }
   } catch (error) {
-    console.error('❌ 장바구니 수량 변경 오류:', error);
-    res.status(500).json({ success: false, message: '수량 변경에 실패했습니다.' });
+    console.error('???�바구니 ?�량 변�??�류:', error);
+    res.status(500).json({ success: false, message: '?�량 변경에 ?�패?�습?�다.' });
   }
 });
 
-// 장바구니 아이템 삭제
+// ?�바구니 ?�이????��
 router.delete('/cart/item/:itemId', authenticateToken, async (req, res) => {
   try {
     const { itemId } = req.params;
 
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // 아이템이 사용자의 장바구니에 속하는지 확인
+      // ?�이?�이 ?�용?�의 ?�바구니???�하?��? ?�인
       const [items] = await connection.execute(`
         SELECT ci.item_id, ci.product_id FROM cart_items ci
         JOIN carts c ON ci.cart_id = c.cart_id
@@ -226,33 +226,33 @@ router.delete('/cart/item/:itemId', authenticateToken, async (req, res) => {
       `, [itemId, req.user.userId]);
 
       if (items.length === 0) {
-        return res.status(404).json({ success: false, message: '장바구니 아이템을 찾을 수 없습니다.' });
+        return res.status(404).json({ success: false, message: '?�바구니 ?�이?�을 찾을 ???�습?�다.' });
       }
 
-      // 아이템 삭제
+      // ?�이????��
       await connection.execute(
         'DELETE FROM cart_items WHERE item_id = ?',
         [itemId]
       );
 
-      console.log(`🗑️ 장바구니에서 삭제: 사용자 ${req.user.userId} - ${items[0].product_id}`);
+      Logger.log(`?���??�바구니?�서 ??��: ?�용??${req.user.userId} - ${items[0].product_id}`);
 
-      res.json({ success: true, message: '장바구니에서 삭제되었습니다.' });
+      res.json({ success: true, message: '?�바구니?�서 ??��?�었?�니??' });
     } finally {
       connection.end();
     }
   } catch (error) {
-    console.error('❌ 장바구니 삭제 오류:', error);
-    res.status(500).json({ success: false, message: '삭제에 실패했습니다.' });
+    console.error('???�바구니 ??�� ?�류:', error);
+    res.status(500).json({ success: false, message: '??��???�패?�습?�다.' });
   }
 });
 
-// 장바구니 전체 비우기
+// ?�바구니 ?�체 비우�?
 router.delete('/cart/clear', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // 사용자의 장바구니 조회
+      // ?�용?�의 ?�바구니 조회
       const [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
         [req.user.userId]
@@ -263,20 +263,20 @@ router.delete('/cart/clear', authenticateToken, async (req, res) => {
           'DELETE FROM cart_items WHERE cart_id = ?',
           [carts[0].cart_id]
         );
-        console.log(`🗑️ 장바구니 전체 비우기: 사용자 ${req.user.userId}`);
+        Logger.log(`?���??�바구니 ?�체 비우�? ?�용??${req.user.userId}`);
       }
 
-      res.json({ success: true, message: '장바구니가 비워졌습니다.' });
+      res.json({ success: true, message: '?�바구니가 비워졌습?�다.' });
     } finally {
       connection.end();
     }
   } catch (error) {
-    console.error('❌ 장바구니 비우기 오류:', error);
-    res.status(500).json({ success: false, message: '장바구니 비우기에 실패했습니다.' });
+    console.error('???�바구니 비우�??�류:', error);
+    res.status(500).json({ success: false, message: '?�바구니 비우기에 ?�패?�습?�다.' });
   }
 });
 
-// 장바구니 아이템 개수 조회 (헤더용)
+// ?�바구니 ?�이??개수 조회 (?�더??
 router.get('/cart/count', authenticateToken, async (req, res) => {
   try {
     const connection = await mysql.createConnection(dbConfig);
@@ -300,8 +300,8 @@ router.get('/cart/count', authenticateToken, async (req, res) => {
       connection.end();
     }
   } catch (error) {
-    console.error('❌ 장바구니 개수 조회 오류:', error);
-    res.json({ success: true, count: 0 }); // 오류 시 0 반환
+    console.error('???�바구니 개수 조회 ?�류:', error);
+    res.json({ success: true, count: 0 }); // ?�류 ??0 반환
   }
 });
 
