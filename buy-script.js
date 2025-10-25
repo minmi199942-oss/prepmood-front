@@ -20,13 +20,12 @@
   function findProductById(id) {
     if (!window.CATALOG_DATA) return null;
 
-    for (const gender in window.CATALOG_DATA) {
-      for (const category in window.CATALOG_DATA[gender]) {
-        for (const type in window.CATALOG_DATA[gender][category]) {
-          const products = window.CATALOG_DATA[gender][category][type];
-          const found = products.find(p => p.id === id);
-          if (found) return found;
-        }
+    // 직접 카테고리 구조로 검색
+    for (const category in window.CATALOG_DATA) {
+      for (const type in window.CATALOG_DATA[category]) {
+        const products = window.CATALOG_DATA[category][type];
+        const found = products.find(p => p.id === id);
+        if (found) return found;
       }
     }
     return null;
