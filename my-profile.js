@@ -462,7 +462,7 @@ async function handleEmailSubmit(e) {
         const userData = await userResponse.json();
         
         if (!userData.success) {
-            showError('email-error', '로그?�이 ?�요?�니??');
+            showError('email-error', '로그인이 필요합니다.');
             return;
         }
         
@@ -481,11 +481,11 @@ async function handleEmailSubmit(e) {
         const data = await response.json();
         
         if (data.success) {
-            // ?�공 ??
+            // 성공 처리
             closeAllSidebars();
-            showNotification('?�메?�이 ?�정?�었?�니??');
+            showNotification('이메일이 변경되었습니다.');
             
-            // ?�용???�보 ?�데?�트
+            // 사용자 정보 업데이트
             displayUserInfo();
             
         } else {
@@ -552,7 +552,7 @@ async function handlePasswordSubmit(e) {
         const data = await response.json();
         
         if (data.success) {
-            // ?�공 ??
+            // 성공 처리
             closeAllSidebars();
             showNotification('비�?번호가 ?�정?�었?�니??');
             
