@@ -51,67 +51,73 @@ class GoogleAuthService {
                 database: process.env.DB_NAME
             });
 
-            // 기존 사용자 찾기 (Google ID로만 검색)
+            // 기존 사용자 찾기 (Google ID와 이메일 모두 확인)
             const [existingUsers] = await connection.execute(
-                'SELECT user_id, email, first_name, last_name, phone, birth, google_id, profile_picture FROM users WHERE google_id = ?',
-                [googleUser.googleId]
+                'SELECT user_id, email, first_name, last_name, phone, birth, google_id, profile_picture FROM users WHERE google_id = ? OR email = ?',
+                [googleUser.googleId, googleUser.email]
             );
 
             if (existingUsers.length > 0) {
                 const user = existingUsers[0];
                 
-                // Google ID가 없으면 업데이트
-                if (!user.google_id) {
-                    await connection.execute(
-                        'UPDATE users SET google_id = ?, profile_picture = ? WHERE user_id = ?',
-                        [googleUser.googleId, googleUser.picture, user.user_id]
-                    );
+                // 이메일이 일치하는 경우에만 기존 사용자 사용
+                if (user.email === googleUser.email) {
+                    // Google ID가 없으면 업데이트
+                    if (!user.google_id) {
+                        await connection.execute(
+                            'UPDATE users SET google_id = ?, profile_picture = ? WHERE user_id = ?',
+                            [googleUser.googleId, googleUser.picture, user.user_id]
+                        );
+                    }
+
+                    return {
+                        success: true,
+                        user: {
+                            id: user.user_id,
+                            email: user.email,
+                            name: user.first_name || user.last_name || googleUser.name,
+                            firstName: user.first_name,
+                            lastName: user.last_name,
+                            phone: user.phone || null,
+                            birthdate: user.birth || null,
+                            googleId: googleUser.googleId,
+                            profilePicture: googleUser.picture
+                        }
+                    };
+                } else {
+                    // 이메일이 다르면 새 사용자로 처리
+                    console.log(`⚠️ Google ID 충돌: 기존 사용자 ${user.email}, 새 사용자 ${googleUser.email}`);
                 }
-
-                return {
-                    success: true,
-                    user: {
-                        id: user.user_id,
-                        email: user.email,
-                        name: user.first_name || user.last_name || googleUser.name,
-                        firstName: user.first_name,
-                        lastName: user.last_name,
-                        phone: user.phone || null,
-                        birthdate: user.birth || null,
-                        googleId: googleUser.googleId,
-                        profilePicture: googleUser.picture
-                    }
-                };
-            } else {
-                // 새 사용자 생성
-                const hashedPassword = await bcrypt.hash(googleUser.googleId, 10);
-                
-                const [result] = await connection.execute(
-                    'INSERT INTO users (email, first_name, password_hash, google_id, profile_picture, email_verified, verified) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    [
-                        googleUser.email,
-                        googleUser.name,
-                        hashedPassword,
-                        googleUser.googleId,
-                        googleUser.picture,
-                        googleUser.emailVerified ? 1 : 0,
-                        1  // Google 로그인 사용자는 자동으로 인증됨
-                    ]
-                );
-
-                return {
-                    success: true,
-                    user: {
-                        id: result.insertId,
-                        email: googleUser.email,
-                        name: googleUser.name,
-                        phone: null,
-                        birthdate: null,
-                        googleId: googleUser.googleId,
-                        profilePicture: googleUser.picture
-                    }
-                };
             }
+            
+            // 새 사용자 생성 (기존 사용자가 없거나 이메일이 다른 경우)
+            const hashedPassword = await bcrypt.hash(googleUser.googleId, 10);
+            
+            const [result] = await connection.execute(
+                'INSERT INTO users (email, first_name, password_hash, google_id, profile_picture, email_verified, verified) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [
+                    googleUser.email,
+                    googleUser.name,
+                    hashedPassword,
+                    googleUser.googleId,
+                    googleUser.picture,
+                    googleUser.emailVerified ? 1 : 0,
+                    1  // Google 로그인 사용자는 자동으로 인증됨
+                ]
+            );
+
+            return {
+                success: true,
+                user: {
+                    id: result.insertId,
+                    email: googleUser.email,
+                    name: googleUser.name,
+                    phone: null,
+                    birthdate: null,
+                    googleId: googleUser.googleId,
+                    profilePicture: googleUser.picture
+                }
+            };
         } catch (error) {
             console.error('Google 사용자 처리 실패:', error);
             return {
