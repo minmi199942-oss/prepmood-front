@@ -209,7 +209,6 @@ async function handlePersonalInfoSubmit(e) {
     e.preventDefault();
     
     const name = document.getElementById('edit-name').value.trim();
-    const region = document.getElementById('edit-region').value.trim();
     const phone = document.getElementById('edit-phone').value.trim();
     const birthdate = document.getElementById('edit-birthdate').value;
     
@@ -302,7 +301,6 @@ async function handlePersonalInfoSubmit(e) {
 // 개인정보 제출 버튼 상태 업데이트
 function updatePersonalInfoSubmitButton() {
     const name = document.getElementById('edit-name').value.trim();
-    const region = document.getElementById('edit-region').value.trim();
     const phone = document.getElementById('edit-phone').value.trim();
     const birthdate = document.getElementById('edit-birthdate').value;
     
