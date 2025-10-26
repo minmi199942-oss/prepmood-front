@@ -78,20 +78,11 @@
 
   <!-- Google Identity Services 라이브러리 로드 -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="utils.js" defer></script>
   
   <script>
     // Google OAuth 설정
     const GOOGLE_CLIENT_ID = '496755897469-23ftq4affabq1jegpuph6oer7jes5a5s.apps.googleusercontent.com';
-    
-    // Google Sign-In 초기화
-    function initializeGoogleSignIn() {
-      if (typeof google !== 'undefined' && google.accounts) {
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleSignIn
-        });
-      }
-    }
     
     // Google 로그인 콜백 함수 (429 오류 처리 개선)
     async function handleGoogleSignIn(response) {
@@ -138,6 +129,16 @@
         } else {
           alert('Google 로그인 처리 중 오류가 발생했습니다.\n\n일반 로그인을 이용해주세요.');
         }
+      }
+    }
+    
+    // Google Sign-In 초기화
+    function initializeGoogleSignIn() {
+      if (typeof google !== 'undefined' && google.accounts) {
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleSignIn
+        });
       }
     }
     
@@ -313,13 +314,6 @@
         Logger.log('Apple 로그인 클릭');
       });
 
-      // Google 라이브러리 로드 완료 시 초기화
-      if (typeof google !== 'undefined') {
-        initializeGoogleSignIn();
-      } else {
-        // Google 라이브러리가 아직 로드되지 않은 경우
-        window.addEventListener('load', initializeGoogleSignIn);
-      }
     });
   </script>
 
