@@ -241,6 +241,15 @@ function initializeMypageFunctionality() {
         credentials: 'include'  // httpOnly 쿠키 포함
       });
       
+      // 401 오류인 경우 로그인하지 않은 것으로 처리
+      if (response.status === 401) {
+        throw new Error('Unauthorized');
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.success && data.user) {

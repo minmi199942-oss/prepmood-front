@@ -244,25 +244,46 @@
     alert('빠른 구매 기능은 준비 중입니다.\n장바구니에 추가되었습니다.');
   }
 
-  // 로그인 상태 확인 (JWT 기반)
+  // 로그인 상태 확인 (JWT 기반) - 401 오류 처리 개선
   async function isLoggedIn() {
     try {
       const response = await fetch('https://prepmood.kr/api/auth/me', {
         credentials: 'include'
       });
+      
+      // 401 오류인 경우 로그인하지 않은 것으로 처리
+      if (response.status === 401) {
+        return false;
+      }
+      
+      if (!response.ok) {
+        return false;
+      }
+      
       const data = await response.json();
       return data.success && data.user;
     } catch (error) {
+      // 네트워크 오류나 기타 오류는 로그인하지 않은 것으로 처리
       return false;
     }
   }
 
-  // 사용자 이메일 가져오기 (JWT 기반)
+  // 사용자 이메일 가져오기 (JWT 기반) - 401 오류 처리 개선
   async function getUserEmail() {
     try {
       const response = await fetch('https://prepmood.kr/api/auth/me', {
         credentials: 'include'
       });
+      
+      // 401 오류인 경우 null 반환
+      if (response.status === 401) {
+        return null;
+      }
+      
+      if (!response.ok) {
+        return null;
+      }
+      
       const data = await response.json();
       return data.success && data.user ? data.user.email : null;
     } catch (error) {
