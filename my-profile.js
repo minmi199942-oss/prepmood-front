@@ -374,7 +374,7 @@ function resetAllForms() {
         clearError('email-error');
     }
     
-    // 비�?번호 ??초기??
+    // 비밀번호 폼 초기화
     const passwordForm = document.getElementById('password-form');
     if (passwordForm) {
         passwordForm.reset();
@@ -384,27 +384,27 @@ function resetAllForms() {
     }
 }
 
-// ???�벤??초기??
+// 이벤트 초기화
 function initializeFormEvents() {
-    // 개인?�보 ??
+    // 개인정보 폼
     const personalInfoForm = document.getElementById('personal-info-form');
     personalInfoForm.addEventListener('submit', handlePersonalInfoSubmit);
     
-    // 개인?�보 ???�력 ?�벤??
+    // 개인정보 폼 입력 이벤트
     const personalInfoInputs = personalInfoForm.querySelectorAll('input');
     personalInfoInputs.forEach(input => {
         input.addEventListener('input', updatePersonalInfoSubmitButton);
     });
     
-    // ?�메????
+    // 이메일 폼
     const emailForm = document.getElementById('email-form');
     emailForm.addEventListener('submit', handleEmailSubmit);
     
-    // 비�?번호 ??
+    // 비밀번호 폼
     const passwordForm = document.getElementById('password-form');
     passwordForm.addEventListener('submit', handlePasswordSubmit);
     
-    // 비�?번호 ?��? 버튼
+    // 비밀번호 변경 버튼
     const passwordToggles = document.querySelectorAll('.password-toggle');
     passwordToggles.forEach(toggle => {
         toggle.addEventListener('click', function() {
@@ -414,7 +414,7 @@ function initializeFormEvents() {
         });
     });
     
-    // 비�?번호 ?�력 ?�시�?검�?
+    // 비밀번호 입력 시 검증
     const currentPasswordInput = document.getElementById('current-password');
     const newPasswordInput = document.getElementById('new-password');
     const confirmPasswordInput = document.getElementById('confirm-password');
@@ -424,21 +424,21 @@ function initializeFormEvents() {
     confirmPasswordInput.addEventListener('input', updatePasswordSubmitButton);
 }
 
-// ?�메???�정 처리
+// 이메일 변경 처리
 async function handleEmailSubmit(e) {
     e.preventDefault();
     
     const emailInput = document.getElementById('new-email');
     const email = emailInput.value.trim();
     
-    // ?�메???�효??검??
+    // 이메일 유효성 검증
     if (!email) {
-        showError('email-error', '?�바�??�메??주소�??�력?�세??');
+        showError('email-error', '올바른 이메일 주소를 입력해주세요.');
         return;
     }
     
     if (!isValidEmail(email)) {
-        showError('email-error', '?�바�??�메??주소�??�력?�세??');
+        showError('email-error', '올바른 이메일 주소를 입력해주세요.');
         return;
     }
     
