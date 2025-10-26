@@ -5,7 +5,7 @@ const { authenticateToken } = require('./auth-middleware');
 const Logger = require('./logger');
 require('dotenv').config();
 
-// ?�이?�베?�스 ?�결 ?�정
+// 데이터베이스 연결 설정
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -15,21 +15,21 @@ const dbConfig = {
 };
 
 // ====================================
-// ?�바구니 API ?�우??
+// 장바구니 API 라우터
 // ====================================
 
-// JWT ?�증 미들?�어 ?�용 (auth-middleware.js?�서 import)
+// JWT 인증 미들웨어 사용 (auth-middleware.js에서 import)
 
-// ?�바구니 조회
+// 장바구니 조회
 router.get('/cart', authenticateToken, async (req, res) => {
   try {
-    Logger.log('?�� ?�바구니 조회 ?�도:', req.user.userId);
+    Logger.log('사용자 장바구니 조회 요청:', req.user.userId);
     
     const connection = await mysql.createConnection(dbConfig);
-    Logger.log('???�이?�베?�스 ?�결 ?�공');
+    Logger.log('데이터베이스 연결 성공');
     
     try {
-      // ?�용?�의 ?�바구니 조회 ?�는 ?�성
+      // 사용자의 장바구니 조회 또는 생성
       let [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
         [req.user.userId]
@@ -37,19 +37,19 @@ router.get('/cart', authenticateToken, async (req, res) => {
 
       let cartId;
       if (carts.length === 0) {
-        // ?�바구니가 ?�으�??�성
+        // 장바구니가 없으면 생성
         const [result] = await connection.execute(
           'INSERT INTO carts (user_id) VALUES (?)',
           [req.user.userId]
         );
         cartId = result.insertId;
-        Logger.log('?�� ???�바구니 ?�성:', cartId);
+        Logger.log('새로운 장바구니 생성:', cartId);
       } else {
         cartId = carts[0].cart_id;
-        Logger.log('?�� 기존 ?�바구니 ?�용:', cartId);
+        Logger.log('기존 장바구니 사용:', cartId);
       }
 
-      // ?�바구니 ?�이??조회 (?�품 ?�보 ?�함)
+      // 장바구니 아이템 조회 (상품 정보 포함)
       const [items] = await connection.execute(`
         SELECT 
           ci.item_id,
@@ -68,7 +68,7 @@ router.get('/cart', authenticateToken, async (req, res) => {
         ORDER BY ci.created_at DESC
       `, [cartId]);
 
-      Logger.log(`?�� ?�바구니 조회: ?�용??${req.user.userId} - ${items.length}�???��`);
+      Logger.log(`사용자 장바구니 조회: 사용자${req.user.userId} - ${items.length}개 아이템`);
 
       res.json({
         success: true,
@@ -81,7 +81,7 @@ router.get('/cart', authenticateToken, async (req, res) => {
       connection.end();
     }
   } catch (error) {
-    console.error('???�바구니 조회 ?�류:', error);
+    console.error('장바구니 조회 오류:', error);
     res.status(500).json({ 
       success: false, 
       message: '?�바구니 조회???�패?�습?�다.',
@@ -101,7 +101,7 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
 
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // ?�용?�의 ?�바구니 조회 ?�는 ?�성
+      // 사용자의 장바구니 조회 또는 생성
       let [carts] = await connection.execute(
         'SELECT cart_id FROM carts WHERE user_id = ?',
         [req.user.userId]
