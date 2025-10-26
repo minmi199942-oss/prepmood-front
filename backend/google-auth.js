@@ -58,22 +58,23 @@ class GoogleAuthService {
                 database: process.env.DB_NAME
             });
 
-            // 기존 사용자 찾기 (Google ID와 이메일 모두 확인)
+            // 이메일로 정확한 사용자 찾기 (우선순위: 이메일 일치)
             console.log('🔍 사용자 검색:', {
                 googleId: googleUser.googleId,
                 email: googleUser.email
             });
             
-            const [existingUsers] = await connection.execute(
-                'SELECT user_id, email, first_name, last_name, phone, birth, google_id, profile_picture FROM users WHERE google_id = ? OR email = ?',
-                [googleUser.googleId, googleUser.email]
+            // 1단계: 이메일로 정확한 사용자 찾기
+            const [emailUsers] = await connection.execute(
+                'SELECT user_id, email, first_name, last_name, phone, birth, google_id, profile_picture FROM users WHERE email = ?',
+                [googleUser.email]
             );
             
-            console.log('📋 검색 결과:', existingUsers);
+            console.log('📋 이메일 검색 결과:', emailUsers);
 
-            if (existingUsers.length > 0) {
-                const user = existingUsers[0];
-                console.log('👤 기존 사용자 발견:', {
+            if (emailUsers.length > 0) {
+                const user = emailUsers[0];
+                console.log('👤 이메일로 기존 사용자 발견:', {
                     userId: user.user_id,
                     email: user.email,
                     googleId: user.google_id,
@@ -81,39 +82,49 @@ class GoogleAuthService {
                     lastName: user.last_name
                 });
                 
-                // 이메일이 일치하는 경우에만 기존 사용자 사용
-                if (user.email === googleUser.email) {
-                    console.log('✅ 이메일 일치 - 기존 사용자 사용');
-                    // Google ID가 없으면 업데이트
-                    if (!user.google_id) {
-                        await connection.execute(
-                            'UPDATE users SET google_id = ?, profile_picture = ? WHERE user_id = ?',
-                            [googleUser.googleId, googleUser.picture, user.user_id]
-                        );
-                    }
-
-                    return {
-                        success: true,
-                        user: {
-                            id: user.user_id,
-                            email: user.email,
-                            name: user.first_name || user.last_name || googleUser.name,
-                            firstName: user.first_name,
-                            lastName: user.last_name,
-                            phone: user.phone || null,
-                            birthdate: user.birth || null,
-                            googleId: googleUser.googleId,
-                            profilePicture: googleUser.picture
-                        }
-                    };
-                } else {
-                    // 이메일이 다르면 새 사용자로 처리
-                    console.log(`⚠️ Google ID 충돌: 기존 사용자 ${user.email}, 새 사용자 ${googleUser.email}`);
-                    console.log('🔄 새 사용자로 처리');
+                // Google ID가 없거나 다르면 업데이트
+                if (!user.google_id || user.google_id !== googleUser.googleId) {
+                    console.log('🔄 Google ID 업데이트 중...');
+                    await connection.execute(
+                        'UPDATE users SET google_id = ?, profile_picture = ? WHERE user_id = ?',
+                        [googleUser.googleId, googleUser.picture, user.user_id]
+                    );
                 }
-            } else {
-                console.log('🆕 기존 사용자 없음 - 새 사용자 생성');
+
+                return {
+                    success: true,
+                    user: {
+                        id: user.user_id,
+                        email: user.email,
+                        name: user.first_name || user.last_name || googleUser.name,
+                        firstName: user.first_name,
+                        lastName: user.last_name,
+                        phone: user.phone || null,
+                        birthdate: user.birth || null,
+                        googleId: googleUser.googleId,
+                        profilePicture: googleUser.picture
+                    }
+                };
             }
+
+            // 2단계: Google ID로 다른 사용자가 있는지 확인 (충돌 방지)
+            const [googleIdUsers] = await connection.execute(
+                'SELECT user_id, email FROM users WHERE google_id = ?',
+                [googleUser.googleId]
+            );
+            
+            if (googleIdUsers.length > 0) {
+                console.log(`⚠️ Google ID 충돌 감지: 기존 사용자 ${googleIdUsers[0].email}, 새 사용자 ${googleUser.email}`);
+                console.log('🔄 새 사용자로 처리 (Google ID 업데이트)');
+                
+                // 기존 사용자의 Google ID 제거 (충돌 해결)
+                await connection.execute(
+                    'UPDATE users SET google_id = NULL WHERE google_id = ?',
+                    [googleUser.googleId]
+                );
+            }
+
+            console.log('🆕 새 사용자 생성');
             
             // 새 사용자 생성 (기존 사용자가 없거나 이메일이 다른 경우)
             console.log('📝 새 사용자 생성 중:', {

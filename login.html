@@ -110,6 +110,8 @@
         Logger.log('백엔드 응답:', data);
 
         if (data.success) {
+          // JWT 토큰은 httpOnly 쿠키로 자동 설정됨
+          // 최소한의 정보만 sessionStorage에 저장 (환영 메시지용)
           sessionStorage.setItem('userName', data.user.name);
           
           if (data.needsAdditionalInfo) {

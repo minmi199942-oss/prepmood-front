@@ -248,17 +248,42 @@
             ? window.location.origin 
             : 'https://prepmood.kr';
 
-        // 로그인 상태 확인
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
-        const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+        // 로그인 상태 확인 (JWT 쿠키 기반)
+        let user = null;
+        let isLoggedIn = false;
 
-        if (!isLoggedIn || !user) {
-            alert('로그인이 필요합니다');
-            window.location.href = 'login.html';
+        // 서버에서 사용자 정보 가져오기
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        user = data.user;
+                        isLoggedIn = true;
+                        Logger.log('로그인 상태 확인 성공:', user);
+                    }
+                }
+            } catch (error) {
+                Logger.log('로그인 상태 확인 실패:', error);
+            }
+
+            if (!isLoggedIn || !user) {
+                alert('로그인이 필요합니다');
+                window.location.href = 'login.html';
+                return;
+            }
         }
 
         // Google 정보 표시
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 먼저 로그인 상태 확인
+            await checkLoginStatus();
+            
             const googleInfoDiv = document.getElementById('googleInfo');
             
             if (user.profilePicture) {
@@ -335,11 +360,7 @@
                 if (data.success) {
                     alert('추가 정보가 저장되었습니다!');
                     
-                    // 사용자 정보 업데이트
-                    const updatedUser = { ...user, ...formData };
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    
-                    // 메인으로 리디렉션
+                    // 메인으로 리디렉션 (JWT 쿠키는 이미 서버에서 업데이트됨)
                     window.location.href = 'index.html';
                 } else {
                     throw new Error(data.error || '정보 저장에 실패했습니다.');
