@@ -243,7 +243,19 @@ function initializeMypageFunctionality() {
       
       // 401 오류인 경우 로그인하지 않은 것으로 처리
       if (response.status === 401) {
-        throw new Error('Unauthorized');
+        // 로그인하지 않은 상태로 처리
+        mypageToggle.href = 'login.html';
+        mypageIcon.src = 'image/mypage.jpg';
+        mypageIcon.classList.remove('mypage-icon-logged-in');
+        
+        // 비로그인 상태일 때 장바구니 숨기기
+        if (window.miniCart) {
+          window.miniCart.hideCartForLogout();
+          console.log('🛒 비로그인 상태 - 장바구니 숨김');
+        }
+        
+        console.log('❌ 비로그인 상태');
+        return;
       }
       
       if (!response.ok) {
