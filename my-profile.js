@@ -489,17 +489,17 @@ async function handleEmailSubmit(e) {
             displayUserInfo();
             
         } else {
-            // ?�패 ??
-            showError('email-error', data.message || '?�메??변경에 ?�패?�습?�다.');
+            // 실패 처리
+            showError('email-error', data.message || '이메일 변경에 실패했습니다.');
         }
         
     } catch (error) {
-        console.error('?�메??변�??�류:', error);
-        showError('email-error', '?�트?�크 ?�류가 발생?�습?�다.');
+        console.error('이메일 변경 오류:', error);
+        showError('email-error', '네트워크 오류가 발생했습니다.');
     }
 }
 
-// 비�?번호 ?�정 처리
+// 비밀번호 변경 처리
 async function handlePasswordSubmit(e) {
     e.preventDefault();
     
@@ -507,7 +507,7 @@ async function handlePasswordSubmit(e) {
     const newPassword = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
     
-    // 비�?번호 ?�효??검??
+    // 비밀번호 유효성 검증
     if (!validatePasswords(currentPassword, newPassword, confirmPassword)) {
         return;
     }
@@ -532,7 +532,7 @@ async function handlePasswordSubmit(e) {
         const userData = await userResponse.json();
         
         if (!userData.success) {
-            showError('current-password-error', '로그?�이 ?�요?�니??');
+            showError('current-password-error', '로그인이 필요합니다.');
             return;
         }
         
@@ -554,47 +554,47 @@ async function handlePasswordSubmit(e) {
         if (data.success) {
             // 성공 처리
             closeAllSidebars();
-            showNotification('비�?번호가 ?�정?�었?�니??');
+            showNotification('비밀번호가 변경되었습니다.');
             
         } else {
-            // ?�패 ??
-            showError('current-password-error', data.message || '비�?번호 변경에 ?�패?�습?�다.');
+            // 실패 처리
+            showError('current-password-error', data.message || '비밀번호 변경에 실패했습니다.');
         }
         
     } catch (error) {
-        console.error('비�?번호 변�??�류:', error);
-        showError('current-password-error', '?�트?�크 ?�류가 발생?�습?�다.');
+        console.error('비밀번호 변경 오류:', error);
+        showError('current-password-error', '네트워크 오류가 발생했습니다.');
     }
 }
 
-// 비�?번호 ?�효??검??
+// 비밀번호 유효성 검증
 function validatePasswords(currentPassword, newPassword, confirmPassword) {
     let isValid = true;
     
-    // ?�재 비�?번호 ?�인 (?�제로는 ?�버?�서 ?�인?�야 ??
+    // 현재 비밀번호 확인 (실제로는 서버에서 확인해야 함)
     if (!currentPassword) {
-        showError('current-password-error', '?�재 비�?번호�??�력?�세??');
+        showError('current-password-error', '현재 비밀번호를 입력해주세요.');
         isValid = false;
     }
     
-    // ??비�?번호?� ?�인 비�?번호 ?�치 ?�인
+    // 새 비밀번호와 확인 비밀번호 일치 확인
     if (newPassword !== confirmPassword) {
-        showError('confirm-password-error', '비�?번호?� 비�?번호 ?�인?�???�치?��? ?�습?�다. ?�일??글?��? ?�력?�세??');
+        showError('confirm-password-error', '비밀번호와 비밀번호 확인이 일치하지 않습니다. 동일하게 입력해주세요.');
         isValid = false;
     } else {
         clearError('confirm-password-error');
     }
     
-    // ??비�?번호 길이 ?�인
+    // 새 비밀번호 길이 확인
     if (newPassword && newPassword.length < 8) {
-        showError('confirm-password-error', '비�?번호??8???�상?�어???�니??');
+        showError('confirm-password-error', '비밀번호는 8자 이상이어야 합니다.');
         isValid = false;
     }
     
     return isValid;
 }
 
-// 비�?번호 ?�출 버튼 ?�태 ?�데?�트
+// 비밀번호 제출 버튼 상태 업데이트
 function updatePasswordSubmitButton() {
     const currentPassword = document.getElementById('current-password').value;
     const newPassword = document.getElementById('new-password').value;
@@ -602,7 +602,7 @@ function updatePasswordSubmitButton() {
     
     const submitButton = document.getElementById('password-submit');
     
-    // 모든 ?�드가 채워지�?비�?번호가 ?�치???�만 ?�성??
+    // 모든 필드가 채워지고 비밀번호가 일치할 때만 활성화
     const isValid = currentPassword && 
                    newPassword && 
                    confirmPassword && 
@@ -612,24 +612,24 @@ function updatePasswordSubmitButton() {
     submitButton.disabled = !isValid;
 }
 
-// 비�?번호 ?�시/?�기�??��?
+// 비밀번호 보기/숨기기 토글
 function togglePasswordVisibility(input, toggleButton) {
     if (input.type === 'password') {
         input.type = 'text';
-        toggleButton.textContent = '?��';
+        toggleButton.textContent = '보기';
     } else {
         input.type = 'password';
         toggleButton.textContent = '숨기기';
     }
 }
 
-// ?�메???�효??검??
+// 이메일 유효성 검증
 function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
 
-// ?�러 메시지 ?�시
+// 에러 메시지 표시
 function showError(elementId, message) {
     const errorElement = document.getElementById(elementId);
     if (errorElement) {
@@ -637,14 +637,14 @@ function showError(elementId, message) {
         errorElement.classList.add('show');
     }
     
-    // ?�력 ?�드???�러 ?�래??추�?
+    // 입력 필드에 에러 클래스 추가
     const inputElement = errorElement.previousElementSibling;
     if (inputElement && inputElement.tagName === 'INPUT') {
         inputElement.classList.add('error');
     }
 }
 
-// ?�러 메시지 ?�기�?
+// 에러 메시지 숨기기
 function clearError(elementId) {
     const errorElement = document.getElementById(elementId);
     if (errorElement) {
@@ -652,14 +652,14 @@ function clearError(elementId) {
         errorElement.textContent = '';
     }
     
-    // ?�력 ?�드?�서 ?�러 ?�래???�거
+    // 입력 필드에서 에러 클래스 제거
     const inputElement = errorElement.previousElementSibling;
     if (inputElement && inputElement.tagName === 'INPUT') {
         inputElement.classList.remove('error');
     }
 }
 
-// ???�러 메시지 ?�시
+// 폼 에러 메시지 표시
 function showFormError(elementId, message) {
     const errorElement = document.getElementById(elementId);
     if (errorElement) {
@@ -668,7 +668,7 @@ function showFormError(elementId, message) {
     }
 }
 
-// ???�러 메시지 ?�기�?
+// 폼 에러 메시지 숨기기
 function clearFormError(elementId) {
     const errorElement = document.getElementById(elementId);
     if (errorElement) {
@@ -677,7 +677,7 @@ function clearFormError(elementId) {
     }
 }
 
-// ?�림 메시지 ?�시
+// 알림 메시지 표시
 function showNotification(message) {
     const notification = document.getElementById('notification');
     const messageElement = document.getElementById('notification-message');
@@ -685,13 +685,13 @@ function showNotification(message) {
     messageElement.textContent = message;
     notification.classList.add('show');
     
-    // 3�????�동 ?�기�?
+    // 3초 후 자동 숨기기
     setTimeout(() => {
         notification.classList.remove('show');
     }, 3000);
 }
 
-// ?�비게이??초기??
+// 네비게이션 초기화
 function initializeNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
     
@@ -699,22 +699,22 @@ function initializeNavigation() {
         item.addEventListener('click', function(e) {
             e.preventDefault();
             
-            // 모든 ?�비게이???�이?�에??active ?�래???�거
+            // 모든 네비게이션 아이템에서 active 클래스 제거
             navItems.forEach(nav => {
                 nav.classList.remove('active');
             });
             
-            // ?�릭???�이?�에 active ?�래??추�?
+            // 클릭한 아이템에 active 클래스 추가
             this.classList.add('active');
             
-            // ?�이지 ?�동 (?�제 구현 ??
+            // 페이지 이동 (현재 구현 없음)
             const page = this.dataset.page;
             handleNavigation(page);
         });
     });
 }
 
-// ?�이지 ?�비게이??처리
+// 페이지 네비게이션 처리
 function handleNavigation(page) {
     switch (page) {
         case 'orders':
@@ -724,18 +724,18 @@ function handleNavigation(page) {
             window.location.href = 'my-reservations.html';
             break;
         case 'profile':
-            // ?��? ???�로???�이지???�음
+            // 현재 프로필 페이지이므로 이동 없음
             break;
         default:
-            Logger.log('?????�는 ?�이지:', page);
+            Logger.log('알 수 없는 페이지:', page);
     }
 }
 
-// 로그?�웃 처리 (?�더?�서 ?�출?????�음)
+// 로그아웃 처리 (헤더에서 호출하는 함수)
 function handleLogout() {
-    // JWT 기반 - localStorage 불필?? ?�버?�서 쿠키 ??��
+    // JWT 기반 - localStorage 불필요, 서버에서 쿠키 삭제
     window.location.href = 'index.html';
 }
 
-// ?�역 ?�수�??�록 (?�더?�서 ?�용?????�도�?
+// 전역 함수로 등록 (헤더에서 사용할 수 있도록)
 window.handleLogout = handleLogout;
