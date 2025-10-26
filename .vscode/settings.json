@@ -1,0 +1,15 @@
+{
+  "liveServer.settings.ignoreFiles": [
+    "**/header.html",
+    "**/header.partial.html",
+    "**/*.fragment.html",
+    "**/*.partial.html"
+  ],
+  "liveServer.settings.noBrowserNotifications": true
+}
+
+
+
+
+
+
