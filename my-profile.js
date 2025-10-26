@@ -53,12 +53,24 @@ async function checkLoginStatus() {
     }
 }
 
-// ?�용???�보 ?�시 (JWT 기반)
+// 사용자 정보 표시 (JWT 기반) - 401 오류 처리 개선
 async function displayUserInfo() {
     try {
         const response = await fetch('https://prepmood.kr/api/auth/me', {
             credentials: 'include'
         });
+        
+        // 401 오류인 경우 로그인하지 않은 것으로 처리
+        if (response.status === 401) {
+            alert('로그인이 필요한 페이지입니다');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (data.success && data.user) {
@@ -208,10 +220,22 @@ async function handlePersonalInfoSubmit(e) {
     }
     
     try {
-        // JWT 기반?�로 ?�용???�보 가?�오�?
+        // JWT 기반으로 사용자 정보 가져오기 - 401 오류 처리 개선
         const userResponse = await fetch('https://prepmood.kr/api/auth/me', {
             credentials: 'include'
         });
+        
+        // 401 오류인 경우 로그인하지 않은 것으로 처리
+        if (userResponse.status === 401) {
+            alert('로그인이 필요한 페이지입니다');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        if (!userResponse.ok) {
+            throw new Error(`HTTP ${userResponse.status}`);
+        }
+        
         const userData = await userResponse.json();
         
         if (!userData.success) {
@@ -419,10 +443,22 @@ async function handleEmailSubmit(e) {
     }
     
     try {
-        // JWT 기반?�로 ?�용???�보 가?�오�?
+        // JWT 기반으로 사용자 정보 가져오기 - 401 오류 처리 개선
         const userResponse = await fetch('https://prepmood.kr/api/auth/me', {
             credentials: 'include'
         });
+        
+        // 401 오류인 경우 로그인하지 않은 것으로 처리
+        if (userResponse.status === 401) {
+            alert('로그인이 필요한 페이지입니다');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        if (!userResponse.ok) {
+            throw new Error(`HTTP ${userResponse.status}`);
+        }
+        
         const userData = await userResponse.json();
         
         if (!userData.success) {
@@ -477,10 +513,22 @@ async function handlePasswordSubmit(e) {
     }
     
     try {
-        // JWT 기반?�로 ?�용???�보 가?�오�?
+        // JWT 기반으로 사용자 정보 가져오기 - 401 오류 처리 개선
         const userResponse = await fetch('https://prepmood.kr/api/auth/me', {
             credentials: 'include'
         });
+        
+        // 401 오류인 경우 로그인하지 않은 것으로 처리
+        if (userResponse.status === 401) {
+            alert('로그인이 필요한 페이지입니다');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        if (!userResponse.ok) {
+            throw new Error(`HTTP ${userResponse.status}`);
+        }
+        
         const userData = await userResponse.json();
         
         if (!userData.success) {

@@ -36,12 +36,22 @@
     return true;
   }
 
-  // 사용자 이메일 가져오기 (JWT 기반)
+  // 사용자 이메일 가져오기 (JWT 기반) - 401 오류 처리 개선
   async function getUserEmail() {
     try {
       const response = await fetch('https://prepmood.kr/api/auth/me', {
         credentials: 'include'
       });
+      
+      // 401 오류인 경우 null 반환
+      if (response.status === 401) {
+        return null;
+      }
+      
+      if (!response.ok) {
+        return null;
+      }
+      
       const data = await response.json();
       return data.success && data.user ? data.user.email : null;
     } catch (error) {
