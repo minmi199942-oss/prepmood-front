@@ -119,39 +119,11 @@ router.get('/auth/google/status', authenticateToken, async (req, res) => {
 });
 
 // 추가 정보 입력 API
-router.post('/auth/complete-profile', authLimiter, async (req, res) => {
+router.post('/auth/complete-profile', authLimiter, authenticateToken, async (req, res) => {
     let connection;
     try {
-        // JWT 토큰을 쿠키에서 가져오기 (httpOnly 쿠키 사용)
-        const token = req.cookies.token;
-        
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                error: 'No token provided'
-            });
-        }
-
-        const jwt = require('jsonwebtoken');
-        let decoded;
-        
-        try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET);
-        } catch (jwtError) {
-            if (jwtError.name === 'TokenExpiredError') {
-                return res.status(401).json({
-                    success: false,
-                    error: 'Token expired',
-                    expired: true
-                });
-            }
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid token'
-            });
-        }
-        
-        const { lastName, firstName, phone, birth } = req.body;
+        // authenticateToken 미들웨어에서 이미 토큰 검증 완료
+        const userId = req.user.userId;
 
         // 입력 값 검증
         if (!lastName || !firstName) {
@@ -216,7 +188,7 @@ router.post('/auth/complete-profile', authLimiter, async (req, res) => {
         // 사용자 정보 업데이트 (sanitized 값 사용)
         const [result] = await connection.execute(
             'UPDATE users SET last_name = ?, first_name = ?, phone = ?, birth = ? WHERE user_id = ?',
-            [sanitizedLastName, sanitizedFirstName, phone || null, birth || null, decoded.userId]
+            [sanitizedLastName, sanitizedFirstName, phone || null, birth || null, userId]
         );
 
         if (result.affectedRows === 0) {
