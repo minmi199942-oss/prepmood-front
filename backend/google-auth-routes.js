@@ -122,7 +122,8 @@ router.get('/auth/google/status', authenticateToken, async (req, res) => {
 router.post('/auth/complete-profile', authLimiter, async (req, res) => {
     let connection;
     try {
-        const token = req.headers.authorization?.replace('Bearer ', '');
+        // JWT 토큰을 쿠키에서 가져오기 (httpOnly 쿠키 사용)
+        const token = req.cookies.token;
         
         if (!token) {
             return res.status(401).json({
