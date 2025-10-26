@@ -245,7 +245,7 @@ async function handlePersonalInfoSubmit(e) {
         
         // 서버 API 호출 준비 (사용자 데이터 검증 후 사용)
         try {
-            Logger.log('서버 API 호출 준비:', { email: userData.user.email, name, birthdate });
+            Logger.log('서버 API 호출 준비:', { userId: userData.user.userId, name, region, phone, birthdate });
             
             const response = await fetch('https://prepmood.kr/api/update-profile', {
                 method: 'POST',
@@ -254,8 +254,10 @@ async function handlePersonalInfoSubmit(e) {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    email: userData.user.email,
+                    userId: userData.user.userId,
                     name: name,
+                    region: region,
+                    phone: phone,
                     birthdate: birthdate
                 })
             });
