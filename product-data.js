@@ -17,6 +17,17 @@ async function loadProducts() {
     Logger.log('🔄 API에서 상품 데이터 로드 중...');
     
     const response = await fetch('/api/products');
+    
+    // 응답 상태 확인
+    if (!response.ok) {
+      if (response.status === 429) {
+        Logger.warn('⚠️ API 요청 제한 초과, 5초 후 재시도...');
+        setTimeout(loadProducts, 5000); // 5초 후 재시도
+        return;
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
     const data = await response.json();
     
     if (data.success && data.products) {
@@ -52,7 +63,14 @@ async function loadProducts() {
     
   } catch (error) {
     Logger.error('❌ 상품 데이터 로드 오류:', error);
-    window.dispatchEvent(new CustomEvent('productsLoadError'));
+    
+    // 429 오류인 경우 재시도
+    if (error.message.includes('429')) {
+      Logger.warn('⚠️ API 요청 제한 초과, 10초 후 재시도...');
+      setTimeout(loadProducts, 10000); // 10초 후 재시도
+    } else {
+      window.dispatchEvent(new CustomEvent('productsLoadError'));
+    }
   }
 }
 

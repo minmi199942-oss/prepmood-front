@@ -38,19 +38,21 @@ app.use(helmet({
     crossOriginEmbedderPolicy: false
 }));
 
-// Rate Limiting (API 남용 방지)
+// Rate Limiting (API 남용 방지) - 완화된 설정
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15분
-    max: 100, // 15분당 최대 100회 요청으로 증가
+    max: 500, // 15분당 최대 500회 요청으로 증가
     message: {
         success: false,
         message: '너무 많은 요청입니다. 잠시 후 다시 시도해주세요.'
-    }
+    },
+    standardHeaders: true, // `RateLimit-*` 헤더 반환
+    legacyHeaders: false, // `X-RateLimit-*` 헤더 비활성화
 });
 
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15분
-    max: 100 // 15분당 최대 100회 요청
+    max: 500 // 15분당 최대 500회 요청으로 증가
 });
 
 app.use('/api/send-verification', apiLimiter); // 이메일 발송은 더 엄격하게
