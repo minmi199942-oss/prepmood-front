@@ -1,20 +1,20 @@
-// ???�로???�이지 JavaScript
+// 마이프로필 페이지 JavaScript
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // 로그???�태 ?�인
+    // 로그인 상태 확인
     checkLoginStatus();
     
-    // ?�용???�보 ?�시
+    // 사용자 정보 표시
     await displayUserInfo();
     
-    // ?�벤??리스??초기??
+    // 이벤트 리스너 초기화
     initializeEventListeners();
     
-    // ?�비게이???�성??
+    // 네비게이션 초기화
     initializeNavigation();
 });
 
-// 로그???�태 ?�인 (JWT 기반)
+// 로그인 상태 확인 (JWT 기반)
 async function checkLoginStatus() {
     try {
         // 서버에 인증 상태 확인
@@ -42,12 +42,12 @@ async function checkLoginStatus() {
             return false;
         }
         
-        // JWT 기반 로그??- sessionStorage 불필??
+        // JWT 기반 로그인 - sessionStorage 불필요
         
         return true;
     } catch (error) {
-        console.error('로그???�인 ?�류:', error);
-        alert('로그?�이 ?�요???�이지?�니??');
+        console.error('로그인 상태 확인 오류:', error);
+        alert('로그인이 필요한 페이지입니다');
         window.location.href = 'login.html';
         return false;
     }
@@ -78,16 +78,16 @@ async function displayUserInfo() {
             const welcomeText = document.getElementById('user-welcome-text');
             
             if (welcomeText && user.name) {
-                welcomeText.textContent = `${user.name}???�영?�니??`;
+                welcomeText.textContent = `${user.name}님 환영합니다!`;
             }
             
             // ?�용???�보�?�??�드???�시
-            document.getElementById('user-full-name').textContent = user.name || '?�보 ?�음';
+            document.getElementById('user-full-name').textContent = user.name || '정보 없음';
             document.getElementById('user-email').textContent = user.email || '';
             
             // ?�용???�보가 ?�으�??�용, ?�으�?"?�보 ?�음" ?�는 기본�?
             document.getElementById('user-region').textContent = user.region || '정보 없음';
-            document.getElementById('user-phone').textContent = user.phone || '?�보 ?�음';
+            document.getElementById('user-phone').textContent = user.phone || '정보 없음';
             
             // ?�년?�일 ?�식 처리
             if (user.birthdate) {
@@ -95,17 +95,17 @@ async function displayUserInfo() {
                 const formattedBirth = `${birthDate.getFullYear()}. ${String(birthDate.getMonth() + 1).padStart(2, '0')}. ${String(birthDate.getDate()).padStart(2, '0')}.`;
                 document.getElementById('user-birthdate').textContent = formattedBirth;
             } else {
-                document.getElementById('user-birthdate').textContent = '?�보 ?�음';
+                document.getElementById('user-birthdate').textContent = '정보 없음';
             }
         }
     } catch (error) {
-        console.error('?�용???�보 로드 ?�류:', error);
+        console.error('사용자 정보 로드 오류:', error);
     }
 }
 
-// ?�벤??리스??초기??
+// 이벤트 리스너 초기화
 function initializeEventListeners() {
-    // ?�정 버튼 ?�릭 ?�벤??
+    // 수정 버튼 클릭 이벤트
     const editButtons = document.querySelectorAll('.edit-button');
     editButtons.forEach(button => {
         button.addEventListener('click', function() {
@@ -114,14 +114,14 @@ function initializeEventListeners() {
         });
     });
 
-    // ?�이?�바 ?�기 ?�벤??
+    // 사이드바 열기 이벤트
     initializeSidebarEvents();
     
-    // ???�출 ?�벤??
+    // 폼 제출 이벤트
     initializeFormEvents();
 }
 
-// ?�정 버튼 ?�릭 처리
+// 수정 버튼 클릭 처리
 function handleEditClick(field) {
     switch (field) {
         case 'personalInfo':
@@ -137,11 +137,11 @@ function handleEditClick(field) {
             openPaymentSidebar();
             break;
         default:
-            showNotification('?�당 기능?� 준�?중입?�다.');
+            showNotification('해당 기능은 준비 중입니다.');
     }
 }
 
-// ?�메???�정 ?�이?�바 ?�기
+// 이메일 수정 사이드바 열기
 function openEmailSidebar() {
     const overlay = document.getElementById('sidebar-overlay');
     const sidebar = document.getElementById('email-sidebar');
@@ -149,13 +149,13 @@ function openEmailSidebar() {
     overlay.classList.add('show');
     sidebar.classList.add('show');
     
-    // ???�메???�력 ?�드 ?�커??
+    // 새 이메일 입력 필드 포커스
     setTimeout(() => {
         document.getElementById('new-email').focus();
     }, 300);
 }
 
-// 비�?번호 ?�정 ?�이?�바 ?�기
+// 비밀번호 수정 사이드바 열기
 function openPasswordSidebar() {
     const overlay = document.getElementById('sidebar-overlay');
     const sidebar = document.getElementById('password-sidebar');
@@ -163,31 +163,31 @@ function openPasswordSidebar() {
     overlay.classList.add('show');
     sidebar.classList.add('show');
     
-    // ?�재 비�?번호 ?�력 ?�드 ?�커??
+    // 현재 비밀번호 입력 필드 포커스
     setTimeout(() => {
         document.getElementById('current-password').focus();
     }, 300);
 }
 
-// 개인?�보 ?�정 ?�이?�바 ?�기
+// 개인정보 수정 사이드바 열기
 function openPersonalInfoSidebar() {
     const overlay = document.getElementById('sidebar-overlay');
     const sidebar = document.getElementById('personal-info-sidebar');
     
-    // ?�재 값으�?placeholder ?�정
+    // 현재 값으로 placeholder 설정
     const currentName = document.getElementById('user-full-name').textContent;
     const currentRegion = document.getElementById('user-region').textContent;
     const currentPhone = document.getElementById('user-phone').textContent;
     const currentBirthdate = document.getElementById('user-birthdate').textContent;
     
-    // ?�짜 ?�식 변??(2002. 06. 03. -> 2002-06-03)
+    // 날짜 형식 변환 (2002. 06. 03. -> 2002-06-03)
     const formattedDate = currentBirthdate.replace(/\.\s*/g, '-').replace(/\.$/, '').replace(/-$/, '');
     
     document.getElementById('edit-name').placeholder = currentName;
     document.getElementById('edit-region').placeholder = currentRegion;
     document.getElementById('edit-phone').placeholder = currentPhone;
     
-    // ?�짜 ?�식 검�????�정
+    // 날짜 형식 검증 및 설정
     if (formattedDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
         document.getElementById('edit-birthdate').value = formattedDate;
     } else {
@@ -215,7 +215,7 @@ async function handlePersonalInfoSubmit(e) {
     
     // ?�수�?검�?
     if (!name || !region || !phone || !birthdate) {
-        showFormError('personal-info-error', '모든 ?�드�??�력?�주?�요.');
+        showFormError('personal-info-error', '모든 필드를 입력해주세요.');
         return;
     }
     
@@ -239,7 +239,7 @@ async function handlePersonalInfoSubmit(e) {
         const userData = await userResponse.json();
         
         if (!userData.success) {
-            showFormError('personal-info-error', '로그?�이 ?�요?�니??');
+            showFormError('personal-info-error', '로그인이 필요합니다');
             return;
         }
         
@@ -267,7 +267,7 @@ async function handlePersonalInfoSubmit(e) {
             if (data.success) {
                 // ?�버 ?�???�공
                 closeAllSidebars();
-                showNotification('개인?�보가 ?�버???�?�되?�습?�다.');
+                showNotification('개인정보가 서버에 저장되었습니다.');
                 
                 // 로컬???�데?�트
                 userData.name = name;
@@ -285,7 +285,7 @@ async function handlePersonalInfoSubmit(e) {
         
         // ?�버 ?�???�패 ??로컬 ?�??
         closeAllSidebars();
-        showNotification('개인?�보가 ?�시�??�?�되?�습?�다. (?�버 ?�동 ?�요)');
+        showNotification('개인정보가 임시로 저장되었습니다. (서버 동기화 필요)');
         
         // 로컬 ?�??
         userData.name = name;
@@ -296,7 +296,7 @@ async function handlePersonalInfoSubmit(e) {
         
     } catch (error) {
         console.error('개인?�보 변�??�류:', error);
-        showFormError('personal-info-error', '개인?�보 변�?�??�류가 발생?�습?�다.');
+        showFormError('personal-info-error', '개인정보 변경 중 오류가 발생했습니다.');
     }
 }
 
@@ -317,7 +317,7 @@ function updatePersonalInfoSubmitButton() {
 
 // 결제 방법 ?�이?�바 ?�기 (추후 기능 ?�장??
 function openPaymentSidebar() {
-    showNotification('결제 방법 추�? 기능?� 준�?중입?�다.');
+    showNotification('결제 방법 추가 기능은 준비 중입니다.');
 }
 
 // ?�이?�바 ?�벤??초기??
