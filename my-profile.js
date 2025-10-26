@@ -214,7 +214,7 @@ async function handlePersonalInfoSubmit(e) {
     const birthdate = document.getElementById('edit-birthdate').value;
     
     // 필수값 검증
-    if (!name || !region || !phone || !birthdate) {
+    if (!name || !phone || !birthdate) {
         showFormError('personal-info-error', '모든 필드를 입력해주세요.');
         return;
     }
@@ -245,7 +245,7 @@ async function handlePersonalInfoSubmit(e) {
         
         // 서버 API 호출 준비 (사용자 데이터 검증 후 사용)
         try {
-            Logger.log('서버 API 호출 준비:', { userId: userData.user.userId, name, region, phone, birthdate });
+            Logger.log('서버 API 호출 준비:', { userId: userData.user.userId, name, phone, birthdate });
             
             const response = await fetch('https://prepmood.kr/api/update-profile', {
                 method: 'POST',
@@ -256,7 +256,6 @@ async function handlePersonalInfoSubmit(e) {
                 body: JSON.stringify({
                     userId: userData.user.userId,
                     name: name,
-                    region: region,
                     phone: phone,
                     birthdate: birthdate
                 })
@@ -273,7 +272,6 @@ async function handlePersonalInfoSubmit(e) {
                 
                 // 로컬 데이터 업데이트
                 userData.name = name;
-                userData.region = region;
                 userData.phone = phone;
                 // JWT 기반 - localStorage 불필요
                 displayUserInfo();
@@ -291,7 +289,6 @@ async function handlePersonalInfoSubmit(e) {
         
         // 로컬 저장
         userData.name = name;
-        userData.region = region;
         userData.phone = phone;
         // JWT 기반 - localStorage 불필요
         displayUserInfo();
@@ -311,8 +308,8 @@ function updatePersonalInfoSubmitButton() {
     
     const submitButton = document.getElementById('personal-info-submit');
     
-    // 모든 필드가 채워져야 활성화
-    const isValid = name && region && phone && birthdate;
+    // 필수 필드가 채워져야 활성화 (region은 선택사항)
+    const isValid = name && phone && birthdate;
     
     submitButton.disabled = !isValid;
 }

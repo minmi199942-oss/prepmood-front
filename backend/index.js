@@ -717,7 +717,6 @@ app.post('/api/update-password', [
 app.post('/api/update-profile', [
     body('userId').isInt(),
     body('name').notEmpty().trim(),
-    body('region').notEmpty().trim(),
     body('phone').notEmpty().trim(),
     body('birthdate').isISO8601()
 ], async (req, res) => {
@@ -734,7 +733,7 @@ app.post('/api/update-profile', [
             });
         }
 
-        const { userId, name, region, phone, birthdate } = req.body;
+        const { userId, name, phone, birthdate } = req.body;
 
         // MySQL 연결
         console.log('🔗 MySQL 연결 시도 중...');
