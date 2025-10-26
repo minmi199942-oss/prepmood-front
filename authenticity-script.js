@@ -7,6 +7,16 @@ async function getUserEmail() {
         const response = await fetch('https://prepmood.kr/api/auth/me', {
             credentials: 'include'
         });
+        
+        // 401 오류인 경우 null 반환
+        if (response.status === 401) {
+            return null;
+        }
+        
+        if (!response.ok) {
+            return null;
+        }
+        
         const data = await response.json();
         return data.success && data.user ? data.user.email : null;
     } catch (error) {
