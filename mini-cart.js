@@ -1,5 +1,7 @@
 // mini-cart.js - 미니 카트 기능
 
+// 중복 선언 방지
+if (typeof MiniCart === 'undefined') {
 class MiniCart {
   constructor() {
     this.cartItems = [];
@@ -427,6 +429,8 @@ if (document.readyState === 'loading') {
   // 이미 DOM이 로드된 경우 즉시 초기화
   initializeMiniCart();
 }
+
+} // MiniCart 클래스 중복 선언 방지 종료
 
 
 
