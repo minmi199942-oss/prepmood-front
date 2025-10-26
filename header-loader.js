@@ -325,8 +325,17 @@ function initializeMypageFunctionality() {
         console.log('🛒 로그아웃 시 장바구니 숨김');
       }
       
-      // 페이지 새로고침하여 상태 업데이트
-      window.location.reload();
+      // 로그아웃 후 리디렉션 처리
+      const currentPage = window.location.pathname;
+      const loginRequiredPages = ['/my-orders.html', '/my-profile.html', '/my-reservations.html', '/complete-profile.html'];
+      
+      if (loginRequiredPages.includes(currentPage)) {
+        // 로그인 필요 페이지에서 로그아웃 시 메인으로 이동
+        window.location.href = 'index.html';
+      } else {
+        // 다른 페이지에서는 새로고침
+        window.location.reload();
+      }
     } catch (error) {
       console.error('로그아웃 오류:', error);
       // JWT 기반 - sessionStorage 불필요
