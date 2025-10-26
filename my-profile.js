@@ -86,7 +86,7 @@ async function displayUserInfo() {
             document.getElementById('user-email').textContent = user.email || '';
             
             // ?�용???�보가 ?�으�??�용, ?�으�?"?�보 ?�음" ?�는 기본�?
-            document.getElementById('user-region').textContent = user.region || '?�?��?�?;
+            document.getElementById('user-region').textContent = user.region || '정보 없음';
             document.getElementById('user-phone').textContent = user.phone || '?�보 ?�음';
             
             // ?�년?�일 ?�식 처리
@@ -619,7 +619,7 @@ function togglePasswordVisibility(input, toggleButton) {
         toggleButton.textContent = '?��';
     } else {
         input.type = 'password';
-        toggleButton.textContent = '?���?;
+        toggleButton.textContent = '숨기기';
     }
 }
 
