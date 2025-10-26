@@ -390,10 +390,11 @@ function initializeFormEvents() {
     const personalInfoForm = document.getElementById('personal-info-form');
     personalInfoForm.addEventListener('submit', handlePersonalInfoSubmit);
     
-    // 개인정보 폼 입력 이벤트
-    const personalInfoInputs = personalInfoForm.querySelectorAll('input');
+    // 개인정보 폼 입력 이벤트 (input과 select 모두 포함)
+    const personalInfoInputs = personalInfoForm.querySelectorAll('input, select');
     personalInfoInputs.forEach(input => {
         input.addEventListener('input', updatePersonalInfoSubmitButton);
+        input.addEventListener('change', updatePersonalInfoSubmitButton);
     });
     
     // 이메일 폼
