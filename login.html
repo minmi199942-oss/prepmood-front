@@ -93,6 +93,54 @@
       }
     }
     
+    // Google 로그인 콜백 함수 (429 오류 처리 개선)
+    async function handleGoogleSignIn(response) {
+      try {
+        Logger.log('Google 로그인 토큰 수신:', response.credential);
+        
+        // Google ID 토큰을 백엔드로 전송
+        const backendResponse = await fetch('https://prepmood.kr/api/auth/google/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ idToken: response.credential })
+        });
+
+        // 429 오류인 경우 별도 처리
+        if (backendResponse.status === 429) {
+          Logger.log('⚠️ Rate Limiting 감지 - 서버 과부하 상태');
+          alert('서버가 일시적으로 과부하 상태입니다.\n\n잠시 후 다시 시도해주세요.\n또는 일반 로그인을 이용해주세요.');
+          return;
+        }
+
+        const data = await backendResponse.json();
+        Logger.log('백엔드 응답:', data);
+
+        if (data.success) {
+          sessionStorage.setItem('userName', data.user.name);
+          
+          if (data.needsAdditionalInfo) {
+            alert(`환영합니다! ${data.user.name}님, 추가 정보를 입력해주세요.`);
+            window.location.href = 'complete-profile.html';
+          } else {
+            alert(`Google 로그인 성공! 환영합니다! ${data.user.name}님`);
+            window.location.href = 'index.html';
+          }
+        } else {
+          alert(data.error || 'Google 로그인에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('Google 로그인 오류:', error);
+        if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
+          alert('서버가 일시적으로 과부하 상태입니다.\n\n잠시 후 다시 시도해주세요.\n또는 일반 로그인을 이용해주세요.');
+        } else {
+          alert('Google 로그인 처리 중 오류가 발생했습니다.\n\n일반 로그인을 이용해주세요.');
+        }
+      }
+    }
+    
     document.addEventListener('DOMContentLoaded', function() {
       const loginForm = document.getElementById('loginForm');
       const loginBtn = document.getElementById('loginBtn');
@@ -100,56 +148,6 @@
       const passwordInput = document.getElementById('password');
 
       // Google Identity Services 초기화
-
-      // Google 로그인 콜백 함수 (429 오류 처리 개선)
-      async function handleGoogleSignIn(response) {
-        try {
-          Logger.log('Google 로그인 토큰 수신:', response.credential);
-          
-          // Google ID 토큰을 백엔드로 전송
-          const backendResponse = await fetch('https://prepmood.kr/api/auth/google/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({ idToken: response.credential })
-          });
-
-          // 429 오류인 경우 별도 처리
-          if (backendResponse.status === 429) {
-            Logger.log('⚠️ Rate Limiting 감지 - 서버 과부하 상태');
-            alert('서버가 일시적으로 과부하 상태입니다.\n\n잠시 후 다시 시도해주세요.\n또는 일반 로그인을 이용해주세요.');
-            return;
-          }
-
-          const data = await backendResponse.json();
-          Logger.log('백엔드 응답:', data);
-
-          if (data.success) {
-            sessionStorage.setItem('userName', data.user.name);
-            
-            if (data.needsAdditionalInfo) {
-              alert(`환영합니다! ${data.user.name}님, 추가 정보를 입력해주세요.`);
-              window.location.href = 'complete-profile.html';
-            } else {
-              alert(`Google 로그인 성공! 환영합니다! ${data.user.name}님`);
-              window.location.href = 'index.html';
-            }
-          } else {
-            alert(data.error || 'Google 로그인에 실패했습니다.');
-          }
-        } catch (error) {
-          console.error('Google 로그인 오류:', error);
-          if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-            alert('서버가 일시적으로 과부하 상태입니다.\n\n잠시 후 다시 시도해주세요.\n또는 일반 로그인을 이용해주세요.');
-          } else {
-            alert('Google 로그인 처리 중 오류가 발생했습니다.\n\n일반 로그인을 이용해주세요.');
-          }
-        }
-      }
-
-      // Google Sign-In 초기화
       if (typeof google !== 'undefined') {
         initializeGoogleSignIn();
       } else {
