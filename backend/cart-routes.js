@@ -84,19 +84,19 @@ router.get('/cart', authenticateToken, async (req, res) => {
     console.error('장바구니 조회 오류:', error);
     res.status(500).json({ 
       success: false, 
-      message: '?�바구니 조회???�패?�습?�다.',
+      message: '장바구니 조회에 실패했습니다.',
       error: error.message 
     });
   }
 });
 
-// ?�바구니???�품 추�?
+// 장바구니에 상품 추가
 router.post('/cart/add', authenticateToken, async (req, res) => {
   try {
     const { productId, quantity = 1, size = null, color = null } = req.body;
 
     if (!productId) {
-      return res.status(400).json({ success: false, message: '?�품 ID가 ?�요?�니??' });
+      return res.status(400).json({ success: false, message: '상품 ID가 필요합니다.' });
     }
 
     const connection = await mysql.createConnection(dbConfig);
@@ -118,7 +118,7 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
         cartId = carts[0].cart_id;
       }
 
-      // ?�품???��? ?�바구니???�는지 ?�인
+      // 상품이 이미 장바구니에 있는지 확인
       const [existing] = await connection.execute(`
         SELECT item_id, quantity FROM cart_items 
         WHERE cart_id = ? AND product_id = ? AND 
@@ -127,22 +127,22 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
       `, [cartId, productId, size, size, color, color]);
 
       if (existing.length > 0) {
-        // ?��? ?�으�??�량 증�?
+        // 기존 상품의 수량 증가
         await connection.execute(
           'UPDATE cart_items SET quantity = quantity + ? WHERE item_id = ?',
           [quantity, existing[0].item_id]
         );
-        Logger.log(`?�� ?�바구니 ?�량 ?�데?�트: ?�용??${req.user.userId} - ${productId} (${existing[0].quantity} ??${existing[0].quantity + quantity})`);
+        Logger.log(`기존 장바구니 수량 업데이트: 사용자${req.user.userId} - ${productId} (${existing[0].quantity} → ${existing[0].quantity + quantity})`);
       } else {
-        // ?�으�??�로 추�?
+        // 새로운 상품으로 추가
         await connection.execute(
           'INSERT INTO cart_items (cart_id, product_id, quantity, size, color) VALUES (?, ?, ?, ?, ?)',
           [cartId, productId, quantity, size, color]
         );
-        Logger.log(`???�바구니??추�?: ?�용??${req.user.userId} - ${productId}`);
+        Logger.log(`새로운 장바구니 상품 추가: 사용자${req.user.userId} - ${productId}`);
       }
 
-      // ?�데?�트???�바구니 ?�보 조회
+      // 업데이트된 장바구니 정보 조회
       const [items] = await connection.execute(`
         SELECT COUNT(*) as count, SUM(quantity) as total_quantity
         FROM cart_items WHERE cart_id = ?
@@ -160,18 +160,18 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
       connection.end();
     }
   } catch (error) {
-    console.error('???�바구니 추�? ?�류:', error);
+    console.error('장바구니 추가 오류:', error);
     
-    // 중복 ???�류 처리
+    // 중복 키 오류 처리
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ success: false, message: '?��? ?�바구니???�는 ?�품?�니??' });
+      return res.status(400).json({ success: false, message: '이미 장바구니에 있는 상품입니다.' });
     }
     
-    res.status(500).json({ success: false, message: '?�바구니 추�????�패?�습?�다.' });
+    res.status(500).json({ success: false, message: '장바구니 추가에 실패했습니다.' });
   }
 });
 
-// ?�바구니 ?�이???�량 변�?
+// 장바구니 아이템 수량 변경
 router.put('/cart/item/:itemId', authenticateToken, async (req, res) => {
   try {
     const { itemId } = req.params;
