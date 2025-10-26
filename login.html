@@ -140,7 +140,7 @@
             alert(data.error || 'Google 로그인에 실패했습니다.');
           }
         } catch (error) {
-          console.error('Google 로그???�류:', error);
+          console.error('Google 로그인 오류:', error);
           if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
             alert('서버가 일시적으로 과부하 상태입니다.\n\n잠시 후 다시 시도해주세요.\n또는 일반 로그인을 이용해주세요.');
           } else {
@@ -149,7 +149,8 @@
         }
       }
 
-      // Google Sign-In 초기화      if (typeof google !== 'undefined') {
+      // Google Sign-In 초기화
+      if (typeof google !== 'undefined') {
         initializeGoogleSignIn();
       } else {
         window.addEventListener('load', initializeGoogleSignIn);
@@ -278,21 +279,21 @@
           Logger.log('로그인 응답:', data);
 
           if (data.success) {
-            // 로그???�공
+            // 로그인 성공
             alert(`로그인 성공! 환영합니다! ${data.user.name}님`);
             
-            // JWT 토큰은 httpOnly 쿠키로 자동 설정됨 (localStorage 사용 안함)?
+            // JWT 토큰은 httpOnly 쿠키로 자동 설정됨 (localStorage 사용 안함)
             // 최소한의 정보만 sessionStorage에 저장 (환영 메시지용)
             sessionStorage.setItem('userName', data.user.name);
             
             // 메인 페이지로 이동
             window.location.href = 'index.html';
           } else {
-            // 로그???�패
+            // 로그인 실패
             alert(data.message || '로그인에 실패했습니다.');
           }
         } catch (error) {
-          console.error('로그???�류:', error);
+          console.error('로그인 오류:', error);
           alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
         } finally {
           loginBtn.disabled = false;
@@ -300,19 +301,22 @@
         }
       });
 
-      // Enter 키로 로그인      passwordInput.addEventListener('keypress', function(e) {
+      // Enter 키로 로그인
+      passwordInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && !loginBtn.disabled) {
           loginForm.dispatchEvent(new Event('submit'));
         }
       });
 
-      // Apple 로그인 버튼 이벤트      document.querySelector('.apple-login-btn').addEventListener('click', function() {
+      // Apple 로그인 버튼 이벤트
+      document.querySelector('.apple-login-btn').addEventListener('click', function() {
         // Apple 로그인 로직 (현재 구현 안됨 - Apple Sign In API 사용)
         alert('Apple 로그인 기능은 준비중입니다.');
         Logger.log('Apple 로그인 클릭');
       });
 
-      // Google 라이브러리 로드 완료 시 초기화      if (typeof google !== 'undefined') {
+      // Google 라이브러리 로드 완료 시 초기화
+      if (typeof google !== 'undefined') {
         initializeGoogleSignIn();
       } else {
         // Google 라이브러리가 아직 로드되지 않은 경우
