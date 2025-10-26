@@ -84,6 +84,7 @@
     const GOOGLE_CLIENT_ID = '496755897469-23ftq4affabq1jegpuph6oer7jes5a5s.apps.googleusercontent.com';
     
     // Google Sign-In 초기화
+    function initializeGoogleSignIn() {
       if (typeof google !== 'undefined' && google.accounts) {
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
@@ -98,21 +99,14 @@
       const emailInput = document.getElementById('email');
       const passwordInput = document.getElementById('password');
 
-      // Google Identity Services 초기??      function initializeGoogleSignIn() {
-        if (typeof google !== 'undefined') {
-          google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleSignIn
-          });
-        }
-      }
+      // Google Identity Services 초기화
 
-      // Google 로그??콜백 ?�수 (429 ?�류 처리 개선)
+      // Google 로그인 콜백 함수 (429 오류 처리 개선)
       async function handleGoogleSignIn(response) {
         try {
-          Logger.log('Google 로그???�큰 ?�신:', response.credential);
+          Logger.log('Google 로그인 토큰 수신:', response.credential);
           
-          // Google ID ?�큰??백엔?�로 ?�송
+          // Google ID 토큰을 백엔드로 전송
           const backendResponse = await fetch('https://prepmood.kr/api/auth/google/login', {
             method: 'POST',
             headers: {
@@ -122,15 +116,15 @@
             body: JSON.stringify({ idToken: response.credential })
           });
 
-          // 429 ?�류??경우 ?�별 처리
+          // 429 오류인 경우 별도 처리
           if (backendResponse.status === 429) {
-            Logger.log('?�️ Rate Limiting 감�? - ?�버 과�????�태');
-            alert('?�버가 ?�시?�으�?과�????�태?�니??\n\n?�시 ???�시 ?�도?�주?�요.\n?�는 ?�반 로그?�을 ?�용?�주?�요.');
+            Logger.log('⚠️ Rate Limiting 감지 - 서버 과부하 상태');
+            alert('서버가 일시적으로 과부하 상태입니다.\n\n잠시 후 다시 시도해주세요.\n또는 일반 로그인을 이용해주세요.');
             return;
           }
 
           const data = await backendResponse.json();
-          Logger.log('백엔???�답:', data);
+          Logger.log('백엔드 응답:', data);
 
           if (data.success) {
             sessionStorage.setItem('userName', data.user.name);
