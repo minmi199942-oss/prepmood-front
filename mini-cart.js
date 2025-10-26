@@ -134,14 +134,14 @@ class MiniCart {
     }
   }
 
-  // 로그인 상태 확인 - 401 오류 처리 개선
+  // 로그인 상태 확인 - 401 오류 처리 개선 (정상적인 동작)
   async checkLoginStatus() {
     try {
       const response = await fetch('https://prepmood.kr/api/auth/me', {
         credentials: 'include'
       });
       
-      // 401 오류인 경우 로그인하지 않은 것으로 처리
+      // 401 오류인 경우 로그인하지 않은 것으로 처리 (정상적인 동작)
       if (response.status === 401) {
         this.isLoggedIn = false;
         return false;

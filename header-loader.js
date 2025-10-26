@@ -241,7 +241,7 @@ function initializeMypageFunctionality() {
         credentials: 'include'  // httpOnly 쿠키 포함
       });
       
-      // 401 오류인 경우 로그인하지 않은 것으로 처리
+      // 401 오류인 경우 로그인하지 않은 것으로 처리 (정상적인 동작)
       if (response.status === 401) {
         // 로그인하지 않은 상태로 처리
         mypageToggle.href = 'login.html';
@@ -254,7 +254,7 @@ function initializeMypageFunctionality() {
           console.log('🛒 비로그인 상태 - 장바구니 숨김');
         }
         
-        console.log('❌ 비로그인 상태');
+        // console.log('❌ 비로그인 상태'); // 정상적인 동작이므로 로그 제거
         return;
       }
       
