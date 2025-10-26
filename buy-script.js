@@ -18,16 +18,28 @@
 
   // 제품 데이터에서 ID로 제품 찾기
   function findProductById(id) {
-    if (!window.CATALOG_DATA) return null;
+    console.log('🔍 제품 검색 시작:', id);
+    console.log('📦 CATALOG_DATA 상태:', window.CATALOG_DATA);
+    
+    if (!window.CATALOG_DATA) {
+      console.log('❌ CATALOG_DATA가 없습니다');
+      return null;
+    }
 
     // 직접 카테고리 구조로 검색
     for (const category in window.CATALOG_DATA) {
       for (const type in window.CATALOG_DATA[category]) {
         const products = window.CATALOG_DATA[category][type];
+        console.log(`🔍 ${category}.${type} 검색 중:`, products.length, '개 제품');
         const found = products.find(p => p.id === id);
-        if (found) return found;
+        if (found) {
+          console.log('✅ 제품 찾음:', found);
+          return found;
+        }
       }
     }
+    
+    console.log('❌ 제품을 찾을 수 없습니다:', id);
     return null;
   }
 
@@ -356,12 +368,23 @@
 
   // 초기화
   function init() {
+    console.log('🚀 buy-script 초기화 시작');
+    console.log('📦 CATALOG_DATA 상태:', typeof window.CATALOG_DATA, window.productsLoaded);
+    
     // 제품 데이터 로드 대기
-    if (typeof window.CATALOG_DATA === 'undefined') {
-      setTimeout(init, 100);
+    if (typeof window.CATALOG_DATA === 'undefined' || !window.productsLoaded) {
+      console.log('⏳ 제품 데이터 로드 대기 중...');
+      // productsLoaded 이벤트를 기다림
+      window.addEventListener('productsLoaded', init);
+      window.addEventListener('productsLoadError', () => {
+        console.error('❌ 제품 데이터 로드 실패');
+        document.getElementById('product-name').textContent = '제품 데이터를 불러올 수 없습니다';
+      });
       return;
     }
 
+    console.log('✅ 제품 데이터 로드 완료, 제품 검색 시작');
+    
     // 제품 정보 표시
     const product = findProductById(productId);
     displayProductInfo(product);
