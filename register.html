@@ -112,56 +112,57 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="confirmPassword">비�?번호 ?�인</label>
-                        <input type="password" id="confirmPassword" class="form-input" placeholder="비�?번호�??�시 ?�력?�주?�요" required>
+                        <label for="confirmPassword">비밀번호 확인</label>
+                        <input type="password" id="confirmPassword" class="form-input" placeholder="비밀번호를 다시 입력해주세요" required>
                         <div class="error-message" id="confirmPasswordError"></div>
                     </div>
 
-                    <!-- 개인?�보 ?�의 ??��??-->
+                    <!-- 개인정보 동의 섹션-->
                     <div class="consent-section">
-                        <!-- 개인?�보 ?�집 �??�용 ?�의 (?�수) -->
+                        <!-- 개인정보 수집 및 이용 동의 (필수) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="privacyConsent" required>
                                 <span class="checkmark"></span>
-                                <span class="consent-text">개인?�보 ?�집 �??�용 ?�의 <span class="required">(?�수)</span></span>
+                                <span class="consent-text">개인정보 수집 및 이용 동의 <span class="required">(필수)</span></span>
                             </label>
                             <p class="consent-description">
-                                본인?� 개인?�보 ?�집 �??�용???�의?�며, ?�레?�무?��? 고객관�?관�?목적???�라 개인?�보�?처리?�을 ?�해?�니??
+                                본인은 개인정보 수집 및 이용에 동의하며, 프레무드가 고객관리목적으로 개인정보를 처리함을 인정합니다.
                             </p>
                             <div class="error-message" id="privacyConsentError"></div>
                         </div>
 
-                        <!-- 광고???�보 ?�신 ?�의 (?�택) -->
+                        <!-- 광고성 정보 수신 동의 (선택) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="marketingConsent">
                                 <span class="checkmark"></span>
-                                <span class="consent-text">광고???�보 ?�신 ?�의 <span class="optional">(?�택)</span></span>
+                                <span class="consent-text">광고성 정보 수신 동의 <span class="optional">(선택)</span></span>
                             </label>
                             <p class="consent-description">
-                                ?�후 '?�레?�무?? �?기�? 브랜?? ?�레?�무???�품 �??�비?�에 관??마�???�??�로모션 메시지, ?�스?�터, 광고 �?카탈로그�??�함???�업???�자 커�??��??�션 ?�신???�망?�니??
+                                이후 '프레무드' 및 기타 브랜드의 프레무드 제품 및 서비스에 관한 마케팅 프로모션 메시지, 뉴스레터, 광고 및 카탈로그를 포함한 업무 관련 커뮤니케이션 정보를 받아보시겠습니까?
                             </p>
                         </div>
 
-                        <!-- 개인?�보 처리 ?�내�?-->
+                        <!-- 개인정보 처리 안내-->
                         <div class="privacy-notice">
                             <p>
-                                ?�인 버튼???�릭?�으로써 귀?�는 개인?�보 보호?�책???�었?�며, ?�레?�무?��? 귀?�의 고객 관계�? 관리하�??�해 개인?�보�?처리?�는 ???�의?�을 ?�인?�게 ?�니?? ?�레?�무?�는 귀?�의 ?�호?�에 맞춰 맞춤???�비?��? ?�공?�기 ?�해 관??법인�??�보�?공유?????�습?�다.
+                                동의 버튼을 클릭함으로써 귀하는 개인정보 보호정책에 동의하며, 프레무드가 귀하의 고객 관계를 관리하기 위해 개인정보를 처리하는 것에 동의하게 됩니다. 프레무드는 귀하의 선호도에 맞춰 맞춤형 서비스를 제공하기 위해 관련 법인들과 정보를 공유할 수 있습니다.
                             </p>
                         </div>
                     </div>
 
-                    <button type="submit" class="register-btn" id="registerBtn" disabled>?�원가??/button>
+                    <button type="submit" class="register-btn" id="registerBtn" disabled>회원가입</button>
                 </form>
             </div>
 
             <div class="login-link">
-                ?��? 계정???�으?��??? <a href="login.html">로그??/a>
+                이미 계정이 있으신가요? <a href="login.html">로그인</a>
             </div>
         </div>
     </main>
 
+    <script src="utils.js"></script>
     <script src="header-loader.js"></script>
     <script src="footer-loader.js"></script>
     <script>
@@ -193,10 +194,11 @@
                 this.backToStep1.addEventListener('click', () => this.goToStep1());
                 
                 
-                // ???�출
+                // 이벤트 리스너 등록
                 document.getElementById('personalInfoForm').addEventListener('submit', (e) => this.handleSubmit(e));
                 
-                // ?�시�??�효??검??                document.getElementById('email').addEventListener('input', () => {
+                // 실시간 유효성 검사
+                document.getElementById('email').addEventListener('input', () => {
                     this.validateEmail();
                     this.updateNextButton();
                 });
