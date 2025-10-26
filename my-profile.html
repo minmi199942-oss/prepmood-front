@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 프로필 - Pre.p Mood</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/page.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+    <script defer src="utils.js"></script>
+    <script defer src="header-loader.js"></script>
+    <script defer src="footer-loader.js"></script>
+    <script defer src="my-profile.js"></script>
+</head>
+<body>
+    <!-- 헤더 컨테이너 -->
+    <div id="header-container"></div>
+
+    <!-- 메인 컨텐츠 -->
+    <main class="my-profile-main">
+        <!-- 로고 섹션 -->
+        <div class="logo-section">
+            <img src="image/prepmoodlogo.jpg" alt="Pre.p Mood" class="main-logo">
+        </div>
+
+        <!-- 메인 레이아웃 -->
+        <div class="main-layout">
+            <!-- 좌측 사이드바 -->
+            <aside class="sidebar">
+                <div class="sidebar-content">
+                    <!-- 사용자 환영 메시지 -->
+                    <div class="user-welcome">
+                        <h2 id="user-welcome-text">님 환영합니다.</h2>
+                    </div>
+
+                    <!-- 네비게이션 메뉴 -->
+                    <nav class="sidebar-nav">
+                        <a href="my-orders.html" class="nav-item" data-page="orders">
+                            <span>내 주문</span>
+                            <div class="nav-underline"></div>
+                        </a>
+                        <a href="my-reservations.html" class="nav-item" data-page="reservations">
+                            <span>예약</span>
+                            <div class="nav-underline"></div>
+                        </a>
+                        <a href="my-profile.html" class="nav-item active" data-page="profile">
+                            <span>내 프로필</span>
+                            <div class="nav-underline"></div>
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- 우측 메인 영역 -->
+            <section class="main-content">
+                <div class="content-container">
+                    <!-- 페이지 제목 -->
+                    <div class="page-header">
+                        <h1 class="page-title">개인정보</h1>
+                        <p class="page-subtitle">모든 계정 정보 관리</p>
+                        <p class="page-english">Profile</p>
+                    </div>
+
+                    <!-- 프로필 섹션들 -->
+                    <div class="profile-sections">
+                        <!-- 개인정보 섹션 -->
+                        <section class="profile-section">
+                            <div class="section-header">
+                                <h2 class="section-title">개인정보</h2>
+                                <button class="edit-button" data-field="personalInfo">수정</button>
+                            </div>
+                            <div class="profile-info-grid">
+                                <div class="profile-info-item">
+                                    <span class="profile-label">이름(성 포함)</span>
+                                    <span class="profile-value" id="user-full-name">정보 없음</span>
+                                </div>
+                                
+                                <div class="profile-info-item">
+                                    <span class="profile-label">지역</span>
+                                    <span class="profile-value" id="user-region">대한민국</span>
+                                </div>
+                                
+                                <div class="profile-info-item">
+                                    <span class="profile-label">연락처</span>
+                                    <span class="profile-value" id="user-phone">정보 없음</span>
+                                </div>
+                                
+                                <div class="profile-info-item">
+                                    <span class="profile-label">생년월일</span>
+                                    <span class="profile-value" id="user-birthdate">정보 없음</span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- 이메일 섹션 -->
+                        <section class="profile-section">
+                            <h2 class="section-title">이메일을 통한</h2>
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-value" id="user-email">정보 없음</span>
+                                </div>
+                                <button class="edit-button" data-field="email">수정</button>
+                            </div>
+                        </section>
+
+                        <!-- 비밀번호 섹션 -->
+                        <section class="profile-section">
+                            <h2 class="section-title">비밀번호</h2>
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-value">••••••••••</span>
+                                </div>
+                                <button class="edit-button" data-field="password">수정</button>
+                            </div>
+                        </section>
+
+                        <!-- 결제 방법 섹션 -->
+                        <section class="profile-section">
+                            <h2 class="section-title">결제 방법</h2>
+                            <div class="profile-item">
+                                <div class="profile-info">
+                                    <span class="profile-value">등록된 결제수단 없음</span>
+                                </div>
+                                <button class="edit-button" data-field="payment">추가</button>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 이메일 수정 사이드바 -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <div class="edit-sidebar" id="email-sidebar">
+        <div class="sidebar-header">
+            <h3>이메일 변경</h3>
+            <button class="close-button" id="close-email-sidebar">×</button>
+        </div>
+        <div class="sidebar-content">
+            <form id="email-form">
+                <div class="form-group">
+                    <label for="new-email">새 이메일</label>
+                    <input type="email" id="new-email" name="email" required>
+                    <div class="error-message" id="email-error"></div>
+                </div>
+                <button type="submit" class="submit-button">확인</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 개인정보 수정 사이드바 -->
+    <div class="edit-sidebar" id="personal-info-sidebar">
+        <div class="sidebar-header">
+            <h3>개인정보 수정</h3>
+            <button class="close-button" id="close-personal-info-sidebar">×</button>
+        </div>
+        <div class="sidebar-content">
+            <form id="personal-info-form">
+                <div class="form-group">
+                    <label for="edit-name">이름</label>
+                    <input type="text" id="edit-name" name="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-region">국가</label>
+                    <select id="edit-region" name="region" required>
+                        <option value="">국가를 선택하세요</option>
+                        <option value="대한민국">대한민국</option>
+                        <option value="미국">미국</option>
+                        <option value="일본">일본</option>
+                        <option value="중국">중국</option>
+                        <option value="영국">영국</option>
+                        <option value="프랑스">프랑스</option>
+                        <option value="독일">독일</option>
+                        <option value="이탈리아">이탈리아</option>
+                        <option value="스페인">스페인</option>
+                        <option value="캐나다">캐나다</option>
+                        <option value="호주">호주</option>
+                        <option value="뉴질랜드">뉴질랜드</option>
+                        <option value="싱가포르">싱가포르</option>
+                        <option value="홍콩">홍콩</option>
+                        <option value="대만">대만</option>
+                        <option value="태국">태국</option>
+                        <option value="베트남">베트남</option>
+                        <option value="인도네시아">인도네시아</option>
+                        <option value="말레이시아">말레이시아</option>
+                        <option value="필리핀">필리핀</option>
+                        <option value="인도">인도</option>
+                        <option value="브라질">브라질</option>
+                        <option value="멕시코">멕시코</option>
+                        <option value="아르헨티나">아르헨티나</option>
+                        <option value="칠레">칠레</option>
+                        <option value="기타">기타</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-phone">연락처</label>
+                    <input type="tel" id="edit-phone" name="phone" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-birthdate">생년월일</label>
+                    <input type="date" id="edit-birthdate" name="birthdate" required>
+                </div>
+                
+                <div class="form-error" id="personal-info-error"></div>
+                
+                <button type="submit" class="submit-button" id="personal-info-submit" disabled>확인</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 비밀번호 수정 사이드바 -->
+    <div class="edit-sidebar" id="password-sidebar">
+        <div class="sidebar-header">
+            <h3>비밀번호 변경</h3>
+            <button class="close-button" id="close-password-sidebar">×</button>
+        </div>
+        <div class="sidebar-content">
+            <form id="password-form">
+                <div class="form-group">
+                    <label for="current-password">현재 비밀번호</label>
+                    <div class="password-input-container">
+                        <input type="password" id="current-password" name="currentPassword" required>
+                        <button type="button" class="password-toggle" data-target="current-password">👁️</button>
+                    </div>
+                    <div class="error-message" id="current-password-error"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="new-password">새 비밀번호</label>
+                    <div class="password-input-container">
+                        <input type="password" id="new-password" name="newPassword" required>
+                        <button type="button" class="password-toggle" data-target="new-password">👁️</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirm-password">새 비밀번호 확인</label>
+                    <div class="password-input-container">
+                        <input type="password" id="confirm-password" name="confirmPassword" required>
+                        <button type="button" class="password-toggle" data-target="confirm-password">👁️</button>
+                    </div>
+                    <div class="error-message" id="confirm-password-error"></div>
+                </div>
+                
+                <button type="submit" class="submit-button" id="password-submit" disabled>확인</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 알림 메시지 -->
+    <div class="notification" id="notification">
+        <span id="notification-message"></span>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="header-loader.js"></script>
+    <script src="footer-loader.js"></script>
+    <script src="my-profile.js"></script>
+  <!-- 푸터 컨테이너 -->
+  <div id="footer-container"></div>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>제품 상세 | Pre.p Mood</title>
+  <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/page.css">
+  <link rel="stylesheet" href="assets/css/responsive.css">
+  <script defer src="utils.js"></script>
+  <script defer src="product-data.js"></script>
+  <script defer src="mini-cart.js"></script>
+  <script defer src="header-loader.js"></script>
+  <script defer src="footer-loader.js"></script>
+  <script defer src="buy-script.js"></script>
+</head>
+<body>
+  <!-- 공통 헤더 -->
+  <div id="header-container"></div>
+
+  <!-- 제품 상세 페이지 -->
+  <main class="product-detail-container">
+    <!-- 좌측: 이미지 영역 -->
+    <section class="product-images-section">
+      <div class="product-images-wrapper" id="product-images">
+        <!-- 이미지들이 JavaScript로 동적 생성됨 -->
+      </div>
+    </section>
+
+    <!-- 우측: 상품 정보 영역 -->
+    <section class="product-info-section">
+      <!-- 상품명 & 위시리스트 -->
+      <div class="product-header">
+        <h1 class="product-title" id="product-name">제품명</h1>
+        <div class="wishlist-container">
+          <button class="wishlist-btn" id="wishlist-btn" aria-label="위시리스트 추가">
+            <img src="image/wishlist.jpg" alt="위시리스트" class="wishlist-icon">
+          </button>
+          <!-- 상품번호 -->
+          <p class="product-code" id="product-code">PM-25-M-BP-001</p>
+        </div>
+      </div>
+
+      <!-- 옵션 선택 -->
+      <div class="product-options">
+        <!-- 사이즈 선택 -->
+        <div class="option-group">
+          <label for="size-select" class="option-label">사이즈 선택</label>
+          <select id="size-select" class="option-select">
+            <option value="">사이즈를 선택해주세요</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+            <option value="XL">XL</option>
+          </select>
+          <div class="error-message" id="size-error" style="display: none;"></div>
+        </div>
+
+        <!-- 색상 선택 -->
+        <div class="option-group">
+          <label for="color-select" class="option-label">색상 선택</label>
+          <select id="color-select" class="option-select">
+            <option value="">색상을 선택해주세요</option>
+            <!-- 색상 옵션이 JavaScript로 동적 생성됨 -->
+          </select>
+          <div class="error-message" id="color-error" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- 구매 버튼들 -->
+      <div class="product-actions">
+        <!-- 장바구니 버튼 -->
+        <button class="cart-btn" id="cart-btn">
+          <span class="cart-btn-text">장바구니</span>
+          <span class="cart-btn-price" id="cart-btn-price">₩0</span>
+        </button>
+
+        <!-- 빠른 구매 버튼 -->
+        <button class="quick-buy-btn" id="quick-buy-btn">
+          빠른 구매
+        </button>
+      </div>
+
+      <!-- 하단 탭 섹션 -->
+      <div class="product-tabs">
+        <div class="tabs-header">
+          <button class="tab-btn active" data-tab="introduction">소개</button>
+          <button class="tab-btn" data-tab="information">제품 정보</button>
+          <button class="tab-btn" data-tab="size">사이즈</button>
+          <button class="tab-btn" data-tab="inquire">문의</button>
+        </div>
+
+        <div class="tabs-content">
+          <!-- 소개 탭 -->
+          <div class="tab-pane active" id="tab-introduction">
+            <h3 class="tab-title">제품 소개</h3>
+            <p class="tab-description" id="product-description">
+              이 제품은 Pre.p Mood의 시그니처 아이템으로, 고급스러운 소재와 세련된 디자인이 특징입니다.
+              일상에서도 특별한 순간에도 당신의 스타일을 완성시켜줄 완벽한 선택입니다.
+            </p>
+          </div>
+
+          <!-- 제품 정보 탭 -->
+          <div class="tab-pane" id="tab-information">
+            <h3 class="tab-title">제품 정보</h3>
+            <ul class="info-list">
+              <li><strong>소재:</strong> <span id="material-info">C100%(Cotton 100%)</span></li>
+              <li><strong>제조자:</strong> <span id="manufacturer-info">프레피무드(Pre.pMood)</span></li>
+              <li><strong>제조국:</strong> <span id="country-info">대한민국(Korea)</span></li>
+              <li><strong>출시일:</strong> <span id="release-info">2025</span></li>
+              <li class="care-section">
+                <strong>세탁방법:</strong>
+                <div class="care-image-container">
+                  <img src="image/dry.jpg" alt="드라이클리닝" class="care-image" id="care-image">
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 사이즈 탭 -->
+          <div class="tab-pane" id="tab-size">
+            <h3 class="tab-title">사이즈 가이드</h3>
+            <table class="size-table">
+              <thead>
+                <tr>
+                  <th>사이즈(Size)</th>
+                  <th>Item</th>
+                  <th>S</th>
+                  <th>M</th>
+                  <th>L</th>
+                  <th>허용 오차</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td rowspan="4" class="size-label">사이즈(Size)</td>
+                  <td>총장</td>
+                  <td>74 cm</td>
+                  <td>78 cm</td>
+                  <td>84 cm</td>
+                  <td>±0.5 cm</td>
+                </tr>
+                <tr>
+                  <td>어깨너비</td>
+                  <td>49.5 cm</td>
+                  <td>52.5 cm</td>
+                  <td>57 cm</td>
+                  <td>±0.5 cm</td>
+                </tr>
+                <tr>
+                  <td>가슴둘레</td>
+                  <td>55 cm</td>
+                  <td>60 cm</td>
+                  <td>67.5 cm</td>
+                  <td>±0.5 cm</td>
+                </tr>
+                <tr>
+                  <td>소매길이</td>
+                  <td>59 cm</td>
+                  <td>61 cm</td>
+                  <td>64 cm</td>
+                  <td>±0.5 cm</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 문의 탭 -->
+          <div class="tab-pane" id="tab-inquire">
+            <h3 class="tab-title">문의하기</h3>
+            <p class="tab-description">
+              제품에 대한 문의사항이 있으시면 아래 연락처로 문의해주세요.
+            </p>
+            <ul class="contact-list">
+              <li><strong>고객센터:</strong> 1555-6035</li>
+              <li><strong>이메일:</strong> prepmoodcare@naver.com</li>
+              <li><strong>운영시간:</strong> 평일 10:00 - 18:00 (주말·공휴일 휴무)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 푸터 컨테이너 -->
+  <div id="footer-container"></div>
+</body>
+</html>

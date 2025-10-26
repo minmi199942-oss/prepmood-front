@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR 코드 관리 - Pre.p Mood Admin</title>
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/page.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+</head>
+<body>
+    <div class="admin-qr-page">
+        <div class="admin-qr-container">
+            <h1>QR 코드 관리</h1>
+            
+            <!-- 탭 메뉴 -->
+            <div class="admin-tabs">
+                <button class="tab-btn active" data-tab="single">단일 생성</button>
+                <button class="tab-btn" data-tab="bulk">대량 생성</button>
+                <button class="tab-btn" data-tab="list">QR 목록</button>
+            </div>
+
+            <!-- 단일 생성 탭 -->
+            <div id="single-tab" class="tab-content active">
+                <div class="qr-form-card">
+                    <h2>제품 QR 코드 생성</h2>
+                    <form id="singleQrForm">
+                        <div class="form-group">
+                            <label for="serial">시리얼 번호 *</label>
+                            <input type="text" id="serial" name="serial" placeholder="PM-001" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="name">제품명 *</label>
+                            <input type="text" id="name" name="name" placeholder="Slim Fit Jeans" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="category">카테고리 *</label>
+                            <select id="category" name="category" required>
+                                <option value="">선택하세요</option>
+                                <option value="상의">상의</option>
+                                <option value="하의">하의</option>
+                                <option value="아우터">아우터</option>
+                                <option value="액세서리">액세서리</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="price">가격 *</label>
+                            <input type="number" id="price" name="price" placeholder="149000" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="description">설명</label>
+                            <textarea id="description" name="description" rows="3" placeholder="제품 설명 (선택사항)"></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">QR 코드 생성</button>
+                    </form>
+                </div>
+
+                <!-- QR 결과 -->
+                <div id="qrResult" class="qr-result-card" style="display: none;">
+                    <h2>QR 코드 생성 완료</h2>
+                    <div class="qr-display">
+                        <canvas id="qrCanvas"></canvas>
+                        <div class="qr-info">
+                            <p><strong>시리얼:</strong> <span id="qrSerial"></span></p>
+                            <p><strong>QR 코드:</strong></p>
+                            <code id="qrCodeText"></code>
+                        </div>
+                    </div>
+                    <div class="qr-actions">
+                        <button id="downloadPng" class="btn-secondary">PNG 다운로드</button>
+                        <button id="downloadLabel" class="btn-secondary">라벨 다운로드</button>
+                        <button id="resetForm" class="btn-tertiary">새로 만들기</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 대량 생성 탭 -->
+            <div id="bulk-tab" class="tab-content">
+                <div class="bulk-card">
+                    <h2>CSV 파일로 대량 생성</h2>
+                    <div id="uploadArea" class="upload-area">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p>CSV 파일을 드래그하거나 클릭해서 업로드하세요</p>
+                        <button type="button" id="uploadBtn" class="btn-secondary">파일 선택</button>
+                        <input type="file" id="csvFile" accept=".csv" style="display: none;">
+                        <button type="button" id="downloadTemplate" class="btn-link">📥 템플릿 다운로드</button>
+                    </div>
+
+                    <!-- 진행률 -->
+                    <div id="bulkProgress" class="bulk-progress" style="display: none;">
+                        <h3>QR 코드 생성 중...</h3>
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill"></div>
+                        </div>
+                        <p id="progressText">0 / 0</p>
+                    </div>
+
+                    <!-- 완료 -->
+                    <div id="bulkResult" class="bulk-result" style="display: none;">
+                        <h3>✅ 생성 완료!</h3>
+                        <p id="bulkStats"></p>
+                        <button id="downloadAll" class="btn-primary">전체 다운로드</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR 목록 탭 -->
+            <div id="list-tab" class="tab-content">
+                <div class="list-card">
+                    <div class="list-header">
+                        <h2>생성된 QR 코드 목록</h2>
+                        <div class="list-controls">
+                            <input type="text" id="searchInput" placeholder="검색..." class="search-input">
+                            <button id="refreshList" class="btn-icon">🔄</button>
+                        </div>
+                    </div>
+
+                    <!-- 로딩 -->
+                    <div id="listLoading" class="list-loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>로딩 중...</p>
+                    </div>
+
+                    <!-- 빈 상태 -->
+                    <div id="listEmpty" class="list-empty" style="display: none;">
+                        <p>생성된 QR 코드가 없습니다.</p>
+                    </div>
+
+                    <!-- 테이블 -->
+                    <div id="qrTableContainer" class="qr-table-container" style="display: none;">
+                        <table class="qr-table">
+                            <thead>
+                                <tr>
+                                    <th>시리얼</th>
+                                    <th>제품명</th>
+                                    <th>카테고리</th>
+                                    <th>가격</th>
+                                    <th>생성일</th>
+                                    <th>상태</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="qrTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="admin-qr-script.js"></script>
+</body>
+</html>

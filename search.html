@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>검색 결과 - Pre.p Mood Store</title>
+  <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/page.css">
+  <link rel="stylesheet" href="assets/css/responsive.css">
+  <script src="catalog-data.js"></script>
+  <script src="header-loader.js" defer></script>
+  <script src="footer-loader.js" defer></script>
+</head>
+<body>
+
+  <!-- 헤더가 삽입될 영역 -->
+  <div id="header-container"></div>
+
+  <!-- 검색 결과 메인 컨테이너 -->
+  <div class="search-page-container">
+    <!-- 왼쪽 필터 사이드바 -->
+    <aside class="search-sidebar">
+      <div class="sidebar-header">
+        <h3>필터</h3>
+        <button class="clear-filters-btn" id="clear-filters">초기화</button>
+      </div>
+      
+
+      <!-- 카테고리 필터 -->
+      <div class="filter-section">
+        <div class="filter-toggle">
+          <h4>카테고리</h4>
+          <span class="toggle-icon">▼</span>
+        </div>
+        <div class="filter-content">
+          <label class="filter-option">
+            <input type="checkbox" name="category" value="tops">
+            <span>상의</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" name="category" value="bottoms">
+            <span>하의</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" name="category" value="shoes">
+            <span>신발</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" name="category" value="bags">
+            <span>가방</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" name="category" value="accessories">
+            <span>액세서리</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 가격대 필터 -->
+      <div class="filter-section">
+        <div class="filter-toggle">
+          <h4>가격대</h4>
+          <span class="toggle-icon">▼</span>
+        </div>
+        <div class="filter-content">
+          <label class="filter-option">
+            <input type="radio" name="price" value="">
+            <span>전체</span>
+          </label>
+          <label class="filter-option">
+            <input type="radio" name="price" value="0-50000">
+            <span>5만원 이하</span>
+          </label>
+          <label class="filter-option">
+            <input type="radio" name="price" value="50000-100000">
+            <span>5만원 ~ 10만원</span>
+          </label>
+          <label class="filter-option">
+            <input type="radio" name="price" value="100000-200000">
+            <span>10만원 ~ 20만원</span>
+          </label>
+          <label class="filter-option">
+            <input type="radio" name="price" value="200000-">
+            <span>20만원 이상</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 색상 필터 -->
+      <div class="filter-section">
+        <div class="filter-toggle">
+          <h4>색상</h4>
+          <span class="toggle-icon">▼</span>
+        </div>
+        <div class="filter-content">
+          <div class="color-options">
+            <div class="color-option" data-color="black" style="background-color: #000;"></div>
+            <div class="color-option" data-color="white" style="background-color: #fff; border: 1px solid #ddd;"></div>
+            <div class="color-option" data-color="gray" style="background-color: #666;"></div>
+            <div class="color-option" data-color="brown" style="background-color: #8B4513;"></div>
+            <div class="color-option" data-color="navy" style="background-color: #000080;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 소재 필터 -->
+      <div class="filter-section">
+        <div class="filter-toggle">
+          <h4>소재</h4>
+          <span class="toggle-icon">▼</span>
+        </div>
+        <div class="filter-content">
+          <label class="filter-option">
+            <input type="checkbox" name="material" value="cotton">
+            <span>면</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" name="material" value="leather">
+            <span>가죽</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" name="material" value="wool">
+            <span>울</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" name="material" value="silk">
+            <span>실크</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" name="material" value="denim">
+            <span>데님</span>
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 메인 콘텐츠 영역 -->
+    <main class="search-main-content">
+      <!-- 검색 입력창 -->
+      <div class="search-input-section">
+        <div class="search-input-container">
+          <input type="text" id="search-input-main" placeholder="검색어를 입력하세요..." autocomplete="off">
+          <button id="search-btn-main" class="search-button-main">검색</button>
+        </div>
+      </div>
+
+      <!-- 검색 결과 헤더 -->
+      <div class="search-results-header">
+        <div class="search-info">
+          <h2 id="search-query">검색 결과</h2>
+          <span class="results-count" id="results-count">0개 상품</span>
+        </div>
+        <div class="sort-options">
+          <select id="sort-select">
+            <option value="name">상품명순</option>
+            <option value="price-low">낮은 가격순</option>
+            <option value="price-high">높은 가격순</option>
+            <option value="newest">최신순</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 검색 결과 그리드 -->
+      <div class="products-grid" id="products-grid">
+        <!-- 검색 결과가 여기에 동적으로 로드됩니다 -->
+      </div>
+
+      <!-- 검색 결과 없음 -->
+      <div class="no-results" id="no-results" style="display: none;">
+        <div class="no-results-content">
+          <h3>검색 결과가 없습니다</h3>
+          <p>다른 검색어나 필터를 시도해보세요.</p>
+          <button class="reset-search-btn" onclick="resetSearch()">검색 초기화</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 검색 기능 JavaScript -->
+  <script>
+    let currentSearchQuery = '';
+    let allProducts = [];
+    let filteredProducts = [];
+
+    // 페이지 로드 시 초기화
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM 로드 완료');
+      
+      // catalog-data.js 로드 확인
+      if (typeof window.CATALOG_DATA !== 'undefined') {
+        console.log('CATALOG_DATA 로드됨');
+        initializeSearch();
+        setupFilters();
+        loadProducts();
+      } else {
+        console.error('CATALOG_DATA가 로드되지 않았습니다');
+        // 수동으로 데이터 로드 시도
+        loadCatalogData();
+      }
+    });
+
+    // catalog-data.js 수동 로드
+    function loadCatalogData() {
+      const script = document.createElement('script');
+      script.src = 'catalog-data.js';
+      script.onload = function() {
+        console.log('catalog-data.js 수동 로드 완료');
+        if (typeof window.CATALOG_DATA !== 'undefined') {
+          initializeSearch();
+          setupFilters();
+          loadProducts();
+        }
+      };
+      script.onerror = function() {
+        console.error('catalog-data.js 로드 실패');
+        showError('상품 데이터를 불러올 수 없습니다.');
+      };
+      document.head.appendChild(script);
+    }
+
+    // 에러 표시
+    function showError(message) {
+      document.getElementById('products-grid').innerHTML = 
+        `<div class="no-results">
+          <div class="no-results-content">
+            <h3>데이터 로드 실패</h3>
+            <p>${message}</p>
+            <button class="reset-search-btn" onclick="location.reload()">페이지 새로고침</button>
+          </div>
+        </div>`;
+    }
+
+    // URL 파라미터에서 검색어 가져오기
+    function initializeSearch() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const query = urlParams.get('q');
+      
+      if (query) {
+        currentSearchQuery = decodeURIComponent(query);
+        document.getElementById('search-query').textContent = `"${currentSearchQuery}" 검색 결과`;
+        
+        // 검색창에 현재 검색어 표시
+        const searchInput = document.getElementById('search-input-main');
+        if (searchInput) {
+          searchInput.value = currentSearchQuery;
+        }
+        
+        performSearch();
+      } else {
+        // 검색어가 없으면 전체 상품 표시
+        document.getElementById('search-query').textContent = '전체 상품';
+      }
+    }
+
+    // 모든 상품 데이터 로드
+    function loadProducts() {
+      console.log('=== loadProducts 시작 ===');
+      console.log('CATALOG_DATA 존재 여부:', typeof window.CATALOG_DATA !== 'undefined');
+      
+      if (typeof window.CATALOG_DATA === 'undefined') {
+        console.error('CATALOG_DATA가 정의되지 않았습니다.');
+        showError('상품 데이터가 로드되지 않았습니다.');
+        return;
+      }
+
+      const catalogData = window.CATALOG_DATA;
+      console.log('catalogData 구조:', Object.keys(catalogData));
+      allProducts = [];
+
+      // 모든 상품을 평면화하여 배열로 변환
+      ['men', 'women'].forEach(gender => {
+        if (catalogData[gender]) {
+          Object.keys(catalogData[gender]).forEach(mainCategory => {
+            console.log(`  처리 중인 카테고리: ${mainCategory}`);
+            Object.keys(catalogData[gender][mainCategory]).forEach(subCategory => {
+              console.log(`    처리 중인 서브카테고리: ${subCategory}`);
+              const products = catalogData[gender][mainCategory][subCategory];
+              console.log(`      상품 수: ${products.length}`);
+              
+              products.forEach(product => {
+                allProducts.push({
+                  ...product,
+                  gender,
+                  mainCategory,
+                  subCategory
+                });
+              });
+            });
+          });
+        } else {
+          console.log(`${gender} 데이터가 없습니다.`);
+        }
+      });
+
+      console.log('=== 로드 완료 ===');
+      console.log('전체 상품 수:', allProducts.length);
+      console.log('첫 번째 상품:', allProducts[0]);
+      console.log('Classic이 포함된 상품:', allProducts.filter(p => p.name.toLowerCase().includes('classic')));
+      
+      // 검색어가 있으면 검색 실행
+      if (currentSearchQuery) {
+        console.log('검색어가 있으므로 검색 실행:', currentSearchQuery);
+        performSearch();
+      } else {
+        // 검색어가 없으면 전체 상품 표시
+        console.log('검색어가 없으므로 전체 상품 표시');
+        displayProducts(allProducts);
+      }
+    }
+
+    // 검색 실행
+    function performSearch() {
+      console.log('=== performSearch 시작 ===');
+      console.log('현재 검색어:', currentSearchQuery);
+      console.log('전체 상품 수:', allProducts.length);
+      
+      if (!currentSearchQuery || currentSearchQuery.trim() === '') {
+        console.log('검색어 없음 - 전체 상품 표시');
+        filteredProducts = [...allProducts];
+        displayProducts(filteredProducts);
+        return;
+      }
+
+      // 대소문자 구분 없이 부분 일치 검색
+      const searchTerm = currentSearchQuery.trim().toLowerCase();
+      console.log('검색어 (소문자):', searchTerm);
+
+      const searchResults = allProducts.filter(product => {
+        const productName = product.name.toLowerCase();
+        const isMatch = productName.includes(searchTerm);
+        
+        if (isMatch) {
+          console.log(`매치된 상품: ${product.name} (검색어: ${searchTerm})`);
+        }
+        
+        return isMatch;
+      });
+
+      console.log('=== 검색 완료 ===');
+      console.log('검색 결과 수:', searchResults.length);
+      console.log('검색 결과 상품들:', searchResults.map(p => p.name));
+
+      filteredProducts = searchResults;
+      displayProducts(searchResults);
+    }
+
+    // 상품 표시
+    function displayProducts(products) {
+      console.log('=== displayProducts 시작 ===');
+      console.log('표시할 상품 수:', products.length);
+      
+      const grid = document.getElementById('products-grid');
+      const noResults = document.getElementById('no-results');
+      const resultsCount = document.getElementById('results-count');
+
+      if (!products || products.length === 0) {
+        console.log('상품이 없어서 "결과 없음" 표시');
+        grid.style.display = 'none';
+        noResults.style.display = 'block';
+        resultsCount.textContent = '0개 상품';
+        return;
+      }
+
+      console.log('상품 그리드 표시');
+      grid.style.display = 'grid';
+      noResults.style.display = 'none';
+      resultsCount.textContent = `${products.length}개 상품`;
+
+      const productsHtml = products.map(product => {
+        console.log(`상품 HTML 생성: ${product.name}`);
+        return `
+          <div class="product-card" onclick="goToProduct('${product.id}', '${product.gender}', '${product.mainCategory}', '${product.subCategory}')">
+            <div class="product-image">
+              <img src="${product.image}" alt="${product.name}" loading="lazy" 
+                   onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgwIiBoZWlnaHQ9IjI4MCIgdmlld0JveD0iMCAwIDI4MCAyODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyODAiIGhlaWdodD0iMjgwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNDAgMTIwSDgwdjQwaDgwVjEyMFoiIGZpbGw9IiNEOUQ5RDkiLz4KPHN2Zz4K'">
+            </div>
+            <div class="product-info">
+              <h3 class="product-name">${product.name}</h3>
+              <p class="product-price">₩${product.price.toLocaleString()}</p>
+              <p class="product-category">${product.mainCategory}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      grid.innerHTML = productsHtml;
+      console.log('상품 HTML 생성 완료');
+    }
+
+    // 상품 상세 페이지로 이동
+    function goToProduct(productId, gender, mainCategory, subCategory) {
+      const url = `catalog.html?gender=${gender}&category=${mainCategory}&subcategory=${subCategory}&product=${productId}`;
+      window.location.href = url;
+    }
+
+    // 필터 설정
+    function setupFilters() {
+      // 필터 토글 기능
+      document.querySelectorAll('.filter-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+          const content = this.nextElementSibling;
+          const icon = this.querySelector('.toggle-icon');
+          
+          if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.textContent = '▼';
+          } else {
+            content.style.display = 'none';
+            icon.textContent = '▶';
+          }
+        });
+      });
+
+      // 필터 변경 이벤트
+      document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+        input.addEventListener('change', applyFilters);
+      });
+
+      // 정렬 옵션
+      document.getElementById('sort-select').addEventListener('change', applySorting);
+
+      // 필터 초기화
+      document.getElementById('clear-filters').addEventListener('click', clearFilters);
+
+      // 검색창 이벤트 설정
+      setupSearchInput();
+    }
+
+    // 검색창 이벤트 설정
+    function setupSearchInput() {
+      const searchInput = document.getElementById('search-input-main');
+      const searchBtn = document.getElementById('search-btn-main');
+
+      if (searchInput && searchBtn) {
+        // 검색 버튼 클릭
+        searchBtn.addEventListener('click', function() {
+          performNewSearch();
+        });
+
+        // 엔터키로 검색
+        searchInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            performNewSearch();
+          }
+        });
+
+        // 검색어 변경 시 실시간 업데이트 (선택사항)
+        searchInput.addEventListener('input', function() {
+          // 실시간 검색을 원한다면 주석 해제
+          // performNewSearch();
+        });
+      }
+    }
+
+    // 새로운 검색 실행
+    function performNewSearch() {
+      const searchInput = document.getElementById('search-input-main');
+      if (!searchInput) return;
+
+      const newQuery = searchInput.value.trim();
+      console.log('새로운 검색어:', newQuery);
+
+      // 검색어가 없으면 전체 상품 표시
+      if (!newQuery) {
+        currentSearchQuery = '';
+        document.getElementById('search-query').textContent = '전체 상품';
+        displayProducts(allProducts);
+        return;
+      }
+
+      // 현재 검색어 업데이트
+      currentSearchQuery = newQuery;
+      document.getElementById('search-query').textContent = `"${currentSearchQuery}" 검색 결과`;
+
+      // 검색 실행
+      performSearch();
+
+      // URL 업데이트 (선택사항 - 히스토리 관리)
+      const newUrl = `search.html?q=${encodeURIComponent(currentSearchQuery)}`;
+      window.history.pushState({}, '', newUrl);
+    }
+
+    // 필터 적용
+    function applyFilters() {
+      const categories = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(cb => cb.value);
+      const price = document.querySelector('input[name="price"]:checked').value;
+
+      // 항상 전체 상품에서 시작
+      let filtered = [...allProducts];
+
+      // 검색어 필터 (가장 먼저 적용)
+      if (currentSearchQuery) {
+        filtered = filtered.filter(product => 
+          product.name.toLowerCase().includes(currentSearchQuery.toLowerCase())
+        );
+        console.log('검색어 필터 적용 후:', filtered.length, '개');
+      }
+
+      // 카테고리 필터
+      if (categories.length > 0) {
+        filtered = filtered.filter(product => categories.includes(product.mainCategory));
+        console.log('카테고리 필터 적용 후:', filtered.length, '개');
+      }
+
+      // 가격 필터
+      if (price) {
+        const [min, max] = price.split('-').map(p => parseInt(p) || 0);
+        filtered = filtered.filter(product => 
+          product.price >= min && (max === 0 || product.price <= max)
+        );
+        console.log('가격 필터 적용 후:', filtered.length, '개');
+      }
+
+      filteredProducts = filtered;
+      applySorting();
+    }
+
+    // 정렬 적용
+    function applySorting() {
+      const sortBy = document.getElementById('sort-select').value;
+
+      switch (sortBy) {
+        case 'name':
+          filteredProducts.sort((a, b) => a.name.localeCompare(b.name));
+          break;
+        case 'price-low':
+          filteredProducts.sort((a, b) => a.price - b.price);
+          break;
+        case 'price-high':
+          filteredProducts.sort((a, b) => b.price - a.price);
+          break;
+        case 'newest':
+          // 최신순은 ID 기준으로 정렬 (높은 ID가 최신)
+          filteredProducts.sort((a, b) => b.id.localeCompare(a.id));
+          break;
+      }
+
+      displayProducts(filteredProducts);
+    }
+
+    // 필터 초기화
+    function clearFilters() {
+      // 가격 필터만 초기화 (전체 선택)
+      document.querySelectorAll('input[name="price"]').forEach(input => {
+        input.checked = (input.value === '');
+      });
+      
+      // 카테고리 필터 초기화
+      document.querySelectorAll('input[name="category"]').forEach(input => {
+        input.checked = false;
+      });
+
+      // 검색어는 유지하고 필터만 초기화
+      applyFilters();
+    }
+
+    // 검색 초기화
+    function resetSearch() {
+      window.location.href = 'index.html';
+    }
+
+    // 검색어 설정 함수 (외부에서 호출용)
+    function setSearchQuery(query) {
+      currentSearchQuery = query;
+      document.getElementById('search-query').textContent = `"${query}" 검색 결과`;
+      applyFilters();
+    }
+
+    // 테스트용 함수 (콘솔에서 호출 가능)
+    function testSearch() {
+      console.log('=== 검색 테스트 시작 ===');
+      console.log('CATALOG_DATA:', window.CATALOG_DATA);
+      console.log('allProducts 길이:', allProducts.length);
+      console.log('첫 번째 상품:', allProducts[0]);
+      
+      if (allProducts.length > 0) {
+        const testProduct = allProducts[0];
+        console.log('테스트 상품명:', testProduct.name);
+        
+        // 테스트 검색 실행
+        currentSearchQuery = testProduct.name.split(' ')[0]; // 첫 번째 단어로 검색
+        console.log('테스트 검색어:', currentSearchQuery);
+        performSearch();
+      }
+    }
+
+    // Classic 검색 테스트
+    function testClassicSearch() {
+      console.log('=== Classic 검색 테스트 ===');
+      currentSearchQuery = 'Classic';
+      document.getElementById('search-query').textContent = `"${currentSearchQuery}" 검색 결과`;
+      performSearch();
+    }
+
+    // cl 검색 테스트
+    function testClSearch() {
+      console.log('=== cl 검색 테스트 ===');
+      currentSearchQuery = 'cl';
+      document.getElementById('search-query').textContent = `"${currentSearchQuery}" 검색 결과`;
+      performSearch();
+    }
+
+    // 전체 상품 표시
+    function showAllProducts() {
+      console.log('=== 전체 상품 표시 ===');
+      currentSearchQuery = '';
+      document.getElementById('search-query').textContent = '전체 상품';
+      displayProducts(allProducts);
+    }
+  </script>
+
+  <!-- 푸터 컨테이너 -->
+  <div id="footer-container"></div>
+</body>
+</html>

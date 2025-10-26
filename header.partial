@@ -1,0 +1,157 @@
+<!-- 헤더 (프래그먼트) -->
+<header class="main-header">
+  <div class="header-content">
+    <div class="logo">
+      <a href="index.html" style="text-decoration: none;">
+        <div class="brand-text">
+          <strong style="font-size: 1.2rem; color: #111;">Pre.pMood</strong>
+          <div class="slogan" style="font-size: 0.75rem; color: #444; font-weight: 300; margin-top: 2px;">Timeless lines, Refined Vibes</div>
+        </div>
+      </a>
+    </div>
+    <nav class="main-nav">
+      <ul class="mega-root">
+        <li class="has-mega"><a href="catalog.html?collection=2025">Collection 2025</a>
+          <div class="mega-menu">
+            <div class="mega-col">
+              <a href="catalog.html?collection=2025">2025년도 출시 제품 모음</a>
+            </div>
+          </div>
+        </li>
+        <li class="has-mega"><a href="catalog.html?category=tops">상의(Top)</a>
+          <div class="mega-menu">
+            <div class="mega-col">
+              <a href="catalog.html?category=tops">전체보기(View All)</a>
+            </div>
+          </div>
+        </li>
+        <li class="has-mega"><a href="catalog.html?category=bottoms">하의(Bottom)</a>
+          <div class="mega-menu">
+            <div class="mega-col">
+              <a href="catalog.html?category=bottoms">전체보기(View All)</a>
+            </div>
+          </div>
+        </li>
+        <li class="has-mega"><a href="catalog.html?category=outer">아우터(Outer)</a>
+          <div class="mega-menu">
+            <div class="mega-col">
+              <a href="catalog.html?category=outer">전체보기(View All)</a>
+            </div>
+          </div>
+        </li>
+        <li class="has-mega"><a href="catalog.html?category=bags">가방(Bag)</a>
+          <div class="mega-menu">
+            <div class="mega-col">
+              <a href="catalog.html?category=bags">전체보기(View All)</a>
+            </div>
+          </div>
+        </li>
+        <li class="has-mega"><a href="catalog.html?category=accessories">액세서리(Accessories)</a>
+          <div class="mega-menu">
+            <div class="mega-col">
+              <a href="catalog.html?category=accessories">전체보기(View All)</a>
+              <a href="catalog.html?category=accessories&type=caps">모자(Cap)</a>
+              <a href="catalog.html?category=accessories&type=wallets">지갑(Wallet)</a>
+              <a href="catalog.html?category=accessories&type=ties">넥타이(Tie)</a>
+              <a href="catalog.html?category=accessories&type=scarves">목도리(Scarf)</a>
+              <a href="catalog.html?category=accessories&type=belts">벨트(Belt)</a>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="header-actions">
+      <a href="#" class="action-link" id="search-toggle">
+        <img src="image/돋보기.jpg" alt="검색" class="action-icon" />
+      </a>
+      
+      <!-- 마이페이지 (로그인 상태에 따라 다르게 동작) -->
+      <div class="mypage-container">
+        <a href="login.html" class="action-link" id="mypage-toggle">
+          <img src="image/mypage.jpg" alt="마이페이지" class="action-icon" id="mypage-icon" />
+        </a>
+        
+        <!-- 드롭다운 메뉴 -->
+        <div class="mypage-dropdown" id="mypage-dropdown">
+          <a href="my-orders.html" class="dropdown-item">내 주문</a>
+          <a href="my-reservations.html" class="dropdown-item">내 예약</a>
+          <a href="my-profile.html" class="dropdown-item">내 프로필</a>
+          <a href="#" class="dropdown-item" id="logout-btn">로그아웃</a>
+        </div>
+      </div>
+      
+      <a href="wishlist.html" class="action-link">
+        <img src="image/wishlist.jpg" alt="위시리스트" class="action-icon" />
+      </a>
+      <a href="#" class="action-link cart-link" id="cart-toggle">
+        <img src="image/장바구니.jpg" alt="장바구니" class="action-icon" />
+        <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
+      </a>
+      <a href="#" class="action-link">언어</a>
+    </div>
+  </div>
+</header>
+
+<!-- 검색 모달 창 -->
+<div id="search-modal" class="search-modal">
+  <div class="search-modal-content">
+    <div class="search-header">
+      <h3>상품 검색</h3>
+      <span class="search-close" id="search-close">&times;</span>
+    </div>
+    <div class="search-body">
+      <div class="search-input-group">
+        <input type="text" id="search-input" placeholder="검색어를 입력하세요..." autofocus>
+        <button id="search-btn" class="search-button">검색</button>
+      </div>
+      <div class="search-filters">
+        <select id="category-filter">
+          <option value="">전체 카테고리</option>
+          <option value="tops">상의(Top)</option>
+          <option value="bottoms">하의(Bottom)</option>
+          <option value="outer">아우터(Outer)</option>
+          <option value="bags">가방(Bag)</option>
+          <option value="accessories">액세서리(Accessories)</option>
+        </select>
+        <select id="price-filter">
+          <option value="">가격대</option>
+          <option value="0-50000">5만원 이하</option>
+          <option value="50000-100000">5만원 ~ 10만원</option>
+          <option value="100000-200000">10만원 ~ 20만원</option>
+          <option value="200000-">20만원 이상</option>
+        </select>
+      </div>
+    </div>
+    <div class="search-results" id="search-results">
+      <!-- 검색 결과가 여기에 표시됩니다 -->
+    </div>
+  </div>
+</div>
+
+<!-- 검색 기능은 header-loader.js에서 초기화됩니다 -->
+
+<!-- 우측 사이드바 미니 카트 -->
+<div id="mini-cart" class="mini-cart">
+  <div class="mini-cart-header">
+    <h3>선택 항목 (0)</h3>
+    <button class="mini-cart-close" id="mini-cart-close">&times;</button>
+  </div>
+  
+  <div class="mini-cart-content" id="mini-cart-content">
+    <!-- 장바구니 아이템들이 여기에 표시됩니다 -->
+  </div>
+  
+  <div class="mini-cart-footer">
+    <div class="mini-cart-total">
+      총계: <span id="mini-cart-total">₩0</span>
+    </div>
+    <div class="mini-cart-actions">
+      <button class="btn-secondary" id="view-cart-btn">장바구니로 이동</button>
+      <button class="btn-primary" id="checkout-btn">체크아웃 진행</button>
+    </div>
+  </div>
+</div>
+
+<!-- 미니 카트 오버레이 -->
+<div id="mini-cart-overlay" class="mini-cart-overlay"></div>

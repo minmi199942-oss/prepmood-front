@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>개인정보 처리방침 - Pre.pMood</title>
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/page.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+    <script src="header-loader.js" defer></script>
+    <script src="footer-loader.js" defer></script>
+    <style>
+        .privacy-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            display: flex;
+            gap: 40px;
+            min-height: 80vh;
+            align-items: flex-start;
+        }
+
+        .privacy-sidebar {
+            flex: 0 0 280px;
+            background-color: #f8f9fa;
+            padding: 30px 20px;
+            border-radius: 8px;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+            min-height: 400px;
+        }
+
+        .privacy-sidebar h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .privacy-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .privacy-nav li {
+            margin-bottom: 8px;
+            width: 100%;
+        }
+
+        .privacy-nav a {
+            display: block;
+            padding: 12px 16px;
+            color: #666;
+            text-decoration: none;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .privacy-nav a:hover {
+            background-color: #e9ecef;
+            color: #333;
+        }
+
+        .privacy-nav a.active {
+            background-color: #333;
+            color: white;
+        }
+
+        .privacy-content {
+            flex: 1;
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            max-width: calc(100% - 320px);
+            min-height: 100vh;
+        }
+
+        .privacy-content h1 {
+            font-size: 2.2rem;
+            font-weight: 300;
+            color: #333;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+
+        .last-updated {
+            font-size: 0.9rem;
+            color: #777;
+            margin-bottom: 20px;
+        }
+
+        .privacy-section {
+            margin-bottom: 60px;
+            padding-bottom: 20px;
+        }
+
+        .privacy-section h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .privacy-section h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #444;
+            margin: 25px 0 15px 0;
+        }
+
+        .privacy-section p {
+            line-height: 1.7;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .privacy-section ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+
+        .privacy-section ol {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+
+        .privacy-section li {
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .highlight {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .contact-info {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .contact-info h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .contact-item {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .contact-item strong {
+            min-width: 80px;
+            color: #333;
+        }
+
+        .section-divider {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 30px 0;
+        }
+
+        @media (max-width: 768px) {
+            .privacy-page {
+                flex-direction: column;
+                padding: 20px 10px;
+                gap: 20px;
+            }
+            
+            .privacy-sidebar {
+                flex: none;
+                position: static;
+                margin-bottom: 0;
+                min-height: auto;
+            }
+            
+            .privacy-nav {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .privacy-nav li {
+                flex: 1;
+                min-width: 120px;
+                margin-bottom: 0;
+            }
+            
+            .privacy-nav a {
+                font-size: 0.75rem;
+                padding: 8px 12px;
+                text-align: center;
+            }
+            
+            .privacy-content {
+                padding: 20px;
+                max-width: 100%;
+            }
+            
+            .contact-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .contact-item strong {
+                min-width: auto;
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header-container"></div>
+    
+    <div class="privacy-page">
+        <!-- 좌측 사이드바 -->
+        <nav class="privacy-sidebar">
+            <h3>개인정보 처리방침</h3>
+            <ul class="privacy-nav">
+                <li><a href="#section-1" class="nav-link active">1. 수집 및 이용 목적</a></li>
+                <li><a href="#section-2" class="nav-link">2. 보관 기간</a></li>
+                <li><a href="#section-3" class="nav-link">3. 제3자 제공</a></li>
+                <li><a href="#section-4" class="nav-link">4. 처리 책임자</a></li>
+                <li><a href="#section-5" class="nav-link">5. 고객 권리</a></li>
+                <li><a href="#section-6" class="nav-link">6. 쿠키 사용 안내</a></li>
+                <li><a href="#section-7" class="nav-link">7. 안전성 확보 조치</a></li>
+                <li><a href="#section-8" class="nav-link">8. 법적 근거</a></li>
+                <li><a href="#section-9" class="nav-link">9. 국외 이전</a></li>
+                <li><a href="#section-10" class="nav-link">10. 문의 및 권리 행사</a></li>
+            </ul>
+        </nav>
+
+        <!-- 우측 메인 콘텐츠 -->
+        <main class="privacy-content">
+            <h1>Pre.pMood 개인정보 처리방침</h1>
+            <p class="last-updated">최종 업데이트: 2025년 10월 7일</p>
+            <p><span class="highlight">Pre.pMood</span>는 고객님의 개인정보를 소중히 다루며, 안전하게 보호하기 위해 최선을 다합니다. 본 방침에서는 개인정보의 수집, 이용, 보관, 보호 및 고객님의 권리에 대해 안내하며, 한국 개인정보보호법, 유럽 GDPR, 미국 CCPA 등 글로벌 기준을 준수합니다.</p>
+
+            <hr class="section-divider">
+
+            <section id="section-1" class="privacy-section">
+                <h2>1. 개인정보 수집 및 이용 목적</h2>
+                
+                <h3>1.1 주문 처리 및 배송</h3>
+                <ul>
+                    <li><strong>수집 항목:</strong> 성명, 배송지 주소, 연락처, 결제 정보</li>
+                    <li><strong>이용 목적:</strong> 주문 확인, 결제 처리, 안전하고 정확한 배송 진행</li>
+                </ul>
+
+                <h3>1.2 고객 상담 및 문의 처리</h3>
+                <ul>
+                    <li><strong>수집 항목:</strong> 성명, 이메일, 전화번호, 문의 내용</li>
+                    <li><strong>이용 목적:</strong> 고객 문의 신속 대응, 요청 사항 처리, 서비스 품질 향상</li>
+                </ul>
+
+                <h3>1.3 마케팅 및 뉴스레터 (선택 동의)</h3>
+                <ul>
+                    <li><strong>수집 항목:</strong> 이메일, 전화번호, 마케팅 수신 동의 여부</li>
+                    <li><strong>이용 목적:</strong> 이벤트, 신상품, 프로모션, 뉴스레터 안내</li>
+                </ul>
+                <p><em>※ 선택 동의 항목은 별도로 체크 박스로 표시하며, 동의 철회가 가능합니다.</em></p>
+
+                <h3>1.4 서비스 개선 및 통계 분석</h3>
+                <ul>
+                    <li><strong>수집 항목:</strong> 웹사이트 이용 기록, 쿠키 정보</li>
+                    <li><strong>이용 목적:</strong> 웹사이트 및 서비스 이용 패턴 분석, 맞춤형 서비스 제공</li>
+                </ul>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-2" class="privacy-section">
+                <h2>2. 개인정보 보관 기간</h2>
+                <ul>
+                    <li>개인정보는 수집일로부터 5년간 보관되며, 이용 목적 달성 후 지체 없이 파기합니다.</li>
+                    <li>단, 관련 법령에 따라 보관이 필요한 경우에는 해당 기간 동안 안전하게 보관합니다.</li>
+                </ul>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-3" class="privacy-section">
+                <h2>3. 개인정보 처리 및 제3자 제공</h2>
+                <p><span class="highlight">Pre.pMood</span>는 고객님의 개인정보를 원칙적으로 제3자에게 제공하지 않습니다. 단, 다음의 경우는 예외입니다.</p>
+                <ol>
+                    <li>고객님의 사전 동의가 있는 경우</li>
+                    <li>서비스 제공에 필요한 경우 (예: 택배사, 결제대행사 등)</li>
+                    <li>법령, 수사기관, 관할 기관의 요청이 있는 경우</li>
+                </ol>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-4" class="privacy-section">
+                <h2>4. 개인정보 처리 책임자</h2>
+                <ul>
+                    <li><strong>책임자:</strong> <span class="highlight">Pre.pMood</span></li>
+                    <li><strong>연락처:</strong> 1555-6035</li>
+                    <li><strong>이메일:</strong> prepmoodcare@naver.com</li>
+                    <li><strong>역할:</strong> 개인정보 안전 관리, 고객 문의 대응, 권리 보장</li>
+                </ul>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-5" class="privacy-section">
+                <h2>5. 고객 권리</h2>
+                <p>고객님은 아래 권리를 언제든지 행사할 수 있습니다.</p>
+                <ol>
+                    <li>개인정보 열람, 정정, 삭제 요청</li>
+                    <li>개인정보 수집·이용 동의 철회</li>
+                    <li>개인정보 처리 관련 문의 및 불만 제기</li>
+                </ol>
+                <ul>
+                    <li><strong>요청 방법:</strong> 이메일(prepmoodcare@naver.com) 또는 서면 접수</li>
+                    <li><strong>처리 기간:</strong> 합리적 기간 내 처리</li>
+                </ul>
+                <p><em>※ GDPR 및 CCPA 기준에 따라, 데이터 이동, 처리 제한, 수신 거부, 선택 철회 권리도 포함됩니다.</em></p>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-6" class="privacy-section">
+                <h2>6. 쿠키(Cookie) 사용 안내</h2>
+                <ul>
+                    <li><strong>쿠키란:</strong> 웹사이트 이용 편의와 맞춤형 서비스 제공을 위해 브라우저에 저장되는 작은 데이터 파일입니다.</li>
+                    <li><strong>활용 목적:</strong> 로그인 상태 유지, 장바구니 정보 저장, 웹사이트 이용 통계 수집, 맞춤 추천 및 광고 제공</li>
+                    <li><strong>관리 방법:</strong> 브라우저 설정에서 수락 또는 거부 가능</li>
+                    <li><strong>영향:</strong> 쿠키 거부 시 일부 서비스 이용에 제한이 있을 수 있습니다.</li>
+                </ul>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-7" class="privacy-section">
+                <h2>7. 개인정보 안전성 확보 조치</h2>
+                <p><span class="highlight">Pre.pMood</span>는 고객님의 개인정보를 안전하게 보호하기 위해 아래와 같은 조치를 시행합니다.</p>
+                <ul>
+                    <li>개인정보 암호화 저장</li>
+                    <li>SSL(Secure Socket Layer) 적용</li>
+                    <li>접근 권한 관리 및 내부 직원 교육</li>
+                    <li>주기적 보안 점검 및 외부 보안 솔루션 적용</li>
+                </ul>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-8" class="privacy-section">
+                <h2>8. 법적 근거</h2>
+                <p>본 방침은 「개인정보 보호법」, 전자상거래 등에서의 소비자 보호에 관한 법률 및 관련 법령을 준수하며, 선택적 동의 항목(마케팅, 쿠키 등)은 별도 동의를 받습니다.</p>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-9" class="privacy-section">
+                <h2>9. 개인정보 국외 이전</h2>
+                <ul>
+                    <li>글로벌 서비스 운영을 위해 개인정보가 해외 서버나 제3자 파트너에게 처리될 수 있습니다.</li>
+                    <li>국외 이전 시, 적절한 보호 조치(예: 표준계약조항)를 적용하여 안전하게 관리합니다.</li>
+                </ul>
+                
+                <!-- 9번 섹션 하단 여백 추가 -->
+                <div style="height: 80px;"></div>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-10" class="privacy-section">
+                <h2>10. 문의 및 권리 행사</h2>
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <strong>이메일:</strong>
+                        <span>prepmoodcare@naver.com</span>
+                    </div>
+                    <div class="contact-item">
+                        <strong>전화:</strong>
+                        <span>1555-6035</span>
+                    </div>
+                    <div class="contact-item">
+                        <strong>우편:</strong>
+                        <span>Pre.pMood (대구광역시 중구 국채보상로 558-1, 2층 D605호)</span>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 하단 여백 추가 -->
+            <div style="height: 300px;"></div>
+        </main>
+    </div>
+
+    <div id="footer-container"></div>
+
+    <script>
+        // 사이드바 네비게이션 기능
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('.privacy-section');
+
+            // 스크롤 위치에 따른 활성 링크 업데이트
+            function updateActiveNav() {
+                let current = '';
+                const scrollPosition = window.scrollY + 150;
+                const windowHeight = window.innerHeight;
+                const documentHeight = document.documentElement.scrollHeight;
+                
+                // 스크롤이 거의 끝에 도달했을 때 마지막 섹션 활성화
+                if (scrollPosition + windowHeight >= documentHeight - 50) {
+                    current = sections[sections.length - 1].getAttribute('id');
+                } else {
+                    sections.forEach((section, index) => {
+                        const sectionTop = section.offsetTop;
+                        const sectionBottom = sectionTop + section.offsetHeight;
+                        
+                        // 9번 섹션의 경우 더 관대한 범위로 설정
+                        if (section.id === 'section-9') {
+                            if (scrollPosition >= sectionTop - 150 && scrollPosition < sectionBottom + 100) {
+                                current = section.getAttribute('id');
+                            }
+                        } else {
+                            if (scrollPosition >= sectionTop - 100 && scrollPosition < sectionBottom) {
+                                current = section.getAttribute('id');
+                            }
+                        }
+                    });
+                }
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + current) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+
+            // 클릭 시 해당 섹션으로 부드럽게 스크롤
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    const targetSection = document.getElementById(targetId);
+                    
+                    console.log('클릭된 섹션:', targetId); // 디버깅용
+                    
+                    if (targetSection) {
+                        let offsetTop = targetSection.offsetTop - 100;
+                        
+                        // 9번 섹션의 경우 더 정확한 위치로 스크롤
+                        if (targetId === 'section-9') {
+                            offsetTop = targetSection.offsetTop - 80;
+                            console.log('9번 섹션 스크롤 위치:', offsetTop); // 디버깅용
+                        } else if (targetId === 'section-10') {
+                            offsetTop = targetSection.offsetTop - 50;
+                        }
+                        
+                        window.scrollTo({
+                            top: offsetTop,
+                            behavior: 'smooth'
+                        });
+                        
+                        // 스크롤 완료 후 활성 상태 업데이트
+                        setTimeout(() => {
+                            updateActiveNav();
+                        }, 600);
+                    }
+                });
+            });
+
+            // 스크롤 이벤트 리스너
+            window.addEventListener('scroll', updateActiveNav);
+            
+            // 초기 활성 상태 설정
+            updateActiveNav();
+        });
+    </script>
+</body>
+</html>
