@@ -238,7 +238,8 @@
         setTimeout(hideSearchFeatures, 500);
         setTimeout(hideSearchFeatures, 1000);
         
-        // DOM 변화 감지해서 계속 숨기기        const observer = new MutationObserver(hideSearchFeatures);
+        // DOM 변화 감지해서 계속 숨기기
+        const observer = new MutationObserver(hideSearchFeatures);
         observer.observe(document.body, { childList: true, subtree: true });
     </script>
     <script>
@@ -262,7 +263,7 @@
             
             if (user.profilePicture) {
                 googleInfoDiv.innerHTML = `
-                    <img src="${user.profilePicture}" alt="?�로???�진">
+                    <img src="${user.profilePicture}" alt="프로필 이미지">
                     <div class="google-info-text">
                         <p><strong>${user.name || user.email}</strong></p>
                         <p class="email">${user.email}</p>
@@ -277,7 +278,7 @@
                 `;
             }
 
-            // Google ?�름?????�름?�로 ?�동 분리 (?�택??
+            // Google 이름과 성을 자동 분리 (선택사항)
             if (user.name) {
                 const nameParts = user.name.trim().split(' ');
                 if (nameParts.length === 2) {
@@ -289,7 +290,7 @@
             }
         });
 
-        // ???�출
+        // 폼 제출
         document.getElementById('completeProfileForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -297,7 +298,7 @@
             const errorMessage = document.getElementById('errorMessage');
 
             submitBtn.disabled = true;
-            submitBtn.textContent = '처리 �?..';
+            submitBtn.textContent = '처리 중...';
             errorMessage.style.display = 'none';
 
             const formData = {
@@ -308,47 +309,47 @@
             };
 
             try {
-                Logger.log('API ?�출 URL:', `${API_BASE_URL}/api/auth/complete-profile`);
-                Logger.log('?�송 ?�이??', formData);
+                Logger.log('API 호출 URL:', `${API_BASE_URL}/api/auth/complete-profile`);
+                Logger.log('전송 데이터:', formData);
 
                 const response = await fetch(`${API_BASE_URL}/api/auth/complete-profile`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    credentials: 'include', // JWT 쿠키 ?�함
+                    credentials: 'include', // JWT 쿠키 포함
                     body: JSON.stringify(formData)
                 });
 
-                Logger.log('?�답 ?�태:', response.status);
+                Logger.log('응답 상태:', response.status);
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('?�답 ?�러:', errorText);
-                    throw new Error(`?�버 ?�류: ${response.status}`);
+                    console.error('응답 오류:', errorText);
+                    throw new Error(`서버 오류: ${response.status}`);
                 }
 
                 const data = await response.json();
-                Logger.log('?�답 ?�이??', data);
+                Logger.log('응답 데이터:', data);
 
                 if (data.success) {
-                    alert('추�? ?�보가 ?�?�되?�습?�다!');
+                    alert('추가 정보가 저장되었습니다!');
                     
-                    // ?�용???�보 ?�데?�트
+                    // 사용자 정보 업데이트
                     const updatedUser = { ...user, ...formData };
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     
-                    // ?�으�?리디?�션
+                    // 메인으로 리디렉션
                     window.location.href = 'index.html';
                 } else {
-                    throw new Error(data.error || '?�보 ?�?�에 ?�패?�습?�다.');
+                    throw new Error(data.error || '정보 저장에 실패했습니다.');
                 }
             } catch (error) {
-                console.error('추�? ?�보 ?�???�류:', error);
+                console.error('추가 정보 저장 오류:', error);
                 
-                let errorMsg = '?�보 ?�??�??�류가 발생?�습?�다.';
+                let errorMsg = '정보 저장 중 오류가 발생했습니다.';
                 if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
-                    errorMsg = '백엔???�버???�결?????�습?�다. ?�버가 ?�행 중인지 ?�인?�주?�요.';
+                    errorMsg = '백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.';
                 } else if (error.message) {
                     errorMsg = error.message;
                 }
@@ -357,7 +358,7 @@
                 errorMessage.style.display = 'block';
                 
                 submitBtn.disabled = false;
-                submitBtn.textContent = '?�료';
+                submitBtn.textContent = '완료';
             }
         });
     </script>
