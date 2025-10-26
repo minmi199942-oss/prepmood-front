@@ -155,7 +155,7 @@
         window.addEventListener('load', initializeGoogleSignIn);
       }
 
-      // Google 로그인 버튼 클릭 이벤트 (팝업 방식)
+      // Google 로그인 버튼 클릭 이벤트 (개선된 팝업 방식)
       document.getElementById('googleLoginBtn').addEventListener('click', function() {
         // 현재 URL이 127.0.0.1이면 localhost로 리디렉션
         if (window.location.hostname === '127.0.0.1') {
@@ -182,7 +182,7 @@
         const popup = window.open(
           authUrl,
           'Google 로그인',
-          `width=${width},height=${height},top=${top},left=${left}`
+          `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes`
         );
         
         if (!popup) {
@@ -218,13 +218,36 @@
         
         window.addEventListener('message', messageHandler);
         
-        // 팝업이 닫혔는지 확인
+        // 팝업이 닫혔는지 확인 (Cross-Origin-Opener-Policy 오류 처리)
         const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageHandler);
+          try {
+            if (popup.closed) {
+              clearInterval(checkClosed);
+              window.removeEventListener('message', messageHandler);
+            }
+          } catch (e) {
+            // Cross-Origin-Opener-Policy 오류 무시
+            Logger.log('팝업 상태 확인 오류 무시:', e.message);
+            // 5초 후 자동으로 정리
+            setTimeout(() => {
+              clearInterval(checkClosed);
+              window.removeEventListener('message', messageHandler);
+            }, 5000);
           }
         }, 1000);
+        
+        // 30초 후 자동 정리 (타임아웃)
+        setTimeout(() => {
+          try {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', messageHandler);
+            if (!popup.closed) {
+              popup.close();
+            }
+          } catch (e) {
+            Logger.log('타임아웃 정리 오류 무시:', e.message);
+          }
+        }, 30000);
       });
 
       // 로그인 버튼 활성화/비활성화
