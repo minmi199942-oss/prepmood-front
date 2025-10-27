@@ -244,13 +244,12 @@ async function removeCartItem(itemId) {
 function handleCheckout() {
   Logger.log('💳 체크아웃 시작');
   
-  // 서버에서 로드한 장바구니 데이터 사용
-  if (globalCartItems.length === 0) {
-    alert('장바구니가 비어있습니다. 상품을 추가한 후 다시 시도해주세요.');
-    return;
-  }
+  Logger.log('🔍 현재 globalCartItems:', globalCartItems);
+  Logger.log('🔍 globalCartItems 길이:', globalCartItems ? globalCartItems.length : 0);
   
-  Logger.log('✅ 장바구니 확인 완료:', globalCartItems.length, '개 상품');
+  // 장바구니에 아이템이 없어도 체크아웃 페이지로 이동
+  // 체크아웃 페이지에서 직접 서버에서 장바구니 데이터를 가져옴
+  Logger.log('✅ 체크아웃 페이지로 이동');
   
   // 체크아웃 페이지로 이동
   window.location.href = 'checkout.html';
