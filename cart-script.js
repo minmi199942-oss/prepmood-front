@@ -26,10 +26,14 @@ async function initializeCartPage() {
   // 장바구니 아이템 렌더링 (내부에서 서버 데이터 로드)
   await renderCartItems();
   
+  Logger.log('🔍 renderCartItems 완료 후 globalCartItems:', globalCartItems);
+  Logger.log('🔍 renderCartItems 완료 후 globalCartItems.length:', globalCartItems ? globalCartItems.length : 0);
+  
   // 이벤트 리스너 등록
   bindEventListeners();
   
   Logger.log('✅ 장바구니 페이지 초기화 완료');
+  Logger.log('🔍 최종 globalCartItems:', globalCartItems);
 }
 
 async function renderCartItems() {
