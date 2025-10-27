@@ -28,8 +28,12 @@ async function initializeCheckoutPage() {
     return;
   }
   
+  // 로그인 상태 다시 확인
+  console.log('🔍 현재 로그인 상태 (초기):', window.miniCart.isLoggedIn);
+  await window.miniCart.checkLoginStatus();
+  console.log('🔍 현재 로그인 상태 (확인 후):', window.miniCart.isLoggedIn);
+  
   // 로그인 상태 확인 후 장바구니 재로드
-  console.log('🔍 현재 로그인 상태:', window.miniCart.isLoggedIn);
   if (window.miniCart.isLoggedIn) {
     console.log('🔄 장바구니 다시 로드...');
     await window.miniCart.loadCartFromServer();
