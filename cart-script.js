@@ -43,10 +43,13 @@ async function renderCartItems() {
     });
     const data = await response.json();
     
+    Logger.log('📦 서버 응답 데이터:', data);
+    
     if (data.success) {
       cartItems = data.items || [];
       globalCartItems = cartItems; // 글로벌 변수에 저장
       Logger.log('🛒 직접 서버에서 장바구니 로드:', cartItems.length, '개 상품');
+      Logger.log('🔍 globalCartItems 업데이트됨:', globalCartItems);
     } else {
       Logger.log('❌ 서버에서 장바구니 로드 실패:', data.message);
     }
