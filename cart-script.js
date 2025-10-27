@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 장바구니 데이터를 글로벌 변수로 저장
 let globalCartItems = [];
+let currentEditingItem = null;
 
 async function initializeCartPage() {
   Logger.log('🛒 장바구니 페이지 초기화 시작');
@@ -125,18 +126,109 @@ function bindEventListeners() {
       Logger.log('도움말 클릭됨:', this.textContent.trim());
     });
   });
+  
+  // 모달 이벤트 리스너
+  const modal = document.getElementById('edit-modal');
+  const modalClose = document.getElementById('modal-close');
+  const modalCancel = document.getElementById('modal-cancel');
+  const modalSave = document.getElementById('modal-save');
+  
+  if (modalClose) {
+    modalClose.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+  }
+  
+  if (modalCancel) {
+    modalCancel.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+  }
+  
+  if (modalSave) {
+    modalSave.addEventListener('click', saveCartItemEdit);
+  }
+  
+  // 모달 외부 클릭 시 닫기
+  if (modal) {
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+  }
+}
+
+async function saveCartItemEdit() {
+  if (!currentEditingItem) return;
+  
+  const size = document.getElementById('edit-size').value;
+  const color = document.getElementById('edit-color').value;
+  const quantity = parseInt(document.getElementById('edit-quantity').value);
+  
+  if (!size || !color) {
+    alert('사이즈와 색상을 선택해주세요.');
+    return;
+  }
+  
+  if (quantity < 1) {
+    alert('수량은 1 이상이어야 합니다.');
+    return;
+  }
+  
+  try {
+    // API로 수정 요청
+    const response = await fetch(`https://prepmood.kr/api/cart/${currentEditingItem.item_id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        size: size,
+        color: color,
+        quantity: quantity
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('수정 실패');
+    }
+    
+    // 모달 닫기
+    document.getElementById('edit-modal').style.display = 'none';
+    
+    // 장바구니 새로고침
+    await renderCartItems();
+    
+    alert('장바구니 항목이 수정되었습니다.');
+    
+  } catch (error) {
+    Logger.error('❌ 장바구니 수정 오류:', error);
+    alert('수정에 실패했습니다. 잠시 후 다시 시도해주세요.');
+  }
 }
 
 async function editCartItem(itemId) {
   Logger.log('✏️ 장바구니 아이템 수정:', itemId);
   
-  // 현재는 간단한 수량 수정만 지원
-  const newQuantity = prompt('수량을 입력하세요:');
-  if (newQuantity && !isNaN(newQuantity) && parseInt(newQuantity) > 0) {
-    await window.miniCart.updateQuantity(itemId, parseInt(newQuantity));
-    // 서버에서 최신 데이터 로드 후 렌더링
-    await renderCartItems();
+  // 아이템 찾기
+  const item = globalCartItems.find(i => i.item_id === itemId);
+  if (!item) {
+    alert('상품을 찾을 수 없습니다.');
+    return;
   }
+  
+  currentEditingItem = item;
+  
+  // 모달에 현재 값 설정
+  document.getElementById('edit-size').value = item.size || '';
+  document.getElementById('edit-color').value = item.color || '';
+  document.getElementById('edit-quantity').value = item.quantity || 1;
+  
+  // 모달 표시
+  const modal = document.getElementById('edit-modal');
+  modal.style.display = 'block';
 }
 
 async function removeCartItem(itemId) {
