@@ -119,18 +119,24 @@ async function renderCartItems() {
 }
 
 function bindEventListeners() {
+  console.log('🔧 bindEventListeners 시작');
+  
   // 체크아웃 버튼
   const checkoutBtn = document.getElementById('checkout-btn');
+  console.log('🔍 체크아웃 버튼 찾기:', checkoutBtn);
   Logger.log('🔍 체크아웃 버튼 찾기:', checkoutBtn);
   
   if (checkoutBtn) {
+    console.log('✅ 체크아웃 버튼 이벤트 리스너 추가');
     Logger.log('✅ 체크아웃 버튼 이벤트 리스너 추가');
     checkoutBtn.addEventListener('click', function(e) {
       e.preventDefault();
+      console.log('🎯 체크아웃 버튼 클릭됨!');
       Logger.log('🎯 체크아웃 버튼 클릭됨!');
       handleCheckout();
     });
   } else {
+    console.error('❌ 체크아웃 버튼을 찾을 수 없습니다!');
     Logger.error('❌ 체크아웃 버튼을 찾을 수 없습니다!');
   }
   
@@ -258,7 +264,8 @@ async function removeCartItem(itemId) {
 }
 
 function handleCheckout() {
-  Logger.log('💳 체크아웃 시작');
+  console.log('💳 체크아웃 시작!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  Logger.log('💳 체크아웃 시작!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
   
   // 단순하게 무조건 체크아웃 페이지로 이동
   // 체크아웃 페이지에서 직접 서버에서 장바구니 데이터를 가져와서 처리
