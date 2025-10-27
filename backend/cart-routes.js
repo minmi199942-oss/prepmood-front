@@ -212,6 +212,66 @@ router.put('/cart/item/:itemId', authenticateToken, async (req, res) => {
   }
 });
 
+// 장바구니 아이템 수정 (사이즈, 색상, 수량)
+router.put('/cart/:itemId', authenticateToken, async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { size, color, quantity } = req.body;
+
+    if (!size || !color) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '사이즈와 색상을 입력해주세요.' 
+      });
+    }
+
+    if (!quantity || quantity < 1) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '수량은 1 이상이어야 합니다.' 
+      });
+    }
+
+    const connection = await mysql.createConnection(dbConfig);
+    try {
+      // 아이템이 사용자의 장바구니에 속하는지 확인
+      const [items] = await connection.execute(`
+        SELECT ci.item_id, ci.product_id FROM cart_items ci
+        JOIN carts c ON ci.cart_id = c.cart_id
+        WHERE ci.item_id = ? AND c.user_id = ?
+      `, [itemId, req.user.userId]);
+
+      if (items.length === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          message: '장바구니 아이템을 찾을 수 없습니다.' 
+        });
+      }
+
+      // 장바구니 아이템 수정
+      await connection.execute(
+        'UPDATE cart_items SET size = ?, color = ?, quantity = ?, updated_at = NOW() WHERE item_id = ?',
+        [size, color, quantity, itemId]
+      );
+
+      Logger.log(`장바구니 아이템 수정: 사용자${req.user.userId} - 아이템${itemId}`);
+
+      res.json({ 
+        success: true, 
+        message: '장바구니 아이템이 수정되었습니다.' 
+      });
+    } finally {
+      connection.end();
+    }
+  } catch (error) {
+    console.error('장바구니 수정 오류:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '수정에 실패했습니다.' 
+    });
+  }
+});
+
 // 장바구니 아이템 삭제
 router.delete('/cart/item/:itemId', authenticateToken, async (req, res) => {
   try {
