@@ -58,10 +58,52 @@ async function initializeCheckoutPage() {
   // 이벤트 리스너 등록
   bindEventListeners(cartItems);
   
+  // 사용자 정보 자동 입력
+  await fillUserInfo();
+  
   // 폼 유효성 검사 설정
   setupFormValidation();
   
   console.log('✅ 체크아웃 페이지 초기화 완료');
+}
+
+async function fillUserInfo() {
+  try {
+    // 사용자 정보 가져오기
+    const response = await fetch('https://prepmood.kr/api/auth/me', {
+      credentials: 'include'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success && data.user) {
+        const user = data.user;
+        
+        // 이름 설정 (first_name + last_name)
+        if (user.first_name) {
+          document.getElementById('firstName').value = user.first_name;
+        }
+        if (user.last_name) {
+          document.getElementById('lastName').value = user.last_name;
+        }
+        
+        // 이메일 설정
+        if (user.email) {
+          document.getElementById('email').value = user.email;
+        }
+        
+        // 전화번호 설정
+        if (user.phone) {
+          document.getElementById('phone').value = user.phone;
+        }
+        
+        console.log('✅ 사용자 정보 자동 입력 완료');
+      }
+    }
+  } catch (error) {
+    console.error('❌ 사용자 정보 가져오기 실패:', error);
+  }
 }
 
 function renderOrderItems(cartItems) {
