@@ -18,28 +18,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function initializeCheckoutPage() {
   console.log('💳 체크아웃 페이지 초기화 시작');
+  console.log('🔍 window.miniCart:', window.miniCart);
   
-  // 서버에서 장바구니 데이터 로드
-  let cartItems = [];
-  try {
-    const response = await fetch('https://prepmood.kr/api/cart', {
-      credentials: 'include'
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log('📦 서버 장바구니 데이터:', data);
-      
-      if (data.success && data.items && data.items.length > 0) {
-        cartItems = data.items;
-      }
-    }
-  } catch (error) {
-    console.error('❌ 장바구니 로드 오류:', error);
+  // miniCart가 있는지 확인
+  if (!window.miniCart) {
+    console.error('❌ miniCart가 없습니다!');
+    alert('장바구니를 불러올 수 없습니다.');
+    window.location.href = 'cart.html';
+    return;
   }
   
+  // 미니카트에서 장바구니 아이템 가져오기
+  const cartItems = window.miniCart.getCartItems();
+  console.log('📦 miniCart에서 장바구니 가져옴:', cartItems);
+  console.log('📦 장바구니 길이:', cartItems.length);
+  
   // 장바구니가 비어있는지 확인
-  if (cartItems.length === 0) {
+  if (!cartItems || cartItems.length === 0) {
+    console.warn('⚠️ 장바구니가 비어있음');
     alert('장바구니가 비어있습니다. 상품을 추가한 후 다시 시도해주세요.');
     window.location.href = 'catalog.html';
     return;
