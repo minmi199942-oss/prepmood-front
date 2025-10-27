@@ -16,11 +16,29 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-function initializeCheckoutPage() {
+async function initializeCheckoutPage() {
   console.log('💳 체크아웃 페이지 초기화 시작');
   
+  // 서버에서 장바구니 데이터 로드
+  let cartItems = [];
+  try {
+    const response = await fetch('https://prepmood.kr/api/cart', {
+      credentials: 'include'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('📦 서버 장바구니 데이터:', data);
+      
+      if (data.success && data.items && data.items.length > 0) {
+        cartItems = data.items;
+      }
+    }
+  } catch (error) {
+    console.error('❌ 장바구니 로드 오류:', error);
+  }
+  
   // 장바구니가 비어있는지 확인
-  const cartItems = window.miniCart.getCartItems();
   if (cartItems.length === 0) {
     alert('장바구니가 비어있습니다. 상품을 추가한 후 다시 시도해주세요.');
     window.location.href = 'catalog.html';
@@ -28,10 +46,10 @@ function initializeCheckoutPage() {
   }
   
   // 주문 아이템 렌더링
-  renderOrderItems();
+  renderOrderItems(cartItems);
   
   // 이벤트 리스너 등록
-  bindEventListeners();
+  bindEventListeners(cartItems);
   
   // 폼 유효성 검사 설정
   setupFormValidation();
@@ -39,15 +57,13 @@ function initializeCheckoutPage() {
   console.log('✅ 체크아웃 페이지 초기화 완료');
 }
 
-function renderOrderItems() {
+function renderOrderItems(cartItems) {
   console.log('🎨 주문 아이템 렌더링 시작');
+  console.log('📦 주문 아이템:', cartItems);
   
-  const cartItems = window.miniCart.getCartItems();
   const orderItemsContainer = document.getElementById('order-items');
   const subtotalElement = document.getElementById('subtotal');
   const totalElement = document.getElementById('total');
-  
-  console.log('📦 주문 아이템:', cartItems);
   
   // 총 가격 계산
   const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -79,7 +95,10 @@ function renderOrderItems() {
   console.log('✅ 주문 아이템 렌더링 완료');
 }
 
-function bindEventListeners() {
+function bindEventListeners(cartItems) {
+  // 전역 변수로 cartItems 저장
+  window.checkoutCartItems = cartItems;
+  
   // 주문 완료 버튼
   const completeOrderBtn = document.getElementById('complete-order-btn');
   if (completeOrderBtn) {
@@ -194,7 +213,7 @@ function isValidEmail(email) {
 }
 
 function collectOrderData() {
-  const cartItems = window.miniCart.getCartItems();
+  const cartItems = window.checkoutCartItems || [];
   const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
   return {
