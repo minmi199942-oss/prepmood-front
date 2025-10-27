@@ -1,7 +1,8 @@
--- orders 테이블에 status 컬럼 추가 (이미 있으면 에러 발생하지 않음)
+-- orders 테이블에 status 컬럼 추가
 
+-- 먼저 컬럼이 있는지 확인 후 추가
 ALTER TABLE `orders` 
-ADD COLUMN IF NOT EXISTS `status` varchar(50) DEFAULT 'pending' 
+ADD COLUMN `status` varchar(50) DEFAULT 'pending' 
 COMMENT '주문 상태: pending(대기), confirmed(확인), shipping(배송중), delivered(배송완료), cancelled(취소)';
 
 -- orders 테이블 수정 (serial_number, quantity 제거 - order_items로 이동)
