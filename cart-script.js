@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+// 장바구니 데이터를 글로벌 변수로 저장
+let globalCartItems = [];
+
 async function initializeCartPage() {
   Logger.log('🛒 장바구니 페이지 초기화 시작');
   
@@ -41,6 +44,7 @@ async function renderCartItems() {
     
     if (data.success) {
       cartItems = data.items || [];
+      globalCartItems = cartItems; // 글로벌 변수에 저장
       Logger.log('🛒 직접 서버에서 장바구니 로드:', cartItems.length, '개 상품');
     } else {
       Logger.log('❌ 서버에서 장바구니 로드 실패:', data.message);
@@ -148,11 +152,13 @@ async function removeCartItem(itemId) {
 function handleCheckout() {
   Logger.log('💳 체크아웃 시작');
   
-  const cartItems = window.miniCart.getCartItems();
-  if (cartItems.length === 0) {
-    alert('장바구니가 비어있습니다.');
+  // 서버에서 로드한 장바구니 데이터 사용
+  if (globalCartItems.length === 0) {
+    alert('장바구니가 비어있습니다. 상품을 추가한 후 다시 시도해주세요.');
     return;
   }
+  
+  Logger.log('✅ 장바구니 확인 완료:', globalCartItems.length, '개 상품');
   
   // 체크아웃 페이지로 이동
   window.location.href = 'checkout.html';
