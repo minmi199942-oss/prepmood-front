@@ -220,7 +220,7 @@ function collectOrderData() {
   };
 }
 
-function processPayment(orderData) {
+async function processPayment(orderData) {
   // 로딩 상태 표시
   const completeOrderBtn = document.getElementById('complete-order-btn');
   if (completeOrderBtn) {
@@ -228,16 +228,48 @@ function processPayment(orderData) {
     completeOrderBtn.textContent = '처리 중...';
   }
   
-  // 실제 결제 API 호출 시뮬레이션
-  setTimeout(() => {
-    console.log('✅ 결제 처리 완료');
+  try {
+    console.log('💳 주문 생성 API 호출 중...');
+    
+    // 주문 생성 API 호출
+    const response = await fetch('https://prepmood.kr/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        items: orderData.items.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity
+        }))
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`주문 생성 실패: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('✅ 주문 생성 성공:', result);
     
     // 장바구니 비우기
     window.miniCart.clearCart();
     
-    // 주문 완료 페이지로 이동
-    window.location.href = 'order-complete.html';
-  }, 2000);
+    // 주문 완료 페이지로 이동 (주문 ID 전달)
+    const orderId = result.order?.order_id || result.orderId;
+    window.location.href = `order-complete.html?orderId=${orderId}`;
+    
+  } catch (error) {
+    console.error('❌ 주문 생성 실패:', error);
+    alert('주문 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    
+    // 버튼 다시 활성화
+    if (completeOrderBtn) {
+      completeOrderBtn.disabled = false;
+      completeOrderBtn.textContent = '주문 완료';
+    }
+  }
 }
 
 function formatPrice(price) {
@@ -247,6 +279,12 @@ function formatPrice(price) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(price);
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 
