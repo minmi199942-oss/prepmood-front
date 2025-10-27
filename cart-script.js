@@ -256,7 +256,17 @@ async function removeCartItem(itemId) {
 function handleCheckout() {
   Logger.log('💳 체크아웃 시작');
   
-  // 다시 서버에서 장바구니 데이터를 가져와서 확인
+  Logger.log('🔍 체크아웃 전 globalCartItems:', globalCartItems);
+  Logger.log('🔍 globalCartItems 길이:', globalCartItems ? globalCartItems.length : 0);
+  
+  // globalCartItems에 데이터가 있으면 바로 이동
+  if (globalCartItems && globalCartItems.length > 0) {
+    Logger.log('✅ localCartItems로 체크아웃 진행:', globalCartItems.length, '개 상품');
+    window.location.href = 'checkout.html';
+    return;
+  }
+  
+  // 서버에서 장바구니 데이터를 가져와서 확인
   fetch('https://prepmood.kr/api/cart', {
     credentials: 'include'
   })
