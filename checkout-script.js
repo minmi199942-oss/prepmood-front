@@ -28,6 +28,13 @@ async function initializeCheckoutPage() {
     return;
   }
   
+  // 로그인 상태 확인 후 장바구니 재로드
+  console.log('🔍 현재 로그인 상태:', window.miniCart.isLoggedIn);
+  if (window.miniCart.isLoggedIn) {
+    console.log('🔄 장바구니 다시 로드...');
+    await window.miniCart.loadCartFromServer();
+  }
+  
   // 미니카트에서 장바구니 아이템 가져오기
   const cartItems = window.miniCart.getCartItems();
   console.log('📦 miniCart에서 장바구니 가져옴:', cartItems);
