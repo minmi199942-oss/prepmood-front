@@ -86,7 +86,7 @@ class MiniCart {
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) {
       checkoutBtn.addEventListener('click', () => {
-        alert('체크아웃 기능은 준비 중입니다.');
+        window.location.href = 'checkout.html';
       });
     }
   }
