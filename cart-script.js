@@ -117,8 +117,17 @@ async function renderCartItems() {
 function bindEventListeners() {
   // 체크아웃 버튼
   const checkoutBtn = document.getElementById('checkout-btn');
+  Logger.log('🔍 체크아웃 버튼 찾기:', checkoutBtn);
+  
   if (checkoutBtn) {
-    checkoutBtn.addEventListener('click', handleCheckout);
+    Logger.log('✅ 체크아웃 버튼 이벤트 리스너 추가');
+    checkoutBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      Logger.log('🎯 체크아웃 버튼 클릭됨!');
+      handleCheckout();
+    });
+  } else {
+    Logger.error('❌ 체크아웃 버튼을 찾을 수 없습니다!');
   }
   
   // 도움말 아이템들
