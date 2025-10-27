@@ -121,24 +121,18 @@ async function renderCartItems() {
 function bindEventListeners() {
   console.log('🔧 bindEventListeners 시작');
   
-  // 체크아웃 버튼
-  const checkoutBtn = document.getElementById('checkout-btn');
-  console.log('🔍 체크아웃 버튼 찾기:', checkoutBtn);
-  Logger.log('🔍 체크아웃 버튼 찾기:', checkoutBtn);
-  
-  if (checkoutBtn) {
-    console.log('✅ 체크아웃 버튼 이벤트 리스너 추가');
-    Logger.log('✅ 체크아웃 버튼 이벤트 리스너 추가');
-    checkoutBtn.addEventListener('click', function(e) {
+  // document에서 클릭 이벤트 위임
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.id === 'checkout-btn') {
       e.preventDefault();
       console.log('🎯 체크아웃 버튼 클릭됨!');
       Logger.log('🎯 체크아웃 버튼 클릭됨!');
       handleCheckout();
-    });
-  } else {
-    console.error('❌ 체크아웃 버튼을 찾을 수 없습니다!');
-    Logger.error('❌ 체크아웃 버튼을 찾을 수 없습니다!');
-  }
+    }
+  });
+  
+  console.log('✅ 이벤트 위임 설정 완료');
+  Logger.log('✅ 이벤트 위임 설정 완료');
   
   // 도움말 아이템들
   const helpItems = document.querySelectorAll('.help-item');
