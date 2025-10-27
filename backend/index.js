@@ -980,9 +980,11 @@ app.get('/api/health', (req, res) => {
 // Google 소셜 로그인 라우트
 const googleAuthRoutes = require('./google-auth-routes');
 const productRoutes = require('./product-routes');
+const orderRoutes = require('./order-routes');
 
 app.use('/api', googleAuthRoutes);
 app.use('/api', productRoutes);
+app.use('/api', orderRoutes);
 
 // 장바구니 라우트
 const cartRoutes = require('./cart-routes');
