@@ -348,7 +348,7 @@ const dbConfig = {
 };
 
 // 주문 생성 API
-router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, res) => {
+router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res) => {
     let connection;
     try {
         // 0) Idempotency-Key 처리 (중복 생성 방지)
@@ -588,7 +588,7 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
 });
 
 // 주문 목록 조회 API
-router.get('/api/orders', authenticateToken, async (req, res) => {
+router.get('/orders', authenticateToken, async (req, res) => {
     let connection;
     try {
         const userId = req.user.userId;
@@ -662,7 +662,7 @@ router.get('/api/orders', authenticateToken, async (req, res) => {
 });
 
 // 주문 상세 조회 API
-router.get('/api/orders/:orderId', authenticateToken, async (req, res) => {
+router.get('/orders/:orderId', authenticateToken, async (req, res) => {
     let connection;
     try {
         const userId = req.user.userId;
