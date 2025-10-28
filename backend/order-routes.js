@@ -7,14 +7,44 @@ const { authenticateToken } = require('./auth-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 
-// 주문번호 생성 함수
-function generateOrderNumber() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const timestamp = now.getTime().toString().slice(-6); // 마지막 6자리
-    return `ORD-${year}${month}${day}-${timestamp}`;
+// 주문번호 생성 함수 (UNIQUE 충돌 시 재시도 로직 포함)
+async function generateOrderNumber(connection, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const timestamp = now.getTime().toString().slice(-6); // 마지막 6자리
+        const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase(); // 6자리 랜덤
+        const orderNumber = `ORD-${year}${month}${day}-${timestamp}-${randomSuffix}`;
+        
+        try {
+            // UNIQUE 제약조건 확인
+            const [existing] = await connection.execute(
+                'SELECT 1 FROM orders WHERE order_number = ? LIMIT 1',
+                [orderNumber]
+            );
+            
+            if (existing.length === 0) {
+                return orderNumber; // 고유한 주문번호 생성 성공
+            }
+            
+            Logger.log(`주문번호 충돌 감지 (시도 ${attempt}/${maxRetries}): ${orderNumber}`);
+            
+            if (attempt === maxRetries) {
+                throw new Error(`주문번호 생성 실패: ${maxRetries}회 재시도 후에도 고유한 번호를 생성할 수 없습니다`);
+            }
+            
+            // 다음 시도를 위해 잠시 대기
+            await new Promise(resolve => setTimeout(resolve, 10));
+            
+        } catch (error) {
+            if (attempt === maxRetries) {
+                throw error;
+            }
+            Logger.log(`주문번호 생성 오류 (시도 ${attempt}/${maxRetries}): ${error.message}`);
+        }
+    }
 }
 
 // MySQL 연결 설정
@@ -47,7 +77,14 @@ router.post('/api/orders', authenticateToken, [
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            return res.status(400).json({ success: false, errors: errors.array() });
+            const errorDetails = {};
+            errors.array().forEach(error => {
+                errorDetails[error.path] = error.msg;
+            });
+            return res.status(400).json({ 
+                code: 'VALIDATION_ERROR', 
+                details: errorDetails 
+            });
         }
 
         const userId = req.user.userId;
@@ -68,7 +105,10 @@ router.post('/api/orders', authenticateToken, [
 
             if (productRows.length === 0) {
                 await connection.end();
-                return res.status(400).json({ success: false, error: `상품 ID ${item.product_id}를 찾을 수 없습니다` });
+                return res.status(400).json({ 
+                    code: 'VALIDATION_ERROR', 
+                    details: { product_id: `상품 ID ${item.product_id}를 찾을 수 없습니다` }
+                });
             }
 
             const product = productRows[0];
@@ -93,8 +133,8 @@ router.post('/api/orders', authenticateToken, [
         await connection.beginTransaction();
 
         try {
-            // 주문번호 생성
-            const orderNumber = generateOrderNumber();
+            // 주문번호 생성 (재시도 로직 포함)
+            const orderNumber = await generateOrderNumber(connection);
             
             // orders 테이블에 주문 생성 (배송 정보 및 주문번호 포함)
             const [orderResult] = await connection.execute(

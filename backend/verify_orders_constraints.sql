@@ -71,5 +71,11 @@ ORDER BY rows_read DESC;
 -- VALUES (999, 'ORD-TEST-002', -1000.00, 'confirmed', 'standard', 0);
 -- ROLLBACK;
 
+-- [SECTION - OPTIONAL] EXPLAIN 성능 분석
+-- 성능 이슈 시 주석 해제하여 실행
+-- EXPLAIN SELECT * FROM orders WHERE user_id = 1 ORDER BY order_date DESC LIMIT 20;
+-- EXPLAIN SELECT order_number FROM orders WHERE status = 'shipped' ORDER BY order_date DESC LIMIT 20;
+-- EXPLAIN SELECT order_id FROM orders WHERE shipping_method = 'express' AND estimated_delivery >= CURDATE();
+
 -- [SECTION] 완료 메시지
 SELECT '=== 제약조건 및 인덱스 검증 완료 ===' AS message;
