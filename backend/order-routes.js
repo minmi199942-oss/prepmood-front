@@ -195,6 +195,8 @@ function validateOrderRequest(req) {
     const errors = {};
     const { items, shipping } = req.body;
     
+    Logger.log('검증 시작', { items, shipping });
+    
     // shipping 필드 검증
     if (!shipping) {
         errors.shipping = '배송 정보가 필요합니다';
@@ -398,6 +400,15 @@ router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res)
         }
 
         // 서버측 스키마 검증
+        Logger.log('주문 요청 데이터 수신', { 
+            userId, 
+            requestBody: req.body,
+            headers: {
+                'X-Idempotency-Key': idemKey,
+                'Content-Type': req.headers['content-type']
+            }
+        });
+        
         const validationErrors = validateOrderRequest(req);
         if (validationErrors) {
             Logger.log('주문 검증 실패', { 
