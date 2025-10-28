@@ -10,112 +10,112 @@ const rateLimit = require('express-rate-limit');
 
 // 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
 const COUNTRY_RULES = {
-    KR: { 
-        postalRe: /^\d{5}$/, 
-        phoneRe: /^0\d{1,2}-\d{3,4}-\d{4}$/, 
-        currency: 'KRW', 
+    KR: {
+        postalRe: /^\d{5}$/,                     // 5자리
+        phoneRe: /^0\d{1,2}-?\d{3,4}-?\d{4}$/, // 010-1234-5678 / 01012345678
+        currency: 'KRW',
         locale: 'ko-KR',
-        postalHint: '5자리 숫자 (예: 12345)', 
-        phoneHint: '010-1234-5678',
         businessDays: 2,
-        cutoffHour: 15
+        cutoffHour: 15,
+        postalHint: '12345',
+        phoneHint: '010-1234-5678',
+        fraction: 0
     },
-    JP: { 
-        postalRe: /^\d{3}-\d{4}$/, 
-        phoneRe: /^0\d{1,3}-\d{2,4}-\d{4}$/, 
-        currency: 'JPY', 
+    JP: {
+        postalRe: /^(\d{3}-?\d{4})$/,           // 123-4567 / 1234567
+        phoneRe: /^0\d{1,3}-?\d{2,4}-?\d{4}$/, // 03-1234-5678
+        currency: 'JPY',
         locale: 'ja-JP',
-        postalHint: '123-4567', 
+        businessDays: 3,
+        cutoffHour: 15,
+        postalHint: '123-4567',
         phoneHint: '03-1234-5678',
-        businessDays: 3,
-        cutoffHour: 15
+        fraction: 0
     },
-    US: { 
-        postalRe: /^\d{5}(-\d{4})?$/, 
-        phoneRe: /^\(\d{3}\)\s\d{3}-\d{4}$/, 
-        currency: 'USD', 
+    US: {
+        postalRe: /^\d{5}(-\d{4})?$/,           // 12345 or 12345-6789
+        phoneRe: /^[+]?1?[- .(]?\d{3}[- .)]?\d{3}[- .]?\d{4}$/, // (415) 555-1234 / 415-555-1234
+        currency: 'USD',
         locale: 'en-US',
-        postalHint: '12345 또는 12345-6789', 
-        phoneHint: '(415) 555-1234',
         businessDays: 5,
-        cutoffHour: 15
+        cutoffHour: 15,
+        postalHint: '12345 또는 12345-6789',
+        phoneHint: '(415) 555-1234',
+        fraction: 2
     },
-    CN: { 
-        postalRe: /^\d{6}$/, 
-        phoneRe: /^1[3-9]\d{9}$/, 
-        currency: 'CNY', 
+    CN: {
+        postalRe: /^\d{6}$/,                     // 6자리
+        phoneRe: /^\d{8,11}$/,                   // 도시별 다양 → 숫자 8~11자 허용
+        currency: 'CNY',
         locale: 'zh-CN',
-        postalHint: '6자리 숫자 (예: 100000)', 
-        phoneHint: '13812345678',
         businessDays: 4,
-        cutoffHour: 15
+        cutoffHour: 15,
+        postalHint: '123456',
+        phoneHint: '13812345678',
+        fraction: 2
     },
-    GB: { 
-        postalRe: /^[A-Za-z0-9\s]{3,8}$/, 
-        phoneRe: /^(\+44|0)[0-9\s]{10,15}$/, 
-        currency: 'GBP', 
+    GB: {
+        // 실제 왕복패턴은 복잡하므로 3~8 길이(공백 포함)로 완화
+        postalRe: /^[A-Za-z0-9\s]{3,8}$/,
+        phoneRe: /^[0-9\-()\s]{7,20}$/,
+        currency: 'GBP',
         locale: 'en-GB',
-        postalHint: 'SW1A 1AA', 
+        businessDays: 3,
+        cutoffHour: 15,
+        postalHint: 'SW1A 1AA',
         phoneHint: '020 1234 5678',
-        businessDays: 3,
-        cutoffHour: 15
+        fraction: 2
     },
-    DE: { 
-        postalRe: /^\d{5}$/, 
-        phoneRe: /^(\+49|0)[0-9\s]{10,15}$/, 
-        currency: 'EUR', 
+    DE: {
+        postalRe: /^\d{5}$/,
+        phoneRe: /^[0-9\-()\s]{7,20}$/,
+        currency: 'EUR',
         locale: 'de-DE',
-        postalHint: '5자리 숫자 (예: 10115)', 
-        phoneHint: '030 12345678',
         businessDays: 3,
-        cutoffHour: 15
+        cutoffHour: 15,
+        postalHint: '12345',
+        phoneHint: '030 123456',
+        fraction: 2
     },
-    FR: { 
-        postalRe: /^\d{5}$/, 
-        phoneRe: /^(\+33|0)[0-9\s]{9,15}$/, 
-        currency: 'EUR', 
+    FR: {
+        postalRe: /^\d{5}$/,
+        phoneRe: /^[0-9\-()\s]{7,20}$/,
+        currency: 'EUR',
         locale: 'fr-FR',
-        postalHint: '5자리 숫자 (예: 75001)', 
+        businessDays: 3,
+        cutoffHour: 15,
+        postalHint: '75001',
         phoneHint: '01 23 45 67 89',
-        businessDays: 3,
-        cutoffHour: 15
+        fraction: 2
     },
-    IT: { 
-        postalRe: /^\d{5}$/, 
-        phoneRe: /^(\+39|0)[0-9\s]{9,15}$/, 
-        currency: 'EUR', 
+    IT: {
+        postalRe: /^\d{5}$/,
+        phoneRe: /^[0-9\-()\s]{7,20}$/,
+        currency: 'EUR',
         locale: 'it-IT',
-        postalHint: '5자리 숫자 (예: 00118)', 
+        businessDays: 3,
+        cutoffHour: 15,
+        postalHint: '00100',
         phoneHint: '06 1234 5678',
-        businessDays: 3,
-        cutoffHour: 15
+        fraction: 2
     },
-    ES: { 
-        postalRe: /^\d{5}$/, 
-        phoneRe: /^(\+34|0)[0-9\s]{9,15}$/, 
-        currency: 'EUR', 
+    ES: {
+        postalRe: /^\d{5}$/,
+        phoneRe: /^[0-9\-()\s]{7,20}$/,
+        currency: 'EUR',
         locale: 'es-ES',
-        postalHint: '5자리 숫자 (예: 28001)', 
-        phoneHint: '91 123 45 67',
         businessDays: 3,
-        cutoffHour: 15
+        cutoffHour: 15,
+        postalHint: '28013',
+        phoneHint: '91 123 45 67',
+        fraction: 2
     }
 };
 
 // 통화 결정 로직
 function determineCurrency(country) {
-    const currencyMap = {
-        'KR': 'KRW',
-        'JP': 'JPY', 
-        'US': 'USD',
-        'CN': 'CNY',
-        'GB': 'GBP',
-        'DE': 'EUR',
-        'FR': 'EUR',
-        'IT': 'EUR',
-        'ES': 'EUR'
-    };
-    return currencyMap[country] || 'KRW';
+    const rule = COUNTRY_RULES[country];
+    return rule ? rule.currency : 'KRW';
 }
 
 // ETA 계산 유틸리티 (영업일 기준, 주말 제외)
@@ -240,16 +240,16 @@ function validateOrderRequest(req) {
     
     // 국가별 postalCode 및 phone 검증 (국가가 유효한 경우에만)
     if (shipping.country && allowedCountries.includes(shipping.country)) {
-        const countryRule = COUNTRY_RULES[shipping.country];
+        const R = COUNTRY_RULES[shipping.country];
         
         // postalCode 검증
-        if (!shipping.postalCode || !countryRule.postalRe.test(shipping.postalCode)) {
-            errors['shipping.postalCode'] = `우편번호 형식이 올바르지 않습니다 (예: ${countryRule.postalHint})`;
+        if (!R.postalRe.test(shipping.postal_code || '')) {
+            errors['shipping.postal_code'] = `우편번호 형식이 올바르지 않습니다 (예: ${R.postalHint})`;
         }
         
         // phone 검증
-        if (!shipping.phone || !countryRule.phoneRe.test(shipping.phone)) {
-            errors['shipping.phone'] = `전화번호 형식이 올바르지 않습니다 (예: ${countryRule.phoneHint})`;
+        if (!R.phoneRe.test(shipping.phone || '')) {
+            errors['shipping.phone'] = `전화번호 형식이 올바르지 않습니다 (예: ${R.phoneHint})`;
         }
     }
     
@@ -506,7 +506,8 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
                     amount: finalTotal,
                     eta: eta.toISOString().split('T')[0],
                     currency: currency,
-                    localeHint: COUNTRY_RULES[shipping.country]?.locale || 'ko-KR'
+                    localeHint: COUNTRY_RULES[shipping.country]?.locale || 'ko-KR',
+                    fraction: COUNTRY_RULES[shipping.country]?.fraction || 0
                 }
             });
 
