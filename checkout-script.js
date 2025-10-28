@@ -412,27 +412,37 @@ async function processPayment(orderData) {
   const idemKey = uuidv4();
   console.log('🔑 Idempotency Key 생성:', idemKey);
   
-  try {
-    console.log('💳 주문 생성 API 호출 중...');
-    
-    // 주문 생성 API 호출 (Idempotency 키 포함)
-    const response = await fetch('https://prepmood.kr/api/orders', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': idemKey
-      },
-      credentials: 'include',
-      body: JSON.stringify({
+    try {
+      console.log('💳 주문 생성 API 호출 중...');
+      
+      const requestPayload = {
         items: orderData.items.map(item => ({
           product_id: parseInt(item.product_id || item.id),
           quantity: parseInt(item.quantity)
         })),
         shipping: orderData.shipping
-      })
-    });
+      };
+      
+      console.log('📤 전송할 데이터:', requestPayload);
+      
+      // 주문 생성 API 호출 (Idempotency 키 포함)
+      const response = await fetch('https://prepmood.kr/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': idemKey
+        },
+        credentials: 'include',
+        body: JSON.stringify(requestPayload)
+      });
     
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ 서버 응답 에러:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
       throw new Error(`주문 생성 실패: ${response.status}`);
     }
     
