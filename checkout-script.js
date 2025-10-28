@@ -1,4 +1,21 @@
 // 체크아웃 페이지 스크립트
+
+// 국가별 규칙 맵
+const COUNTRY_RULES = {
+  KR: { postalRe: /^\d{5}$/, phoneRe: /^0\d{1,2}-?\d{3,4}-?\d{4}$/, currency: 'KRW', locale: 'ko-KR', postalHint: '5자리 숫자 (예: 12345)', phoneHint: '010-1234-5678' },
+  JP: { postalRe: /^(\d{3}-?\d{4})$/, phoneRe: /^0\d{1,3}-?\d{2,4}-?\d{4}$/, currency: 'JPY', locale: 'ja-JP', postalHint: '123-4567', phoneHint: '03-1234-5678' },
+  US: { postalRe: /^\d{5}(-\d{4})?$/, phoneRe: /^[0-9\-\(\)\s]{10,20}$/, currency: 'USD', locale: 'en-US', postalHint: '12345 또는 12345-6789', phoneHint: '(415) 555-1234' },
+  CN: { postalRe: /^\d{6}$/, phoneRe: /^[0-9\-\s]{8,20}$/, currency: 'CNY', locale: 'zh-CN', postalHint: '6자리 숫자 (예: 100000)', phoneHint: '010-12345678' },
+  GB: { postalRe: /^[A-Za-z0-9\s]{3,8}$/, phoneRe: /^[0-9\-\(\)\s]{10,20}$/, currency: 'GBP', locale: 'en-GB', postalHint: 'SW1A 1AA', phoneHint: '020 1234 5678' },
+  DE: { postalRe: /^\d{5}$/, phoneRe: /^[0-9\-\s]{8,20}$/, currency: 'EUR', locale: 'de-DE', postalHint: '5자리 숫자 (예: 10115)', phoneHint: '030 12345678' },
+  FR: { postalRe: /^\d{5}$/, phoneRe: /^[0-9\s]{10,20}$/, currency: 'EUR', locale: 'fr-FR', postalHint: '5자리 숫자 (예: 75001)', phoneHint: '01 23 45 67 89' },
+  IT: { postalRe: /^\d{5}$/, phoneRe: /^[0-9\s]{9,15}$/, currency: 'EUR', locale: 'it-IT', postalHint: '5자리 숫자 (예: 00118)', phoneHint: '06 1234 5678' },
+  ES: { postalRe: /^\d{5}$/, phoneRe: /^[0-9\s]{9,15}$/, currency: 'EUR', locale: 'es-ES', postalHint: '5자리 숫자 (예: 28001)', phoneHint: '91 123 45 67' }
+};
+
+// 현재 선택된 국가 규칙
+let currentCountryRule = COUNTRY_RULES.KR;
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('💳 체크아웃 페이지 로드됨');
   
@@ -61,10 +78,70 @@ async function initializeCheckoutPage() {
   // 사용자 정보 자동 입력
   await fillUserInfo();
   
+  // 현재 선택된 국가에 따라 규칙 설정
+  const countrySelect = document.getElementById('country');
+  if (countrySelect) {
+    const selectedCountry = countrySelect.value || 'KR';
+    currentCountryRule = COUNTRY_RULES[selectedCountry] || COUNTRY_RULES.KR;
+    
+    // 초기 placeholder 및 title 설정
+    const postalCodeInput = document.getElementById('postalCode');
+    if (postalCodeInput) {
+      postalCodeInput.placeholder = currentCountryRule.postalHint;
+      postalCodeInput.title = currentCountryRule.postalHint;
+    }
+    
+    const phoneInput = document.getElementById('phone');
+    if (phoneInput) {
+      phoneInput.placeholder = currentCountryRule.phoneHint;
+      phoneInput.title = currentCountryRule.phoneHint;
+    }
+  }
+  
   // 폼 유효성 검사 설정
   setupFormValidation();
   
+  // 국가 변경 이벤트 리스너 등록
+  setupCountryChangeListener();
+  
   console.log('✅ 체크아웃 페이지 초기화 완료');
+}
+
+// 국가 변경 이벤트 리스너 설정
+function setupCountryChangeListener() {
+  const countrySelect = document.getElementById('country');
+  if (countrySelect) {
+    countrySelect.addEventListener('change', function() {
+      const selectedCountry = countrySelect.value;
+      currentCountryRule = COUNTRY_RULES[selectedCountry] || COUNTRY_RULES.KR;
+      
+      console.log('🌍 국가 변경:', selectedCountry, currentCountryRule);
+      
+      // postalCode placeholder 및 title 업데이트
+      const postalCodeInput = document.getElementById('postalCode');
+      if (postalCodeInput) {
+        postalCodeInput.placeholder = currentCountryRule.postalHint;
+        postalCodeInput.title = currentCountryRule.postalHint;
+        // 기존 값 초기화
+        postalCodeInput.value = '';
+      }
+      
+      // phone placeholder 및 title 업데이트
+      const phoneInput = document.getElementById('phone');
+      if (phoneInput) {
+        phoneInput.placeholder = currentCountryRule.phoneHint;
+        phoneInput.title = currentCountryRule.phoneHint;
+        // 기존 값 초기화
+        phoneInput.value = '';
+      }
+      
+      // 가격 표시 업데이트
+      const cartItems = window.checkoutCartItems || [];
+      if (cartItems.length > 0) {
+        renderOrderItems(cartItems);
+      }
+    });
+  }
 }
 
 async function fillUserInfo() {
@@ -231,7 +308,9 @@ function validateForms() {
   ];
   
   let isValid = true;
+  const errors = {};
   
+  // 필수 필드 검증
   requiredFields.forEach(fieldId => {
     const field = document.getElementById(fieldId);
     if (!field || !field.value.trim()) {
@@ -247,10 +326,32 @@ function validateForms() {
   if (email && email.value && !isValidEmail(email.value)) {
     isValid = false;
     email.style.borderColor = '#e74c3c';
+    errors.email = '유효한 이메일 주소를 입력해주세요';
+  }
+  
+  // 국가별 postalCode 검증
+  const postalCode = document.getElementById('postalCode');
+  if (postalCode && postalCode.value && !currentCountryRule.postalRe.test(postalCode.value)) {
+    isValid = false;
+    postalCode.style.borderColor = '#e74c3c';
+    errors.postalCode = `우편번호 형식이 올바르지 않습니다 (예: ${currentCountryRule.postalHint})`;
+  }
+  
+  // 국가별 phone 검증
+  const phone = document.getElementById('phone');
+  if (phone && phone.value && !currentCountryRule.phoneRe.test(phone.value)) {
+    isValid = false;
+    phone.style.borderColor = '#e74c3c';
+    errors.phone = `전화번호 형식이 올바르지 않습니다 (예: ${currentCountryRule.phoneHint})`;
   }
   
   if (!isValid) {
-    alert('모든 필수 항목을 올바르게 입력해주세요.');
+    const errorMessages = Object.values(errors);
+    if (errorMessages.length > 0) {
+      alert('입력 오류:\n' + errorMessages.join('\n'));
+    } else {
+      alert('모든 필수 항목을 올바르게 입력해주세요.');
+    }
   }
   
   return isValid;
@@ -341,10 +442,11 @@ async function processPayment(orderData) {
   }
 }
 
+// 지역별 통화로 가격 포맷팅
 function formatPrice(price) {
-  return new Intl.NumberFormat('ko-KR', {
+  return new Intl.NumberFormat(currentCountryRule.locale, {
     style: 'currency',
-    currency: 'KRW',
+    currency: currentCountryRule.currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(price);
