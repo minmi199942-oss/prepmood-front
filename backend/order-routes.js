@@ -118,43 +118,42 @@ function determineCurrency(country) {
     return rule ? rule.currency : 'KRW';
 }
 
-// ETA 계산 유틸리티 (영업일 기준, 주말 제외)
-function calculateETA(shippingMethod, country, orderDate = new Date()) {
-    const countryRule = COUNTRY_RULES[country] || COUNTRY_RULES.KR;
-    const baseDays = countryRule.businessDays;
-    const cutoffHour = countryRule.cutoffHour;
-    
-    // 배송 방법별 추가 일수
-    const methodDays = {
-        'standard': 0,
-        'express': -1, // 1일 단축
-        'overnight': -2, // 2일 단축
-        'pickup': -3 // 3일 단축 (픽업)
-    };
-    
-    const additionalDays = methodDays[shippingMethod] || 0;
-    const totalDays = Math.max(1, baseDays + additionalDays); // 최소 1일
-    
-    // 현재 시간이 cutoff 시간 이후면 다음 영업일부터 계산
-    let startDate = new Date(orderDate);
-    if (startDate.getHours() >= cutoffHour) {
-        startDate.setDate(startDate.getDate() + 1);
+// 영업일 추가 유틸리티 (주말 제외)
+function addBusinessDays(start, days) {
+    const d = new Date(start);
+    let added = 0;
+    while (added < days) {
+        d.setDate(d.getDate() + 1);
+        const day = d.getDay(); // 0=Sun, 6=Sat
+        if (day !== 0 && day !== 6) added++;
     }
-    
-    // 영업일 계산 (주말 제외)
-    let eta = new Date(startDate);
-    let businessDaysAdded = 0;
-    
-    while (businessDaysAdded < totalDays) {
-        eta.setDate(eta.getDate() + 1);
-        const dayOfWeek = eta.getDay();
-        // 월요일(1) ~ 금요일(5)만 영업일로 계산
-        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-            businessDaysAdded++;
-        }
+    return d;
+}
+
+// ETA 계산 유틸리티 (영업일 기준, 주말 제외 + cutoff)
+function calculateETA(shippingMethod, country, now = new Date()) {
+    const rule = COUNTRY_RULES[country] || COUNTRY_RULES.KR;
+    const method = (shippingMethod || 'standard').toLowerCase();
+
+    let baseDays = rule.businessDays;
+    const cutoffHour = rule.cutoffHour;
+
+    // cutoff 이후 주문은 시작일을 다음 영업일로 미룸
+    const start = new Date(now);
+    if (start.getHours() >= cutoffHour) {
+        // 다음 영업일로 start 이동
+        let tmp = addBusinessDays(start, 1);
+        start.setTime(tmp.getTime());
     }
-    
-    return eta;
+
+    let adj = 0;
+    if (method === 'express') adj = Math.max(rule.businessDays - 2, 1);
+    else if (method === 'overnight') adj = 1;
+    else if (method === 'pickup') adj = Math.max(rule.businessDays - 3, 0);
+    // standard는 adj=0
+
+    const eta = addBusinessDays(start, baseDays + adj);
+    return eta.toISOString().split('T')[0];
 }
 
 // 개인정보 마스킹 유틸리티 함수
@@ -415,8 +414,8 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
         // 국가별 통화 결정
         const currency = determineCurrency(shipping.country);
         
-        // ETA 계산 (영업일 기준)
-        const eta = calculateETA('standard', shipping.country);
+        // ETA 계산 (영업일 기준, cutoff 반영)
+        const etaStr = calculateETA(shipping.method || 'standard', shipping.country);
 
         // 트랜잭션 시작
         await connection.beginTransaction();
@@ -441,7 +440,7 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
                         [userId, orderNumber, finalTotal, 'pending',
                          shipping.firstName, shipping.lastName, shipping.email, shipping.phone,
                          shipping.address, shipping.city, shipping.postalCode, shipping.country,
-                         'standard', shippingCost, eta] // 계산된 ETA 사용
+                         shipping.method || 'standard', shippingCost, etaStr] // 계산된 ETA 문자열 사용
                     );
                     
                     // 성공 시 루프 종료
@@ -504,10 +503,10 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
                 data: {
                     order_number: orderNumber,
                     amount: finalTotal,
-                    eta: eta.toISOString().split('T')[0],
                     currency: currency,
-                    localeHint: COUNTRY_RULES[shipping.country]?.locale || 'ko-KR',
-                    fraction: COUNTRY_RULES[shipping.country]?.fraction || 0
+                    eta: etaStr,
+                    fraction: COUNTRY_RULES[shipping.country]?.fraction ?? 2,
+                    localeHint: COUNTRY_RULES[shipping.country]?.locale || 'ko-KR'
                 }
             });
 
