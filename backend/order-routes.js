@@ -6,6 +6,7 @@ const mysql = require('mysql2/promise');
 const { authenticateToken } = require('./auth-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
+const rateLimit = require('express-rate-limit');
 
 // 개인정보 마스킹 유틸리티 함수
 function maskSensitiveData(data) {
@@ -41,7 +42,109 @@ function maskSensitiveData(data) {
     return masked;
 }
 
-// 주문번호 생성 함수 (UNIQUE 충돌 시 재시도 로직 포함)
+// 서버측 요청 스키마 검증 함수
+function validateOrderRequest(req) {
+    const errors = {};
+    const { items, shipping } = req.body;
+    
+    // shipping 필드 검증
+    if (!shipping) {
+        errors.shipping = '배송 정보가 필요합니다';
+        return errors;
+    }
+    
+    // 이름 길이 및 패턴 검증
+    if (!shipping.firstName || shipping.firstName.trim().length < 1 || shipping.firstName.trim().length > 50) {
+        errors['shipping.firstName'] = '이름은 1-50자 사이여야 합니다';
+    }
+    if (!shipping.lastName || shipping.lastName.trim().length < 1 || shipping.lastName.trim().length > 50) {
+        errors['shipping.lastName'] = '성은 1-50자 사이여야 합니다';
+    }
+    
+    // 이메일 패턴 검증
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!shipping.email || !emailRegex.test(shipping.email) || shipping.email.length > 255) {
+        errors['shipping.email'] = '유효한 이메일 주소가 필요합니다 (최대 255자)';
+    }
+    
+    // 전화번호 패턴 검증 (한국 형식)
+    const phoneRegex = /^01[0-9]-\d{4}-\d{4}$/;
+    if (!shipping.phone || !phoneRegex.test(shipping.phone)) {
+        errors['shipping.phone'] = '전화번호는 010-1234-5678 형식이어야 합니다';
+    }
+    
+    // 주소 길이 검증
+    if (!shipping.address || shipping.address.trim().length < 10 || shipping.address.trim().length > 200) {
+        errors['shipping.address'] = '주소는 10-200자 사이여야 합니다';
+    }
+    
+    // 도시 검증
+    if (!shipping.city || shipping.city.trim().length < 1 || shipping.city.trim().length > 50) {
+        errors['shipping.city'] = '도시는 1-50자 사이여야 합니다';
+    }
+    
+    // 우편번호 패턴 검증 (한국 형식)
+    const postalRegex = /^\d{5}$/;
+    if (!shipping.postalCode || !postalRegex.test(shipping.postalCode)) {
+        errors['shipping.postalCode'] = '우편번호는 5자리 숫자여야 합니다';
+    }
+    
+    // 국가 허용 목록 검증
+    const allowedCountries = ['KR', 'US', 'JP', 'CN', 'GB', 'DE', 'FR', 'CA', 'AU'];
+    if (!shipping.country || !allowedCountries.includes(shipping.country)) {
+        errors['shipping.country'] = `국가는 다음 중 하나여야 합니다: ${allowedCountries.join(', ')}`;
+    }
+    
+    // line_items 검증
+    if (!items || !Array.isArray(items) || items.length === 0) {
+        errors.items = '주문 상품이 필요합니다';
+        return errors;
+    }
+    
+    if (items.length > 20) {
+        errors.items = '주문 상품은 최대 20개까지 가능합니다';
+    }
+    
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const prefix = `items[${i}]`;
+        
+        // product_id 검증
+        if (!item.product_id || !Number.isInteger(item.product_id) || item.product_id <= 0) {
+            errors[`${prefix}.product_id`] = '유효한 상품 ID가 필요합니다';
+        }
+        
+        // quantity 검증
+        if (!item.quantity || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10) {
+            errors[`${prefix}.quantity`] = '수량은 1-10 사이여야 합니다';
+        }
+        
+        // price 검증 (클라이언트에서 보낸 가격은 무시하고 서버에서 재계산)
+        if (item.price !== undefined) {
+            Logger.log(`경고: 클라이언트에서 가격 정보 전송됨 (무시됨): ${item.price}`);
+        }
+    }
+    
+    return Object.keys(errors).length > 0 ? errors : null;
+}
+
+// Rate limiting 미들웨어
+const orderCreationLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1분
+    max: 10, // IP당 분당 10회
+    message: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        details: { message: '주문 생성 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+        // IP + 사용자 ID 조합으로 제한
+        return `${req.ip}-${req.user?.userId || 'anonymous'}`;
+    }
+});
+
+// 주문번호 생성 함수 (UNIQUE 충돌 시 지수 백오프 재시도 로직 포함)
 async function generateOrderNumber(connection, maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         const now = new Date();
@@ -69,8 +172,9 @@ async function generateOrderNumber(connection, maxRetries = 3) {
                 throw new Error(`주문번호 생성 실패: ${maxRetries}회 재시도 후에도 고유한 번호를 생성할 수 없습니다`);
             }
             
-            // 다음 시도를 위해 잠시 대기
-            await new Promise(resolve => setTimeout(resolve, 10));
+            // 지수 백오프: 10ms, 20ms, 40ms
+            const backoffMs = Math.min(10 * Math.pow(2, attempt - 1), 40);
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
             
         } catch (error) {
             if (attempt === maxRetries) {
@@ -93,31 +197,15 @@ const dbConfig = {
 };
 
 // 주문 생성 API
-router.post('/api/orders', authenticateToken, [
-    body('items').isArray().notEmpty().withMessage('주문 상품이 필요합니다'),
-    body('items.*.product_id').isInt().withMessage('유효한 상품 ID가 필요합니다'),
-    body('items.*.quantity').isInt({ min: 1 }).withMessage('수량은 1 이상이어야 합니다'),
-    // 배송 정보 검증
-    body('shipping.firstName').notEmpty().trim().withMessage('이름이 필요합니다'),
-    body('shipping.lastName').notEmpty().trim().withMessage('성이 필요합니다'),
-    body('shipping.email').isEmail().withMessage('유효한 이메일이 필요합니다'),
-    body('shipping.phone').notEmpty().trim().withMessage('전화번호가 필요합니다'),
-    body('shipping.address').notEmpty().trim().withMessage('주소가 필요합니다'),
-    body('shipping.city').notEmpty().trim().withMessage('도시가 필요합니다'),
-    body('shipping.postalCode').notEmpty().trim().withMessage('우편번호가 필요합니다'),
-    body('shipping.country').notEmpty().trim().withMessage('국가가 필요합니다')
-], async (req, res) => {
+router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, res) => {
     let connection;
     try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            const errorDetails = {};
-            errors.array().forEach(error => {
-                errorDetails[error.path] = error.msg;
-            });
+        // 서버측 스키마 검증
+        const validationErrors = validateOrderRequest(req);
+        if (validationErrors) {
             return res.status(400).json({ 
                 code: 'VALIDATION_ERROR', 
-                details: errorDetails 
+                details: validationErrors 
             });
         }
 
@@ -131,9 +219,9 @@ router.post('/api/orders', authenticateToken, [
         const orderItemsData = [];
 
         for (const item of items) {
-            // 상품 정보 조회
+            // 상품 정보 조회 (product_id 존재 확인)
             const [productRows] = await connection.execute(
-                'SELECT product_id, name, price, image FROM products WHERE product_id = ?',
+                'SELECT product_id, name, price, image, sku FROM products WHERE product_id = ?',
                 [item.product_id]
             );
 
@@ -141,12 +229,15 @@ router.post('/api/orders', authenticateToken, [
                 await connection.end();
                 return res.status(400).json({ 
                     code: 'VALIDATION_ERROR', 
-                    details: { product_id: `상품 ID ${item.product_id}를 찾을 수 없습니다` }
+                    details: { [`items[${items.indexOf(item)}].product_id`]: `상품 ID ${item.product_id}를 찾을 수 없습니다` }
                 });
             }
 
             const product = productRows[0];
-            const subtotal = product.price * item.quantity;
+            
+            // 서버에서 가격 재계산 (클라이언트 가격 무시)
+            const serverPrice = parseFloat(product.price);
+            const subtotal = serverPrice * item.quantity;
             totalPrice += subtotal;
 
             orderItemsData.push({
@@ -154,7 +245,7 @@ router.post('/api/orders', authenticateToken, [
                 product_name: product.name,
                 product_image: product.image,
                 quantity: item.quantity,
-                unit_price: product.price,
+                unit_price: serverPrice,
                 subtotal: subtotal
             });
         }
@@ -167,7 +258,7 @@ router.post('/api/orders', authenticateToken, [
         await connection.beginTransaction();
 
         try {
-            // 주문번호 생성 (트랜잭션 내에서 재시도 로직 포함)
+            // 주문번호 생성 (트랜잭션 내에서 지수 백오프 재시도 로직 포함)
             let orderNumber;
             let orderResult;
             let maxRetries = 3;
@@ -183,7 +274,7 @@ router.post('/api/orders', authenticateToken, [
                          shipping_address, shipping_city, shipping_postal_code, shipping_country,
                          shipping_method, shipping_cost, estimated_delivery) 
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [userId, orderNumber, finalTotal, 'confirmed',
+                        [userId, orderNumber, finalTotal, 'pending',
                          shipping.firstName, shipping.lastName, shipping.email, shipping.phone,
                          shipping.address, shipping.city, shipping.postalCode, shipping.country,
                          'standard', shippingCost, new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)] // 3일 후 배송 예정
@@ -195,7 +286,9 @@ router.post('/api/orders', authenticateToken, [
                 } catch (error) {
                     if (error.code === 'ER_DUP_ENTRY' && attempt < maxRetries) {
                         Logger.log(`주문번호 UNIQUE 충돌 (시도 ${attempt}/${maxRetries}): ${orderNumber}`);
-                        await new Promise(resolve => setTimeout(resolve, 50)); // 잠시 대기
+                        // 지수 백오프: 10ms, 20ms, 40ms
+                        const backoffMs = Math.min(10 * Math.pow(2, attempt - 1), 40);
+                        await new Promise(resolve => setTimeout(resolve, backoffMs));
                         continue;
                     }
                     throw error; // 다른 오류이거나 최대 재시도 초과
@@ -214,29 +307,40 @@ router.post('/api/orders', authenticateToken, [
                 );
             }
 
+            // 결제 사전승인 훅 자리 표시자 (향후 결제 시스템 연동 시 구현)
+            // TODO: 결제 시스템 연동 시 여기서 사전승인 처리
+            // const paymentResult = await processPaymentPreAuth(orderNumber, finalTotal, shipping);
+            // if (!paymentResult.success) {
+            //     throw new Error('결제 사전승인 실패: ' + paymentResult.error);
+            // }
+
             // 트랜잭션 커밋
             await connection.commit();
 
-            // 마스킹된 배송 정보로 로깅
+            // 마스킹된 배송 정보로 로깅 (전면 적용)
             const maskedShipping = maskSensitiveData(shipping);
+            const maskedItems = items.map(item => ({
+                product_id: item.product_id,
+                quantity: item.quantity
+                // price는 서버에서 재계산되므로 로깅하지 않음
+            }));
+            
             Logger.log('주문 생성 성공', { 
                 orderId, 
                 orderNumber, 
                 userId, 
                 totalPrice: finalTotal, 
-                shipping: maskedShipping 
+                shipping: maskedShipping,
+                items: maskedItems
             });
 
+            // 응답 규격 고정
             res.json({
                 success: true,
-                message: '주문이 성공적으로 생성되었습니다',
-                order: {
-                    order_id: orderId,
+                data: {
                     order_number: orderNumber,
-                    total_price: finalTotal,
-                    shipping_cost: shippingCost,
-                    status: 'confirmed',
-                    estimated_delivery: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                    amount: finalTotal,
+                    eta: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
                 }
             });
 
@@ -246,11 +350,26 @@ router.post('/api/orders', authenticateToken, [
         }
 
     } catch (error) {
-        Logger.log('주문 생성 오류:', error);
-        res.status(500).json({ 
-            code: 'INTERNAL_ERROR', 
-            details: { message: '주문 생성에 실패했습니다' }
+        // 마스킹된 정보로 오류 로깅
+        const maskedShipping = req.body.shipping ? maskSensitiveData(req.body.shipping) : null;
+        Logger.log('주문 생성 오류:', { 
+            error: error.message, 
+            userId: req.user?.userId,
+            shipping: maskedShipping
         });
+        
+        // DUPLICATE_ORDER_NUMBER 특별 처리
+        if (error.code === 'ER_DUP_ENTRY' && error.message.includes('order_number')) {
+            res.status(409).json({ 
+                code: 'DUPLICATE_ORDER_NUMBER',
+                details: { message: '주문번호 충돌이 발생했습니다. 다시 시도해주세요.' }
+            });
+        } else {
+            res.status(500).json({ 
+                code: 'INTERNAL_ERROR', 
+                details: { message: '주문 생성에 실패했습니다' }
+            });
+        }
     } finally {
         if (connection) {
             await connection.end();
@@ -303,7 +422,12 @@ router.get('/api/orders', authenticateToken, async (req, res) => {
             })
         );
 
-        Logger.log('주문 목록 조회 성공', { userId, orderCount: ordersWithItems.length });
+        // 마스킹된 정보로 로깅
+        Logger.log('주문 목록 조회 성공', { 
+            userId, 
+            orderCount: ordersWithItems.length,
+            maskedUserId: maskSensitiveData({ userId: userId.toString() }).userId
+        });
 
         res.json({
             success: true,
@@ -311,7 +435,11 @@ router.get('/api/orders', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        Logger.log('주문 목록 조회 오류:', error);
+        // 마스킹된 정보로 오류 로깅
+        Logger.log('주문 목록 조회 오류:', { 
+            error: error.message,
+            userId: req.user?.userId ? maskSensitiveData({ userId: req.user.userId.toString() }).userId : 'unknown'
+        });
         res.status(500).json({ 
             code: 'INTERNAL_ERROR', 
             details: { message: '주문 목록 조회에 실패했습니다' }
@@ -393,7 +521,12 @@ router.get('/api/orders/:orderId', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        Logger.log('주문 상세 조회 오류:', error);
+        // 마스킹된 정보로 오류 로깅
+        Logger.log('주문 상세 조회 오류:', { 
+            error: error.message,
+            orderId: req.params.orderId,
+            userId: req.user?.userId ? maskSensitiveData({ userId: req.user.userId.toString() }).userId : 'unknown'
+        });
         res.status(500).json({ 
             code: 'INTERNAL_ERROR', 
             details: { message: '주문 상세 조회에 실패했습니다' }
