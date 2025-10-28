@@ -16,6 +16,15 @@ const COUNTRY_RULES = {
 // 현재 선택된 국가 규칙
 let currentCountryRule = COUNTRY_RULES.KR;
 
+// UUID v4 생성 함수
+function uuidv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('💳 체크아웃 페이지 로드됨');
   
@@ -393,21 +402,25 @@ function collectOrderData() {
 }
 
 async function processPayment(orderData) {
-  // 로딩 상태 표시
+  // 주문 중복 전송 방지를 위해 버튼 비활성화 + Idempotency 키 생성
   const completeOrderBtn = document.getElementById('complete-order-btn');
   if (completeOrderBtn) {
     completeOrderBtn.disabled = true;
     completeOrderBtn.textContent = '처리 중...';
   }
   
+  const idemKey = uuidv4();
+  console.log('🔑 Idempotency Key 생성:', idemKey);
+  
   try {
     console.log('💳 주문 생성 API 호출 중...');
     
-    // 주문 생성 API 호출
+    // 주문 생성 API 호출 (Idempotency 키 포함)
     const response = await fetch('https://prepmood.kr/api/orders', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': idemKey
       },
       credentials: 'include',
       body: JSON.stringify({
@@ -431,26 +444,31 @@ async function processPayment(orderData) {
     const serverFraction = result.data?.fraction ?? 2;
     const serverEta = result.data?.eta;
     
-    // 서버 통화 정보를 전역 변수로 저장 (가격 표시용)
-    window.serverCurrencyInfo = {
+    // 서버 통화 정보를 세션스토리지에 저장
+    const info = {
       currency: serverCurrency,
       fraction: serverFraction,
       eta: serverEta
     };
+    sessionStorage.setItem('serverCurrencyInfo', JSON.stringify(info));
+    console.log('💾 서버 통화 정보 세션스토리지 저장:', info);
+    
+    // 서버 통화 정보를 전역 변수로도 저장 (가격 표시용)
+    window.serverCurrencyInfo = info;
     
     // 장바구니 비우기
     window.miniCart.clearCart();
     
     // 주문 완료 페이지로 이동 (주문 ID와 ETA 전달)
     const orderId = result.data?.order_number || result.order?.order_id || result.orderId;
-    const etaParam = serverEta ? `&eta=${encodeURIComponent(serverEta)}` : '';
+    const etaParam = info.eta ? `&eta=${encodeURIComponent(info.eta)}` : '';
     window.location.href = `order-complete.html?orderId=${orderId}${etaParam}`;
     
   } catch (error) {
     console.error('❌ 주문 생성 실패:', error);
     alert('주문 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
     
-    // 버튼 다시 활성화
+    // 오류 시 버튼 복구
     if (completeOrderBtn) {
       completeOrderBtn.disabled = false;
       completeOrderBtn.textContent = '주문 완료';
@@ -458,9 +476,25 @@ async function processPayment(orderData) {
   }
 }
 
-// 서버 응답 기반 가격 포맷팅 (서버 우선, 프런트 규칙은 fallback)
+// 서버 응답 기반 가격 포맷팅 (세션스토리지 우선, 전역 변수 fallback, 프런트 규칙 최종 fallback)
 function formatPrice(price) {
-  // 서버에서 받은 통화 정보가 있으면 우선 사용
+  // 세션스토리지에서 서버 통화 정보 확인
+  const sessionInfo = sessionStorage.getItem('serverCurrencyInfo');
+  if (sessionInfo) {
+    try {
+      const info = JSON.parse(sessionInfo);
+      return new Intl.NumberFormat('ko-KR', {
+        style: 'currency',
+        currency: info.currency,
+        minimumFractionDigits: info.fraction,
+        maximumFractionDigits: info.fraction
+      }).format(price);
+    } catch (e) {
+      console.warn('세션스토리지 파싱 오류:', e);
+    }
+  }
+  
+  // 전역 변수에서 서버 통화 정보 확인
   if (window.serverCurrencyInfo) {
     return new Intl.NumberFormat('ko-KR', {
       style: 'currency',
@@ -470,7 +504,7 @@ function formatPrice(price) {
     }).format(price);
   }
   
-  // 서버 정보가 없으면 프런트 규칙 사용 (fallback)
+  // 서버 정보가 없으면 프런트 규칙 사용 (최종 fallback)
   return new Intl.NumberFormat(currentCountryRule.locale, {
     style: 'currency',
     currency: currentCountryRule.currency,
