@@ -202,23 +202,17 @@ function validateOrderRequest(req) {
     }
     
     // 이름 길이 및 패턴 검증
-    if (!shipping.firstName || shipping.firstName.trim().length < 1 || shipping.firstName.trim().length > 50) {
-        errors['shipping.firstName'] = '이름은 1-50자 사이여야 합니다';
+    if (!shipping.recipient_first_name || shipping.recipient_first_name.trim().length < 1 || shipping.recipient_first_name.trim().length > 50) {
+        errors['shipping.recipient_first_name'] = '이름은 1-50자 사이여야 합니다';
     }
-    if (!shipping.lastName || shipping.lastName.trim().length < 1 || shipping.lastName.trim().length > 50) {
-        errors['shipping.lastName'] = '성은 1-50자 사이여야 합니다';
+    if (!shipping.recipient_last_name || shipping.recipient_last_name.trim().length < 1 || shipping.recipient_last_name.trim().length > 50) {
+        errors['shipping.recipient_last_name'] = '성은 1-50자 사이여야 합니다';
     }
     
     // 이메일 패턴 검증
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!shipping.email || !emailRegex.test(shipping.email) || shipping.email.length > 255) {
         errors['shipping.email'] = '유효한 이메일 주소가 필요합니다 (최대 255자)';
-    }
-    
-    // 전화번호 패턴 검증 (한국 형식)
-    const phoneRegex = /^01[0-9]-\d{4}-\d{4}$/;
-    if (!shipping.phone || !phoneRegex.test(shipping.phone)) {
-        errors['shipping.phone'] = '전화번호는 010-1234-5678 형식이어야 합니다';
     }
     
     // 주소 길이 검증
@@ -231,10 +225,10 @@ function validateOrderRequest(req) {
         errors['shipping.city'] = '도시는 1-50자 사이여야 합니다';
     }
     
-    // 국가 허용 목록 검증
-    const allowedCountries = ['KR', 'US', 'JP', 'CN', 'GB', 'DE', 'FR', 'CA', 'AU'];
+    // 국가 허용 목록 검증 (동적 화이트리스트)
+    const allowedCountries = Object.keys(COUNTRY_RULES);
     if (!shipping.country || !allowedCountries.includes(shipping.country)) {
-        errors['shipping.country'] = `국가는 다음 중 하나여야 합니다: ${allowedCountries.join(', ')}`;
+        errors['shipping.country'] = '지원하지 않는 국가입니다';
     }
     
     // 국가별 postalCode 및 phone 검증 (국가가 유효한 경우에만)
@@ -407,8 +401,8 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
             });
         }
 
-        // 배송비 계산 (현재는 무료)
-        const shippingCost = 0;
+        // 배송비 계산 (클라이언트에서 전송된 값 사용, 없으면 0)
+        const shippingCost = shipping.cost || 0;
         const finalTotal = totalPrice + shippingCost;
         
         // 국가별 통화 결정
@@ -438,9 +432,9 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
                          shipping_method, shipping_cost, estimated_delivery) 
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                         [userId, orderNumber, finalTotal, 'pending',
-                         shipping.firstName, shipping.lastName, shipping.email, shipping.phone,
-                         shipping.address, shipping.city, shipping.postalCode, shipping.country,
-                         shipping.method || 'standard', shippingCost, etaStr] // 계산된 ETA 문자열 사용
+                         shipping.recipient_first_name, shipping.recipient_last_name, shipping.email, shipping.phone,
+                         shipping.address, shipping.city, shipping.postal_code, shipping.country,
+                         shipping.method || 'standard', shipping.cost || 0, etaStr] // 새로운 필드명 사용
                     );
                     
                     // 성공 시 루프 종료
