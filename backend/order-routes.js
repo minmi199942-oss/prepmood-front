@@ -7,6 +7,40 @@ const { authenticateToken } = require('./auth-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 
+// 개인정보 마스킹 유틸리티 함수
+function maskSensitiveData(data) {
+    const masked = { ...data };
+    
+    // 전화번호 마스킹 (010-1234-5678 -> 010-****-5678)
+    if (masked.phone) {
+        masked.phone = masked.phone.replace(/(\d{3})-(\d{4})-(\d{4})/, '$1-****-$3');
+    }
+    
+    // 이메일 마스킹 (user@domain.com -> u***@domain.com)
+    if (masked.email) {
+        const [local, domain] = masked.email.split('@');
+        if (local && local.length > 1) {
+            masked.email = local[0] + '*'.repeat(local.length - 1) + '@' + domain;
+        }
+    }
+    
+    // 우편번호 마스킹 (12345 -> 1****)
+    if (masked.postalCode) {
+        masked.postalCode = masked.postalCode[0] + '*'.repeat(masked.postalCode.length - 1);
+    }
+    
+    // 주소 마스킹 (상세주소 부분만 마스킹)
+    if (masked.address) {
+        const parts = masked.address.split(' ');
+        if (parts.length > 2) {
+            parts[parts.length - 1] = '*'.repeat(parts[parts.length - 1].length);
+            masked.address = parts.join(' ');
+        }
+    }
+    
+    return masked;
+}
+
 // 주문번호 생성 함수 (UNIQUE 충돌 시 재시도 로직 포함)
 async function generateOrderNumber(connection, maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -133,21 +167,40 @@ router.post('/api/orders', authenticateToken, [
         await connection.beginTransaction();
 
         try {
-            // 주문번호 생성 (재시도 로직 포함)
-            const orderNumber = await generateOrderNumber(connection);
+            // 주문번호 생성 (트랜잭션 내에서 재시도 로직 포함)
+            let orderNumber;
+            let orderResult;
+            let maxRetries = 3;
             
-            // orders 테이블에 주문 생성 (배송 정보 및 주문번호 포함)
-            const [orderResult] = await connection.execute(
-                `INSERT INTO orders (user_id, order_number, total_price, status, 
-                 shipping_first_name, shipping_last_name, shipping_email, shipping_phone,
-                 shipping_address, shipping_city, shipping_postal_code, shipping_country,
-                 shipping_method, shipping_cost, estimated_delivery) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [userId, orderNumber, finalTotal, 'confirmed',
-                 shipping.firstName, shipping.lastName, shipping.email, shipping.phone,
-                 shipping.address, shipping.city, shipping.postalCode, shipping.country,
-                 'standard', shippingCost, new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)] // 3일 후 배송 예정
-            );
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    orderNumber = await generateOrderNumber(connection);
+                    
+                    // orders 테이블에 주문 생성 (배송 정보 및 주문번호 포함)
+                    [orderResult] = await connection.execute(
+                        `INSERT INTO orders (user_id, order_number, total_price, status, 
+                         shipping_first_name, shipping_last_name, shipping_email, shipping_phone,
+                         shipping_address, shipping_city, shipping_postal_code, shipping_country,
+                         shipping_method, shipping_cost, estimated_delivery) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [userId, orderNumber, finalTotal, 'confirmed',
+                         shipping.firstName, shipping.lastName, shipping.email, shipping.phone,
+                         shipping.address, shipping.city, shipping.postalCode, shipping.country,
+                         'standard', shippingCost, new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)] // 3일 후 배송 예정
+                    );
+                    
+                    // 성공 시 루프 종료
+                    break;
+                    
+                } catch (error) {
+                    if (error.code === 'ER_DUP_ENTRY' && attempt < maxRetries) {
+                        Logger.log(`주문번호 UNIQUE 충돌 (시도 ${attempt}/${maxRetries}): ${orderNumber}`);
+                        await new Promise(resolve => setTimeout(resolve, 50)); // 잠시 대기
+                        continue;
+                    }
+                    throw error; // 다른 오류이거나 최대 재시도 초과
+                }
+            }
 
             const orderId = orderResult.insertId;
 
@@ -164,7 +217,15 @@ router.post('/api/orders', authenticateToken, [
             // 트랜잭션 커밋
             await connection.commit();
 
-            Logger.log('주문 생성 성공', { orderId, orderNumber, userId, totalPrice: finalTotal, shipping });
+            // 마스킹된 배송 정보로 로깅
+            const maskedShipping = maskSensitiveData(shipping);
+            Logger.log('주문 생성 성공', { 
+                orderId, 
+                orderNumber, 
+                userId, 
+                totalPrice: finalTotal, 
+                shipping: maskedShipping 
+            });
 
             res.json({
                 success: true,
@@ -186,7 +247,10 @@ router.post('/api/orders', authenticateToken, [
 
     } catch (error) {
         Logger.log('주문 생성 오류:', error);
-        res.status(500).json({ success: false, error: '주문 생성에 실패했습니다' });
+        res.status(500).json({ 
+            code: 'INTERNAL_ERROR', 
+            details: { message: '주문 생성에 실패했습니다' }
+        });
     } finally {
         if (connection) {
             await connection.end();
@@ -248,7 +312,10 @@ router.get('/api/orders', authenticateToken, async (req, res) => {
 
     } catch (error) {
         Logger.log('주문 목록 조회 오류:', error);
-        res.status(500).json({ success: false, error: '주문 목록 조회에 실패했습니다' });
+        res.status(500).json({ 
+            code: 'INTERNAL_ERROR', 
+            details: { message: '주문 목록 조회에 실패했습니다' }
+        });
     } finally {
         if (connection) {
             await connection.end();
@@ -272,7 +339,10 @@ router.get('/api/orders/:orderId', authenticateToken, async (req, res) => {
         );
 
         if (orders.length === 0) {
-            return res.status(404).json({ success: false, error: '주문을 찾을 수 없습니다' });
+            return res.status(404).json({ 
+                code: 'NOT_FOUND', 
+                details: { message: '주문을 찾을 수 없습니다' }
+            });
         }
 
         const order = orders[0];
@@ -324,7 +394,10 @@ router.get('/api/orders/:orderId', authenticateToken, async (req, res) => {
 
     } catch (error) {
         Logger.log('주문 상세 조회 오류:', error);
-        res.status(500).json({ success: false, error: '주문 상세 조회에 실패했습니다' });
+        res.status(500).json({ 
+            code: 'INTERNAL_ERROR', 
+            details: { message: '주문 상세 조회에 실패했습니다' }
+        });
     } finally {
         if (connection) {
             await connection.end();
