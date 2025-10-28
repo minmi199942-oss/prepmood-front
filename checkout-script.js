@@ -369,14 +369,17 @@ function collectOrderData() {
   return {
     items: cartItems,
     shipping: {
-      firstName: document.getElementById('firstName').value,
-      lastName: document.getElementById('lastName').value,
+      recipient_first_name: document.getElementById('firstName').value,
+      recipient_last_name: document.getElementById('lastName').value,
       email: document.getElementById('email').value,
       phone: document.getElementById('phone').value,
       address: document.getElementById('address').value,
       city: document.getElementById('city').value,
-      postalCode: document.getElementById('postalCode').value,
-      country: document.getElementById('country').value
+      postal_code: document.getElementById('postalCode').value,
+      country: document.getElementById('country').value,
+      method: 'standard',
+      cost: 0,
+      note: ''
     },
     payment: {
       cardNumber: document.getElementById('cardNumber').value,
@@ -423,12 +426,25 @@ async function processPayment(orderData) {
     const result = await response.json();
     console.log('✅ 주문 생성 성공:', result);
     
+    // 서버 응답에서 통화 정보 추출
+    const serverCurrency = result.data?.currency || 'KRW';
+    const serverFraction = result.data?.fraction ?? 2;
+    const serverEta = result.data?.eta;
+    
+    // 서버 통화 정보를 전역 변수로 저장 (가격 표시용)
+    window.serverCurrencyInfo = {
+      currency: serverCurrency,
+      fraction: serverFraction,
+      eta: serverEta
+    };
+    
     // 장바구니 비우기
     window.miniCart.clearCart();
     
-    // 주문 완료 페이지로 이동 (주문 ID 전달)
-    const orderId = result.order?.order_id || result.orderId;
-    window.location.href = `order-complete.html?orderId=${orderId}`;
+    // 주문 완료 페이지로 이동 (주문 ID와 ETA 전달)
+    const orderId = result.data?.order_number || result.order?.order_id || result.orderId;
+    const etaParam = serverEta ? `&eta=${encodeURIComponent(serverEta)}` : '';
+    window.location.href = `order-complete.html?orderId=${orderId}${etaParam}`;
     
   } catch (error) {
     console.error('❌ 주문 생성 실패:', error);
@@ -442,8 +458,19 @@ async function processPayment(orderData) {
   }
 }
 
-// 지역별 통화로 가격 포맷팅
+// 서버 응답 기반 가격 포맷팅 (서버 우선, 프런트 규칙은 fallback)
 function formatPrice(price) {
+  // 서버에서 받은 통화 정보가 있으면 우선 사용
+  if (window.serverCurrencyInfo) {
+    return new Intl.NumberFormat('ko-KR', {
+      style: 'currency',
+      currency: window.serverCurrencyInfo.currency,
+      minimumFractionDigits: window.serverCurrencyInfo.fraction,
+      maximumFractionDigits: window.serverCurrencyInfo.fraction
+    }).format(price);
+  }
+  
+  // 서버 정보가 없으면 프런트 규칙 사용 (fallback)
   return new Intl.NumberFormat(currentCountryRule.locale, {
     style: 'currency',
     currency: currentCountryRule.currency,
