@@ -22,7 +22,16 @@ const dbConfig = {
 router.post('/api/orders', authenticateToken, [
     body('items').isArray().notEmpty().withMessage('주문 상품이 필요합니다'),
     body('items.*.product_id').isInt().withMessage('유효한 상품 ID가 필요합니다'),
-    body('items.*.quantity').isInt({ min: 1 }).withMessage('수량은 1 이상이어야 합니다')
+    body('items.*.quantity').isInt({ min: 1 }).withMessage('수량은 1 이상이어야 합니다'),
+    // 배송 정보 검증
+    body('shipping.firstName').notEmpty().trim().withMessage('이름이 필요합니다'),
+    body('shipping.lastName').notEmpty().trim().withMessage('성이 필요합니다'),
+    body('shipping.email').isEmail().withMessage('유효한 이메일이 필요합니다'),
+    body('shipping.phone').notEmpty().trim().withMessage('전화번호가 필요합니다'),
+    body('shipping.address').notEmpty().trim().withMessage('주소가 필요합니다'),
+    body('shipping.city').notEmpty().trim().withMessage('도시가 필요합니다'),
+    body('shipping.postalCode').notEmpty().trim().withMessage('우편번호가 필요합니다'),
+    body('shipping.country').notEmpty().trim().withMessage('국가가 필요합니다')
 ], async (req, res) => {
     let connection;
     try {
@@ -32,7 +41,7 @@ router.post('/api/orders', authenticateToken, [
         }
 
         const userId = req.user.userId;
-        const { items } = req.body;
+        const { items, shipping } = req.body;
 
         connection = await mysql.createConnection(dbConfig);
 
@@ -66,14 +75,25 @@ router.post('/api/orders', authenticateToken, [
             });
         }
 
+        // 배송비 계산 (현재는 무료)
+        const shippingCost = 0;
+        const finalTotal = totalPrice + shippingCost;
+
         // 트랜잭션 시작
         await connection.beginTransaction();
 
         try {
-            // orders 테이블에 주문 생성
+            // orders 테이블에 주문 생성 (배송 정보 포함)
             const [orderResult] = await connection.execute(
-                'INSERT INTO orders (user_id, total_price, status) VALUES (?, ?, ?)',
-                [userId, totalPrice, 'confirmed']
+                `INSERT INTO orders (user_id, total_price, status, 
+                 shipping_first_name, shipping_last_name, shipping_email, shipping_phone,
+                 shipping_address, shipping_city, shipping_postal_code, shipping_country,
+                 shipping_method, shipping_cost, estimated_delivery) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [userId, finalTotal, 'confirmed',
+                 shipping.firstName, shipping.lastName, shipping.email, shipping.phone,
+                 shipping.address, shipping.city, shipping.postalCode, shipping.country,
+                 'standard', shippingCost, new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)] // 3일 후 배송 예정
             );
 
             const orderId = orderResult.insertId;
@@ -91,15 +111,17 @@ router.post('/api/orders', authenticateToken, [
             // 트랜잭션 커밋
             await connection.commit();
 
-            Logger.log('주문 생성 성공', { orderId, userId, totalPrice });
+            Logger.log('주문 생성 성공', { orderId, userId, totalPrice: finalTotal, shipping });
 
             res.json({
                 success: true,
                 message: '주문이 성공적으로 생성되었습니다',
                 order: {
                     order_id: orderId,
-                    total_price: totalPrice,
-                    status: 'confirmed'
+                    total_price: finalTotal,
+                    shipping_cost: shippingCost,
+                    status: 'confirmed',
+                    estimated_delivery: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
                 }
             });
 
@@ -126,9 +148,11 @@ router.get('/api/orders', authenticateToken, async (req, res) => {
 
         connection = await mysql.createConnection(dbConfig);
 
-        // 주문 목록 조회
+        // 주문 목록 조회 (배송 정보 포함)
         const [orders] = await connection.execute(
-            `SELECT order_id, total_price, order_date, status 
+            `SELECT order_id, total_price, order_date, status, 
+                    shipping_first_name, shipping_last_name, shipping_city, shipping_country,
+                    shipping_method, shipping_cost, estimated_delivery
              FROM orders 
              WHERE user_id = ? 
              ORDER BY order_date DESC`,
@@ -214,6 +238,19 @@ router.get('/api/orders/:orderId', authenticateToken, async (req, res) => {
             total_price: parseFloat(order.total_price),
             order_date: order.order_date,
             status: order.status,
+            shipping: {
+                first_name: order.shipping_first_name,
+                last_name: order.shipping_last_name,
+                email: order.shipping_email,
+                phone: order.shipping_phone,
+                address: order.shipping_address,
+                city: order.shipping_city,
+                postal_code: order.shipping_postal_code,
+                country: order.shipping_country,
+                method: order.shipping_method,
+                cost: parseFloat(order.shipping_cost || 0),
+                estimated_delivery: order.estimated_delivery
+            },
             items: items.map(item => ({
                 item_id: item.order_item_id,
                 product_id: item.product_id,

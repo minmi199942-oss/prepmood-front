@@ -310,7 +310,8 @@ async function processPayment(orderData) {
         items: orderData.items.map(item => ({
           product_id: item.product_id || item.id,
           quantity: item.quantity
-        }))
+        })),
+        shipping: orderData.shipping
       })
     });
     
