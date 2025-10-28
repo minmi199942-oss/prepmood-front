@@ -351,19 +351,63 @@ const dbConfig = {
 router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, res) => {
     let connection;
     try {
+        // 0) Idempotency-Key 처리 (중복 생성 방지)
+        const idemKey = req.header('X-Idempotency-Key');
+        const userId = req.user?.user_id || null;
+
+        if (!idemKey) {
+            return res.status(400).json({ 
+                code: 'VALIDATION_ERROR', 
+                details: { 
+                    field: 'X-Idempotency-Key', 
+                    message: '헤더가 필요합니다' 
+                }
+            });
+        }
+
+        connection = await mysql.createConnection(dbConfig);
+
+        // 기존 동일 키 존재 여부 확인
+        const [idemRows] = await connection.execute(
+            'SELECT order_number FROM orders_idempotency WHERE user_id = ? AND idem_key = ? LIMIT 1',
+            [userId, idemKey]
+        );
+
+        if (idemRows.length) {
+            // 같은 응답 스펙으로 재전송(멱등성)
+            const prevOrder = idemRows[0].order_number;
+            const [rows] = await connection.execute(
+                `SELECT order_number, total_price AS amount, estimated_delivery AS eta, status
+                 FROM orders WHERE order_number = ? AND user_id = ? LIMIT 1`,
+                [prevOrder, userId]
+            );
+            if (rows.length) {
+                await connection.end();
+                return res.status(200).json({ 
+                    success: true, 
+                    data: {
+                        order_number: rows[0].order_number,
+                        amount: rows[0].amount,
+                        currency: determineCurrency(req.body?.shipping?.country) || 'KRW',
+                        fraction: COUNTRY_RULES[req.body?.shipping?.country]?.fraction ?? 2,
+                        eta: rows[0].eta
+                    }
+                });
+            }
+            // 기록은 있는데 주문이 없으면(예외적) 계속 진행하여 새 주문 생성
+        }
+
         // 서버측 스키마 검증
         const validationErrors = validateOrderRequest(req);
         if (validationErrors) {
+            await connection.end();
             return res.status(400).json({ 
                 code: 'VALIDATION_ERROR', 
                 details: validationErrors 
             });
         }
 
-        const userId = req.user.userId;
         const { items, shipping } = req.body;
-
-        connection = await mysql.createConnection(dbConfig);
 
         // 총 금액 계산
         let totalPrice = 0;
@@ -473,6 +517,23 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
 
             // 트랜잭션 커밋
             await connection.commit();
+
+            // Idempotency 레코드 저장 (트랜잭션 외부에서 실행)
+            try {
+                await connection.execute(
+                    'INSERT INTO orders_idempotency (user_id, idem_key, order_number) VALUES (?, ?, ?)',
+                    [userId, idemKey, orderNumber]
+                );
+                Logger.log('Idempotency 레코드 저장 성공', { userId, idemKey, orderNumber });
+            } catch (idemError) {
+                // Idempotency 저장 실패는 로그만 남기고 주문은 성공으로 처리
+                Logger.log('Idempotency 레코드 저장 실패 (주문은 성공)', { 
+                    error: idemError.message, 
+                    userId, 
+                    idemKey, 
+                    orderNumber 
+                });
+            }
 
             // 마스킹된 배송 정보로 로깅 (전면 적용)
             const maskedShipping = maskSensitiveData(shipping);
