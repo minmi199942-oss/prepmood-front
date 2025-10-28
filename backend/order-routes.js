@@ -515,25 +515,14 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
             //     throw new Error('결제 사전승인 실패: ' + paymentResult.error);
             // }
 
+            // N) Idempotency 기록 저장
+            await connection.execute(
+                'INSERT IGNORE INTO orders_idempotency (user_id, idem_key, order_number) VALUES (?, ?, ?)',
+                [userId, idemKey, orderNumber]
+            );
+
             // 트랜잭션 커밋
             await connection.commit();
-
-            // Idempotency 레코드 저장 (트랜잭션 외부에서 실행)
-            try {
-                await connection.execute(
-                    'INSERT INTO orders_idempotency (user_id, idem_key, order_number) VALUES (?, ?, ?)',
-                    [userId, idemKey, orderNumber]
-                );
-                Logger.log('Idempotency 레코드 저장 성공', { userId, idemKey, orderNumber });
-            } catch (idemError) {
-                // Idempotency 저장 실패는 로그만 남기고 주문은 성공으로 처리
-                Logger.log('Idempotency 레코드 저장 실패 (주문은 성공)', { 
-                    error: idemError.message, 
-                    userId, 
-                    idemKey, 
-                    orderNumber 
-                });
-            }
 
             // 마스킹된 배송 정보로 로깅 (전면 적용)
             const maskedShipping = maskSensitiveData(shipping);
