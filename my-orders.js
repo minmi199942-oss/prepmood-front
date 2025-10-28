@@ -89,9 +89,9 @@ function renderOrders(orders) {
           }
         </div>
         <div class="order-details">
-          <h3 class="product-name">${order.items && order.items.length > 0 ? escapeHtml(order.items[0].name) : '주문 #' + order.order_id}</h3>
+          <h3 class="product-name">${order.items && order.items.length > 0 ? escapeHtml(order.items[0].name) : '주문 #' + (order.order_number || order.order_id)}</h3>
           ${order.items && order.items.length > 1 ? `<p class="order-additional">외 ${order.items.length - 1}개 상품</p>` : ''}
-          <p class="order-number">주문번호: #PM${String(order.order_id).padStart(6, '0')}</p>
+          <p class="order-number">주문번호: ${order.order_number || 'PM' + String(order.order_id).padStart(6, '0')}</p>
           <p class="order-date">주문일: ${orderDate}</p>
           <p class="order-price">${formatPrice(order.total_price)}</p>
           <p class="order-status ${statusClass}">${statusText}</p>

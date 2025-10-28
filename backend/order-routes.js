@@ -7,6 +7,16 @@ const { authenticateToken } = require('./auth-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 
+// 주문번호 생성 함수
+function generateOrderNumber() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const timestamp = now.getTime().toString().slice(-6); // 마지막 6자리
+    return `ORD-${year}${month}${day}-${timestamp}`;
+}
+
 // MySQL 연결 설정
 const dbConfig = {
     host: process.env.DB_HOST,
@@ -83,14 +93,17 @@ router.post('/api/orders', authenticateToken, [
         await connection.beginTransaction();
 
         try {
-            // orders 테이블에 주문 생성 (배송 정보 포함)
+            // 주문번호 생성
+            const orderNumber = generateOrderNumber();
+            
+            // orders 테이블에 주문 생성 (배송 정보 및 주문번호 포함)
             const [orderResult] = await connection.execute(
-                `INSERT INTO orders (user_id, total_price, status, 
+                `INSERT INTO orders (user_id, order_number, total_price, status, 
                  shipping_first_name, shipping_last_name, shipping_email, shipping_phone,
                  shipping_address, shipping_city, shipping_postal_code, shipping_country,
                  shipping_method, shipping_cost, estimated_delivery) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [userId, finalTotal, 'confirmed',
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [userId, orderNumber, finalTotal, 'confirmed',
                  shipping.firstName, shipping.lastName, shipping.email, shipping.phone,
                  shipping.address, shipping.city, shipping.postalCode, shipping.country,
                  'standard', shippingCost, new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)] // 3일 후 배송 예정
@@ -111,13 +124,14 @@ router.post('/api/orders', authenticateToken, [
             // 트랜잭션 커밋
             await connection.commit();
 
-            Logger.log('주문 생성 성공', { orderId, userId, totalPrice: finalTotal, shipping });
+            Logger.log('주문 생성 성공', { orderId, orderNumber, userId, totalPrice: finalTotal, shipping });
 
             res.json({
                 success: true,
                 message: '주문이 성공적으로 생성되었습니다',
                 order: {
                     order_id: orderId,
+                    order_number: orderNumber,
                     total_price: finalTotal,
                     shipping_cost: shippingCost,
                     status: 'confirmed',
@@ -148,9 +162,9 @@ router.get('/api/orders', authenticateToken, async (req, res) => {
 
         connection = await mysql.createConnection(dbConfig);
 
-        // 주문 목록 조회 (배송 정보 포함)
+        // 주문 목록 조회 (배송 정보 및 주문번호 포함)
         const [orders] = await connection.execute(
-            `SELECT order_id, total_price, order_date, status, 
+            `SELECT order_id, order_number, total_price, order_date, status, 
                     shipping_first_name, shipping_last_name, shipping_city, shipping_country,
                     shipping_method, shipping_cost, estimated_delivery
              FROM orders 
@@ -234,6 +248,7 @@ router.get('/api/orders/:orderId', authenticateToken, async (req, res) => {
 
         const orderDetail = {
             order_id: order.order_id,
+            order_number: order.order_number,
             user_id: order.user_id,
             total_price: parseFloat(order.total_price),
             order_date: order.order_date,

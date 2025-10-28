@@ -49,8 +49,9 @@ function displayOrderInfo(order) {
   const orderInfoSection = document.getElementById('order-info-section');
   orderInfoSection.style.display = 'block';
   
-  // 주문 번호
-  document.getElementById('order-id').textContent = `#${order.order_id}`;
+  // 주문 번호 (주문번호가 있으면 사용, 없으면 order_id 사용)
+  const orderDisplayId = order.order_number || `#${order.order_id}`;
+  document.getElementById('order-id').textContent = orderDisplayId;
   
   // 주문 금액
   document.getElementById('order-total').textContent = formatPrice(order.total_price);
