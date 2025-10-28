@@ -8,6 +8,155 @@ const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 const rateLimit = require('express-rate-limit');
 
+// 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
+const COUNTRY_RULES = {
+    KR: { 
+        postalRe: /^\d{5}$/, 
+        phoneRe: /^0\d{1,2}-\d{3,4}-\d{4}$/, 
+        currency: 'KRW', 
+        locale: 'ko-KR',
+        postalHint: '5자리 숫자 (예: 12345)', 
+        phoneHint: '010-1234-5678',
+        businessDays: 2,
+        cutoffHour: 15
+    },
+    JP: { 
+        postalRe: /^\d{3}-\d{4}$/, 
+        phoneRe: /^0\d{1,3}-\d{2,4}-\d{4}$/, 
+        currency: 'JPY', 
+        locale: 'ja-JP',
+        postalHint: '123-4567', 
+        phoneHint: '03-1234-5678',
+        businessDays: 3,
+        cutoffHour: 15
+    },
+    US: { 
+        postalRe: /^\d{5}(-\d{4})?$/, 
+        phoneRe: /^\(\d{3}\)\s\d{3}-\d{4}$/, 
+        currency: 'USD', 
+        locale: 'en-US',
+        postalHint: '12345 또는 12345-6789', 
+        phoneHint: '(415) 555-1234',
+        businessDays: 5,
+        cutoffHour: 15
+    },
+    CN: { 
+        postalRe: /^\d{6}$/, 
+        phoneRe: /^1[3-9]\d{9}$/, 
+        currency: 'CNY', 
+        locale: 'zh-CN',
+        postalHint: '6자리 숫자 (예: 100000)', 
+        phoneHint: '13812345678',
+        businessDays: 4,
+        cutoffHour: 15
+    },
+    GB: { 
+        postalRe: /^[A-Za-z0-9\s]{3,8}$/, 
+        phoneRe: /^(\+44|0)[0-9\s]{10,15}$/, 
+        currency: 'GBP', 
+        locale: 'en-GB',
+        postalHint: 'SW1A 1AA', 
+        phoneHint: '020 1234 5678',
+        businessDays: 3,
+        cutoffHour: 15
+    },
+    DE: { 
+        postalRe: /^\d{5}$/, 
+        phoneRe: /^(\+49|0)[0-9\s]{10,15}$/, 
+        currency: 'EUR', 
+        locale: 'de-DE',
+        postalHint: '5자리 숫자 (예: 10115)', 
+        phoneHint: '030 12345678',
+        businessDays: 3,
+        cutoffHour: 15
+    },
+    FR: { 
+        postalRe: /^\d{5}$/, 
+        phoneRe: /^(\+33|0)[0-9\s]{9,15}$/, 
+        currency: 'EUR', 
+        locale: 'fr-FR',
+        postalHint: '5자리 숫자 (예: 75001)', 
+        phoneHint: '01 23 45 67 89',
+        businessDays: 3,
+        cutoffHour: 15
+    },
+    IT: { 
+        postalRe: /^\d{5}$/, 
+        phoneRe: /^(\+39|0)[0-9\s]{9,15}$/, 
+        currency: 'EUR', 
+        locale: 'it-IT',
+        postalHint: '5자리 숫자 (예: 00118)', 
+        phoneHint: '06 1234 5678',
+        businessDays: 3,
+        cutoffHour: 15
+    },
+    ES: { 
+        postalRe: /^\d{5}$/, 
+        phoneRe: /^(\+34|0)[0-9\s]{9,15}$/, 
+        currency: 'EUR', 
+        locale: 'es-ES',
+        postalHint: '5자리 숫자 (예: 28001)', 
+        phoneHint: '91 123 45 67',
+        businessDays: 3,
+        cutoffHour: 15
+    }
+};
+
+// 통화 결정 로직
+function determineCurrency(country) {
+    const currencyMap = {
+        'KR': 'KRW',
+        'JP': 'JPY', 
+        'US': 'USD',
+        'CN': 'CNY',
+        'GB': 'GBP',
+        'DE': 'EUR',
+        'FR': 'EUR',
+        'IT': 'EUR',
+        'ES': 'EUR'
+    };
+    return currencyMap[country] || 'KRW';
+}
+
+// ETA 계산 유틸리티 (영업일 기준, 주말 제외)
+function calculateETA(shippingMethod, country, orderDate = new Date()) {
+    const countryRule = COUNTRY_RULES[country] || COUNTRY_RULES.KR;
+    const baseDays = countryRule.businessDays;
+    const cutoffHour = countryRule.cutoffHour;
+    
+    // 배송 방법별 추가 일수
+    const methodDays = {
+        'standard': 0,
+        'express': -1, // 1일 단축
+        'overnight': -2, // 2일 단축
+        'pickup': -3 // 3일 단축 (픽업)
+    };
+    
+    const additionalDays = methodDays[shippingMethod] || 0;
+    const totalDays = Math.max(1, baseDays + additionalDays); // 최소 1일
+    
+    // 현재 시간이 cutoff 시간 이후면 다음 영업일부터 계산
+    let startDate = new Date(orderDate);
+    if (startDate.getHours() >= cutoffHour) {
+        startDate.setDate(startDate.getDate() + 1);
+    }
+    
+    // 영업일 계산 (주말 제외)
+    let eta = new Date(startDate);
+    let businessDaysAdded = 0;
+    
+    while (businessDaysAdded < totalDays) {
+        eta.setDate(eta.getDate() + 1);
+        const dayOfWeek = eta.getDay();
+        // 월요일(1) ~ 금요일(5)만 영업일로 계산
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            businessDaysAdded++;
+        }
+    }
+    
+    return eta;
+}
+
 // 개인정보 마스킹 유틸리티 함수
 function maskSensitiveData(data) {
     const masked = { ...data };
@@ -83,16 +232,25 @@ function validateOrderRequest(req) {
         errors['shipping.city'] = '도시는 1-50자 사이여야 합니다';
     }
     
-    // 우편번호 패턴 검증 (한국 형식)
-    const postalRegex = /^\d{5}$/;
-    if (!shipping.postalCode || !postalRegex.test(shipping.postalCode)) {
-        errors['shipping.postalCode'] = '우편번호는 5자리 숫자여야 합니다';
-    }
-    
     // 국가 허용 목록 검증
     const allowedCountries = ['KR', 'US', 'JP', 'CN', 'GB', 'DE', 'FR', 'CA', 'AU'];
     if (!shipping.country || !allowedCountries.includes(shipping.country)) {
         errors['shipping.country'] = `국가는 다음 중 하나여야 합니다: ${allowedCountries.join(', ')}`;
+    }
+    
+    // 국가별 postalCode 및 phone 검증 (국가가 유효한 경우에만)
+    if (shipping.country && allowedCountries.includes(shipping.country)) {
+        const countryRule = COUNTRY_RULES[shipping.country];
+        
+        // postalCode 검증
+        if (!shipping.postalCode || !countryRule.postalRe.test(shipping.postalCode)) {
+            errors['shipping.postalCode'] = `우편번호 형식이 올바르지 않습니다 (예: ${countryRule.postalHint})`;
+        }
+        
+        // phone 검증
+        if (!shipping.phone || !countryRule.phoneRe.test(shipping.phone)) {
+            errors['shipping.phone'] = `전화번호 형식이 올바르지 않습니다 (예: ${countryRule.phoneHint})`;
+        }
     }
     
     // line_items 검증
@@ -253,6 +411,12 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
         // 배송비 계산 (현재는 무료)
         const shippingCost = 0;
         const finalTotal = totalPrice + shippingCost;
+        
+        // 국가별 통화 결정
+        const currency = determineCurrency(shipping.country);
+        
+        // ETA 계산 (영업일 기준)
+        const eta = calculateETA('standard', shipping.country);
 
         // 트랜잭션 시작
         await connection.beginTransaction();
@@ -277,7 +441,7 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
                         [userId, orderNumber, finalTotal, 'pending',
                          shipping.firstName, shipping.lastName, shipping.email, shipping.phone,
                          shipping.address, shipping.city, shipping.postalCode, shipping.country,
-                         'standard', shippingCost, new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)] // 3일 후 배송 예정
+                         'standard', shippingCost, eta] // 계산된 ETA 사용
                     );
                     
                     // 성공 시 루프 종료
@@ -340,7 +504,9 @@ router.post('/api/orders', authenticateToken, orderCreationLimiter, async (req, 
                 data: {
                     order_number: orderNumber,
                     amount: finalTotal,
-                    eta: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                    eta: eta.toISOString().split('T')[0],
+                    currency: currency,
+                    localeHint: COUNTRY_RULES[shipping.country]?.locale || 'ko-KR'
                 }
             });
 
