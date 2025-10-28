@@ -425,8 +425,8 @@ async function processPayment(orderData) {
       credentials: 'include',
       body: JSON.stringify({
         items: orderData.items.map(item => ({
-          product_id: item.product_id || item.id,
-          quantity: item.quantity
+          product_id: parseInt(item.product_id || item.id),
+          quantity: parseInt(item.quantity)
         })),
         shipping: orderData.shipping
       })

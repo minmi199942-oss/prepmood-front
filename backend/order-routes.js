@@ -400,6 +400,11 @@ router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res)
         // 서버측 스키마 검증
         const validationErrors = validateOrderRequest(req);
         if (validationErrors) {
+            Logger.log('주문 검증 실패', { 
+                userId, 
+                errors: validationErrors, 
+                requestBody: maskSensitiveData(req.body) 
+            });
             await connection.end();
             return res.status(400).json({ 
                 code: 'VALIDATION_ERROR', 
