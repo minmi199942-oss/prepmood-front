@@ -449,8 +449,9 @@ router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res)
 
         for (const item of items) {
             // 상품 정보 조회 (product_id 존재 확인)
+            // admin_products 테이블 사용 (cart-routes.js와 동일)
             const [productRows] = await connection.execute(
-                'SELECT product_id, name, price, image, sku FROM products WHERE product_id = ?',
+                'SELECT id AS product_id, name, price, image, sku FROM admin_products WHERE id = ?',
                 [item.product_id]
             );
 

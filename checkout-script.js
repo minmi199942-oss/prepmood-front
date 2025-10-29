@@ -76,6 +76,12 @@ async function initializeCheckoutPage() {
   const cartItems = window.miniCart.getCartItems();
   console.log('📦 miniCart에서 장바구니 가져옴:', cartItems);
   console.log('📦 장바구니 길이:', cartItems.length);
+  console.log('📦 장바구니 아이템 구조 확인:', cartItems.map(item => ({
+    product_id: item.product_id,
+    id: item.id,
+    quantity: item.quantity,
+    keys: Object.keys(item)
+  })));
   
   // 장바구니가 비어있는지 확인
   if (!cartItems || cartItems.length === 0) {
@@ -368,6 +374,17 @@ function validateForms() {
     errors.phone = `전화번호 형식이 올바르지 않습니다 (예: ${currentCountryRule.phoneHint})`;
   }
   
+  // 주소 길이 검증 (10-200자)
+  const address = document.getElementById('address');
+  if (address && address.value) {
+    const addressLength = address.value.trim().length;
+    if (addressLength < 10 || addressLength > 200) {
+      isValid = false;
+      address.style.borderColor = '#e74c3c';
+      errors.address = `주소는 10자 이상 200자 이하여야 합니다 (현재: ${addressLength}자)`;
+    }
+  }
+  
   if (!isValid) {
     const errorMessages = Object.values(errors);
     if (errorMessages.length > 0) {
@@ -429,15 +446,47 @@ async function processPayment(orderData) {
     try {
       console.log('💳 주문 생성 API 호출 중...');
       
+      // product_id 변환 및 검증
+      const items = orderData.items.map((item, index) => {
+        // product_id 우선순위: product_id > id
+        const productId = item.product_id || item.id;
+        const parsedProductId = parseInt(productId, 10);
+        const parsedQuantity = parseInt(item.quantity, 10);
+        
+        if (isNaN(parsedProductId) || parsedProductId <= 0) {
+          console.error(`❌ 아이템 ${index} product_id 변환 실패:`, {
+            original: productId,
+            item: item
+          });
+        }
+        
+        if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+          console.error(`❌ 아이템 ${index} quantity 변환 실패:`, {
+            original: item.quantity,
+            item: item
+          });
+        }
+        
+        return {
+          product_id: parsedProductId,
+          quantity: parsedQuantity
+        };
+      }).filter(item => !isNaN(item.product_id) && item.product_id > 0 && !isNaN(item.quantity) && item.quantity > 0);
+      
+      if (items.length === 0) {
+        throw new Error('유효한 상품 정보가 없습니다. 장바구니를 확인해주세요.');
+      }
+      
       const requestPayload = {
-        items: orderData.items.map(item => ({
-          product_id: parseInt(item.product_id || item.id),
-          quantity: parseInt(item.quantity)
-        })),
+        items: items,
         shipping: orderData.shipping
       };
       
-      console.log('📤 전송할 데이터:', requestPayload);
+      console.log('📤 전송할 데이터:', {
+        items: requestPayload.items,
+        shippingKeys: Object.keys(requestPayload.shipping),
+        addressLength: requestPayload.shipping.address?.length || 0
+      });
       
       // 주문 생성 API 호출 (Idempotency 키 포함)
       const response = await fetch('https://prepmood.kr/api/orders', {
