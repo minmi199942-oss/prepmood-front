@@ -454,7 +454,7 @@ router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res)
             // 상품 정보 조회 (product_id 존재 확인)
             // admin_products 테이블 사용 (cart-routes.js와 동일)
             const [productRows] = await connection.execute(
-                'SELECT id AS product_id, name, price, image, sku FROM admin_products WHERE id = ?',
+                'SELECT id AS product_id, name, price, image FROM admin_products WHERE id = ?',
                 [item.product_id]
             );
 
@@ -601,10 +601,14 @@ router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res)
         // 마스킹된 정보로 오류 로깅
         const maskedShipping = req.body.shipping ? maskSensitiveData(req.body.shipping) : null;
         Logger.log('주문 생성 오류:', { 
-            error: error.message, 
+            error: error.message,
+            stack: error.stack,
+            product_id: req.body?.items?.[0]?.product_id,
+            shipping_country: maskedShipping?.country,
             userId: req.user?.userId,
             shipping: maskedShipping
         });
+        console.error('주문 생성 오류 상세:', error);
         
         // DUPLICATE_ORDER_NUMBER 특별 처리
         if (error.code === 'ER_DUP_ENTRY' && error.message.includes('order_number')) {
