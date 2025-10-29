@@ -981,6 +981,7 @@ app.get('/api/health', (req, res) => {
 const googleAuthRoutes = require('./google-auth-routes');
 const productRoutes = require('./product-routes');
 const orderRoutes = require('./order-routes');
+const paymentsRoutes = require('./payments-routes');
 
 app.use('/api', googleAuthRoutes);
 app.use('/api', productRoutes);
@@ -989,6 +990,9 @@ app.use('/api', orderRoutes);
 // 장바구니 라우트
 const cartRoutes = require('./cart-routes');
 app.use('/api', cartRoutes);
+
+// 결제 라우트
+app.use('/api', paymentsRoutes);
 
 // 서버 시작
 app.listen(PORT, async () => {

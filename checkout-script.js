@@ -25,8 +25,15 @@ function uuidv4() {
   });
 }
 
+// 결제 모드 플래그 설정 (서버 MOCK_GATEWAY와 동기화 필요)
+// MOCK 모드: 모의 결제 (테스트용)
+// TOSS 모드: 실제 토스페이먼츠 결제
+// 기본값은 MOCK (운영 전환 시 HTML에서 직접 'TOSS'로 설정)
+window.__PAYMENT_MODE__ = window.__PAYMENT_MODE__ || 'MOCK';
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('💳 체크아웃 페이지 로드됨');
+  console.log(`🔧 결제 모드: ${window.__PAYMENT_MODE__}`);
   
   // 미니 카트가 로드될 때까지 대기
   if (window.miniCart) {

@@ -1,0 +1,105 @@
+### payments_smoke.http
+### REST Client 형식 테스트 스크립트
+### VS Code REST Client 확장 프로그램 또는 JetBrains HTTP Client에서 사용 가능
+
+@baseUrl = http://localhost:3000/api
+@orderNumber = ORD-2025-TEST-001
+@paymentKey = tgen_test_payment_key_1234567890
+@amount = 129000
+
+### POST /api/payments/confirm - Happy Path
+### 클라이언트에서 토스페이먼츠 위젯 결제 성공 후 서버 승인 요청
+POST {{baseUrl}}/payments/confirm
+Content-Type: application/json
+Cookie: accessToken=your_jwt_token_here
+
+{
+  "orderNumber": "{{orderNumber}}",
+  "paymentKey": "{{paymentKey}}",
+  "amount": {{amount}}
+}
+
+### POST /api/payments/confirm - 금액 불일치 (400 예상)
+### 클라이언트 금액과 서버 재계산 금액이 다른 경우
+POST {{baseUrl}}/payments/confirm
+Content-Type: application/json
+Cookie: accessToken=your_jwt_token_here
+
+{
+  "orderNumber": "{{orderNumber}}",
+  "paymentKey": "{{paymentKey}}",
+  "amount": 99999
+}
+
+### POST /api/payments/confirm - 잘못된 키 (404 예상)
+### 존재하지 않는 주문번호
+POST {{baseUrl}}/payments/confirm
+Content-Type: application/json
+Cookie: accessToken=your_jwt_token_here
+
+{
+  "orderNumber": "ORD-NONEXISTENT",
+  "paymentKey": "{{paymentKey}}",
+  "amount": {{amount}}
+}
+
+### POST /api/payments/confirm - 유효하지 않은 요청 바디 (400 예상)
+### 필수 필드 누락
+POST {{baseUrl}}/payments/confirm
+Content-Type: application/json
+Cookie: accessToken=your_jwt_token_here
+
+{
+  "orderNumber": "{{orderNumber}}"
+}
+
+### POST /api/payments/webhook - 샘플 페이로드 (200 OK 확인)
+### 토스페이먼츠에서 결제 상태 변경 시 호출
+### TODO: 서명 검증 구현 후 HMAC 헤더 추가 필요
+POST {{baseUrl}}/payments/webhook
+Content-Type: application/json
+# X-Toss-Signature: hmac_signature_here (서명 검증 구현 후 활성화)
+
+{
+  "eventType": "PAYMENT_CONFIRMED",
+  "data": {
+    "orderId": "{{orderNumber}}",
+    "paymentKey": "{{paymentKey}}",
+    "status": "DONE",
+    "amount": {{amount}},
+    "currency": "KRW",
+    "method": "카드"
+  },
+  "timestamp": "2025-10-29T12:00:00Z"
+}
+
+### POST /api/payments/webhook - 결제 실패 이벤트
+POST {{baseUrl}}/payments/webhook
+Content-Type: application/json
+
+{
+  "eventType": "PAYMENT_FAILED",
+  "data": {
+    "orderId": "{{orderNumber}}",
+    "paymentKey": "{{paymentKey}}",
+    "status": "FAILED",
+    "failureReason": "카드 한도 초과"
+  },
+  "timestamp": "2025-10-29T12:00:00Z"
+}
+
+### POST /api/payments/webhook - 환불 이벤트
+POST {{baseUrl}}/payments/webhook
+Content-Type: application/json
+
+{
+  "eventType": "PAYMENT_REFUNDED",
+  "data": {
+    "orderId": "{{orderNumber}}",
+    "paymentKey": "{{paymentKey}}",
+    "status": "REFUNDED",
+    "refundAmount": {{amount}}
+  },
+  "timestamp": "2025-10-29T12:00:00Z"
+}
+

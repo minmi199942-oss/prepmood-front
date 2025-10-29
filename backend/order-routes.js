@@ -355,7 +355,16 @@ router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res)
     try {
         // 0) Idempotency-Key 처리 (중복 생성 방지)
         const idemKey = req.header('X-Idempotency-Key');
-        const userId = req.user?.user_id || null;
+        const userId = req.user?.userId || null;
+
+        // userId 검증 로그
+        Logger.log('주문 생성 요청 - userId 확인', {
+            userId: userId,
+            userIdType: typeof userId,
+            userInfo: userId ? { userId } : 'null',
+            hasUser: !!req.user,
+            userKeys: req.user ? Object.keys(req.user) : []
+        });
 
         if (!idemKey) {
             return res.status(400).json({ 
@@ -609,6 +618,15 @@ router.get('/orders', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.userId;
 
+        // userId 검증 로그
+        Logger.log('주문 목록 조회 요청 - userId 확인', {
+            userId: userId,
+            userIdType: typeof userId,
+            userInfo: { userId },
+            hasUser: !!req.user,
+            userKeys: req.user ? Object.keys(req.user) : []
+        });
+
         connection = await mysql.createConnection(dbConfig);
 
         // 주문 목록 조회 (배송 정보 및 주문번호 포함)
@@ -678,28 +696,67 @@ router.get('/orders', authenticateToken, async (req, res) => {
 });
 
 // 주문 상세 조회 API
+// order_id (숫자) 또는 order_number (ORD-YYYYMMDD-######-######) 모두 지원
 router.get('/orders/:orderId', authenticateToken, async (req, res) => {
     let connection;
     try {
         const userId = req.user.userId;
         const orderId = req.params.orderId;
 
+        // userId 검증 로그
+        Logger.log('주문 상세 조회 요청 - userId 확인', {
+            userId: userId,
+            userIdType: typeof userId,
+            orderId: orderId,
+            userInfo: { userId },
+            hasUser: !!req.user,
+            userKeys: req.user ? Object.keys(req.user) : []
+        });
+
+        // order_number 형식 판별: ORD-YYYYMMDD-######-######
+        const ORDER_NUMBER_REGEX = /^ORD-\d{8}-\d{6}-[A-Z0-9]{6}$/;
+        const isOrderNumber = ORDER_NUMBER_REGEX.test(orderId);
+
         connection = await mysql.createConnection(dbConfig);
 
-        // 주문 정보 조회
-        const [orders] = await connection.execute(
-            'SELECT * FROM orders WHERE order_id = ? AND user_id = ?',
-            [orderId, userId]
-        );
+        let orders;
+        let order;
+        let orderIdForItems;
 
+        // order_number 또는 order_id로 조회 (항상 user_id 검증)
+        if (isOrderNumber) {
+            // order_number로 조회
+            [orders] = await connection.execute(
+                'SELECT * FROM orders WHERE order_number = ? AND user_id = ?',
+                [orderId, userId]
+            );
+        } else {
+            // order_id (숫자)로 조회
+            const numOrderId = parseInt(orderId, 10);
+            if (isNaN(numOrderId)) {
+                await connection.end();
+                return res.status(400).json({
+                    code: 'VALIDATION_ERROR',
+                    details: { message: '유효하지 않은 주문 ID 형식입니다' }
+                });
+            }
+            [orders] = await connection.execute(
+                'SELECT * FROM orders WHERE order_id = ? AND user_id = ?',
+                [numOrderId, userId]
+            );
+        }
+
+        // 본인 주문 확인 (불일치 시 403)
         if (orders.length === 0) {
+            await connection.end();
             return res.status(404).json({ 
                 code: 'NOT_FOUND', 
                 details: { message: '주문을 찾을 수 없습니다' }
             });
         }
 
-        const order = orders[0];
+        order = orders[0];
+        orderIdForItems = order.order_id;
 
         // 주문 상품 조회
         const [items] = await connection.execute(
@@ -707,16 +764,24 @@ router.get('/orders/:orderId', authenticateToken, async (req, res) => {
                     quantity, unit_price, subtotal 
              FROM order_items 
              WHERE order_id = ?`,
-            [orderId]
+            [orderIdForItems]
         );
+
+        // 통화 정보 결정
+        const currency = determineCurrency(order.shipping_country);
+        const fraction = COUNTRY_RULES[order.shipping_country]?.fraction ?? 2;
 
         const orderDetail = {
             order_id: order.order_id,
             order_number: order.order_number,
             user_id: order.user_id,
             total_price: parseFloat(order.total_price),
+            amount: parseFloat(order.total_price), // 별칭 (호환성)
             order_date: order.order_date,
             status: order.status,
+            currency: currency,
+            fraction: fraction,
+            eta: order.estimated_delivery ? order.estimated_delivery.toISOString().split('T')[0] : null,
             shipping: {
                 first_name: order.shipping_first_name,
                 last_name: order.shipping_last_name,
@@ -743,7 +808,15 @@ router.get('/orders/:orderId', authenticateToken, async (req, res) => {
 
         res.json({
             success: true,
-            order: orderDetail
+            data: {
+                order_number: order.order_number,
+                amount: parseFloat(order.total_price),
+                currency: currency,
+                fraction: fraction,
+                status: order.status,
+                eta: order.estimated_delivery ? order.estimated_delivery.toISOString().split('T')[0] : null
+            },
+            order: orderDetail // 상세 정보는 기존 호환성 유지
         });
 
     } catch (error) {
