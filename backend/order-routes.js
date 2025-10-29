@@ -263,12 +263,15 @@ function validateOrderRequest(req) {
         const prefix = `items[${i}]`;
         
         // product_id 검증
-        if (!item.product_id || !Number.isInteger(item.product_id) || item.product_id <= 0) {
+        // 참고: admin_products.id는 VARCHAR(50) (문자열)이므로 정수 검증 불필요
+        const productId = String(item.product_id || '').trim();
+        if (!productId || productId === 'undefined' || productId === 'null' || productId === '') {
             errors[`${prefix}.product_id`] = '유효한 상품 ID가 필요합니다';
         }
         
-        // quantity 검증
-        if (!item.quantity || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10) {
+        // quantity 검증 (정수)
+        const quantity = Number(item.quantity);
+        if (!item.quantity || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
             errors[`${prefix}.quantity`] = '수량은 1-10 사이여야 합니다';
         }
         

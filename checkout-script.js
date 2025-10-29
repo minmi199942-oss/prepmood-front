@@ -447,31 +447,36 @@ async function processPayment(orderData) {
       console.log('💳 주문 생성 API 호출 중...');
       
       // product_id 변환 및 검증
+      // 참고: admin_products.id는 VARCHAR(50) (문자열)이므로 parseInt 사용 안 함
       const items = orderData.items.map((item, index) => {
         // product_id 우선순위: product_id > id
-        const productId = item.product_id || item.id;
-        const parsedProductId = parseInt(productId, 10);
+        const productId = String(item.product_id || item.id || '').trim();
         const parsedQuantity = parseInt(item.quantity, 10);
         
-        if (isNaN(parsedProductId) || parsedProductId <= 0) {
-          console.error(`❌ 아이템 ${index} product_id 변환 실패:`, {
-            original: productId,
-            item: item
+        // product_id 검증 (빈 문자열이나 유효하지 않은 값 체크)
+        if (!productId || productId === 'undefined' || productId === 'null') {
+          console.error(`❌ 아이템 ${index} product_id 없음:`, {
+            original: item.product_id || item.id,
+            item: item,
+            keys: Object.keys(item)
           });
+          return null;
         }
         
+        // quantity 검증
         if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
           console.error(`❌ 아이템 ${index} quantity 변환 실패:`, {
             original: item.quantity,
             item: item
           });
+          return null;
         }
         
         return {
-          product_id: parsedProductId,
+          product_id: productId,  // 문자열 그대로 전송 (VARCHAR)
           quantity: parsedQuantity
         };
-      }).filter(item => !isNaN(item.product_id) && item.product_id > 0 && !isNaN(item.quantity) && item.quantity > 0);
+      }).filter(item => item !== null && item.product_id && item.quantity > 0);
       
       if (items.length === 0) {
         throw new Error('유효한 상품 정보가 없습니다. 장바구니를 확인해주세요.');
