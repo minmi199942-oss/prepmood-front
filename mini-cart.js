@@ -463,6 +463,40 @@ class MiniCart {
   getCartTotal() {
     return this.cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   }
+
+  // 장바구니 비우기
+  async clearCart() {
+    if (!this.isLoggedIn) {
+      this.cartItems = [];
+      this.updateCartDisplay();
+      this.renderMiniCart();
+      return;
+    }
+
+    try {
+      const response = await fetch('https://prepmood.kr/api/cart/clear', {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        this.cartItems = [];
+        this.updateCartDisplay();
+        this.renderMiniCart();
+        Logger.log('✅ 장바구니 비우기 완료');
+      } else {
+        console.error('❌ 장바구니 비우기 실패:', data.message);
+      }
+    } catch (error) {
+      console.error('❌ 장바구니 비우기 오류:', error);
+      // 오류가 발생해도 로컬은 비우기
+      this.cartItems = [];
+      this.updateCartDisplay();
+      this.renderMiniCart();
+    }
+  }
 }
 
 // MiniCart 클래스를 전역으로 노출
