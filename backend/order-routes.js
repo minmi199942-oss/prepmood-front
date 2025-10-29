@@ -354,8 +354,17 @@ router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res)
     let connection;
     try {
         // 0) Idempotency-Key 처리 (중복 생성 방지)
-        const idemKey = req.header('X-Idempotency-Key');
+        // Express 헤더 읽기: req.get() 또는 req.headers 사용 (case-insensitive)
+        const idemKey = req.get('X-Idempotency-Key') || req.headers['x-idempotency-key'] || req.headers['X-Idempotency-Key'];
         const userId = req.user?.userId || null;
+        
+        // 디버깅: 헤더 확인
+        Logger.log('주문 생성 - Idempotency Key 확인', {
+            idemKey: idemKey ? `${idemKey.substring(0, 20)}...` : '없음',
+            userId: userId,
+            hasUser: !!req.user,
+            headersKeys: Object.keys(req.headers).filter(k => k.toLowerCase().includes('idempotency'))
+        });
 
         // userId 검증 로그
         Logger.log('주문 생성 요청 - userId 확인', {

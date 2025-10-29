@@ -303,6 +303,13 @@ function formatCVV(e) {
 function handleCompleteOrder() {
   console.log('💳 주문 완료 처리 시작');
   
+  // 중복 클릭 방지
+  const completeOrderBtn = document.getElementById('complete-order-btn');
+  if (completeOrderBtn && completeOrderBtn.disabled) {
+    console.warn('⚠️ 이미 처리 중입니다. 중복 클릭 무시');
+    return;
+  }
+  
   // 폼 유효성 검사
   if (!validateForms()) {
     return;
@@ -444,13 +451,45 @@ async function processPayment(orderData) {
       });
     
     if (!response.ok) {
-      const errorText = await response.text();
+      let errorData;
+      const contentType = response.headers.get('content-type');
+      
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          errorData = await response.json();
+        } else {
+          const errorText = await response.text();
+          errorData = { message: errorText };
+        }
+      } catch (e) {
+        errorData = { message: '알 수 없는 오류가 발생했습니다.' };
+      }
+
       console.error('❌ 서버 응답 에러:', {
         status: response.status,
         statusText: response.statusText,
-        body: errorText
+        error: errorData
       });
-      throw new Error(`주문 생성 실패: ${response.status}`);
+
+      // 상세 에러 메시지 구성
+      let errorMessage = `주문 생성 실패 (${response.status})`;
+      
+      if (errorData.code === 'VALIDATION_ERROR' && errorData.details) {
+        // 검증 오류인 경우 필드별 에러 표시
+        const fieldErrors = Object.entries(errorData.details)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join('\n');
+        errorMessage = `입력 오류:\n${fieldErrors}`;
+      } else if (errorData.details && typeof errorData.details === 'object') {
+        // details 객체의 message 사용
+        const detailsMsg = errorData.details.message || JSON.stringify(errorData.details);
+        errorMessage = detailsMsg;
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      }
+
+      alert(errorMessage);
+      throw new Error(errorMessage);
     }
     
     const result = await response.json();

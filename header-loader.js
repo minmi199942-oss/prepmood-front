@@ -11,6 +11,18 @@ window.addEventListener('DOMContentLoaded', () => {
     .then(html => {
       headerContainer.innerHTML = html;
 
+      // 헤더 로드 후 미니 카트 이벤트 재바인딩 (타이밍 이슈 해결)
+      setTimeout(() => {
+        if (window.miniCart && typeof window.miniCart.bindEvents === 'function') {
+          const cartToggle = document.getElementById('cart-toggle');
+          if (cartToggle && !cartToggle.hasAttribute('data-bind-attempted')) {
+            console.log('🔄 헤더 로드 완료 - 미니 카트 이벤트 재바인딩');
+            window.miniCart.bindEvents();
+            cartToggle.setAttribute('data-bind-attempted', 'true');
+          }
+        }
+      }, 100);
+
       // sync CSS var with actual header height (init + on resize)
       const headerEl = headerContainer.querySelector('header');
       function updateHeaderHeight(){

@@ -29,12 +29,64 @@ class MiniCart {
         this.updateCartDisplay();
         this.renderMiniCart();
         Logger.log('✅ 미니 카트 초기화 완료 (시도 횟수:', attempts, ')');
-      } else if (attempts > 50) {
-        // 5초 후에도 안 되면 포기
+      } else if (attempts > 100) {
+        // 10초 후에도 안 되면 포기하고, 헤더 로드 이벤트 리스너로 재시도
         clearInterval(waitForHeader);
-        console.error('❌ 장바구니 버튼을 찾을 수 없습니다!');
+        console.warn('⚠️ 장바구니 버튼 초기 발견 실패, 헤더 로드 대기 중...');
+        
+        // 헤더가 나중에 로드될 수 있으므로 DOMContentLoaded와 MutationObserver로 재시도
+        this.retryInitOnHeaderLoad();
       }
     }, 100);
+  }
+
+  // 헤더 로드 후 재시도 메서드
+  retryInitOnHeaderLoad() {
+    // DOMContentLoaded가 이미 발생했을 수도 있으므로 즉시 체크
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      const cartToggle = document.getElementById('cart-toggle');
+      if (cartToggle && !cartToggle.hasAttribute('data-bind-attempted')) {
+        console.log('🔄 헤더 로드 후 재시도 - 미니 카트 이벤트 바인딩');
+        this.bindEvents();
+        cartToggle.setAttribute('data-bind-attempted', 'true');
+      }
+    }
+
+    // DOMContentLoaded 이벤트 리스너
+    if (document.readyState !== 'complete') {
+      document.addEventListener('DOMContentLoaded', () => {
+        const cartToggle = document.getElementById('cart-toggle');
+        if (cartToggle && !cartToggle.hasAttribute('data-bind-attempted')) {
+          console.log('🔄 DOMContentLoaded 후 재시도 - 미니 카트 이벤트 바인딩');
+          this.bindEvents();
+          cartToggle.setAttribute('data-bind-attempted', 'true');
+        }
+      });
+    }
+
+    // MutationObserver로 헤더 컨테이너 감시
+    const headerContainer = document.getElementById('header-container');
+    if (headerContainer) {
+      const observer = new MutationObserver(() => {
+        const cartToggle = document.getElementById('cart-toggle');
+        if (cartToggle && !cartToggle.hasAttribute('data-bind-attempted')) {
+          console.log('🔄 헤더 컨테이너 변경 감지 - 미니 카트 이벤트 바인딩');
+          this.bindEvents();
+          cartToggle.setAttribute('data-bind-attempted', 'true');
+          observer.disconnect(); // 성공하면 관찰 중지
+        }
+      });
+
+      observer.observe(headerContainer, {
+        childList: true,
+        subtree: true
+      });
+
+      // 10초 후에도 안 되면 관찰 중지
+      setTimeout(() => {
+        observer.disconnect();
+      }, 10000);
+    }
   }
 
   bindEvents() {
@@ -52,14 +104,20 @@ class MiniCart {
     });
 
     if (cartToggle) {
-      cartToggle.addEventListener('click', (e) => {
+      // 기존 이벤트 리스너 제거 (중복 방지)
+      const newCartToggle = cartToggle.cloneNode(true);
+      cartToggle.parentNode.replaceChild(newCartToggle, cartToggle);
+      
+      // 새 요소에 이벤트 리스너 추가
+      newCartToggle.addEventListener('click', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         Logger.log('🛒 장바구니 버튼 클릭됨!');
         this.toggleMiniCart();
       });
       Logger.log('✅ 장바구니 버튼 이벤트 리스너 추가 완료');
     } else {
-      console.error('❌ 장바구니 버튼을 찾을 수 없습니다!');
+      console.warn('⚠️ 장바구니 버튼을 찾을 수 없습니다. 헤더가 아직 로드되지 않았을 수 있습니다.');
     }
 
     if (miniCartClose) {
