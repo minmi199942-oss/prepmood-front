@@ -10,6 +10,8 @@
   const grid = document.getElementById('product-grid');
 
   function renderCatalog() {
+    if (!title || !grid) return; // 필드가 없으면 건너뛰기
+    
     let list = [];
 
     // type이 없으면 해당 카테고리의 모든 하위 항목 합치기
@@ -24,7 +26,10 @@
       title.textContent = `${capitalize(category)} · ${humanize(type)}`;
     }
 
-    document.getElementById('product-count').textContent = `${list.length} items`;
+    const productCount = document.getElementById('product-count');
+    if (productCount) {
+      productCount.textContent = `${list.length} items`;
+    }
 
     grid.innerHTML = list.map(item => `
       <a class="product-card-lg" href="buy.html?id=${escapeHtml(item.id)}">
