@@ -440,7 +440,7 @@ async function processPayment(orderData) {
   const idemKey = uuidv4();
   console.log('🔑 Idempotency Key 생성:', idemKey);
   
-    try {
+  try {
       console.log('💳 주문 생성 API 호출 중...');
       
       // product_id 변환 및 검증
