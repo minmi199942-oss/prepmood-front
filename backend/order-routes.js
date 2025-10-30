@@ -295,10 +295,7 @@ const orderCreationLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
-        // IP + 사용자 ID 조합으로 제한
-        return `${req.ip}-${req.user?.userId || 'anonymous'}`;
-    }
+    // IPv6 지원을 위해 keyGenerator 제거 (기본 IP 기반 사용)
 });
 
 // 주문번호 생성 함수 (UNIQUE 충돌 시 지수 백오프 재시도 로직 포함)

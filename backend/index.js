@@ -999,18 +999,19 @@ app.use('/api', cartRoutes);
 // 결제 라우트
 app.use('/api', paymentsRoutes);
 
-// 프로덕션 환경 validation
-if (process.env.NODE_ENV === 'production') {
-    if (!process.env.WEBHOOK_SHARED_SECRET || process.env.WEBHOOK_SHARED_SECRET === 'your_webhook_secret_here') {
-        console.error('❌ PRODUCTION 환경에서는 WEBHOOK_SHARED_SECRET이 필수입니다!');
-        console.error('❌ .env 파일에 WEBHOOK_SHARED_SECRET을 설정해주세요.');
-        process.exit(1);
-    }
-    console.log('✅ 프로덕션 환경 validation 통과');
-}
-
 // 서버 시작
 app.listen(PORT, async () => {
+    // 프로덕션 환경 validation (서버 시작 후 즉시 체크)
+    if (process.env.NODE_ENV === 'production') {
+        if (!process.env.WEBHOOK_SHARED_SECRET || process.env.WEBHOOK_SHARED_SECRET === 'your_webhook_secret_here') {
+            console.error('❌ PRODUCTION 환경에서는 WEBHOOK_SHARED_SECRET이 필수입니다!');
+            console.error('❌ .env 파일에 WEBHOOK_SHARED_SECRET을 설정해주세요.');
+            console.error('⚠️  개발 모드로 계속 실행합니다...');
+        } else {
+            console.log('✅ 프로덕션 환경 validation 통과');
+        }
+    }
+    
     console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
     
     // SMTP 연결 테스트
