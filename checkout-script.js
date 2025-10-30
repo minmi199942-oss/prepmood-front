@@ -342,7 +342,8 @@ function validateForms() {
   // 필수 필드 검증
   requiredFields.forEach(fieldId => {
     const field = document.getElementById(fieldId);
-    if (!field || !field.value.trim()) {
+    if (!field) return; // 필드가 없으면 건너뛰기 (카드 필드 등)
+    if (!field.value.trim()) {
       isValid = false;
       field.style.borderColor = '#e74c3c';
     } else {
