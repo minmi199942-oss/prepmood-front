@@ -27,6 +27,7 @@ const express = require('express');
 const router = express.Router();
 const mysql = require('mysql2/promise');
 const { authenticateToken } = require('./auth-middleware');
+const { verifyCSRF } = require('./csrf-middleware');
 const Logger = require('./logger');
 const crypto = require('crypto');
 require('dotenv').config();

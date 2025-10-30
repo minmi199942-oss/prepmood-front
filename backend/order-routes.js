@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const mysql = require('mysql2/promise');
 const { authenticateToken } = require('./auth-middleware');
+const { verifyCSRF } = require('./csrf-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 const rateLimit = require('express-rate-limit');
@@ -352,7 +353,7 @@ const dbConfig = {
     queueLimit: 0
 };
 
-// 주문 생성 API
+// 주문 생성 API (CSRF 검증 비활성화 - 테스트 용도)
 router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res) => {
     let connection;
     try {

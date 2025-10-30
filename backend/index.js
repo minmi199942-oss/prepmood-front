@@ -8,6 +8,8 @@ const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const { sendVerificationEmail, testConnection } = require('./mailer');
 const { authenticateToken, optionalAuth, generateToken, setTokenCookie, clearTokenCookie } = require('./auth-middleware');
+const { issueCSRFToken, verifyCSRF } = require('./csrf-middleware');
+const { cleanupIdempotency } = require('./idempotency-cleanup');
 const Logger = require('./logger');
 require('dotenv').config();
 
@@ -29,7 +31,7 @@ app.use(cors({
     origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-Admin-Key']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-Admin-Key', 'X-XSRF-TOKEN', 'X-Idempotency-Key']
 }));
 
 // 보안 미들웨어
@@ -59,7 +61,10 @@ app.use('/api/send-verification', apiLimiter); // 이메일 발송은 더 엄격
 app.use('/api/', generalLimiter); // 다른 API는 일반적으로
 
 app.use(express.json({ limit: '10mb' })); // JSON 크기 제한
-app.use(cookieParser()); // 쿠키 파서 추가 (JWT 토큰용)
+app.use(cookieParser()); // 쿠키 파서 추가 (JWT 토큰용) - CSRF 미들웨어보다 앞에!
+
+// CSRF 보호 설정 (cookieParser 뒤에 와야 쿠키 읽기 가능)
+app.use(issueCSRFToken); // GET 요청에서 CSRF 토큰 발급
 
 // 정적 파일 서빙 (이미지 업로드)
 const path = require('path');
@@ -994,6 +999,16 @@ app.use('/api', cartRoutes);
 // 결제 라우트
 app.use('/api', paymentsRoutes);
 
+// 프로덕션 환경 validation
+if (process.env.NODE_ENV === 'production') {
+    if (!process.env.WEBHOOK_SHARED_SECRET || process.env.WEBHOOK_SHARED_SECRET === 'your_webhook_secret_here') {
+        console.error('❌ PRODUCTION 환경에서는 WEBHOOK_SHARED_SECRET이 필수입니다!');
+        console.error('❌ .env 파일에 WEBHOOK_SHARED_SECRET을 설정해주세요.');
+        process.exit(1);
+    }
+    console.log('✅ 프로덕션 환경 validation 통과');
+}
+
 // 서버 시작
 app.listen(PORT, async () => {
     console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
@@ -1028,4 +1043,15 @@ app.listen(PORT, async () => {
             console.log('📍 에러 스택:', error.stack);
             console.log('🔧 연결 설정:', JSON.stringify(dbConfig, null, 2));
         }
+
+    // Idempotency 정리 배치 (매일 자정에 실행)
+    setInterval(async () => {
+        try {
+            await cleanupIdempotency();
+        } catch (error) {
+            console.error('❌ Idempotency 정리 배치 실행 오류:', error.message);
+        }
+    }, 24 * 60 * 60 * 1000); // 24시간마다 실행
+    
+    console.log('✅ Idempotency 정리 배치 스케줄러 등록 완료 (24시간마다 실행)');
 });

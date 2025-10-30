@@ -95,3 +95,43 @@ window.log = Logger.log;
 window.logError = Logger.error;
 window.logWarn = Logger.warn;
 window.logInfo = Logger.info;
+
+// ====================================
+// CSRF 보호 fetch wrapper
+// ====================================
+
+/**
+ * CSRF 토큰 자동 포함 fetch wrapper
+ * - 모든 POST/PUT/DELETE 요청에 X-XSRF-TOKEN 헤더 자동 추가
+ * - 쿠키에서 xsrf-token을 읽어 헤더에 포함
+ */
+function secureFetch(url, options = {}) {
+  // CSRF 토큰 가져오기
+  const csrfToken = getCookie('xsrf-token');
+  
+  // POST/PUT/DELETE 요청에 CSRF 헤더 추가
+  const method = (options.method || 'GET').toUpperCase();
+  if (['POST', 'PUT', 'DELETE'].includes(method) && csrfToken) {
+    options.headers = options.headers || {};
+    options.headers['X-XSRF-TOKEN'] = csrfToken;
+  }
+  
+  return fetch(url, options);
+}
+
+/**
+ * 쿠키에서 값 가져오기
+ * @param {string} name - 쿠키 이름
+ * @returns {string|null} - 쿠키 값
+ */
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    return parts.pop().split(';').shift();
+  }
+  return null;
+}
+
+// 전역으로 사용 가능하도록 노출
+window.secureFetch = secureFetch;

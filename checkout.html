@@ -82,10 +82,10 @@
           </form>
         </div>
         
-        <!-- 결제 정보 -->
-        <div class="form-section">
+        <!-- 결제 정보 (프로덕션에서는 제거됨) -->
+        <div class="form-section" id="payment-form">
           <h2 class="section-title">결제 정보</h2>
-          <form class="checkout-form" id="payment-form">
+          <form class="checkout-form">
             <div class="form-group">
               <label for="cardNumber">카드 번호 *</label>
               <input type="text" id="cardNumber" name="cardNumber" placeholder="1234 5678 9012 3456" required>
@@ -152,6 +152,14 @@
 
   <!-- 푸터 컨테이너 -->
   <div id="footer-container"></div>
+
+  <!-- 프로덕션에서 카드 입력 UI 제거 -->
+  <script>
+    // localhost가 아닌 경우 카드 입력 UI 완전 제거
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      document.getElementById('payment-form')?.remove();
+    }
+  </script>
 </body>
 </html>
 

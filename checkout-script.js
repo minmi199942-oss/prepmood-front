@@ -421,12 +421,8 @@ function collectOrderData() {
       cost: 0,
       note: ''
     },
-    payment: {
-      cardNumber: document.getElementById('cardNumber').value,
-      expiryDate: document.getElementById('expiryDate').value,
-      cvv: document.getElementById('cvv').value,
-      cardName: document.getElementById('cardName').value
-    },
+    // payment 필드 제거 (현재 MOCK 모드에서 사용 안 함, 향후 토스 위젯으로 대체)
+    payment: {},
     total: totalPrice,
     orderDate: new Date().toISOString()
   };
@@ -493,8 +489,8 @@ async function processPayment(orderData) {
         addressLength: requestPayload.shipping.address?.length || 0
       });
       
-      // 주문 생성 API 호출 (Idempotency 키 포함)
-      const response = await fetch('https://prepmood.kr/api/orders', {
+      // 주문 생성 API 호출 (Idempotency 키 + CSRF 토큰 포함)
+      const response = await window.secureFetch('https://prepmood.kr/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -525,7 +521,14 @@ async function processPayment(orderData) {
         error: errorData
       });
 
-      // 상세 에러 메시지 구성
+      // 409 에러는 중복 요청 → 자동으로 주문 내역 페이지로 이동
+      if (response.status === 409) {
+        console.log('⚠️ 중복 주문 감지 → 주문 내역 페이지로 이동');
+        window.location.href = 'my-orders.html?notice=duplicated';
+        return;
+      }
+
+      // 기타 에러 메시지 구성
       let errorMessage = `주문 생성 실패 (${response.status})`;
       
       if (errorData.code === 'VALIDATION_ERROR' && errorData.details) {
@@ -542,7 +545,23 @@ async function processPayment(orderData) {
         errorMessage = errorData.message;
       }
 
+      // 상태코드별 사용자 친화적 메시지
+      if (response.status === 400) {
+        errorMessage = '입력값을 다시 확인해주세요.';
+      } else if (response.status === 401 || response.status === 403) {
+        errorMessage = '로그인이 필요합니다.';
+      } else if (response.status >= 500) {
+        errorMessage = '일시적 오류입니다. 잠시 후 다시 시도해주세요.';
+      }
+
       alert(errorMessage);
+      
+      // 오류 시 버튼 복구
+      if (completeOrderBtn) {
+        completeOrderBtn.disabled = false;
+        completeOrderBtn.textContent = '주문 완료';
+      }
+      
       throw new Error(errorMessage);
     }
     
