@@ -71,8 +71,104 @@
     // 이미지 표시 (여러 장 시뮬레이션)
     displayProductImages(product);
 
+    // 사이즈 옵션 생성 (제품 ID에서 추출)
+    generateSizeOptions(product);
+
     // 색상 옵션 생성
     generateColorOptions();
+  }
+
+  // 제품 ID에서 사이즈 정보 추출
+  function extractSizesFromProductId(productId) {
+    if (!productId) return [];
+
+    // 제품 ID의 마지막 부분에서 사이즈 정보 추출
+    // 예: PM-25-SH-Teneu-Solid-LB-S/M/L → S/M/L
+    // 예: PM-25-TOP-Solid-Suit-Bustier-BK/GY-F → F
+    // 예: PM-25-Outer-LeStripe-Suit-NV-S/L → S/L
+    // 예: PM-25-Outer-London-Liberty-Toile-BK-S/L → S/L
+    const parts = productId.split('-');
+    const lastPart = parts[parts.length - 1];
+
+    const validSizes = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
+    const sizes = [];
+
+    // 마지막 부분이 F로 끝나는 경우 (예: BK/GY-F)
+    if (lastPart.endsWith('F') && !lastPart.endsWith('TF')) {
+      // F 앞에 하이픈이나 슬래시가 있는지 확인
+      if (lastPart.includes('-F') || lastPart.endsWith('/F')) {
+        sizes.push('F');
+        return sizes;
+      } else if (lastPart === 'F') {
+        return ['F'];
+      }
+    }
+
+    // 마지막 부분을 하이픈과 슬래시로 분리하여 사이즈 찾기
+    // 예: BK/GY-F → ['BK', 'GY', 'F']
+    // 예: NV-S/L → ['NV', 'S', 'L']
+    // 예: S/M/L → ['S', 'M', 'L']
+    const allParts = lastPart.split(/[-/]/);
+    
+    allParts.forEach(part => {
+      const trimmed = part.trim().toUpperCase();
+      if (validSizes.includes(trimmed)) {
+        sizes.push(trimmed);
+      }
+    });
+
+    // 중복 제거 및 정렬
+    const uniqueSizes = [...new Set(sizes)];
+    const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
+    uniqueSizes.sort((a, b) => {
+      return sizeOrder.indexOf(a) - sizeOrder.indexOf(b);
+    });
+
+    return uniqueSizes;
+  }
+
+  // 사이즈 옵션 생성
+  function generateSizeOptions(product) {
+    if (!product || !product.id) return;
+
+    const sizeSelect = document.getElementById('size-select');
+    const sizeOptionGroup = sizeSelect ? sizeSelect.closest('.option-group') : null;
+    
+    if (!sizeSelect || !sizeOptionGroup) return;
+
+    // 제품 ID에서 사이즈 추출
+    const availableSizes = extractSizesFromProductId(product.id);
+
+    // 카테고리 확인 (액세서리는 사이즈 선택 제외)
+    const productIdLower = product.id.toLowerCase();
+    const isAccessory = product.category === 'accessories' || 
+                        productIdLower.includes('acc-') ||
+                        productIdLower.startsWith('pm-25-acc-');
+
+    // 사이즈가 없거나 액세서리인 경우 사이즈 선택 필드 숨기기
+    if (availableSizes.length === 0 || isAccessory) {
+      sizeOptionGroup.style.display = 'none';
+      // 액세서리의 경우 사이즈를 'Free'로 자동 설정
+      selectedSize = 'Free';
+      Logger.log('액세서리 제품: 사이즈 선택 필드 숨김');
+      return;
+    }
+
+    // 사이즈 선택 필드 표시
+    sizeOptionGroup.style.display = 'block';
+
+    // 기본 옵션만 남기고 나머지 제거
+    sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option>';
+
+    // 추출된 사이즈로 옵션 생성
+    availableSizes.forEach(size => {
+      const option = document.createElement('option');
+      option.value = size;
+      option.textContent = size === 'F' ? 'Free' : size;
+      sizeSelect.appendChild(option);
+    });
+
+    Logger.log('사이즈 옵션 생성 완료:', availableSizes);
   }
 
   // 제품 이미지 표시 (같은 이미지 3장 반복)
@@ -187,19 +283,27 @@
     // 에러 메시지 초기화
     clearErrorMessages();
 
-    // 사이즈와 색상 선택 검증
-    if (!selectedSize && !selectedColor) {
-      Logger.log('❌ 사이즈와 색상 모두 선택 안 함');
-      showErrorMessage('size-error', '하나 이상의 사이즈를 선택해야합니다.');
-      return;
-    } else if (!selectedSize) {
+    // 제품 카테고리 확인 (액세서리 체크)
+    const isAccessory = currentProduct.category === 'accessories' || 
+                        currentProduct.id.toLowerCase().includes('acc-') ||
+                        currentProduct.id.toLowerCase().startsWith('pm-25-acc-');
+
+    // 사이즈와 색상 선택 검증 (액세서리는 사이즈 검증 제외)
+    if (!isAccessory && !selectedSize) {
       Logger.log('❌ 사이즈 선택 안 함');
-      showErrorMessage('size-error', '하나 이상의 사이즈를 선택해야합니다.');
+      showErrorMessage('size-error', '사이즈를 선택해야합니다.');
       return;
-    } else if (!selectedColor) {
+    }
+    
+    if (!selectedColor) {
       Logger.log('❌ 색상 선택 안 함');
-      showErrorMessage('color-error', '하나 이상의 색상을 선택해야합니다.');
+      showErrorMessage('color-error', '색상을 선택해야합니다.');
       return;
+    }
+    
+    // 액세서리의 경우 사이즈를 'Free'로 자동 설정
+    if (isAccessory && !selectedSize) {
+      selectedSize = 'Free';
     }
 
     // MiniCart API를 사용하여 장바구니에 추가
@@ -231,7 +335,14 @@
 
   // 빠른 구매
   function quickBuy() {
-    if (!currentProduct || !selectedSize || !selectedColor) {
+    // 액세서리 체크
+    const isAccessory = currentProduct && (
+      currentProduct.category === 'accessories' || 
+      currentProduct.id.toLowerCase().includes('acc-') ||
+      currentProduct.id.toLowerCase().startsWith('pm-25-acc-')
+    );
+
+    if (!currentProduct || (!isAccessory && !selectedSize) || !selectedColor) {
       alert('사이즈와 색상을 선택해주세요.');
       return;
     }
