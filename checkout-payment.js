@@ -27,60 +27,106 @@ document.addEventListener('DOMContentLoaded', function() {
 function renderOrderItems(items) {
   const container = document.getElementById('order-items');
   
-  if (!items || items.length === 0) {
-    container.innerHTML = '<p>주문할 상품이 없습니다.</p>';
+  if (!container) {
+    console.error('❌ order-items 컨테이너를 찾을 수 없습니다');
     return;
   }
   
-  container.innerHTML = items.map(item => `
-    <div class="order-item">
-      <img src="image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}">
-      <div class="item-details">
-        <div class="item-name">${escapeHtml(item.name)}</div>
-        <div class="item-meta">색상: ${escapeHtml(item.color || 'N/A')} | 수량: ${item.quantity}</div>
+  if (!items || items.length === 0) {
+    container.innerHTML = '<p style="font-size: 13px; color: #666;">주문할 상품이 없습니다.</p>';
+    return;
+  }
+  
+  container.innerHTML = items.map(item => {
+    const formattedPrice = new Intl.NumberFormat('ko-KR', {
+      style: 'currency',
+      currency: 'KRW',
+      maximumFractionDigits: 0
+    }).format(item.price * item.quantity);
+    
+    return `
+      <div class="order-item">
+        <img src="image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.src='image/default.jpg'">
+        <div class="item-details">
+          <div class="item-name">${escapeHtml(item.name)}</div>
+          <div class="item-meta">${escapeHtml(item.size || '')} ${escapeHtml(item.color || '')} · 수량 ${item.quantity}</div>
+        </div>
+        <div class="item-price">${formattedPrice}</div>
       </div>
-      <div class="item-price">₩${new Intl.NumberFormat('ko-KR').format(item.price * item.quantity)}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function updateOrderSummary(items) {
   const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
-  document.getElementById('subtotal').textContent = `₩${new Intl.NumberFormat('ko-KR').format(totalPrice)}`;
-  document.getElementById('total').textContent = `₩${new Intl.NumberFormat('ko-KR').format(totalPrice)}`;
+  const formattedTotal = new Intl.NumberFormat('ko-KR', {
+    style: 'currency',
+    currency: 'KRW',
+    maximumFractionDigits: 0
+  }).format(totalPrice);
+  
+  const subtotalEl = document.getElementById('subtotal');
+  const totalEl = document.getElementById('total');
+  
+  if (subtotalEl) {
+    subtotalEl.textContent = formattedTotal;
+  }
+  
+  if (totalEl) {
+    totalEl.textContent = formattedTotal;
+  }
 }
 
 function renderShippingSummary(shipping) {
-  const container = document.getElementById('shipping-summary');
+  const container = document.getElementById('shipping-details');
+  
+  if (!container) {
+    console.error('❌ shipping-details 컨테이너를 찾을 수 없습니다');
+    return;
+  }
   
   container.innerHTML = `
-    <p style="line-height: 1.6; font-size: 0.9rem; color: #666;">
-      ${escapeHtml(shipping.recipient_first_name)} ${escapeHtml(shipping.recipient_last_name)}<br>
-      ${escapeHtml(shipping.address)}, ${escapeHtml(shipping.city)}<br>
-      ${escapeHtml(shipping.postal_code)}, ${escapeHtml(shipping.country)}<br>
-      ${escapeHtml(shipping.phone)}
-    </p>
+    ${escapeHtml(shipping.recipient_first_name)} ${escapeHtml(shipping.recipient_last_name)}<br>
+    ${escapeHtml(shipping.address)}, ${escapeHtml(shipping.city)}<br>
+    ${escapeHtml(shipping.postal_code)}, ${escapeHtml(shipping.country)}<br>
+    ${escapeHtml(shipping.phone)}
   `;
 }
 
 function bindEventListeners(data) {
-  const proceedBtn = document.getElementById('proceed-payment');
-  if (proceedBtn) {
-    proceedBtn.addEventListener('click', async function() {
-      console.log('💳 결제 진행 시작');
-      
-      // 선택된 결제 방법 확인
-      const selectedPayment = document.querySelector('input[name="payment"]:checked').value;
-      console.log('💳 선택된 결제 방법:', selectedPayment);
-      
-      if (selectedPayment === 'toss') {
-        // 토스페이먼츠 결제 진행
-        await proceedWithTossPayment(data);
-      } else {
-        alert('현재 지원되는 결제 방법이 아닙니다.');
-      }
-    });
+  // 데스크톱 버튼
+  const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
+  // 모바일 버튼
+  const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
+  
+  const handlePayment = async function() {
+    console.log('💳 결제 진행 시작');
+    
+    // 선택된 결제 방법 확인
+    const checkedRadio = document.querySelector('input[name="payment"]:checked');
+    if (!checkedRadio) {
+      alert('결제 방법을 선택해주세요.');
+      return;
+    }
+    
+    const selectedPayment = checkedRadio.value;
+    console.log('💳 선택된 결제 방법:', selectedPayment);
+    
+    if (selectedPayment === 'toss') {
+      // 토스페이먼츠 결제 진행
+      await proceedWithTossPayment(data);
+    } else {
+      alert('현재 지원되는 결제 방법이 아닙니다.');
+    }
+  };
+  
+  if (proceedBtnDesktop) {
+    proceedBtnDesktop.addEventListener('click', handlePayment);
+  }
+  
+  if (proceedBtnMobile) {
+    proceedBtnMobile.addEventListener('click', handlePayment);
   }
 }
 
@@ -88,11 +134,18 @@ async function proceedWithTossPayment(data) {
   try {
     console.log('💳 토스페이먼츠 결제 진행...');
     
-    // 버튼 비활성화
-    const proceedBtn = document.getElementById('proceed-payment');
-    if (proceedBtn) {
-      proceedBtn.disabled = true;
-      proceedBtn.textContent = '처리 중...';
+    // 버튼 비활성화 (데스크톱 + 모바일 모두)
+    const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
+    const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
+    
+    if (proceedBtnDesktop) {
+      proceedBtnDesktop.disabled = true;
+      proceedBtnDesktop.textContent = '처리 중...';
+    }
+    
+    if (proceedBtnMobile) {
+      proceedBtnMobile.disabled = true;
+      proceedBtnMobile.textContent = '처리 중...';
     }
     
     // 1. 주문 생성 (Idempotency 키 포함)
@@ -194,11 +247,18 @@ async function proceedWithTossPayment(data) {
     console.error('❌ 결제 처리 실패:', error);
     alert('결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     
-    // 버튼 복구
-    const proceedBtn = document.getElementById('proceed-payment');
-    if (proceedBtn) {
-      proceedBtn.disabled = false;
-      proceedBtn.textContent = '확인 및 진행';
+    // 버튼 복구 (데스크톱 + 모바일 모두)
+    const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
+    const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
+    
+    if (proceedBtnDesktop) {
+      proceedBtnDesktop.disabled = false;
+      proceedBtnDesktop.textContent = '확인 및 진행';
+    }
+    
+    if (proceedBtnMobile) {
+      proceedBtnMobile.disabled = false;
+      proceedBtnMobile.textContent = '확인 및 진행';
     }
   }
 }
