@@ -227,24 +227,57 @@ async function saveCartItemEdit() {
 
 async function editCartItem(itemId) {
   Logger.log('✏️ 장바구니 아이템 수정:', itemId);
+  Logger.log('🔍 globalCartItems:', globalCartItems);
+  Logger.log('🔍 globalCartItems.length:', globalCartItems ? globalCartItems.length : 0);
   
-  // 아이템 찾기
-  const item = globalCartItems.find(i => i.item_id === itemId);
+  // globalCartItems가 비어있으면 다시 로드 시도
+  if (!globalCartItems || globalCartItems.length === 0) {
+    Logger.log('⚠️ globalCartItems가 비어있어서 다시 로드 시도');
+    await renderCartItems();
+  }
+  
+  // 아이템 찾기 (문자열 비교 정확히)
+  const item = globalCartItems.find(i => String(i.item_id) === String(itemId));
+  
+  Logger.log('🔍 찾은 아이템:', item);
+  Logger.log('🔍 모든 item_id들:', globalCartItems.map(i => ({ item_id: i.item_id, id: i.id, product_id: i.product_id })));
+  
   if (!item) {
-    alert('상품을 찾을 수 없습니다.');
+    Logger.error('❌ 상품을 찾을 수 없음. itemId:', itemId);
+    Logger.error('❌ globalCartItems:', JSON.stringify(globalCartItems, null, 2));
+    alert('상품을 찾을 수 없습니다. 페이지를 새로고침해주세요.');
     return;
   }
   
   currentEditingItem = item;
   
+  // 제품 정보 확인 (product_id 또는 id 사용)
+  const productId = item.product_id || item.id;
+  Logger.log('🔍 제품 ID:', productId);
+  
+  // 사이즈 옵션 동적 생성
+  await generateSizeOptionsForModal(productId);
+  
   // 모달에 현재 값 설정
-  document.getElementById('edit-size').value = item.size || '';
-  document.getElementById('edit-color').value = item.color || '';
-  document.getElementById('edit-quantity').value = item.quantity || 1;
+  const sizeSelect = document.getElementById('edit-size');
+  const colorSelect = document.getElementById('edit-color');
+  const quantityInput = document.getElementById('edit-quantity');
+  
+  if (sizeSelect) {
+    sizeSelect.value = item.size || '';
+  }
+  if (colorSelect) {
+    colorSelect.value = item.color || '';
+  }
+  if (quantityInput) {
+    quantityInput.value = item.quantity || 1;
+  }
   
   // 모달 표시
   const modal = document.getElementById('edit-modal');
-  modal.style.display = 'block';
+  if (modal) {
+    modal.style.display = 'block';
+  }
 }
 
 async function removeCartItem(itemId) {
@@ -275,6 +308,84 @@ function formatPrice(price) {
   }).format(price);
 }
 
-// 전역 함수로 노출
+  // 제품 ID에서 사이즈 정보 추출 (buy-script.js와 동일한 로직)
+function extractSizesFromProductId(productId) {
+  if (!productId) return [];
+
+  const parts = productId.split('-');
+  const lastPart = parts[parts.length - 1];
+
+  const validSizes = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
+  const sizes = [];
+
+  // 마지막 부분이 F로 끝나는 경우 (예: BK/GY-F)
+  if (lastPart.endsWith('F') && !lastPart.endsWith('TF')) {
+    if (lastPart.includes('-F') || lastPart.endsWith('/F')) {
+      sizes.push('F');
+      return sizes;
+    } else if (lastPart === 'F') {
+      return ['F'];
+    }
+  }
+
+  // 마지막 부분을 하이픈과 슬래시로 분리하여 사이즈 찾기
+  const allParts = lastPart.split(/[-/]/);
+  
+  allParts.forEach(part => {
+    const trimmed = part.trim().toUpperCase();
+    if (validSizes.includes(trimmed)) {
+      sizes.push(trimmed);
+    }
+  });
+
+  // 중복 제거 및 정렬
+  const uniqueSizes = [...new Set(sizes)];
+  const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
+  uniqueSizes.sort((a, b) => {
+    return sizeOrder.indexOf(a) - sizeOrder.indexOf(b);
+  });
+
+  return uniqueSizes;
+}
+
+// 모달용 사이즈 옵션 생성
+async function generateSizeOptionsForModal(productId) {
+  if (!productId) return;
+
+  const sizeSelect = document.getElementById('edit-size');
+  if (!sizeSelect) return;
+
+  // 제품 ID에서 사이즈 추출
+  const availableSizes = extractSizesFromProductId(productId);
+
+  // 액세서리 체크
+  const productIdLower = productId.toLowerCase();
+  const isAccessory = productIdLower.includes('acc-') || productIdLower.startsWith('pm-25-acc-');
+
+  // 기본 옵션만 남기고 나머지 제거
+  sizeSelect.innerHTML = '<option value="">사이즈 선택</option>';
+
+  // 사이즈가 없거나 액세서리인 경우 Free만 추가
+  if (availableSizes.length === 0 || isAccessory) {
+    const option = document.createElement('option');
+    option.value = 'Free';
+    option.textContent = 'Free';
+    sizeSelect.appendChild(option);
+    Logger.log('액세서리 제품: Free 사이즈만 추가');
+    return;
+  }
+
+  // 추출된 사이즈로 옵션 생성
+  availableSizes.forEach(size => {
+    const option = document.createElement('option');
+    option.value = size;
+    option.textContent = size === 'F' ? 'Free' : size;
+    sizeSelect.appendChild(option);
+  });
+
+  Logger.log('모달 사이즈 옵션 생성 완료:', availableSizes);
+}
+
+  // 전역 함수로 노출
 window.editCartItem = editCartItem;
 window.removeCartItem = removeCartItem;
