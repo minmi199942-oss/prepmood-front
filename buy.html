@@ -29,17 +29,18 @@
 
     <!-- 우측: 상품 정보 영역 -->
     <section class="product-info-section">
-      <!-- 상품명 & 위시리스트 -->
+      <!-- 상품명, 가격, 위시리스트 그룹 -->
       <div class="product-header">
-        <h1 class="product-title" id="product-name">제품명</h1>
-        <div class="wishlist-container">
-          <button class="wishlist-btn" id="wishlist-btn" aria-label="위시리스트 추가">
-            <img src="image/wishlist.jpg" alt="위시리스트" class="wishlist-icon">
-          </button>
-          <!-- 상품번호 -->
-          <p class="product-code" id="product-code">PM-25-M-BP-001</p>
+        <div class="product-title-group">
+          <h1 class="product-title" id="product-name">제품명</h1>
+          <div class="product-price" id="product-price">₩0</div>
         </div>
+        <button class="wishlist-btn" id="wishlist-btn" aria-label="위시리스트 추가">
+          <img src="image/wishlist.jpg" alt="위시리스트" class="wishlist-icon">
+        </button>
       </div>
+      <!-- 상품번호 -->
+      <p class="product-code" id="product-code">PM-25-M-BP-001</p>
 
       <!-- 옵션 선택 -->
       <div class="product-options">

@@ -58,14 +58,15 @@
     // 제품 코드 (ID 기반) - PM-25-M-BP-001 형식
     document.getElementById('product-code').textContent = `상품번호: PM-25-${product.id.toUpperCase()}`;
 
-    // 가격 (장바구니 버튼에만 표시)
-    const formattedPrice = new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(product.price);
-    
-    document.getElementById('cart-btn-price').textContent = formattedPrice;
+          // 가격 (상품명 아래와 장바구니 버튼에 표시)
+      const formattedPrice = new Intl.NumberFormat('ko-KR', {
+        style: 'currency',
+        currency: 'KRW',
+        maximumFractionDigits: 0
+      }).format(product.price);
+      
+      document.getElementById('product-price').textContent = formattedPrice;
+      document.getElementById('cart-btn-price').textContent = formattedPrice;
 
     // 이미지 표시 (여러 장 시뮬레이션)
     displayProductImages(product);
