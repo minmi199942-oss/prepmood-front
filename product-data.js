@@ -5,10 +5,10 @@
 // 초기 CATALOG_DATA 구조 설정
 window.CATALOG_DATA = {
   tops: { shirts: [], knits: [], 't-shirts': [] },
-  bottoms: { pants: [] },
+  bottoms: { pants: [], skirts: [] },
   outer: { jackets: [], suits: [] },
   bags: { briefcases: [], backpacks: [], crossbody: [], handbags: [], totes: [], clutches: [] },
-  accessories: { caps: [], wallets: [], belts: [] }
+  accessories: { caps: [], wallets: [], belts: [], ties: [] }
 };
 
 // API에서 상품 데이터 로드
@@ -36,10 +36,10 @@ async function loadProducts() {
       // 제품을 카테고리별로 분류
       const catalogData = {
         tops: { shirts: [], knits: [], 't-shirts': [] },
-        bottoms: { pants: [] },
+        bottoms: { pants: [], skirts: [] },
         outer: { jackets: [], suits: [] },
         bags: { briefcases: [], backpacks: [], crossbody: [], handbags: [], totes: [], clutches: [] },
-        accessories: { caps: [], wallets: [], belts: [] }
+        accessories: { caps: [], wallets: [], belts: [], ties: [] }
       };
       
       data.products.forEach(product => {

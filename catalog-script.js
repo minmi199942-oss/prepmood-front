@@ -34,7 +34,7 @@
     grid.innerHTML = list.map(item => `
       <a class="product-card-lg" href="buy.html?id=${escapeHtml(item.id)}">
         <figure>
-          <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}"/>
+          <img src="image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}"/>
         </figure>
         <div class="meta">
           <div class="name">${escapeHtml(item.name)}</div>

@@ -230,7 +230,7 @@ function renderOrderItems(cartItems) {
   if (orderItemsContainer) {
     orderItemsContainer.innerHTML = cartItems.map(item => `
       <div class="order-item">
-        <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" class="order-item-image" onerror="this.src='image/default.jpg'">
+        <img src="image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" class="order-item-image" onerror="this.src='image/default.jpg'">
         <div class="order-item-info">
           <div class="order-item-name">${escapeHtml(item.name)}</div>
           <div class="order-item-details">색상: ${escapeHtml(item.color)} | 수량: ${escapeHtml(item.quantity)}</div>

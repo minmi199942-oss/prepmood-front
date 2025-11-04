@@ -34,7 +34,7 @@ function renderOrderItems(items) {
   
   container.innerHTML = items.map(item => `
     <div class="order-item">
-      <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}">
+      <img src="image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}">
       <div class="item-details">
         <div class="item-name">${escapeHtml(item.name)}</div>
         <div class="item-meta">색상: ${escapeHtml(item.color || 'N/A')} | 수량: ${item.quantity}</div>

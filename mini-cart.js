@@ -428,7 +428,7 @@ class MiniCart {
 
     content.innerHTML = this.cartItems.map(item => `
       <div class="mini-cart-item">
-        <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.src='image/default.jpg'">
+        <img src="image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.src='image/default.jpg'">
         <div class="mini-cart-item-info">
           <div class="mini-cart-item-name">${escapeHtml(item.name)}</div>
           <div class="mini-cart-item-details">

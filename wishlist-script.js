@@ -158,7 +158,7 @@
       card.innerHTML = `
         <a href="buy.html?id=${escapeHtml(product.id)}" class="wishlist-card-link">
           <div class="wishlist-card-image-wrapper">
-            <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" class="wishlist-card-image">
+            <img src="image/${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" class="wishlist-card-image">
           </div>
           <div class="wishlist-card-info">
             <h3 class="wishlist-card-title">${escapeHtml(product.name)}</h3>

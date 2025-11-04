@@ -82,7 +82,7 @@
     // 3개의 이미지 생성 (실제로는 같은 이미지)
     for (let i = 0; i < 3; i++) {
       const imgElement = document.createElement('img');
-      imgElement.src = product.image;
+      imgElement.src = `image/${product.image}`;
       imgElement.alt = `${product.name} - 이미지 ${i + 1}`;
       imgElement.className = 'product-image';
       imagesWrapper.appendChild(imgElement);

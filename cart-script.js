@@ -98,7 +98,7 @@ async function renderCartItems() {
   if (cartItemsContainer) {
     cartItemsContainer.innerHTML = cartItems.map(item => `
       <div class="cart-item" data-item-id="${escapeHtml(item.item_id)}">
-        <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" class="cart-item-image" onerror="this.src='image/default.jpg'">
+        <img src="image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" class="cart-item-image" onerror="this.src='image/default.jpg'">
         <div class="cart-item-info">
           <h3 class="cart-item-name">${escapeHtml(item.name)}</h3>
           <div class="cart-item-price">${formatPrice(item.price)}</div>
