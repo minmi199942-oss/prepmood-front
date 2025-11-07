@@ -1098,6 +1098,11 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
             limit = 50, 
             offset = 0 
         } = req.query;
+
+        const limitParsed = parseInt(limit, 10);
+        const offsetParsed = parseInt(offset, 10);
+        const limitNum = Number.isInteger(limitParsed) && limitParsed > 0 ? Math.min(limitParsed, 200) : 50;
+        const offsetNum = Number.isInteger(offsetParsed) && offsetParsed >= 0 ? offsetParsed : 0;
         
         connection = await mysql.createConnection(dbConfig);
         
@@ -1150,7 +1155,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         
         // 정렬 및 페이지네이션
         query += ' ORDER BY o.order_date DESC LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
+        params.push(limitNum, offsetNum);
         
         const [orders] = await connection.execute(query, params);
         
@@ -1205,9 +1210,9 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
             orders,
             pagination: {
                 total: countResult[0].total,
-                limit: parseInt(limit),
-                offset: parseInt(offset),
-                hasMore: parseInt(offset) + orders.length < countResult[0].total
+                limit: limitNum,
+                offset: offsetNum,
+                hasMore: offsetNum + orders.length < countResult[0].total
             }
         });
         
