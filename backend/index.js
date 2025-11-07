@@ -1160,10 +1160,10 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
                 `SELECT 
                     product_id,
                     product_name,
+                    size,
+                    color,
                     quantity,
-                    unit_price as price,
-                    '' as size,
-                    '' as color
+                    unit_price as price
                 FROM order_items
                 WHERE order_id = ?`,
                 [order.order_id]
@@ -1261,10 +1261,10 @@ app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (re
             `SELECT 
                 product_id,
                 product_name,
+                size,
+                color,
                 quantity,
-                unit_price as price,
-                '' as size,
-                '' as color
+                unit_price as price
             FROM order_items 
             WHERE order_id = ?`,
             [orderId]

@@ -465,6 +465,8 @@ router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res)
                 product_id: product.product_id,
                 product_name: product.name,
                 product_image: product.image,
+                size: item.size || null,        // size 추가
+                color: item.color || null,      // color 추가
                 quantity: item.quantity,
                 unit_price: serverPrice,
                 subtotal: subtotal
@@ -524,13 +526,13 @@ router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res)
 
             const orderId = orderResult.insertId;
 
-            // order_items 테이블에 주문 상품들 저장
+            // order_items 테이블에 주문 상품들 저장 (size, color 포함)
             for (const itemData of orderItemsData) {
                 await connection.execute(
-                    `INSERT INTO order_items (order_id, product_id, product_name, product_image, quantity, unit_price, subtotal)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [orderId, itemData.product_id, itemData.product_name, itemData.product_image, 
-                     itemData.quantity, itemData.unit_price, itemData.subtotal]
+                    `INSERT INTO order_items (order_id, product_id, product_name, size, color, product_image, quantity, unit_price, subtotal)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [orderId, itemData.product_id, itemData.product_name, itemData.size || null, itemData.color || null,
+                     itemData.product_image, itemData.quantity, itemData.unit_price, itemData.subtotal]
                 );
             }
 
@@ -645,11 +647,11 @@ router.get('/orders', authenticateToken, async (req, res) => {
             [userId]
         );
 
-        // 각 주문의 상품 정보 조회
+        // 각 주문의 상품 정보 조회 (size, color 포함)
         const ordersWithItems = await Promise.all(
             orders.map(async (order) => {
                 const [items] = await connection.execute(
-                    `SELECT order_item_id, product_id, product_name, product_image, 
+                    `SELECT order_item_id, product_id, product_name, size, color, product_image, 
                             quantity, unit_price, subtotal 
                      FROM order_items 
                      WHERE order_id = ?`,
@@ -662,6 +664,8 @@ router.get('/orders', authenticateToken, async (req, res) => {
                         item_id: item.order_item_id,
                         product_id: item.product_id,
                         name: item.product_name,
+                        size: item.size,
+                        color: item.color,
                         image: item.product_image,
                         quantity: item.quantity,
                         unit_price: parseFloat(item.unit_price),
@@ -763,9 +767,9 @@ router.get('/orders/:orderId', authenticateToken, async (req, res) => {
         order = orders[0];
         orderIdForItems = order.order_id;
 
-        // 주문 상품 조회
+        // 주문 상품 조회 (size, color 포함)
         const [items] = await connection.execute(
-            `SELECT order_item_id, product_id, product_name, product_image, 
+            `SELECT order_item_id, product_id, product_name, size, color, product_image, 
                     quantity, unit_price, subtotal 
              FROM order_items 
              WHERE order_id = ?`,
@@ -804,6 +808,8 @@ router.get('/orders/:orderId', authenticateToken, async (req, res) => {
                 item_id: item.order_item_id,
                 product_id: item.product_id,
                 name: item.product_name,
+                size: item.size,
+                color: item.color,
                 image: item.product_image,
                 quantity: item.quantity,
                 unit_price: parseFloat(item.unit_price),
