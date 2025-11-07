@@ -1213,7 +1213,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         
     } catch (error) {
         if (connection) await connection.end();
-        Logger.log('[ADMIN] 주문 목록 조회 실패', { error: error.message });
+        Logger.error('[ADMIN] 주문 목록 조회 실패', { error: error.message });
         res.status(500).json({ 
             success: false, 
             message: '주문 목록을 불러오는데 실패했습니다.' 
@@ -1291,7 +1291,7 @@ app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (re
         
     } catch (error) {
         if (connection) await connection.end();
-        Logger.log('[ADMIN] 주문 상세 조회 실패', { 
+        Logger.error('[ADMIN] 주문 상세 조회 실패', { 
             orderId: req.params.orderId, 
             error: error.message 
         });
@@ -1373,7 +1373,7 @@ app.put('/api/admin/orders/:orderId/status', authenticateToken, requireAdmin, as
         
     } catch (error) {
         if (connection) await connection.end();
-        Logger.log('[ADMIN] 주문 상태 변경 실패', { 
+        Logger.error('[ADMIN] 주문 상태 변경 실패', { 
             orderId: req.params.orderId, 
             error: error.message 
         });
