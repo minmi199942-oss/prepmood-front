@@ -5,8 +5,8 @@ USE prepmood;
 
 -- 1. 컬럼 추가
 ALTER TABLE order_items 
-ADD COLUMN size VARCHAR(10) AFTER product_name,
-ADD COLUMN color VARCHAR(20) AFTER size;
+ADD COLUMN IF NOT EXISTS size VARCHAR(10) AFTER product_name,
+ADD COLUMN IF NOT EXISTS color VARCHAR(20) AFTER size;
 
 -- 2. 확인
 DESCRIBE order_items;
