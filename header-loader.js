@@ -5,11 +5,11 @@ function getAdminLinkContainer() {
 }
 
 function renderAdminLink() {
-  const container = getAdminLinkContainer();
+  var container = getAdminLinkContainer();
   if (!container) return;
-  if (container.querySelector(`#${ADMIN_LINK_ID}`)) return;
+  if (container.querySelector('#' + ADMIN_LINK_ID)) return;
 
-  const link = document.createElement('a');
+  var link = document.createElement('a');
   link.id = ADMIN_LINK_ID;
   link.href = '/admin-qhf25za8/orders.html';
   link.textContent = '관리자';
@@ -18,24 +18,28 @@ function renderAdminLink() {
 }
 
 function removeAdminLink() {
-  const link = document.querySelector(`#${ADMIN_LINK_ID}`);
-  if (link) link.remove();
+  var link = document.querySelector('#' + ADMIN_LINK_ID);
+  if (link && link.parentNode) {
+    link.parentNode.removeChild(link);
+  }
 }
 
 function checkAdminAccess() {
   fetch('/api/admin/check', { credentials: 'include' })
-    .then(res => {
-      if (!res.ok) throw new Error('NOT_ADMIN');
+    .then(function(res) {
+      if (!res.ok) {
+        throw new Error('NOT_ADMIN');
+      }
       return res.json();
     })
-    .then(data => {
-      if (data?.admin) {
+    .then(function(data) {
+      if (data && data.admin) {
         renderAdminLink();
       } else {
         removeAdminLink();
       }
     })
-    .catch(() => {
+    .catch(function() {
       removeAdminLink();
     });
 }
@@ -44,7 +48,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const headerContainer = document.getElementById('header-container');
   
   if (!headerContainer) {
-    console.warn('header-container ?�소�?찾을 ???�습?�다.');
+    console.warn('header-container ?�소�?찾을 ???�습?�다.');
     return;
   }
 
@@ -54,7 +58,7 @@ window.addEventListener('DOMContentLoaded', () => {
       headerContainer.innerHTML = html;
       checkAdminAccess();
 
-      // ?�더 로드 ??미니 카트 ?�벤???�바?�딩 (?�?�밍 ?�슈 ?�결)
+      // ?�더 로드 ??미니 카트 ?�벤???�바?�딩 (?�?�밍 ?�슈 ?�결)
       setTimeout(() => {
         if (window.miniCart && typeof window.miniCart.bindEvents === 'function') {
           const cartToggle = document.getElementById('cart-toggle');
@@ -91,7 +95,7 @@ window.addEventListener('DOMContentLoaded', () => {
         currentOpenMenu = null;
       };
 
-      // �?.has-mega???�벤??바인??      megaItems.forEach((item, index) => {
+      // �?.has-mega???�벤??바인??      megaItems.forEach((item, index) => {
         const menu = item.querySelector('.mega-menu');
         const link = item.querySelector('a');
         
@@ -101,7 +105,7 @@ window.addEventListener('DOMContentLoaded', () => {
           e.preventDefault();
           e.stopPropagation();
           
-          clearTimeout(closeTimer); // 기존 ?�?�머 취소
+          clearTimeout(closeTimer); // 기존 ?�?�머 취소
           
           // ?�른 메뉴 ?�기
           closeAllDropdowns();
@@ -124,7 +128,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (currentOpenMenu === item) {
               currentOpenMenu = null;
             }
-          }, 150); // 150ms 지?�으�??�정???�상
+          }, 150); // 150ms 지?�으�??�정???�상
         });
 
         // 링크?�도 ?�일???�벤??추�?
@@ -219,17 +223,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
           if (!query) {
             if (searchResults) {
-              searchResults.innerHTML = '<p class="no-results">검?�어�??�력?�주?�요.</p>';
+              searchResults.innerHTML = '<p class="no-results">검?�어�??�력?�주?�요.</p>';
             }
             return;
           }
 
-          // 검??결과 ?�이지�??�동
+          // 검??결과 ?�이지�??�동
           const searchUrl = `search.html?q=${encodeURIComponent(query)}`;
           window.location.href = searchUrl;
         }
 
-        // 검??모달?� ?�제 검??결과 ?�이지�?리다?�렉?�만 ?�니??
+        // 검??모달?�??�제 검??결과 ?�이지�?리다?�렉?�만 ?�니??
         // 검??버튼 ?�릭
         if (searchBtn) {
           searchBtn.addEventListener('click', performSearch);
@@ -243,7 +247,7 @@ window.addEventListener('DOMContentLoaded', () => {
           });
         }
 
-        // ?�터 변�????�동 검??        if (categoryFilter) {
+        // ?�터 변�????�동 검??        if (categoryFilter) {
           categoryFilter.addEventListener('change', performSearch);
         }
         if (priceFilter) {
@@ -252,7 +256,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         Logger.log('검??기능??초기?�되?�습?�다.');
       } else {
-        Logger.log('검???�소�?찾을 ???�습?�다.');
+        Logger.log('검???�소�?찾을 ???�습?�다.');
       }
 
       // 마이?�이지 기능 초기??      initializeMypageFunctionality();
@@ -269,7 +273,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const logoutBtn = document.getElementById('logout-btn');
 
   if (!mypageToggle || !mypageDropdown || !mypageIcon) {
-    Logger.log('마이?�이지 ?�소�?찾을 ???�습?�다.');
+    Logger.log('마이?�이지 ?�소�?찾을 ???�습?�다.');
     return;
   }
 
@@ -286,19 +290,19 @@ window.addEventListener('DOMContentLoaded', () => {
         credentials: 'include'  // httpOnly 쿠키 ?�함
       });
       
-      // 401 ?�류??경우 로그?�하지 ?��? 것으�?처리 (?�상?�인 ?�작)
+      // 401 ?�류??경우 로그?�하지 ?��? 것으�?처리 (?�상?�인 ?�작)
       if (response.status === 401) {
-        // 로그?�하지 ?��? ?�태�?처리
+        // 로그?�하지 ?��? ?�태�?처리
         mypageToggle.href = 'login.html';
         mypageIcon.src = 'image/mypage.jpg';
         mypageIcon.classList.remove('mypage-icon-logged-in');
         
-        // 비로그인 ?�태?????�바구니 ?�기�?        if (window.miniCart) {
+        // 비로그인 ?�태?????�바구니 ?�기�?        if (window.miniCart) {
           window.miniCart.hideCartForLogout();
           console.log('?�� 비로그인 ?�태 - ?�바구니 ?��?');
         }
         
-        // console.log('??비로그인 ?�태'); // ?�상?�인 ?�작?��?�?로그 ?�거
+        // console.log('??비로그인 ?�태'); // ?�상?�인 ?�작?��?�?로그 ?�거
         return;
       }
       
@@ -309,7 +313,7 @@ window.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
       
       if (data.success && data.user) {
-        // 로그???�태: ?�롭?�운 메뉴 ?�시, ?�이�?변�?        mypageToggle.href = '#';
+        // 로그???�태: ?�롭?�운 메뉴 ?�시, ?�이�?변�?        mypageToggle.href = '#';
         mypageIcon.src = 'image/loginmypage.jpg';
         mypageIcon.classList.add('mypage-icon-logged-in');
         
@@ -330,7 +334,7 @@ window.addEventListener('DOMContentLoaded', () => {
       // ?�증 ?�패 ?�는 ?�트?�크 ?�류
       if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
         Logger.log('?�️ Rate Limiting 감�? - 로그???�태 ?�인 불�?');
-        // Rate Limiting??경우 기본?�으�?로그?�웃 ?�태�?처리
+        // Rate Limiting??경우 기본?�으�?로그?�웃 ?�태�?처리
         setLoggedOutState();
       } else {
         Logger.log('?�️ ?�증 ?�인 ?�패:', error.message);
@@ -345,7 +349,7 @@ window.addEventListener('DOMContentLoaded', () => {
     mypageIcon.src = 'image/mypage.jpg';
     mypageIcon.classList.remove('mypage-icon-logged-in');
     // JWT 기반 - sessionStorage 불필??    
-    // 비로그인 ?�태?????�바구니 ?�기�?(?�이?�는 보존)
+    // 비로그인 ?�태?????�바구니 ?�기�?(?�이?�는 보존)
     if (window.miniCart) {
       window.miniCart.hideCartForLogout();
       console.log('?�� 비로그인 ?�태 - ?�바구니 ?��?');
@@ -356,7 +360,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ?�롭?�운 ?��?
   function toggleDropdown() {
-    // 로그???�태?��? ?�인 (mypage ?�이�??�래?�로 ?�단)
+    // 로그???�태?��? ?�인 (mypage ?�이�??�래?�로 ?�단)
     if (mypageIcon.classList.contains('mypage-icon-logged-in')) {
       mypageDropdown.classList.toggle('show');
     }
@@ -382,7 +386,7 @@ window.addEventListener('DOMContentLoaded', () => {
       // JWT 기반 - sessionStorage 불필??      
       console.log('??로그?�웃 ?�료');
       
-      // 로그?�웃 ???�바구니 ?�기�?(?�이?�는 보존)
+      // 로그?�웃 ???�바구니 ?�기�?(?�이?�는 보존)
       if (window.miniCart) {
         window.miniCart.hideCartForLogout();
         console.log('?�� 로그?�웃 ???�바구니 ?��?');
@@ -407,14 +411,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ?�벤??리스???�록
   mypageToggle.addEventListener('click', function(e) {
-    // ??JWT 기반: mypage ?�이�??�래?�로 로그???�태 ?�인
+    // ??JWT 기반: mypage ?�이�??�래?�로 로그???�태 ?�인
     const isLoggedIn = mypageIcon.classList.contains('mypage-icon-logged-in');
     
     if (isLoggedIn) {
       e.preventDefault();
       toggleDropdown();
     }
-    // 비로그인 ?�태?�서??기본 링크 ?�작 (login.html�??�동)
+    // 비로그인 ?�태?�서??기본 링크 ?�작 (login.html�??�동)
   });
 
   // ?�롭?�운 메뉴 ?�이???�릭 처리
@@ -473,7 +477,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   
   if (!window.CATALOG_DATA) {
-    console.log('?�� catalog-data.js 로딩 �?..');
+    console.log('?�� catalog-data.js 로딩 �?..');
     const catalogScript = document.createElement('script');
     catalogScript.src = 'catalog-data.js';
     catalogScript.defer = true;
@@ -483,7 +487,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   
   if (!window.miniCart) {
-    console.log('?�� mini-cart.js 로딩 �?..');
+    console.log('?�� mini-cart.js 로딩 �?..');
     const miniCartScript = document.createElement('script');
     miniCartScript.src = 'mini-cart.js';
     miniCartScript.defer = true;
