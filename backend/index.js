@@ -1154,16 +1154,16 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         
         const [orders] = await connection.execute(query, params);
         
-        // 각 주문의 상품 정보 가져오기
+        // 각 주문의 상품 정보 가져오기 (실제 DB 컬럼명 사용)
         for (let order of orders) {
             const [items] = await connection.execute(
                 `SELECT 
                     product_id,
                     product_name,
-                    size,
-                    color,
                     quantity,
-                    price
+                    unit_price as price,
+                    '' as size,
+                    '' as color
                 FROM order_items
                 WHERE order_id = ?`,
                 [order.order_id]
@@ -1256,9 +1256,17 @@ app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (re
         
         const order = orders[0];
         
-        // 주문 상품 정보
+        // 주문 상품 정보 (실제 DB 컬럼명 사용)
         const [items] = await connection.execute(
-            `SELECT * FROM order_items WHERE order_id = ?`,
+            `SELECT 
+                product_id,
+                product_name,
+                quantity,
+                unit_price as price,
+                '' as size,
+                '' as color
+            FROM order_items 
+            WHERE order_id = ?`,
             [orderId]
         );
         
