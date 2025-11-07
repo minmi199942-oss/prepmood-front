@@ -9,6 +9,7 @@
 backend/.env
 backend/config.json
 backend/secrets/
+backend/create_test_account.sql
 
 # 로그 파일
 *.log
