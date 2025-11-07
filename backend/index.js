@@ -1101,7 +1101,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         
         connection = await mysql.createConnection(dbConfig);
         
-        // 기본 쿼리
+        // 기본 쿼리 (실제 DB 컬럼명에 맞춤)
         let query = `
             SELECT 
                 o.order_id,
@@ -1109,13 +1109,13 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
                 o.user_id,
                 o.total_price,
                 o.status,
-                o.shipping_name,
+                CONCAT(COALESCE(o.shipping_first_name, ''), ' ', COALESCE(o.shipping_last_name, '')) as shipping_name,
                 o.shipping_phone,
                 o.shipping_address,
-                o.shipping_zipcode,
+                o.shipping_postal_code as shipping_zipcode,
                 o.shipping_country,
-                o.created_at,
-                o.updated_at,
+                o.order_date as created_at,
+                o.order_date as updated_at,
                 u.email as customer_email,
                 u.first_name,
                 u.last_name
@@ -1133,23 +1133,23 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         if (search) {
-            query += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR u.email LIKE ?)';
+            query += ' AND (o.order_number LIKE ? OR o.shipping_first_name LIKE ? OR o.shipping_last_name LIKE ? OR u.email LIKE ?)';
             const searchPattern = `%${search}%`;
-            params.push(searchPattern, searchPattern, searchPattern);
+            params.push(searchPattern, searchPattern, searchPattern, searchPattern);
         }
         
         if (date_from) {
-            query += ' AND DATE(o.created_at) >= ?';
+            query += ' AND DATE(o.order_date) >= ?';
             params.push(date_from);
         }
         
         if (date_to) {
-            query += ' AND DATE(o.created_at) <= ?';
+            query += ' AND DATE(o.order_date) <= ?';
             params.push(date_to);
         }
         
         // 정렬 및 페이지네이션
-        query += ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?';
+        query += ' ORDER BY o.order_date DESC LIMIT ? OFFSET ?';
         params.push(parseInt(limit), parseInt(offset));
         
         const [orders] = await connection.execute(query, params);
@@ -1181,18 +1181,18 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         if (search) {
-            countQuery += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR u.email LIKE ?)';
+            countQuery += ' AND (o.order_number LIKE ? OR o.shipping_first_name LIKE ? OR o.shipping_last_name LIKE ? OR u.email LIKE ?)';
             const searchPattern = `%${search}%`;
-            countParams.push(searchPattern, searchPattern, searchPattern);
+            countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
         }
         
         if (date_from) {
-            countQuery += ' AND DATE(o.created_at) >= ?';
+            countQuery += ' AND DATE(o.order_date) >= ?';
             countParams.push(date_from);
         }
         
         if (date_to) {
-            countQuery += ' AND DATE(o.created_at) <= ?';
+            countQuery += ' AND DATE(o.order_date) <= ?';
             countParams.push(date_to);
         }
         
@@ -1339,8 +1339,7 @@ app.put('/api/admin/orders/:orderId/status', authenticateToken, requireAdmin, as
         // 상태 업데이트
         await connection.execute(
             `UPDATE orders 
-             SET status = ?, 
-                 updated_at = NOW()
+             SET status = ?
              WHERE order_id = ?`,
             [status, orderId]
         );
