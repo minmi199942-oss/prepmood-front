@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS `order_items` (
   `order_id` int NOT NULL,
   `product_id` varchar(50) NOT NULL,
   `product_name` varchar(255) NOT NULL,
+  `size` varchar(10) DEFAULT NULL,
+  `color` varchar(20) DEFAULT NULL,
   `product_image` varchar(500) DEFAULT NULL,
   `quantity` int NOT NULL DEFAULT '1',
   `unit_price` decimal(10,2) NOT NULL,
