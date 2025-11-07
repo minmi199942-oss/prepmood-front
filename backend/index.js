@@ -7,7 +7,7 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const { sendVerificationEmail, testConnection } = require('./mailer');
-const { authenticateToken, optionalAuth, generateToken, setTokenCookie, clearTokenCookie } = require('./auth-middleware');
+const { authenticateToken, optionalAuth, generateToken, setTokenCookie, clearTokenCookie, requireAdmin } = require('./auth-middleware');
 const { issueCSRFToken, verifyCSRF } = require('./csrf-middleware');
 const { cleanupIdempotency } = require('./idempotency-cleanup');
 const Logger = require('./logger');
@@ -1055,4 +1055,324 @@ app.listen(PORT, async () => {
     }, 24 * 60 * 60 * 1000); // 24시간마다 실행
     
     console.log('✅ Idempotency 정리 배치 스케줄러 등록 완료 (24시간마다 실행)');
+});
+
+// ============================================
+// 관리자 API
+// ============================================
+
+/**
+ * GET /api/admin/check
+ * 관리자 권한 확인 API
+ * - 프론트엔드에서 페이지 로드 시 권한 체크용
+ */
+app.get('/api/admin/check', authenticateToken, requireAdmin, (req, res) => {
+    res.json({
+        success: true,
+        admin: true,
+        email: req.user.email,
+        name: req.user.name
+    });
+});
+
+/**
+ * GET /api/admin/orders
+ * 주문 목록 조회 (관리자 전용)
+ * 
+ * 쿼리 파라미터:
+ * - status: 주문 상태 필터 (pending, confirmed, processing, shipping, delivered, cancelled)
+ * - search: 주문번호 또는 고객명 검색
+ * - date_from: 시작 날짜 (YYYY-MM-DD)
+ * - date_to: 종료 날짜 (YYYY-MM-DD)
+ * - limit: 페이지 크기 (기본: 50)
+ * - offset: 오프셋 (기본: 0)
+ */
+app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { 
+            status, 
+            search, 
+            date_from, 
+            date_to, 
+            limit = 50, 
+            offset = 0 
+        } = req.query;
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // 기본 쿼리
+        let query = `
+            SELECT 
+                o.order_id,
+                o.order_number,
+                o.user_id,
+                o.total_price,
+                o.status,
+                o.shipping_name,
+                o.shipping_phone,
+                o.shipping_address,
+                o.shipping_zipcode,
+                o.shipping_country,
+                o.created_at,
+                o.updated_at,
+                u.email as customer_email,
+                u.first_name,
+                u.last_name
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            WHERE 1=1
+        `;
+        
+        const params = [];
+        
+        // 필터링
+        if (status) {
+            query += ' AND o.status = ?';
+            params.push(status);
+        }
+        
+        if (search) {
+            query += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR u.email LIKE ?)';
+            const searchPattern = `%${search}%`;
+            params.push(searchPattern, searchPattern, searchPattern);
+        }
+        
+        if (date_from) {
+            query += ' AND DATE(o.created_at) >= ?';
+            params.push(date_from);
+        }
+        
+        if (date_to) {
+            query += ' AND DATE(o.created_at) <= ?';
+            params.push(date_to);
+        }
+        
+        // 정렬 및 페이지네이션
+        query += ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?';
+        params.push(parseInt(limit), parseInt(offset));
+        
+        const [orders] = await connection.execute(query, params);
+        
+        // 각 주문의 상품 정보 가져오기
+        for (let order of orders) {
+            const [items] = await connection.execute(
+                `SELECT 
+                    product_id,
+                    product_name,
+                    size,
+                    color,
+                    quantity,
+                    price
+                FROM order_items
+                WHERE order_id = ?`,
+                [order.order_id]
+            );
+            order.items = items;
+        }
+        
+        // 전체 주문 수 (페이지네이션용)
+        let countQuery = 'SELECT COUNT(*) as total FROM orders o LEFT JOIN users u ON o.user_id = u.user_id WHERE 1=1';
+        const countParams = [];
+        
+        if (status) {
+            countQuery += ' AND o.status = ?';
+            countParams.push(status);
+        }
+        
+        if (search) {
+            countQuery += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR u.email LIKE ?)';
+            const searchPattern = `%${search}%`;
+            countParams.push(searchPattern, searchPattern, searchPattern);
+        }
+        
+        if (date_from) {
+            countQuery += ' AND DATE(o.created_at) >= ?';
+            countParams.push(date_from);
+        }
+        
+        if (date_to) {
+            countQuery += ' AND DATE(o.created_at) <= ?';
+            countParams.push(date_to);
+        }
+        
+        const [countResult] = await connection.execute(countQuery, countParams);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            orders,
+            pagination: {
+                total: countResult[0].total,
+                limit: parseInt(limit),
+                offset: parseInt(offset),
+                hasMore: parseInt(offset) + orders.length < countResult[0].total
+            }
+        });
+        
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.log('[ADMIN] 주문 목록 조회 실패', { error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            message: '주문 목록을 불러오는데 실패했습니다.' 
+        });
+    }
+});
+
+/**
+ * GET /api/admin/orders/:orderId
+ * 주문 상세 조회 (관리자 전용)
+ */
+app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { orderId } = req.params;
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // 주문 기본 정보
+        const [orders] = await connection.execute(
+            `SELECT 
+                o.*,
+                u.email as customer_email,
+                u.first_name,
+                u.last_name,
+                u.phone as customer_phone
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            WHERE o.order_id = ?`,
+            [orderId]
+        );
+        
+        if (orders.length === 0) {
+            await connection.end();
+            return res.status(404).json({ 
+                success: false, 
+                message: '주문을 찾을 수 없습니다.' 
+            });
+        }
+        
+        const order = orders[0];
+        
+        // 주문 상품 정보
+        const [items] = await connection.execute(
+            `SELECT * FROM order_items WHERE order_id = ?`,
+            [orderId]
+        );
+        
+        order.items = items;
+        
+        // 결제 정보
+        const [payments] = await connection.execute(
+            `SELECT * FROM payments WHERE order_number = ? ORDER BY created_at DESC LIMIT 1`,
+            [order.order_number]
+        );
+        
+        if (payments.length > 0) {
+            order.payment = payments[0];
+        }
+        
+        await connection.end();
+        
+        res.json({ 
+            success: true, 
+            order 
+        });
+        
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.log('[ADMIN] 주문 상세 조회 실패', { 
+            orderId: req.params.orderId, 
+            error: error.message 
+        });
+        res.status(500).json({ 
+            success: false, 
+            message: '주문 정보를 불러오는데 실패했습니다.' 
+        });
+    }
+});
+
+/**
+ * PUT /api/admin/orders/:orderId/status
+ * 주문 상태 변경 (관리자 전용)
+ * 
+ * Body:
+ * - status: 변경할 상태 (pending, confirmed, processing, shipping, delivered, cancelled)
+ * - notes: 관리자 메모 (선택사항)
+ */
+app.put('/api/admin/orders/:orderId/status', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { orderId } = req.params;
+        const { status, notes } = req.body;
+        
+        // 허용된 상태 값 검증
+        const allowedStatuses = ['pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled'];
+        if (!status || !allowedStatuses.includes(status)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: '유효하지 않은 상태 값입니다.',
+                allowedStatuses 
+            });
+        }
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // 주문 존재 확인
+        const [orders] = await connection.execute(
+            'SELECT order_id, status FROM orders WHERE order_id = ?',
+            [orderId]
+        );
+        
+        if (orders.length === 0) {
+            await connection.end();
+            return res.status(404).json({ 
+                success: false, 
+                message: '주문을 찾을 수 없습니다.' 
+            });
+        }
+        
+        const oldStatus = orders[0].status;
+        
+        // 상태 업데이트
+        await connection.execute(
+            `UPDATE orders 
+             SET status = ?, 
+                 updated_at = NOW()
+             WHERE order_id = ?`,
+            [status, orderId]
+        );
+        
+        await connection.end();
+        
+        Logger.log('[ADMIN] 주문 상태 변경', {
+            orderId,
+            oldStatus,
+            newStatus: status,
+            admin: req.user.email,
+            notes
+        });
+        
+        // TODO: 상태에 따라 고객에게 이메일 발송 (Phase 2)
+        
+        res.json({ 
+            success: true, 
+            message: '주문 상태가 변경되었습니다.',
+            oldStatus,
+            newStatus: status
+        });
+        
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.log('[ADMIN] 주문 상태 변경 실패', { 
+            orderId: req.params.orderId, 
+            error: error.message 
+        });
+        res.status(500).json({ 
+            success: false, 
+            message: '주문 상태 변경에 실패했습니다.' 
+        });
+    }
 });

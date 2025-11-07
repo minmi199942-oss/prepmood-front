@@ -1,6 +1,7 @@
 // auth-middleware.js - JWT 인증 미들웨어
 
 const jwt = require('jsonwebtoken');
+const Logger = require('./logger');
 
 /**
  * JWT 토큰 인증 미들웨어
@@ -148,11 +149,86 @@ function clearTokenCookie(res) {
     console.log('✅ JWT 쿠키 삭제 완료 (로그아웃)');
 }
 
+/**
+ * 관리자 권한 확인 미들웨어
+ * - authenticateToken 이후에 사용해야 함 (req.user 필요)
+ * - .env의 ADMIN_EMAILS에 등록된 이메일만 접근 허용
+ * - 로그 기록으로 접근 시도 추적
+ * 
+ * @example
+ * app.get('/api/admin/orders', authenticateToken, requireAdmin, (req, res) => {...})
+ */
+function requireAdmin(req, res, next) {
+    // 1단계: 로그인 확인 (authenticateToken에서 설정한 req.user 확인)
+    if (!req.user || !req.user.email) {
+        Logger.log('[SECURITY] 관리자 페이지 접근 시도 - 미인증', {
+            ip: req.ip,
+            path: req.path,
+            method: req.method
+        });
+        
+        return res.status(401).json({
+            success: false,
+            message: '로그인이 필요합니다.',
+            code: 'AUTHENTICATION_REQUIRED'
+        });
+    }
+    
+    // 2단계: 관리자 이메일 목록 확인
+    const userEmail = req.user.email.toLowerCase().trim();
+    const adminEmailsString = process.env.ADMIN_EMAILS || '';
+    const adminEmails = adminEmailsString
+        .split(',')
+        .map(email => email.toLowerCase().trim())
+        .filter(email => email.length > 0);
+    
+    // 관리자 이메일이 설정되지 않은 경우 경고
+    if (adminEmails.length === 0) {
+        Logger.log('[SECURITY] ⚠️ ADMIN_EMAILS 환경변수가 설정되지 않았습니다!', {
+            env: process.env.NODE_ENV
+        });
+        
+        return res.status(500).json({
+            success: false,
+            message: '서버 설정 오류입니다. 관리자에게 문의하세요.',
+            code: 'SERVER_CONFIG_ERROR'
+        });
+    }
+    
+    // 3단계: 권한 확인
+    if (!adminEmails.includes(userEmail)) {
+        Logger.log('[SECURITY] 🚫 관리자 페이지 접근 거부 - 권한 없음', {
+            email: userEmail,
+            ip: req.ip,
+            path: req.path,
+            method: req.method,
+            timestamp: new Date().toISOString()
+        });
+        
+        return res.status(403).json({
+            success: false,
+            message: '관리자 권한이 없습니다.',
+            code: 'FORBIDDEN'
+        });
+    }
+    
+    // 4단계: 접근 허용
+    Logger.log('[SECURITY] ✅ 관리자 페이지 접근 허용', {
+        email: userEmail,
+        ip: req.ip,
+        path: req.path,
+        method: req.method
+    });
+    
+    next();
+}
+
 module.exports = {
     authenticateToken,
     optionalAuth,
     generateToken,
     setTokenCookie,
-    clearTokenCookie
+    clearTokenCookie,
+    requireAdmin  // 추가
 };
 

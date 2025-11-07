@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>주문 관리 | Pre.pMood Admin</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    /* 주문 관리 전용 스타일 */
+    .stats-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .stat-value.warning {
+      color: #fd7e14;
+    }
+
+    .orders-table-container {
+      overflow-x: auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .orders-table thead {
+      background: #f8f9fa;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .orders-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #495057;
+    }
+
+    .orders-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #dee2e6;
+      font-size: 0.875rem;
+    }
+
+    .orders-table tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-info { background: #d1ecf1; color: #0c5460; }
+    .badge-primary { background: #cfe2ff; color: #084298; }
+    .badge-secondary { background: #e2e3e5; color: #383d41; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+
+    .btn-sm {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.875rem;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-sm.btn-primary {
+      background: #212529;
+      color: white;
+    }
+
+    .btn-sm.btn-primary:hover {
+      background: #343a40;
+    }
+
+    /* 모달 스타일 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      width: 90%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #6c757d;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .order-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .detail-section {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 6px;
+    }
+
+    .detail-section h4 {
+      margin: 0 0 1rem 0;
+      font-size: 1rem;
+      color: #212529;
+    }
+
+    .detail-section dl {
+      margin: 0;
+    }
+
+    .detail-section dt {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-bottom: 0.25rem;
+    }
+
+    .detail-section dd {
+      font-size: 0.875rem;
+      margin: 0 0 0.75rem 0;
+      color: #212529;
+    }
+
+    .detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+
+    .detail-table th,
+    .detail-table td {
+      padding: 0.5rem;
+      text-align: left;
+      border-bottom: 1px solid #dee2e6;
+      font-size: 0.875rem;
+    }
+
+    .detail-table th {
+      background: #e9ecef;
+      font-weight: 600;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #dee2e6;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    .filter-input {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .pagination button {
+      padding: 0.5rem 1rem;
+      border: 1px solid #dee2e6;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pagination button:hover:not(:disabled) {
+      background: #f8f9fa;
+    }
+
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pagination button.active {
+      background: #212529;
+      color: white;
+      border-color: #212529;
+    }
+  </style>
+</head>
+<body>
+  <!-- 관리자 헤더 -->
+  <header class="admin-header">
+    <div class="admin-header-content">
+      <h1>Pre.pMood 관리자</h1>
+      <nav class="admin-nav">
+        <a href="products.html">상품 관리</a>
+        <a href="orders.html" class="active">주문 관리</a>
+        <a href="../admin-qr.html">QR 관리</a>
+        <a href="../index.html">사이트로 이동</a>
+        <a href="#" id="logoutBtn" class="logout-btn">로그아웃</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 메인 컨텐츠 -->
+  <main class="admin-main">
+    <div class="admin-container">
+      
+      <!-- 상단 툴바 -->
+      <div class="admin-toolbar">
+        <h2>주문 관리</h2>
+        <div class="toolbar-actions">
+          <!-- 필터: 상태 -->
+          <select id="statusFilter" class="filter-select">
+            <option value="">전체 상태</option>
+            <option value="pending">결제 대기</option>
+            <option value="confirmed">결제 완료</option>
+            <option value="processing">상품 준비중</option>
+            <option value="shipping">배송중</option>
+            <option value="delivered">배송 완료</option>
+            <option value="cancelled">취소됨</option>
+          </select>
+          
+          <!-- 검색 -->
+          <input type="text" id="searchInput" placeholder="주문번호/고객명" class="search-input">
+          
+          <button id="refreshBtn" class="btn-secondary">🔄 새로고침</button>
+        </div>
+      </div>
+
+      <!-- 통계 카드 -->
+      <div class="stats-cards">
+        <div class="stat-card">
+          <div class="stat-label">오늘 주문</div>
+          <div class="stat-value" id="todayOrders">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">오늘 매출</div>
+          <div class="stat-value" id="todayRevenue">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">처리 대기</div>
+          <div class="stat-value warning" id="pendingOrders">-</div>
+        </div>
+      </div>
+
+      <!-- 로딩 상태 -->
+      <div class="loading-state" id="loadingState">
+        <p>주문 목록을 불러오는 중...</p>
+      </div>
+
+      <!-- 주문 테이블 -->
+      <div class="orders-table-container" id="ordersTableContainer" style="display: none;">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>주문번호</th>
+              <th>날짜</th>
+              <th>고객</th>
+              <th>상품</th>
+              <th>금액</th>
+              <th>상태</th>
+              <th>작업</th>
+            </tr>
+          </thead>
+          <tbody id="ordersTableBody">
+            <!-- JavaScript로 동적 생성 -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 빈 상태 -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">📦</div>
+        <h3>주문이 없습니다</h3>
+        <p>새로운 주문을 기다리는 중입니다.</p>
+      </div>
+
+      <!-- 페이지네이션 -->
+      <div class="pagination" id="pagination" style="display: none;">
+        <!-- JavaScript로 동적 생성 -->
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 주문 상세 모달 -->
+  <div class="modal" id="orderDetailModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalOrderTitle">주문 상세</h3>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      
+      <div class="modal-body" id="orderDetailContent">
+        <!-- JavaScript로 동적 생성 -->
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn-secondary" id="closeDetailBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin-orders.js"></script>
+</body>
+</html>
+
