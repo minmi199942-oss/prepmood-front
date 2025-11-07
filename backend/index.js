@@ -1218,7 +1218,13 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         
     } catch (error) {
         if (connection) await connection.end();
-        Logger.error('[ADMIN] 주문 목록 조회 실패', { error: error.message });
+        Logger.error('[ADMIN] 주문 목록 조회 실패', { 
+            error: error.message,
+            query,
+            params,
+            countQuery,
+            countParams
+        });
         res.status(500).json({ 
             success: false, 
             message: '주문 목록을 불러오는데 실패했습니다.' 
