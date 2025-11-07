@@ -1158,8 +1158,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         // 정렬 및 페이지네이션
-        query += ' ORDER BY o.order_date DESC LIMIT ? OFFSET ?';
-        params.push(limitNum, offsetNum);
+        query += ` ORDER BY o.order_date DESC LIMIT ${limitNum} OFFSET ${offsetNum}`;
         
         const [orders] = await connection.execute(query, params);
         
@@ -1206,8 +1205,8 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         const [countResult] = await connection.execute(countQuery, countParams);
-        
         await connection.end();
+        connection = null;
         
         res.json({
             success: true,
