@@ -1089,6 +1089,10 @@ app.get('/api/admin/check', authenticateToken, requireAdmin, (req, res) => {
  */
 app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) => {
     let connection;
+    let query;
+    let params;
+    let countQuery;
+    let countParams;
     try {
         const { 
             status, 
@@ -1107,7 +1111,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         connection = await mysql.createConnection(dbConfig);
         
         // 기본 쿼리 (실제 DB 컬럼명에 맞춤)
-        let query = `
+        query = `
             SELECT 
                 o.order_id,
                 o.order_number,
@@ -1129,7 +1133,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
             WHERE 1=1
         `;
         
-        const params = [];
+        params = [];
         
         // 필터링
         if (status) {
@@ -1177,8 +1181,8 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         // 전체 주문 수 (페이지네이션용)
-        let countQuery = 'SELECT COUNT(*) as total FROM orders o LEFT JOIN users u ON o.user_id = u.user_id WHERE 1=1';
-        const countParams = [];
+        countQuery = 'SELECT COUNT(*) as total FROM orders o LEFT JOIN users u ON o.user_id = u.user_id WHERE 1=1';
+        countParams = [];
         
         if (status) {
             countQuery += ' AND o.status = ?';
