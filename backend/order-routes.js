@@ -285,18 +285,8 @@ function validateOrderRequest(req) {
     return Object.keys(errors).length > 0 ? errors : null;
 }
 
-// Rate limiting 미들웨어
-const orderCreationLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1분
-    max: 10, // IP당 분당 10회
-    message: {
-        code: 'RATE_LIMIT_EXCEEDED',
-        details: { message: '주문 생성 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-    // IPv6 지원을 위해 keyGenerator 제거 (기본 IP 기반 사용)
-});
+// Rate limiting 미들웨어 (IPv6 호환성 문제로 임시 비활성화)
+const orderCreationLimiter = (req, res, next) => next();
 
 // 주문번호 생성 함수 (UNIQUE 충돌 시 지수 백오프 재시도 로직 포함)
 async function generateOrderNumber(connection, maxRetries = 3) {
