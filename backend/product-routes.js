@@ -5,6 +5,7 @@ const mysql = require('mysql2/promise');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const { authenticateToken, requireAdmin } = require('./auth-middleware');
 require('dotenv').config();
 
 // MySQL 연결 설정
@@ -116,23 +117,8 @@ router.get('/products/:id', async (req, res) => {
 
 // ==================== 관리자 API (인증 필요) ====================
 
-// 간단한 관리자 인증 미들웨어 (추후 개선 가능)
-const adminAuth = (req, res, next) => {
-    const adminKey = req.headers['x-admin-key'];
-    
-    // 환경 변수에서 관리자 키 확인
-    if (adminKey && adminKey === process.env.ADMIN_KEY) {
-        next();
-    } else {
-        res.status(401).json({
-            success: false,
-            message: '관리자 권한이 필요합니다.'
-        });
-    }
-};
-
 // 이미지 업로드
-router.post('/admin/upload-image', adminAuth, upload.single('image'), async (req, res) => {
+router.post('/admin/upload-image', authenticateToken, requireAdmin, upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({
@@ -162,7 +148,7 @@ router.post('/admin/upload-image', adminAuth, upload.single('image'), async (req
 });
 
 // 상품 추가
-router.post('/admin/products', adminAuth, async (req, res) => {
+router.post('/admin/products', authenticateToken, requireAdmin, async (req, res) => {
     let connection;
     try {
         const { id, name, price, image, gender, category, type, description } = req.body;
@@ -216,7 +202,7 @@ router.post('/admin/products', adminAuth, async (req, res) => {
 });
 
 // 상품 수정
-router.put('/admin/products/:id', adminAuth, async (req, res) => {
+router.put('/admin/products/:id', authenticateToken, requireAdmin, async (req, res) => {
     let connection;
     try {
         const { id } = req.params;
@@ -262,7 +248,7 @@ router.put('/admin/products/:id', adminAuth, async (req, res) => {
 });
 
 // 상품 삭제
-router.delete('/admin/products/:id', adminAuth, async (req, res) => {
+router.delete('/admin/products/:id', authenticateToken, requireAdmin, async (req, res) => {
     let connection;
     try {
         const { id } = req.params;

@@ -3,47 +3,11 @@
 (function() {
   'use strict';
 
-  // 로그인 체크 함수
-  function checkAdminAuth() {
-    const token = localStorage.getItem('admin_token');
-    const username = localStorage.getItem('admin_username');
-    
-    if (!token || !username) {
-      window.location.href = 'login.html';
-      return false;
-    }
-    
-    // 토큰 유효성 검사
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      if (payload.exp <= Date.now()) {
-        // 토큰 만료
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_username');
-        window.location.href = 'login.html';
-        return false;
-      }
-      return true;
-    } catch (error) {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_username');
-      window.location.href = 'login.html';
-      return false;
-    }
-  }
-
-  // 페이지 로드 시 로그인 체크
-  if (!checkAdminAuth()) {
-    return;
-  }
-
   // API 설정
-  const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'https://prepmood.kr/api'
-    : 'https://prepmood.kr/api';
-
-  // 관리자 키 (환경변수에서 가져오거나 기본값 사용)
-  const ADMIN_KEY = 'prepmood_admin_2025_secure_key';
+  const API_ORIGIN = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'https://prepmood.kr'
+    : '';
+  const API_BASE_URL = `${API_ORIGIN}/api`;
 
   // 전역 변수
   let products = [];
@@ -59,6 +23,29 @@
     logoutBtn: document.getElementById('logoutBtn')
   };
 
+  async function checkAdminAccess() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/check`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+      alert('관리자 권한이 없습니다.');
+      window.location.href = 'login.html';
+        return false;
+      }
+
+      const data = await response.json();
+      console.log('✅ 관리자 인증 성공:', data.email);
+      return true;
+    } catch (error) {
+      console.error('관리자 인증 실패:', error);
+      alert('로그인이 필요합니다.');
+      window.location.href = 'login.html';
+      return false;
+    }
+  }
+
   // 상품 목록 로드
   async function loadProducts() {
     try {
@@ -66,9 +53,7 @@
       elements.productsGrid.innerHTML = '';
 
       const response = await fetch(`${API_BASE_URL}/products`, {
-        headers: {
-          'X-Admin-Key': ADMIN_KEY
-        }
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -268,9 +253,7 @@
 
       const response = await fetch(`${API_BASE_URL}/admin/upload-image`, {
         method: 'POST',
-        headers: {
-          'X-Admin-Key': ADMIN_KEY
-        },
+        credentials: 'include',
         body: formData
       });
 
@@ -355,9 +338,9 @@
       const response = await fetch(url, {
         method: method,
         headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Key': ADMIN_KEY
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(productData)
       });
 
@@ -389,9 +372,7 @@
     try {
       const response = await fetch(`${API_BASE_URL}/admin/products/${productId}`, {
         method: 'DELETE',
-        headers: {
-          'X-Admin-Key': ADMIN_KEY
-        }
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -413,10 +394,19 @@
   }
 
   // 로그아웃
-  function logout() {
-    if (confirm('로그아웃 하시겠습니까?')) {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_username');
+  async function logout() {
+    if (!confirm('로그아웃 하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await fetch(`${API_BASE_URL}/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+    } finally {
       window.location.href = 'login.html';
     }
   }
@@ -436,49 +426,56 @@
     return div.innerHTML;
   }
 
-  // 이벤트 리스너 등록
-  document.addEventListener('DOMContentLoaded', function() {
-    // 검색 및 필터 이벤트
-    elements.searchInput.addEventListener('input', filterProducts);
-    elements.categoryFilter.addEventListener('change', filterProducts);
-    
-    // 버튼 이벤트
-    elements.addProductBtn.addEventListener('click', openAddProductModal);
-    elements.logoutBtn.addEventListener('click', logout);
-    
-    // 이미지 업로드 이벤트
+  async function init() {
+    const hasAccess = await checkAdminAccess();
+    if (!hasAccess) {
+      return;
+    }
+
+    if (elements.searchInput) {
+      elements.searchInput.addEventListener('input', filterProducts);
+    }
+    if (elements.categoryFilter) {
+      elements.categoryFilter.addEventListener('change', filterProducts);
+    }
+    if (elements.addProductBtn) {
+      elements.addProductBtn.addEventListener('click', openAddProductModal);
+    }
+    if (elements.logoutBtn) {
+      elements.logoutBtn.addEventListener('click', logout);
+    }
+
     document.addEventListener('change', function(e) {
-      if (e.target.id === 'productImage' && e.target.files[0]) {
+      if (e.target.id === 'productImage' && e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
         const preview = document.getElementById('imagePreview');
-        
+
         if (preview) {
           const reader = new FileReader();
-          reader.onload = function(e) {
-            preview.innerHTML = `<img src="${e.target.result}" alt="미리보기">`;
+          reader.onload = function(event) {
+            preview.innerHTML = `<img src="${event.target.result}" alt="미리보기">`;
           };
           reader.readAsDataURL(file);
         }
       }
     });
 
-    // 모달 외부 클릭 시 닫기
     document.addEventListener('click', function(e) {
-      if (e.target.classList.contains('modal-overlay')) {
+      if (e.target.classList && e.target.classList.contains('modal-overlay')) {
         closeModal();
       }
     });
 
-    // ESC 키로 모달 닫기
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
         closeModal();
       }
     });
 
-    // 초기 상품 목록 로드
-    loadProducts();
-  });
+    await loadProducts();
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
 
   // 전역 함수로 등록 (HTML에서 호출하기 위해)
   window.openAddProductModal = openAddProductModal;

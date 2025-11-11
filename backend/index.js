@@ -31,7 +31,7 @@ app.use(cors({
     origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-Admin-Key', 'X-XSRF-TOKEN', 'X-Idempotency-Key']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-XSRF-TOKEN', 'X-Idempotency-Key']
 }));
 
 // 보안 미들웨어
@@ -87,6 +87,62 @@ const verificationCodes = new Map();
 const loginAttempts = new Map();
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_TIME = 15 * 60 * 1000; // 15분
+
+// 관리자 로그인 시도 제한
+const adminLoginAttempts = new Map();
+const ADMIN_MAX_LOGIN_ATTEMPTS = 5;
+const ADMIN_LOCKOUT_TIME = 15 * 60 * 1000; // 15분
+
+const adminEmails = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map(email => email.toLowerCase().trim())
+    .filter(email => email.length > 0);
+const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH || null;
+const adminPlainPassword = process.env.ADMIN_PASSWORD || process.env.ADMIN_KEY || null;
+
+async function verifyAdminPassword(inputPassword) {
+    if (adminPasswordHash) {
+        try {
+            return await bcrypt.compare(inputPassword, adminPasswordHash);
+        } catch (error) {
+            Logger.log('[ADMIN][LOGIN] 관리자 비밀번호 해시 비교 중 오류', { error: error.message });
+            return false;
+        }
+    }
+    if (adminPlainPassword) {
+        return inputPassword === adminPlainPassword;
+    }
+    Logger.log('[ADMIN][LOGIN] 관리자 비밀번호가 설정되지 않았습니다.');
+    return false;
+}
+
+function getAdminAttemptRecord(key) {
+    const record = adminLoginAttempts.get(key);
+    if (!record) return null;
+    if (record.lockedUntil && record.lockedUntil <= Date.now()) {
+        adminLoginAttempts.delete(key);
+        return null;
+    }
+    return record;
+}
+
+function registerAdminFailure(key) {
+    const now = Date.now();
+    const record = getAdminAttemptRecord(key) || { count: 0, lockedUntil: null };
+    record.count += 1;
+    if (record.count >= ADMIN_MAX_LOGIN_ATTEMPTS) {
+        record.lockedUntil = now + ADMIN_LOCKOUT_TIME;
+        record.count = 0;
+    }
+    adminLoginAttempts.set(key, record);
+    return record.lockedUntil;
+}
+
+function resetAdminAttempts(key) {
+    if (adminLoginAttempts.has(key)) {
+        adminLoginAttempts.delete(key);
+    }
+}
 
 // 6자리 랜덤 인증 코드 생성
 const generateVerificationCode = () => {
@@ -434,6 +490,95 @@ app.post('/api/login', [
         res.status(500).json({
             success: false,
             message: '로그인 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+// 관리자 로그인 API
+app.post('/api/admin/login', [
+    body('email').isEmail().withMessage('이메일 형식이 올바르지 않습니다.').normalizeEmail(),
+    body('password').notEmpty().withMessage('비밀번호를 입력해주세요.')
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: errors.array()[0].msg
+            });
+        }
+
+        if (!adminEmails.length) {
+            Logger.log('[ADMIN][LOGIN] 실패 - ADMIN_EMAILS 미설정');
+            return res.status(500).json({
+                success: false,
+                message: '관리자 계정이 설정되지 않았습니다.'
+            });
+        }
+
+        const { email, password } = req.body;
+        const normalizedEmail = email.toLowerCase().trim();
+
+        if (!adminEmails.includes(normalizedEmail)) {
+            Logger.log('[ADMIN][LOGIN] 실패 - 권한 없는 이메일', { email: normalizedEmail, ip: req.ip });
+            return res.status(403).json({
+                success: false,
+                message: '관리자 권한이 없습니다.'
+            });
+        }
+
+        const attemptKey = `admin:${normalizedEmail}`;
+        const attemptRecord = getAdminAttemptRecord(attemptKey);
+        if (attemptRecord && attemptRecord.lockedUntil) {
+            const remainingMs = attemptRecord.lockedUntil - Date.now();
+            if (remainingMs > 0) {
+                const remainingMinutes = Math.ceil(remainingMs / 60000);
+                return res.status(429).json({
+                    success: false,
+                    message: `로그인 시도가 잠시 제한되었습니다. ${remainingMinutes}분 후 다시 시도해주세요.`
+                });
+            }
+        }
+
+        const passwordValid = await verifyAdminPassword(password);
+        if (!passwordValid) {
+            const lockedUntil = registerAdminFailure(attemptKey);
+            Logger.log('[ADMIN][LOGIN] 실패 - 비밀번호 불일치', { email: normalizedEmail, ip: req.ip });
+            if (lockedUntil) {
+                const remainingMinutes = Math.ceil((lockedUntil - Date.now()) / 60000);
+                return res.status(429).json({
+                    success: false,
+                    message: `잘못된 비밀번호 입력이 반복되어 잠시 로그인할 수 없습니다. ${remainingMinutes}분 후 다시 시도해주세요.`
+                });
+            }
+            return res.status(401).json({
+                success: false,
+                message: '이메일 또는 비밀번호가 올바르지 않습니다.'
+            });
+        }
+
+        resetAdminAttempts(attemptKey);
+
+        const token = generateToken({
+            id: `admin:${normalizedEmail}`,
+            email: normalizedEmail,
+            name: 'Pre.p Mood Admin'
+        }, '12h');
+
+        // 12시간 유효한 쿠키
+        setTokenCookie(res, token, 12 * 60 * 60 * 1000);
+
+        Logger.log('[ADMIN][LOGIN] 성공', { email: normalizedEmail, ip: req.ip });
+        res.json({
+            success: true,
+            message: '관리자 로그인에 성공했습니다.',
+            email: normalizedEmail
+        });
+    } catch (error) {
+        Logger.log('[ADMIN][LOGIN] 서버 오류', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: '관리자 로그인 중 오류가 발생했습니다.'
         });
     }
 });

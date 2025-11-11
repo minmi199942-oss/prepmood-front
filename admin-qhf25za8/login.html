@@ -130,8 +130,8 @@
 
         <form id="login-form">
             <div class="form-group">
-                <label for="username">관리자 ID</label>
-                <input type="text" id="username" name="username" required>
+                <label for="username">관리자 이메일</label>
+                <input type="email" id="username" name="username" required>
             </div>
 
             <div class="form-group">
@@ -153,56 +153,54 @@
     </div>
 
     <script>
-        // 관리자 계정 정보 (실제 환경에서는 DB에서 관리)
-        const ADMIN_CREDENTIALS = {
-            username: 'admin',
-            password: 'prepmood2025!@#'
-        };
+        const API_ORIGIN = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'https://prepmood.kr'
+            : '';
+        const API_BASE = `${API_ORIGIN}/api`;
 
-        // JWT 토큰 생성 (간단한 버전)
-        function generateToken(username) {
-            const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-            const payload = btoa(JSON.stringify({ 
-                username, 
-                role: 'admin',
-                exp: Date.now() + (24 * 60 * 60 * 1000) // 24시간
-            }));
-            const signature = btoa(username + 'prepmood_secret_2025');
-            
-            return `${header}.${payload}.${signature}`;
+        async function attemptAdminLogin(email, password) {
+            const response = await fetch(`${API_BASE}/admin/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.message || '로그인에 실패했습니다.');
+            }
+            return data;
         }
 
-        // 로그인 처리
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+
+            const emailInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
             const loginBtn = document.getElementById('login-btn');
             const errorMessage = document.getElementById('error-message');
 
-            // 로딩 상태
+            if (!email || !password) {
+                errorMessage.textContent = '이메일과 비밀번호를 입력해주세요.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
             loginBtn.disabled = true;
             loginBtn.textContent = '로그인 중...';
             errorMessage.style.display = 'none';
 
             try {
-                // 관리자 인증
-                if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-                    // JWT 토큰 생성
-                    const token = generateToken(username);
-                    
-                    // 토큰을 로컬 스토리지에 저장
-                    localStorage.setItem('admin_token', token);
-                    localStorage.setItem('admin_username', username);
-                    
-                    // 상품 관리 페이지로 이동
-                    window.location.href = 'products.html';
-                } else {
-                    throw new Error('잘못된 관리자 ID 또는 비밀번호입니다.');
-                }
+                await attemptAdminLogin(email, password);
+                window.location.href = 'products.html';
             } catch (error) {
-                errorMessage.textContent = error.message;
+                passwordInput.value = '';
+                errorMessage.textContent = error.message || '로그인에 실패했습니다.';
                 errorMessage.style.display = 'block';
             } finally {
                 loginBtn.disabled = false;
@@ -210,29 +208,20 @@
             }
         });
 
-        // 이미 로그인된 상태인지 확인
-        window.addEventListener('load', () => {
-            const token = localStorage.getItem('admin_token');
-            const username = localStorage.getItem('admin_username');
-            
-            if (token && username) {
-                // 토큰 유효성 검사 (간단한 버전)
-                try {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
-                    if (payload.exp > Date.now()) {
-                        // 유효한 토큰이면 상품 관리 페이지로 이동
-                        window.location.href = 'products.html';
-                    } else {
-                        // 만료된 토큰 제거
-                        localStorage.removeItem('admin_token');
-                        localStorage.removeItem('admin_username');
-                    }
-                } catch (error) {
-                    localStorage.removeItem('admin_token');
-                    localStorage.removeItem('admin_username');
+        async function redirectIfLoggedIn() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/check`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    window.location.href = 'products.html';
                 }
+            } catch (error) {
+                console.warn('관리자 세션 확인 실패:', error);
             }
-        });
+        }
+
+        window.addEventListener('load', redirectIfLoggedIn);
     </script>
 </body>
 </html>

@@ -63,7 +63,7 @@
       if (!response.ok) {
         console.error('관리자 권한 없음:', response.status);
         alert('관리자 권한이 없습니다.');
-        window.location.href = '/login.html';
+        window.location.href = 'login.html';
         return false;
       }
 
@@ -74,7 +74,7 @@
     } catch (error) {
       console.error('권한 확인 실패:', error);
       alert('로그인이 필요합니다.');
-      window.location.href = '/login.html';
+      window.location.href = 'login.html';
       return false;
     }
   }
@@ -126,14 +126,14 @@
       e.preventDefault();
       if (confirm('로그아웃하시겠습니까?')) {
         try {
-          await fetch('/api/logout', {
+          await fetch(`${API_BASE}/logout`, {
             method: 'POST',
             credentials: 'include'
           });
         } catch (error) {
           console.error('로그아웃 오류:', error);
         }
-        window.location.href = '/login.html';
+        window.location.href = 'login.html';
       }
     });
   }
@@ -529,4 +529,7 @@
   document.addEventListener('DOMContentLoaded', init);
 
 })();
+
+
+
 
