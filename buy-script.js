@@ -4,9 +4,11 @@
   'use strict';
 
   // API 기본 URL 설정 (환경에 따라 자동 변경)
-  const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'https://prepmood.kr/api'  // 로컬 개발 시에도 프로덕션 API 사용
-    : 'https://prepmood.kr/api';  // 프로덕션
+  const API_BASE_URL = (window.API_BASE)
+    ? window.API_BASE
+    : ((window.location && window.location.origin)
+        ? window.location.origin.replace(/\/$/, '') + '/api'
+        : '/api');
 
   // URL에서 제품 ID 가져오기
   const urlParams = new URLSearchParams(window.location.search);
@@ -359,7 +361,7 @@
   // 로그인 상태 확인 (JWT 기반) - 401 오류 처리 개선
   async function isLoggedIn() {
     try {
-      const response = await fetch('https://prepmood.kr/api/auth/me', {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
         credentials: 'include'
       });
       
@@ -383,7 +385,7 @@
   // 사용자 이메일 가져오기 (JWT 기반) - 401 오류 처리 개선
   async function getUserEmail() {
     try {
-      const response = await fetch('https://prepmood.kr/api/auth/me', {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
         credentials: 'include'
       });
       

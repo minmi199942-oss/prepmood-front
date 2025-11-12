@@ -1,12 +1,18 @@
 // api-config.js - API URL 설정
 
-// 로컬 개발용 API URL 설정
+// 로컬/프로덕션 공용 API URL 설정
 function getApiBaseUrl() {
-  // 모든 환경에서 프로덕션 API 사용
-  return 'https://prepmood.kr/api';
+  if (window.API_BASE) {
+    return window.API_BASE;
+  }
+  const origin = (window.location && window.location.origin)
+    ? window.location.origin.replace(/\/$/, '')
+    : '';
+  return origin ? `${origin}/api` : '/api';
 }
 
-// 전역으로 노출
+const apiBaseUrl = getApiBaseUrl();
+window.API_BASE = apiBaseUrl;
 window.getApiBaseUrl = getApiBaseUrl;
 
-console.log('✅ API 설정 로드 완료 - 로컬/프로덕션 자동 감지');
+console.log('✅ API 설정 로드 완료 - 현재 API_BASE:', apiBaseUrl);

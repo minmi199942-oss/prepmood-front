@@ -31,6 +31,12 @@ function uuidv4() {
 // 기본값은 MOCK (운영 전환 시 HTML에서 직접 'TOSS'로 설정)
 window.__PAYMENT_MODE__ = window.__PAYMENT_MODE__ || 'MOCK';
 
+const API_BASE = (window.API_BASE)
+  ? window.API_BASE
+  : ((window.location && window.location.origin)
+      ? window.location.origin.replace(/\/$/, '') + '/api'
+      : '/api');
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('💳 체크아웃 페이지 로드됨');
   console.log(`🔧 결제 모드: ${window.__PAYMENT_MODE__}`);
@@ -169,7 +175,7 @@ function setupCountryChangeListener() {
 async function fillUserInfo() {
   try {
     // 사용자 정보 가져오기
-    const response = await fetch('https://prepmood.kr/api/auth/me', {
+    const response = await fetch(`${API_BASE}/auth/me`, {
       credentials: 'include'
     });
     
@@ -554,7 +560,7 @@ async function processPayment(orderData) {
       });
       
       // 주문 생성 API 호출 (Idempotency 키 + CSRF 토큰 포함)
-      const response = await window.secureFetch('https://prepmood.kr/api/orders', {
+      const response = await window.secureFetch(`${API_BASE}/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

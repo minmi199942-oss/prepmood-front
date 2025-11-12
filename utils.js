@@ -84,6 +84,15 @@ const Logger = {
   }
 };
 
+// API 기본 경로 (현재 origin 기준)
+(function() {
+  const origin = (window.location && window.location.origin)
+    ? window.location.origin.replace(/\/$/, '')
+    : '';
+  const apiBase = origin ? `${origin}/api` : '/api';
+  window.API_BASE = apiBase;
+})();
+
 // 전역으로 사용 가능하도록 window 객체에 추가
 window.escapeHtml = escapeHtml;
 window.formatPrice = formatPrice;

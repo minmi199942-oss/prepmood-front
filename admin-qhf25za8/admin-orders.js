@@ -4,9 +4,11 @@
   'use strict';
 
   // API 설정
-  const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'https://prepmood.kr/api'
-    : '/api';
+  const API_BASE = (window.API_BASE) 
+    ? window.API_BASE 
+    : ((window.location && window.location.origin)
+        ? window.location.origin.replace(/\/$/, '') + '/api'
+        : '/api');
 
   let currentPage = 0;
   const PAGE_SIZE = 20;

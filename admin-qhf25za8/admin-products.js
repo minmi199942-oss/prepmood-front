@@ -4,10 +4,11 @@
   'use strict';
 
   // API 설정
-  const API_ORIGIN = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'https://prepmood.kr'
-    : '';
-  const API_BASE_URL = `${API_ORIGIN}/api`;
+  const API_BASE_URL = (window.API_BASE)
+    ? window.API_BASE
+    : ((window.location && window.location.origin)
+        ? window.location.origin.replace(/\/$/, '') + '/api'
+        : '/api');
 
   // 전역 변수
   let products = [];

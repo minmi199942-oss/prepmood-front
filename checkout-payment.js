@@ -1,5 +1,11 @@
 // checkout-payment.js - 3단계: 결제 방법 선택 및 결제 진행
 
+const API_BASE = (window.API_BASE)
+  ? window.API_BASE
+  : ((window.location && window.location.origin)
+      ? window.location.origin.replace(/\/$/, '') + '/api'
+      : '/api');
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('💳 3단계: 결제 방법 선택 페이지 로드됨');
   
@@ -161,7 +167,7 @@ async function proceedWithTossPayment(data) {
     };
     
     console.log('📤 주문 생성 API 호출...');
-    const createRes = await window.secureFetch('https://prepmood.kr/api/orders', {
+    const createRes = await window.secureFetch(`${API_BASE}/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -193,7 +199,7 @@ async function proceedWithTossPayment(data) {
       // MOCK 결제 처리
       console.log('🔄 MOCK 결제 처리...');
       
-      const confirmRes = await window.secureFetch('https://prepmood.kr/api/payments/confirm', {
+      const confirmRes = await window.secureFetch(`${API_BASE}/payments/confirm`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -225,7 +231,7 @@ async function proceedWithTossPayment(data) {
       // });
       // const { paymentKey } = result;
       // 
-      // const confirmRes = await window.secureFetch('https://prepmood.kr/api/payments/confirm', {
+      // const confirmRes = await window.secureFetch(`${API_BASE}/payments/confirm`, {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
       //   credentials: 'include',

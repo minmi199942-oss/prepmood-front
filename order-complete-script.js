@@ -1,4 +1,10 @@
 // 주문 완료 페이지 스크립트
+const API_BASE = (window.API_BASE)
+  ? window.API_BASE
+  : ((window.location && window.location.origin)
+      ? window.location.origin.replace(/\/$/, '') + '/api'
+      : '/api');
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('✅ 주문 완료 페이지 로드됨');
   
@@ -19,7 +25,7 @@ async function loadOrderDetails(orderId) {
   try {
     console.log('📋 주문 상세 정보 로딩 중...', orderId);
     
-    const response = await fetch(`https://prepmood.kr/api/orders/${orderId}`, {
+    const response = await fetch(`${API_BASE}/orders/${orderId}`, {
       credentials: 'include'
     });
     

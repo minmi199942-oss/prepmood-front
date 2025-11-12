@@ -2,6 +2,13 @@
 
 // 중복 선언 방지
 if (typeof MiniCart === 'undefined') {
+
+const API_BASE = (window.API_BASE)
+  ? window.API_BASE
+  : ((window.location && window.location.origin)
+      ? window.location.origin.replace(/\/$/, '') + '/api'
+      : '/api');
+
 class MiniCart {
   constructor() {
     this.cartItems = [];
@@ -197,7 +204,7 @@ class MiniCart {
   // 로그인 상태 확인 - 401 오류 처리 개선 (정상적인 동작)
   async checkLoginStatus() {
     try {
-      const response = await fetch('https://prepmood.kr/api/auth/me', {
+      const response = await fetch(`${API_BASE}/auth/me`, {
         credentials: 'include'
       });
       
@@ -229,7 +236,7 @@ class MiniCart {
     }
 
     try {
-      const response = await fetch('https://prepmood.kr/api/cart', {
+      const response = await fetch(`${API_BASE}/cart`, {
         credentials: 'include'
       });
       const data = await response.json();
@@ -258,7 +265,7 @@ class MiniCart {
     }
 
     try {
-      const response = await fetch('https://prepmood.kr/api/cart/add', {
+      const response = await fetch(`${API_BASE}/cart/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -293,7 +300,7 @@ class MiniCart {
     if (!this.isLoggedIn) return;
 
     try {
-      const response = await fetch(`https://prepmood.kr/api/cart/item/${itemId}`, {
+      const response = await fetch(`${API_BASE}/cart/item/${itemId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -324,7 +331,7 @@ class MiniCart {
     }
 
     try {
-      const response = await fetch(`https://prepmood.kr/api/cart/item/${itemId}`, {
+      const response = await fetch(`${API_BASE}/cart/item/${itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -474,7 +481,7 @@ class MiniCart {
     }
 
     try {
-      const response = await fetch('https://prepmood.kr/api/cart/clear', {
+      const response = await fetch(`${API_BASE}/cart/clear`, {
         method: 'DELETE',
         credentials: 'include'
       });

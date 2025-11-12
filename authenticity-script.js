@@ -1,10 +1,16 @@
 // API 기본 URL 설정
-const API_BASE_URL = window.location.origin;
+const ORIGIN_BASE = (window.location && window.location.origin)
+    ? window.location.origin.replace(/\/$/, '')
+    : '';
+const API_BASE = (window.API_BASE)
+    ? window.API_BASE
+    : (ORIGIN_BASE ? `${ORIGIN_BASE}/api` : '/api');
+const API_BASE_URL = ORIGIN_BASE || '';
 
 // 사용자 이메일 가져오기 (JWT 기반)
 async function getUserEmail() {
     try {
-        const response = await fetch('https://prepmood.kr/api/auth/me', {
+        const response = await fetch(`${API_BASE}/auth/me`, {
             credentials: 'include'
         });
         
@@ -277,7 +283,7 @@ async function registerProduct(serial) {
     
     try {
         const code = codeInput.value.trim();
-        const response = await fetch(`${API_BASE_URL}/api/qrcode/register`, {
+        const response = await fetch(`${API_BASE}/qrcode/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

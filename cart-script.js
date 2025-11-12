@@ -1,4 +1,11 @@
 // 장바구니 페이지 스크립트
+
+const API_BASE = (window.API_BASE)
+  ? window.API_BASE
+  : ((window.location && window.location.origin)
+      ? window.location.origin.replace(/\/$/, '') + '/api'
+      : '/api');
+
 document.addEventListener('DOMContentLoaded', function() {
   Logger.log('🛒 장바구니 페이지 로드됨');
   
@@ -144,7 +151,7 @@ async function renderCartItems() {
   // 직접 서버에서 장바구니 데이터 로드
   let cartItems = [];
   try {
-    const response = await fetch('https://prepmood.kr/api/cart', {
+    const response = await fetch(`${API_BASE}/cart`, {
       credentials: 'include'
     });
     const data = await response.json();
@@ -327,7 +334,7 @@ async function saveCartItemEdit() {
   
   try {
     // API로 수정 요청
-    const response = await fetch(`https://prepmood.kr/api/cart/${currentEditingItem.item_id}`, {
+    const response = await fetch(`${API_BASE}/cart/${currentEditingItem.item_id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'

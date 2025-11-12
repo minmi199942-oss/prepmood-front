@@ -1,4 +1,10 @@
 // my-orders.js - 주문 내역 페이지 스크립트
+const API_BASE = (window.API_BASE)
+  ? window.API_BASE
+  : ((window.location && window.location.origin)
+      ? window.location.origin.replace(/\/$/, '') + '/api'
+      : '/api');
+
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('주문 내역 페이지 로드됨');
   
@@ -16,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 // 로그인 상태 확인
 async function checkLoginStatus() {
   try {
-    const response = await fetch('https://prepmood.kr/api/auth/me', {
+    const response = await fetch(`${API_BASE}/auth/me`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -35,7 +41,7 @@ async function checkLoginStatus() {
 // 주문 내역 로드
 async function loadOrders() {
   try {
-    const response = await fetch('https://prepmood.kr/api/orders', {
+    const response = await fetch(`${API_BASE}/orders`, {
       method: 'GET',
       credentials: 'include'
     });

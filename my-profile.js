@@ -1,4 +1,9 @@
 // 마이프로필 페이지 JavaScript
+const API_BASE = (window.API_BASE)
+    ? window.API_BASE
+    : ((window.location && window.location.origin)
+        ? window.location.origin.replace(/\/$/, '') + '/api'
+        : '/api');
 
 document.addEventListener('DOMContentLoaded', async function() {
     // 로그인 상태 확인
@@ -18,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 async function checkLoginStatus() {
     try {
         // 서버에 인증 상태 확인
-        const response = await fetch('https://prepmood.kr/api/auth/me', {
+        const response = await fetch(`${API_BASE}/auth/me`, {
             credentials: 'include'  // httpOnly 쿠키 포함
         });
         
@@ -56,7 +61,7 @@ async function checkLoginStatus() {
 // 사용자 정보 표시 (JWT 기반) - 401 오류 처리 개선
 async function displayUserInfo() {
     try {
-        const response = await fetch('https://prepmood.kr/api/auth/me', {
+        const response = await fetch(`${API_BASE}/auth/me`, {
             credentials: 'include'
         });
         
@@ -220,7 +225,7 @@ async function handlePersonalInfoSubmit(e) {
     
     try {
         // JWT 기반으로 사용자 정보 가져오기 - 401 오류 처리 개선
-        const userResponse = await fetch('https://prepmood.kr/api/auth/me', {
+        const userResponse = await fetch(`${API_BASE}/auth/me`, {
             credentials: 'include'
         });
         
@@ -246,7 +251,7 @@ async function handlePersonalInfoSubmit(e) {
         try {
             Logger.log('서버 API 호출 준비:', { userId: userData.user.userId, name, phone, birthdate });
             
-            const response = await fetch('https://prepmood.kr/api/update-profile', {
+            const response = await fetch(`${API_BASE}/update-profile`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -442,7 +447,7 @@ async function handleEmailSubmit(e) {
     
     try {
         // JWT 기반으로 사용자 정보 가져오기 - 401 오류 처리 개선
-        const userResponse = await fetch('https://prepmood.kr/api/auth/me', {
+        const userResponse = await fetch(`${API_BASE}/auth/me`, {
             credentials: 'include'
         });
         
@@ -464,7 +469,7 @@ async function handleEmailSubmit(e) {
             return;
         }
         
-        const response = await fetch('https://prepmood.kr/api/update-email', {
+        const response = await fetch(`${API_BASE}/update-email`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -512,7 +517,7 @@ async function handlePasswordSubmit(e) {
     
     try {
         // JWT 기반으로 사용자 정보 가져오기 - 401 오류 처리 개선
-        const userResponse = await fetch('https://prepmood.kr/api/auth/me', {
+        const userResponse = await fetch(`${API_BASE}/auth/me`, {
             credentials: 'include'
         });
         
@@ -534,7 +539,7 @@ async function handlePasswordSubmit(e) {
             return;
         }
         
-        const response = await fetch('https://prepmood.kr/api/update-password', {
+        const response = await fetch(`${API_BASE}/update-password`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
