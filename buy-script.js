@@ -267,7 +267,7 @@
   }
 
   // 장바구니 추가
-  function addToCart() {
+  async function addToCart() {
     Logger.log('🛒 addToCart 함수 호출됨!');
     Logger.log('현재 상태:', {
       currentProduct: !!currentProduct,
@@ -279,7 +279,7 @@
     if (!currentProduct) {
       Logger.log('❌ 제품 정보 없음');
       alert('제품 정보를 불러올 수 없습니다.');
-      return;
+      return false;
     }
 
     // 에러 메시지 초기화
@@ -294,13 +294,13 @@
     if (!isAccessory && !selectedSize) {
       Logger.log('❌ 사이즈 선택 안 함');
       showErrorMessage('size-error', '사이즈를 선택해야합니다.');
-      return;
+      return false;
     }
     
     if (!selectedColor) {
       Logger.log('❌ 색상 선택 안 함');
       showErrorMessage('color-error', '색상을 선택해야합니다.');
-      return;
+      return false;
     }
     
     // 액세서리의 경우 사이즈를 'Free'로 자동 설정
@@ -320,23 +320,27 @@
 
     // miniCart 인스턴스가 있는지 확인
     if (window.miniCart) {
-      window.miniCart.addToCart(productToAdd);
-      Logger.log('✅ 장바구니에 추가됨:', productToAdd);
-      
-      // 미니 카트 열기
-      window.miniCart.toggleMiniCart();
-      
-      // 성공 메시지 (알림 대신 미니 카트로 표시)
-      Logger.log(`장바구니에 추가되었습니다.\n제품: ${currentProduct.name}\n사이즈: ${selectedSize}\n색상: ${selectedColor}`);
+      const added = await window.miniCart.addToCart(productToAdd);
+      if (added) {
+        Logger.log('✅ 장바구니에 추가됨:', productToAdd);
+        
+        // 미니 카트 열기
+        window.miniCart.toggleMiniCart();
+        
+        // 성공 메시지 (알림 대신 미니 카트로 표시)
+        Logger.log(`장바구니에 추가되었습니다.\n제품: ${currentProduct.name}\n사이즈: ${selectedSize}\n색상: ${selectedColor}`);
+        return true;
+      }
+      return false;
     } else {
       console.error('❌ MiniCart가 초기화되지 않았습니다!');
       alert('장바구니를 사용할 수 없습니다. 페이지를 새로고침해주세요.');
-      return;
+      return false;
     }
   }
 
   // 빠른 구매
-  function quickBuy() {
+  async function quickBuy() {
     // 액세서리 체크
     const isAccessory = currentProduct && (
       currentProduct.category === 'accessories' || 
@@ -349,13 +353,22 @@
       return;
     }
 
+    // 로그인 상태 확인
+    if (!(await isLoggedIn())) {
+      alert('로그인이 필요한 서비스입니다.\n로그인 페이지로 이동합니다.');
+      window.location.href = 'login.html';
+      return;
+    }
+
     // 장바구니에 추가하고 결제 페이지로 이동
-    addToCart();
+    const added = await addToCart();
     
-    // 추후 결제 페이지 구현 시 주석 해제
-    // window.location.href = 'checkout.html';
-    
-    alert('빠른 구매 기능은 준비 중입니다.\n장바구니에 추가되었습니다.');
+    if (added) {
+      // 추후 결제 페이지 구현 시 주석 해제
+      // window.location.href = 'checkout.html';
+      
+      alert('빠른 구매 기능은 준비 중입니다.\n장바구니에 추가되었습니다.');
+    }
   }
 
   // 로그인 상태 확인 (JWT 기반) - 401 오류 처리 개선

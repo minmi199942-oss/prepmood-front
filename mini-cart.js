@@ -261,7 +261,7 @@ class MiniCart {
     if (!isLoggedIn) {
       alert('로그인이 필요한 서비스입니다.');
       window.location.href = 'login.html';
-      return;
+      return false;
     }
 
     try {
@@ -287,12 +287,15 @@ class MiniCart {
         this.updateCartDisplay();
         this.renderMiniCart();
         Logger.log('✅ 장바구니에 추가됨:', data.message);
+        return true;
       } else {
         alert(data.message || '장바구니 추가에 실패했습니다.');
+        return false;
       }
     } catch (error) {
       console.error('❌ 장바구니 추가 오류:', error);
       alert('서버와의 통신에 실패했습니다.');
+      return false;
     }
   }
 
