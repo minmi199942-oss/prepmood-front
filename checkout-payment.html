@@ -32,14 +32,13 @@
       <span>3. 주문 확인</span>
     </div>
 
-    <div class="checkout-payment-container">
-      <!-- 좌측: 결제 방법 선택 (2:1 비율) -->
-      <div class="checkout-payment-form">
-        <div class="checkout-payment-header">
-          <h1 class="checkout-payment-title">2. 결제 방법을 선택해 주세요.</h1>
-        </div>
-        
-        <!-- 결제 방법 선택 -->
+    <div class="checkout-payment-layout">
+      <section class="checkout-payment-main" aria-labelledby="checkout-payment-title">
+        <header class="checkout-payment-header">
+          <h1 class="checkout-payment-title" id="checkout-payment-title">2. 결제 방법을 선택해 주세요.</h1>
+          <p class="checkout-payment-subtitle">사용할 결제 수단을 선택한 뒤 ‘확인 및 진행’을 눌러 결제를 계속 진행해주세요.</p>
+        </header>
+
         <div class="payment-methods-wrapper">
           <div class="payment-methods" id="payment-methods" role="radiogroup" aria-label="결제 방법 선택">
             <label class="payment-option-card" tabindex="0">
@@ -51,19 +50,19 @@
                   </span>
                   <span class="payment-name">
                     <strong>토스페이먼츠</strong>
-                    <span>카드 · 간편결제</span>
+                    <span>카드 · 계좌이체 · 간편결제</span>
                   </span>
                 </span>
+                <span class="payment-method-badge">선택됨</span>
               </span>
             </label>
           </div>
         </div>
-        
-        <!-- 확인 및 진행 버튼 (데스크톱) -->
-        <div class="checkout-actions-desktop">
+
+        <div class="checkout-actions-desktop checkout-actions">
           <button class="proceed-btn" id="proceed-payment-desktop" type="button">확인 및 진행</button>
         </div>
-      </div>
+      </section>
 
       <!-- 우측: 주문 요약 (sticky, max-width 360px) -->
       <aside class="order-summary-section" role="complementary" aria-label="주문 요약">

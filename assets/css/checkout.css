@@ -97,7 +97,8 @@
 
 /* ===== 체크아웃 액션 ===== */
 .checkout-actions {
-  margin-top: 20px;
+  margin-top: 8px;
+  text-align: left;
 }
 
 .complete-order-btn {
@@ -330,19 +331,21 @@
 }
 
 /* 2:1 그리드 컨테이너 */
-.checkout-payment-container {
-  max-width: 1400px;
+.checkout-payment-layout {
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 clamp(16px, 3vw, 32px) 120px;
+  padding: 40px clamp(16px, 4vw, 32px) 100px;
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: clamp(48px, 7vw, 96px);
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  gap: clamp(48px, 6vw, 96px);
   align-items: flex-start;
 }
 
 /* 좌측: 결제 방법 선택 */
-.checkout-payment-form {
-  padding-top: 0;
+.checkout-payment-main {
+  display: flex;
+  flex-direction: column;
+  max-width: 560px;
 }
 
 .checkout-payment-header {
@@ -350,12 +353,18 @@
 }
 
 .checkout-payment-title {
-  font-size: clamp(20px, 2.8vw, 26px);
-  font-weight: 400;
+  font-size: clamp(20px, 2.6vw, 24px);
+  font-weight: 600;
   color: #111;
-  margin: 0;
+  margin: 0 0 12px 0;
   letter-spacing: 0.02em;
-  line-height: 1.5;
+}
+
+.checkout-payment-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #777;
+  line-height: 1.6;
 }
 
 /* 결제 방법 카드형 라디오 */
@@ -367,7 +376,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-width: 480px;
+  width: 100%;
 }
 
 .payment-option-card {
@@ -486,8 +495,7 @@
 
 /* 확인 및 진행 버튼 (데스크톱) */
 .checkout-actions-desktop {
-  margin-top: 0;
-  max-width: 480px;
+  margin-top: 12px;
 }
 
 .proceed-btn {
@@ -704,7 +712,7 @@
 
 /* 반응형: 태블릿 이하 */
 @media (max-width: 1024px) {
-  .checkout-payment-container {
+  .checkout-payment-layout {
     grid-template-columns: 1fr;
     gap: 48px;
   }
@@ -714,7 +722,8 @@
   }
 
   .payment-methods,
-  .checkout-actions-desktop {
+  .checkout-actions-desktop,
+  .checkout-payment-main {
     max-width: none;
   }
 
@@ -744,7 +753,7 @@
     font-size: 12px;
   }
   
-  .checkout-payment-container {
+  .checkout-payment-layout {
     padding-bottom: 80px;
     gap: 32px;
   }
