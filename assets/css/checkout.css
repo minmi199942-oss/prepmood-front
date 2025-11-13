@@ -332,12 +332,12 @@
 
 /* 2:1 그리드 컨테이너 */
 .checkout-payment-layout {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 40px clamp(16px, 4vw, 32px) 100px;
+  padding: 40px clamp(24px, 6vw, 64px) 100px;
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
-  gap: clamp(48px, 6vw, 96px);
+  grid-template-columns: minmax(0, 2.5fr) minmax(360px, 1fr);
+  gap: clamp(48px, 6vw, 88px);
   align-items: flex-start;
 }
 
@@ -345,7 +345,7 @@
 .checkout-payment-main {
   display: flex;
   flex-direction: column;
-  max-width: 560px;
+  max-width: 640px;
 }
 
 .checkout-payment-header {
@@ -397,7 +397,7 @@
   justify-content: space-between;
   gap: clamp(16px, 3vw, 32px);
   width: 100%;
-  padding: 16px 20px;
+  padding: 18px 24px;
   border: 1px solid #d9d9d9;
   border-radius: 0;
   background: transparent;
@@ -416,12 +416,12 @@
 .payment-radio {
   width: 18px;
   height: 18px;
-  border: 1px solid #bbb;
+  border: 1px solid #b5b5b5;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-right: 16px;
+  margin-right: 18px;
   transition: border-color 0.2s ease;
 }
 
@@ -471,8 +471,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
 }
 
 .payment-logo img {
@@ -535,7 +535,7 @@
 /* 우측: 주문 요약 (sticky, max-width 360px) */
 .order-summary-section {
   position: sticky;
-  top: calc(var(--header-height, 72px) + 24px);
+  top: calc(var(--header-height, 72px) + 32px);
   max-width: 360px;
   margin-left: auto;
 }
@@ -580,9 +580,9 @@
 }
 
 .order-item img {
-  width: 72px;
-  height: 72px;
-  min-width: 72px;
+  width: 96px;
+  height: 96px;
+  min-width: 96px;
   object-fit: cover;
   background: #f5f5f5;
 }
@@ -717,6 +717,7 @@
   .checkout-payment-layout {
     grid-template-columns: 1fr;
     gap: 48px;
+    padding: 32px clamp(20px, 6vw, 48px) 80px;
   }
 
   .checkout-payment-header {
@@ -730,7 +731,7 @@
   }
 
   .payment-option-card {
-    padding: 18px 20px;
+    padding: 0;
   }
   
   .order-summary-section {
@@ -756,7 +757,7 @@
   }
   
   .checkout-payment-layout {
-    padding-bottom: 80px;
+    padding-bottom: 70px;
     gap: 32px;
   }
   
@@ -770,7 +771,7 @@
   }
   
   .payment-option-card {
-    padding: 16px;
+    padding: 0;
   }
   
   .order-summary {
@@ -794,7 +795,7 @@
   }
   
   .payment-option-card {
-    padding: 16px;
+    padding: 0;
   }
 }
 

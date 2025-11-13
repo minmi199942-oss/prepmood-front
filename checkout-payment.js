@@ -138,6 +138,30 @@ function bindEventListeners(data) {
   // 모바일 버튼
   const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
   
+  const paymentRadios = document.querySelectorAll('input[name="payment"]');
+
+  const updateSelectionState = () => {
+    const checkedRadio = document.querySelector('input[name="payment"]:checked');
+    const isSelected = !!checkedRadio;
+
+    if (proceedBtnDesktop) {
+      proceedBtnDesktop.disabled = !isSelected;
+    }
+    if (proceedBtnMobile) {
+      proceedBtnMobile.disabled = !isSelected;
+    }
+
+    paymentRadios.forEach(radio => {
+      radio.setAttribute('aria-checked', radio.checked ? 'true' : 'false');
+    });
+  };
+
+  paymentRadios.forEach(radio => {
+    radio.addEventListener('change', updateSelectionState);
+  });
+
+  updateSelectionState();
+
   const handlePayment = async function() {
     console.log('💳 결제 진행 시작');
     
