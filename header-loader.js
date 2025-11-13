@@ -32,10 +32,10 @@ function removeAdminLink() {
 }
 
 function checkAdminAccess() {
-  fetch('/api/admin/check', { credentials: 'include' })
+  fetch('/api/admin/status', { credentials: 'include' })
     .then(function(res) {
       if (!res.ok) {
-        throw new Error('NOT_ADMIN');
+        return { success: false, admin: false };
       }
       return res.json();
     })

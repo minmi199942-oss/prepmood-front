@@ -3,6 +3,24 @@
 const jwt = require('jsonwebtoken');
 const Logger = require('./logger');
 
+function isAdminEmail(email) {
+    if (!email) return false;
+
+    const adminEmailsString = process.env.ADMIN_EMAILS || '';
+    const adminEmails = adminEmailsString
+        .split(',')
+        .map(e => e.toLowerCase().trim())
+        .filter(e => e.length > 0);
+
+    if (adminEmails.length === 0) {
+        Logger.log('[SECURITY] ⚠️ ADMIN_EMAILS 환경변수가 설정되지 않았습니다!', {
+            env: process.env.NODE_ENV
+        });
+    }
+
+    return adminEmails.includes(email.toLowerCase().trim());
+}
+
 /**
  * JWT 토큰 인증 미들웨어
  * - httpOnly 쿠키에서 accessToken 추출
@@ -174,29 +192,9 @@ function requireAdmin(req, res, next) {
         });
     }
     
-    // 2단계: 관리자 이메일 목록 확인
-    const userEmail = req.user.email.toLowerCase().trim();
-    const adminEmailsString = process.env.ADMIN_EMAILS || '';
-    const adminEmails = adminEmailsString
-        .split(',')
-        .map(email => email.toLowerCase().trim())
-        .filter(email => email.length > 0);
-    
-    // 관리자 이메일이 설정되지 않은 경우 경고
-    if (adminEmails.length === 0) {
-        Logger.log('[SECURITY] ⚠️ ADMIN_EMAILS 환경변수가 설정되지 않았습니다!', {
-            env: process.env.NODE_ENV
-        });
-        
-        return res.status(500).json({
-            success: false,
-            message: '서버 설정 오류입니다. 관리자에게 문의하세요.',
-            code: 'SERVER_CONFIG_ERROR'
-        });
-    }
-    
-    // 3단계: 권한 확인
-    if (!adminEmails.includes(userEmail)) {
+    const userEmail = req.user.email;
+
+    if (!isAdminEmail(userEmail)) {
         Logger.log('[SECURITY] 🚫 관리자 페이지 접근 거부 - 권한 없음', {
             email: userEmail,
             ip: req.ip,
@@ -229,6 +227,7 @@ module.exports = {
     generateToken,
     setTokenCookie,
     clearTokenCookie,
-    requireAdmin  // 추가
+    requireAdmin,
+    isAdminEmail
 };
 

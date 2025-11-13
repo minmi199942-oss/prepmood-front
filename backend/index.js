@@ -7,7 +7,7 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const { sendVerificationEmail, testConnection } = require('./mailer');
-const { authenticateToken, optionalAuth, generateToken, setTokenCookie, clearTokenCookie, requireAdmin } = require('./auth-middleware');
+const { authenticateToken, optionalAuth, generateToken, setTokenCookie, clearTokenCookie, requireAdmin, isAdminEmail } = require('./auth-middleware');
 const { issueCSRFToken, verifyCSRF } = require('./csrf-middleware');
 const { cleanupIdempotency } = require('./idempotency-cleanup');
 const Logger = require('./logger');
@@ -1217,6 +1217,17 @@ app.get('/api/admin/check', authenticateToken, requireAdmin, (req, res) => {
         admin: true,
         email: req.user.email,
         name: req.user.name
+    });
+});
+
+app.get('/api/admin/status', optionalAuth, (req, res) => {
+    const email = req.user?.email || null;
+    const admin = isAdminEmail(email);
+
+    res.json({
+        success: true,
+        authenticated: !!email,
+        admin
     });
 });
 
