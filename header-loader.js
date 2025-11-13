@@ -301,14 +301,9 @@ function initializeMypageFunctionality() {
 
   async function checkLoginStatus() {
     try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/me`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/status`, {
         credentials: 'include'
       });
-
-      if (response.status === 401) {
-        setLoggedOutState();
-        return;
-      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -316,7 +311,7 @@ function initializeMypageFunctionality() {
 
       const data = await response.json();
 
-      if (data.success && data.user) {
+      if (data.success && data.authenticated && data.user) {
         mypageToggle.href = '#';
         mypageIcon.src = 'image/loginmypage.jpg';
         mypageIcon.classList.add('mypage-icon-logged-in');

@@ -210,15 +210,9 @@ class MiniCart {
   // 로그인 상태 확인 - 401 오류 처리 개선 (정상적인 동작)
   async checkLoginStatus() {
     try {
-      const response = await fetch(`${API_BASE}/auth/me`, {
+      const response = await fetch(`${API_BASE}/auth/status`, {
         credentials: 'include'
       });
-      
-      // 401 오류인 경우 로그인하지 않은 것으로 처리 (정상적인 동작)
-      if (response.status === 401) {
-        this.isLoggedIn = false;
-        return false;
-      }
       
       if (!response.ok) {
         this.isLoggedIn = false;
@@ -226,7 +220,7 @@ class MiniCart {
       }
       
       const data = await response.json();
-      this.isLoggedIn = data.success && data.user;
+      this.isLoggedIn = data.success && data.authenticated && !!data.user;
       return this.isLoggedIn;
     } catch (error) {
       this.isLoggedIn = false;

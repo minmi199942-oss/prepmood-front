@@ -5,7 +5,7 @@ const API_BASE = (window.API_BASE)
       ? window.location.origin.replace(/\/$/, '') + '/api'
       : '/api');
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   console.log('✅ 주문 완료 페이지 로드됨');
   
   // URL 파라미터 확인
@@ -13,16 +13,27 @@ document.addEventListener('DOMContentLoaded', function() {
   const paymentKey = urlParams.get('paymentKey');
   const orderId = urlParams.get('orderId'); // 토스페이먼츠 successUrl에서 orderId로 전달
   const amount = urlParams.get('amount');
+
+  const authStatus = await fetchAuthStatus();
+  const isAuthenticated = authStatus?.authenticated;
   
   // 토스페이먼츠 success URL에서 온 경우 (paymentKey가 있으면)
   if (paymentKey && orderId && amount) {
     console.log('💳 토스페이먼츠 결제 성공 URL 감지:', { paymentKey, orderId, amount });
+    if (!isAuthenticated) {
+      showOrderError('결제 확인을 위해 로그인이 필요합니다. 로그인 후 다시 시도해주세요.');
+      return;
+    }
     handleTossPaymentSuccess(paymentKey, orderId, amount);
     return;
   }
   
   // 일반 주문 완료 페이지 (orderId만 있는 경우)
   if (orderId) {
+    if (!isAuthenticated) {
+      showOrderError('주문 정보를 확인하려면 로그인이 필요합니다.');
+      return;
+    }
     loadOrderDetails(orderId);
   } else {
     console.warn('⚠️ 주문 ID가 없습니다');
@@ -30,6 +41,21 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('order-info-section').style.display = 'none';
   }
 });
+
+async function fetchAuthStatus() {
+  try {
+    const response = await window.secureFetch(`${API_BASE}/auth/status`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error(`status ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.warn('auth status 확인 실패', error.message);
+    return { authenticated: false };
+  }
+}
 
 async function loadOrderDetails(orderId) {
   try {

@@ -1231,6 +1231,26 @@ app.get('/api/admin/status', optionalAuth, (req, res) => {
     });
 });
 
+app.get('/api/auth/status', optionalAuth, (req, res) => {
+    if (req.user) {
+        return res.json({
+            success: true,
+            authenticated: true,
+            user: {
+                userId: req.user.userId,
+                email: req.user.email,
+                name: req.user.name
+            }
+        });
+    }
+
+    return res.json({
+        success: true,
+        authenticated: false,
+        user: null
+    });
+});
+
 /**
  * GET /api/admin/orders
  * 주문 목록 조회 (관리자 전용)
