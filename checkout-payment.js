@@ -6,8 +6,40 @@ const API_BASE = (window.API_BASE)
       ? window.location.origin.replace(/\/$/, '') + '/api'
       : '/api');
 
+const TOSS_ERROR_MESSAGES = {
+  USER_CANCEL: '결제가 취소되었습니다.',
+  USER_ACCOUNT_FROZEN: '해당 계정은 일시적으로 결제가 제한되었습니다.',
+  EXCEED_PAYMENT_LIMIT: '결제 한도를 초과했습니다.',
+  EXCEED_DAILY_LIMIT: '일일 결제 한도를 초과했습니다.',
+  EXCEED_MONTHLY_LIMIT: '월 결제 한도를 초과했습니다.',
+  INSUFFICIENT_FUNDS: '잔액이 부족합니다.',
+  INVALID_CARD: '유효하지 않은 카드 정보입니다.',
+  REJECT_CARD: '카드사가 결제를 거절했습니다.',
+  REJECTED_3DS: '3D 인증이 거절되었습니다. 다른 카드로 시도해주세요.',
+  FAILED_3DS: '3D 인증에 실패했습니다. 다시 시도해주세요.',
+  PAY_PROCESS_CANCELED: '결제가 취소되었습니다.',
+  PAY_PROCESS_TIMEOUT: '결제가 제한 시간 안에 완료되지 않았습니다.',
+  NETWORK_ERROR: '네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+  INTERNAL_SERVER_ERROR: '결제 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+  INVALID_REQUEST: '결제 요청 정보가 올바르지 않습니다.'
+};
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('💳 3단계: 결제 방법 선택 페이지 로드됨');
+  
+  // URL 파라미터 확인 (토스페이먼츠 fail URL 처리)
+  const urlParams = new URLSearchParams(window.location.search);
+  const failStatus = urlParams.get('status');
+  const failCode = urlParams.get('code');
+  const failMessage = urlParams.get('message');
+  
+  // 결제 실패 URL에서 온 경우
+  if (failStatus === 'fail' || failCode) {
+    console.warn('⚠️ 결제 실패 URL 감지:', { failStatus, failCode, failMessage });
+    showPaymentFailureMessage(failCode, failMessage);
+    // URL에서 실패 파라미터 제거 (뒤로가기 시 재표시 방지)
+    window.history.replaceState({}, '', window.location.pathname);
+  }
   
   // 세션 스토리지에서 배송 데이터 가져오기
   const shippingDataStr = sessionStorage.getItem('checkoutShippingData');
@@ -137,13 +169,16 @@ function bindEventListeners(data) {
 }
 
 async function proceedWithTossPayment(data) {
+  // 버튼 참조를 함수 스코프 상단에서 선언 (finally에서 접근 가능하도록)
+  const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
+  const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
+  const originalDesktopText = proceedBtnDesktop?.textContent || '확인 및 진행';
+  const originalMobileText = proceedBtnMobile?.textContent || '확인 및 진행';
+  
   try {
     console.log('💳 토스페이먼츠 결제 진행...');
     
     // 버튼 비활성화 (데스크톱 + 모바일 모두)
-    const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
-    const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
-    
     if (proceedBtnDesktop) {
       proceedBtnDesktop.disabled = true;
       proceedBtnDesktop.textContent = '처리 중...';
@@ -243,30 +278,94 @@ async function proceedWithTossPayment(data) {
       // }
     }
     
-    // 3. 장바구니 비우기
-    window.miniCart.clearCart();
+    // 3. 장바구니 동기화 (서버가 정리 후 최신 상태 반영)
+    if (window.miniCart && typeof window.miniCart.sync === 'function') {
+      await window.miniCart.sync();
+    }
     
     // 4. 주문 완료 페이지로 이동
+    // 성공 시 리다이렉트되므로 버튼 복구 불필요
     window.location.href = `order-complete.html?orderId=${orderNumber}`;
     
   } catch (error) {
     console.error('❌ 결제 처리 실패:', error);
-    alert('결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     
-    // 버튼 복구 (데스크톱 + 모바일 모두)
-    const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
-    const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
-    
-    if (proceedBtnDesktop) {
+    let errorMessage = '결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+    if (error.message) {
+      errorMessage = error.message;
+    }
+
+    if (window.showGlobalErrorBanner) {
+      window.showGlobalErrorBanner({
+        title: '결제 처리 실패',
+        message: errorMessage,
+        onRetry: () => proceedWithTossPayment(data)
+      });
+    } else {
+      alert(errorMessage);
+    }
+  } finally {
+    // 에러 발생 시 항상 버튼 복구 (리다이렉트되지 않은 경우에만)
+    // window.location.href로 이동하면 이 코드는 실행되지 않지만, 안전을 위해 추가
+    if (proceedBtnDesktop && proceedBtnDesktop.disabled) {
       proceedBtnDesktop.disabled = false;
-      proceedBtnDesktop.textContent = '확인 및 진행';
+      proceedBtnDesktop.textContent = originalDesktopText;
     }
     
-    if (proceedBtnMobile) {
+    if (proceedBtnMobile && proceedBtnMobile.disabled) {
       proceedBtnMobile.disabled = false;
-      proceedBtnMobile.textContent = '확인 및 진행';
+      proceedBtnMobile.textContent = originalMobileText;
     }
   }
+}
+
+/**
+ * 결제 실패 메시지 표시
+ */
+function showPaymentFailureMessage(code, message) {
+  const resolvedMessage = (() => {
+    if (message) {
+      try {
+        return decodeURIComponent(message);
+      } catch (e) {
+        return message;
+      }
+    }
+    if (code && TOSS_ERROR_MESSAGES[code]) {
+      return TOSS_ERROR_MESSAGES[code];
+    }
+    if (code) {
+      return `결제 실패 (코드: ${code})`;
+    }
+    return '결제에 실패했습니다.';
+  })();
+
+  if (window.showGlobalErrorBanner) {
+    window.showGlobalErrorBanner({
+      title: '결제를 완료할 수 없습니다',
+      message: resolvedMessage,
+      onRetry: () => {
+        const desktopBtn = document.getElementById('proceed-payment-desktop');
+        if (desktopBtn && !desktopBtn.disabled) {
+          desktopBtn.click();
+          return;
+        }
+        const mobileBtn = document.getElementById('proceed-payment-mobile');
+        if (mobileBtn && !mobileBtn.disabled) {
+          mobileBtn.click();
+        }
+      }
+    });
+  } else {
+    alert(resolvedMessage);
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // UUID v4 생성 함수

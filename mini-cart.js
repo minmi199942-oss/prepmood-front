@@ -474,6 +474,25 @@ class MiniCart {
     return this.cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   }
 
+  async sync() {
+    try {
+      await this.checkLoginStatus();
+      if (!this.isLoggedIn) {
+        this.cartItems = [];
+        this.updateCartDisplay();
+        this.renderMiniCart();
+        Logger.log('🛒 sync: 로그인하지 않아 장바구니를 비웠습니다.');
+        return;
+      }
+      await this.loadCartFromServer();
+      this.updateCartDisplay();
+      this.renderMiniCart();
+      Logger.log('🛒 sync: 서버 상태와 장바구니 동기화 완료');
+    } catch (error) {
+      console.error('❌ 장바구니 동기화 실패:', error);
+    }
+  }
+
   // 장바구니 비우기
   async clearCart() {
     if (!this.isLoggedIn) {
@@ -506,6 +525,8 @@ class MiniCart {
       this.updateCartDisplay();
       this.renderMiniCart();
     }
+
+    await this.sync();
   }
 }
 

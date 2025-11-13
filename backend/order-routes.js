@@ -363,8 +363,8 @@ const dbConfig = {
     queueLimit: 0
 };
 
-// 주문 생성 API (CSRF 검증 비활성화 - 테스트 용도)
-router.post('/orders', authenticateToken, orderCreationLimiter, async (req, res) => {
+// 주문 생성 API
+router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, async (req, res) => {
     let connection;
     try {
         // 0) Idempotency-Key 처리 (중복 생성 방지)

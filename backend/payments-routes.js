@@ -61,7 +61,7 @@ const dbConfig = {
  * 4. payments 테이블에 저장 (status = 'captured' 또는 'authorized')
  * 5. 주문 상태 업데이트 ('confirmed' 또는 'processing' / 실패 시 'failed')
  */
-router.post('/payments/confirm', authenticateToken, async (req, res) => {
+router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res) => {
     let connection;
     try {
         const { orderNumber, paymentKey, amount } = req.body;
@@ -124,23 +124,56 @@ router.post('/payments/confirm', authenticateToken, async (req, res) => {
         }
 
         const order = orderRows[0];
-
-        // 주문 상태 확인 (이미 처리된 주문인지)
-        if (order.status === 'confirmed' || order.status === 'completed') {
-            await connection.rollback();
-            await connection.end();
-            return res.status(400).json({
-                code: 'VALIDATION_ERROR',
-                details: {
-                    field: 'status',
-                    message: '이미 처리된 주문입니다.'
-                }
-            });
-        }
+        const normalizedStatus = (order.status || '').toLowerCase();
+        const alreadyProcessedStatuses = new Set(['confirmed', 'completed', 'processing', 'paid']);
 
         // 2. 서버에서 최종 금액 재계산
         // order.total_price와 클라이언트 금액 비교 (클라이언트 금액 신뢰 금지)
         const serverAmount = parseFloat(order.total_price);
+        const currency = order.shipping_country === 'KR' ? 'KRW' : 
+                        order.shipping_country === 'US' ? 'USD' : 
+                        order.shipping_country === 'JP' ? 'JPY' : 'KRW';
+
+        if (alreadyProcessedStatuses.has(normalizedStatus)) {
+            const [existingPaymentRows] = await connection.execute(
+                `SELECT status, amount, currency FROM payments
+                 WHERE order_number = ?
+                 ORDER BY created_at DESC
+                 LIMIT 1`,
+                [orderNumber]
+            );
+
+            const existingPaymentStatus = existingPaymentRows.length ? existingPaymentRows[0].status : 'captured';
+            const existingCurrency = existingPaymentRows.length && existingPaymentRows[0].currency
+                ? existingPaymentRows[0].currency
+                : currency;
+
+            const [cartCountRows] = await connection.execute(
+                `SELECT COUNT(*) AS itemCount
+                 FROM cart_items ci
+                 INNER JOIN carts c ON ci.cart_id = c.cart_id
+                 WHERE c.user_id = ?`,
+                [userId]
+            );
+
+            const cartCleared = (cartCountRows[0].itemCount || 0) === 0;
+
+            await connection.rollback();
+            await connection.end();
+
+            return res.json({
+                success: true,
+                data: {
+                    order_number: orderNumber,
+                    amount: serverAmount,
+                    currency: existingCurrency,
+                    payment_status: existingPaymentStatus,
+                    alreadyConfirmed: true,
+                    cartCleared
+                }
+            });
+        }
+
         if (Math.abs(serverAmount - clientAmount) > 0.01) { // 부동소수점 오차 허용
             await connection.rollback();
             await connection.end();
@@ -157,11 +190,6 @@ router.post('/payments/confirm', authenticateToken, async (req, res) => {
                 }
             });
         }
-
-        // 통화 결정 (주문의 배송 국가 기반)
-        const currency = order.shipping_country === 'KR' ? 'KRW' : 
-                        order.shipping_country === 'US' ? 'USD' : 
-                        order.shipping_country === 'JP' ? 'JPY' : 'KRW';
 
         // 결제 모드 확인 (MOCK_GATEWAY=1이면 모의 결제)
         const isMockMode = process.env.MOCK_GATEWAY === '1';
@@ -297,6 +325,24 @@ router.post('/payments/confirm', authenticateToken, async (req, res) => {
             [orderStatus, orderNumber]
         );
 
+        let cartCleared = false;
+        if (userId) {
+            try {
+                await connection.execute(
+                    `DELETE ci FROM cart_items ci
+                     INNER JOIN carts c ON ci.cart_id = c.cart_id
+                     WHERE c.user_id = ?`,
+                    [userId]
+                );
+                cartCleared = true;
+            } catch (cartError) {
+                Logger.log('[payments][confirm] 장바구니 정리 중 오류', {
+                    userId,
+                    error: cartError.message
+                });
+            }
+        }
+
         await connection.commit();
         await connection.end();
 
@@ -304,7 +350,8 @@ router.post('/payments/confirm', authenticateToken, async (req, res) => {
             orderNumber,
             paymentKey,
             amount: serverAmount,
-            status: paymentStatus
+            status: paymentStatus,
+            cartCleared
         });
 
         res.json({
@@ -313,7 +360,9 @@ router.post('/payments/confirm', authenticateToken, async (req, res) => {
                 order_number: orderNumber,
                 amount: serverAmount,
                 currency: currency,
-                payment_status: paymentStatus
+                payment_status: paymentStatus,
+                cartCleared,
+                alreadyConfirmed: false
             }
         });
 

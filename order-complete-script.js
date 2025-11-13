@@ -8,10 +8,20 @@ const API_BASE = (window.API_BASE)
 document.addEventListener('DOMContentLoaded', function() {
   console.log('✅ 주문 완료 페이지 로드됨');
   
-  // URL에서 주문 ID 가져오기
+  // URL 파라미터 확인
   const urlParams = new URLSearchParams(window.location.search);
-  const orderId = urlParams.get('orderId');
+  const paymentKey = urlParams.get('paymentKey');
+  const orderId = urlParams.get('orderId'); // 토스페이먼츠 successUrl에서 orderId로 전달
+  const amount = urlParams.get('amount');
   
+  // 토스페이먼츠 success URL에서 온 경우 (paymentKey가 있으면)
+  if (paymentKey && orderId && amount) {
+    console.log('💳 토스페이먼츠 결제 성공 URL 감지:', { paymentKey, orderId, amount });
+    handleTossPaymentSuccess(paymentKey, orderId, amount);
+    return;
+  }
+  
+  // 일반 주문 완료 페이지 (orderId만 있는 경우)
   if (orderId) {
     loadOrderDetails(orderId);
   } else {
@@ -298,6 +308,117 @@ function getStatusText(status) {
     'failed': '결제 실패'
   };
   return statusMap[status] || status;
+}
+
+/**
+ * 토스페이먼츠 결제 성공 처리
+ * successUrl에서 paymentKey, orderId, amount를 받아 서버에 결제 확인 요청
+ */
+async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
+  try {
+    console.log('💳 결제 확인 API 호출 중...', { paymentKey, orderId, amount });
+    
+    // 로딩 상태 표시
+    showPaymentProcessing();
+    
+    // 서버에 결제 확인 요청
+    const response = await window.secureFetch(`${API_BASE}/payments/confirm`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        orderNumber: orderId,
+        paymentKey: paymentKey,
+        amount: parseFloat(amount)
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.details?.message || '결제 확인에 실패했습니다.');
+    }
+    
+    const result = await response.json();
+    console.log('✅ 결제 확인 완료:', result);
+    
+    // 결제 확인 성공 → 주문 정보 로드
+    await loadOrderDetails(orderId);
+    
+    // 성공 메시지 표시
+    showPaymentSuccess();
+    
+  } catch (error) {
+    console.error('❌ 결제 확인 실패:', error);
+    showPaymentError(error.message || '결제 확인 중 오류가 발생했습니다.');
+  }
+}
+
+/**
+ * 결제 처리 중 상태 표시
+ */
+function showPaymentProcessing() {
+  const orderInfoSection = document.getElementById('order-info-section');
+  if (orderInfoSection) {
+    orderInfoSection.style.display = 'block';
+    orderInfoSection.innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #111; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+        <p style="color: #666; font-size: 16px;">결제 확인 중...</p>
+      </div>
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+  }
+}
+
+/**
+ * 결제 성공 메시지 표시
+ */
+function showPaymentSuccess() {
+  // 이미 loadOrderDetails에서 주문 정보가 표시되므로 추가 메시지는 생략
+  // 필요시 토스트 메시지나 배너 추가 가능
+  console.log('✅ 결제 확인 완료, 주문 정보 표시됨');
+}
+
+/**
+ * 결제 에러 메시지 표시
+ */
+function showPaymentError(message) {
+  const orderInfoSection = document.getElementById('order-info-section');
+  if (orderInfoSection) {
+    orderInfoSection.style.display = 'block';
+    orderInfoSection.innerHTML = `
+      <div class="error-content" style="text-align: center; padding: 40px;">
+        <h2 style="color: #e74c3c; margin-bottom: 16px;">⚠️ 결제 확인 실패</h2>
+        <p style="color: #666; margin-bottom: 24px;">${escapeHtml(message)}</p>
+        <div class="error-actions" style="display: flex; gap: 12px; justify-content: center;">
+          <button id="retry-payment-btn" class="retry-btn" style="padding: 10px 20px; background: #111; color: #fff; border: none; border-radius: 4px; cursor: pointer;">다시 시도</button>
+          <a href="my-orders.html" class="my-orders-link" style="padding: 10px 20px; background: #f0f0f0; color: #111; text-decoration: none; border-radius: 4px;">내 주문 보기</a>
+        </div>
+      </div>
+    `;
+    
+    // 재시도 버튼 이벤트
+    const retryBtn = document.getElementById('retry-payment-btn');
+    if (retryBtn) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentKey = urlParams.get('paymentKey');
+      const orderId = urlParams.get('orderId');
+      const amount = urlParams.get('amount');
+      
+      retryBtn.addEventListener('click', () => {
+        if (paymentKey && orderId && amount) {
+          handleTossPaymentSuccess(paymentKey, orderId, amount);
+        }
+      });
+    }
+  }
 }
 
 function escapeHtml(text) {

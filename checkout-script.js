@@ -501,6 +501,8 @@ function validateForms() {
 async function processPayment(orderData) {
   // 주문 중복 전송 방지를 위해 버튼 비활성화 + Idempotency 키 생성
   const completeOrderBtn = document.getElementById('complete-order-btn');
+  const originalBtnText = completeOrderBtn?.textContent || '주문 완료';
+  
   if (completeOrderBtn) {
     completeOrderBtn.disabled = true;
     completeOrderBtn.textContent = '처리 중...';
@@ -594,6 +596,11 @@ async function processPayment(orderData) {
       // 409 에러는 중복 요청 → 자동으로 주문 내역 페이지로 이동
       if (response.status === 409) {
         console.log('⚠️ 중복 주문 감지 → 주문 내역 페이지로 이동');
+        // 리다이렉트 전 버튼 복구 (사용자가 뒤로가기 시 대비)
+        if (completeOrderBtn) {
+          completeOrderBtn.disabled = false;
+          completeOrderBtn.textContent = originalBtnText;
+        }
         window.location.href = 'my-orders.html?notice=duplicated';
         return;
       }
@@ -624,12 +631,19 @@ async function processPayment(orderData) {
         errorMessage = '일시적 오류입니다. 잠시 후 다시 시도해주세요.';
       }
 
-      alert(errorMessage);
-      
-      // 오류 시 버튼 복구
-      if (completeOrderBtn) {
-        completeOrderBtn.disabled = false;
-        completeOrderBtn.textContent = '주문 완료';
+      if (window.showGlobalErrorBanner) {
+        window.showGlobalErrorBanner({
+          title: '주문 생성 실패',
+          message: errorMessage,
+          onRetry: () => {
+            const btn = document.getElementById('complete-order-btn');
+            if (btn) {
+              btn.click();
+            }
+          }
+        });
+      } else {
+        alert(errorMessage);
       }
       
       throw new Error(errorMessage);
@@ -655,22 +669,45 @@ async function processPayment(orderData) {
     // 서버 통화 정보를 전역 변수로도 저장 (가격 표시용)
     window.serverCurrencyInfo = info;
     
-    // 장바구니 비우기
-    window.miniCart.clearCart();
+    // 장바구니 동기화 (서버 상태 기반)
+    if (window.miniCart && typeof window.miniCart.sync === 'function') {
+      await window.miniCart.sync();
+    }
     
     // 주문 완료 페이지로 이동 (주문 ID와 ETA 전달)
     const orderId = result.data?.order_number || result.order?.order_id || result.orderId;
     const etaParam = info.eta ? `&eta=${encodeURIComponent(info.eta)}` : '';
+    // 성공 시 리다이렉트되므로 버튼 복구 불필요
     window.location.href = `order-complete.html?orderId=${orderId}${etaParam}`;
     
   } catch (error) {
     console.error('❌ 주문 생성 실패:', error);
-    alert('주문 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
     
-    // 오류 시 버튼 복구
-    if (completeOrderBtn) {
+    // 사용자 친화적 에러 메시지
+    let errorMessage = '주문 생성에 실패했습니다. 잠시 후 다시 시도해주세요.';
+    if (error.message && !error.message.includes('주문 생성에 실패했습니다')) {
+      errorMessage = error.message;
+    }
+    if (window.showGlobalErrorBanner) {
+      window.showGlobalErrorBanner({
+        title: '주문 생성 실패',
+        message: errorMessage,
+        onRetry: () => {
+          const btn = document.getElementById('complete-order-btn');
+          if (btn) {
+            btn.click();
+          }
+        }
+      });
+    } else {
+      alert(errorMessage);
+    }
+  } finally {
+    // 에러 발생 시 항상 버튼 복구 (리다이렉트되지 않은 경우에만)
+    // window.location.href로 이동하면 이 코드는 실행되지 않지만, 안전을 위해 추가
+    if (completeOrderBtn && completeOrderBtn.disabled) {
       completeOrderBtn.disabled = false;
-      completeOrderBtn.textContent = '주문 완료';
+      completeOrderBtn.textContent = originalBtnText;
     }
   }
 }
