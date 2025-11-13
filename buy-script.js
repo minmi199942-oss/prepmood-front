@@ -364,10 +364,10 @@
     const added = await addToCart();
     
     if (added) {
-      // 추후 결제 페이지 구현 시 주석 해제
-      // window.location.href = 'checkout.html';
-      
-      alert('빠른 구매 기능은 준비 중입니다.\n장바구니에 추가되었습니다.');
+      if (window.miniCart && typeof window.miniCart.closeMiniCart === 'function') {
+        window.miniCart.closeMiniCart();
+      }
+      window.location.href = 'checkout.html';
     }
   }
 
