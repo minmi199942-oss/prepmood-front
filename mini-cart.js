@@ -9,6 +9,12 @@ const API_BASE = (window.API_BASE)
       ? window.location.origin.replace(/\/$/, '') + '/api'
       : '/api');
 
+const debugLog = (...args) => {
+  if (window.Logger && window.Logger.isDevelopment) {
+    window.Logger.log(...args);
+  }
+};
+
 class MiniCart {
   constructor() {
     this.cartItems = [];
@@ -35,7 +41,7 @@ class MiniCart {
         
         this.updateCartDisplay();
         this.renderMiniCart();
-        Logger.log('✅ 미니 카트 초기화 완료 (시도 횟수:', attempts, ')');
+        debugLog('✅ 미니 카트 초기화 완료 (시도 횟수:', attempts, ')');
       } else if (attempts > 100) {
         // 10초 후에도 안 되면 포기하고, 헤더 로드 이벤트 리스너로 재시도
         clearInterval(waitForHeader);
@@ -53,7 +59,7 @@ class MiniCart {
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       const cartToggle = document.getElementById('cart-toggle');
       if (cartToggle && !cartToggle.hasAttribute('data-bind-attempted')) {
-        console.log('🔄 헤더 로드 후 재시도 - 미니 카트 이벤트 바인딩');
+        debugLog('🔄 헤더 로드 후 재시도 - 미니 카트 이벤트 바인딩');
         this.bindEvents();
         cartToggle.setAttribute('data-bind-attempted', 'true');
       }
@@ -64,7 +70,7 @@ class MiniCart {
       document.addEventListener('DOMContentLoaded', () => {
         const cartToggle = document.getElementById('cart-toggle');
         if (cartToggle && !cartToggle.hasAttribute('data-bind-attempted')) {
-          console.log('🔄 DOMContentLoaded 후 재시도 - 미니 카트 이벤트 바인딩');
+          debugLog('🔄 DOMContentLoaded 후 재시도 - 미니 카트 이벤트 바인딩');
           this.bindEvents();
           cartToggle.setAttribute('data-bind-attempted', 'true');
         }
@@ -77,7 +83,7 @@ class MiniCart {
       const observer = new MutationObserver(() => {
         const cartToggle = document.getElementById('cart-toggle');
         if (cartToggle && !cartToggle.hasAttribute('data-bind-attempted')) {
-          console.log('🔄 헤더 컨테이너 변경 감지 - 미니 카트 이벤트 바인딩');
+          debugLog('🔄 헤더 컨테이너 변경 감지 - 미니 카트 이벤트 바인딩');
           this.bindEvents();
           cartToggle.setAttribute('data-bind-attempted', 'true');
           observer.disconnect(); // 성공하면 관찰 중지
@@ -103,7 +109,7 @@ class MiniCart {
     const miniCartClose = document.getElementById('mini-cart-close');
     const overlay = document.getElementById('mini-cart-overlay');
 
-    Logger.log('🔗 이벤트 바인딩 중...', {
+    debugLog('🔗 이벤트 바인딩 중...', {
       cartToggle: !!cartToggle,
       miniCart: !!miniCart,
       miniCartClose: !!miniCartClose,
@@ -119,10 +125,10 @@ class MiniCart {
       newCartToggle.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        Logger.log('🛒 장바구니 버튼 클릭됨!');
+        debugLog('🛒 장바구니 버튼 클릭됨!');
         this.toggleMiniCart();
       });
-      Logger.log('✅ 장바구니 버튼 이벤트 리스너 추가 완료');
+      debugLog('✅ 장바구니 버튼 이벤트 리스너 추가 완료');
     } else {
       console.warn('⚠️ 장바구니 버튼을 찾을 수 없습니다. 헤더가 아직 로드되지 않았을 수 있습니다.');
     }
@@ -182,7 +188,7 @@ class MiniCart {
       // 스크롤 방지 (프라다 스타일)
       document.body.style.overflow = 'hidden';
       
-      Logger.log('✅ 미니 카트 열림 + 스크롤 방지');
+      debugLog('✅ 미니 카트 열림 + 스크롤 방지');
     }
   }
 
@@ -197,7 +203,7 @@ class MiniCart {
       // 스크롤 복원 (프라다 스타일)
       document.body.style.overflow = '';
       
-      Logger.log('✅ 미니 카트 닫힘 + 스크롤 복원');
+      debugLog('✅ 미니 카트 닫힘 + 스크롤 복원');
     }
   }
 
@@ -243,7 +249,7 @@ class MiniCart {
       
       if (data.success) {
         this.cartItems = data.items || [];
-        Logger.log('🛒 서버에서 장바구니 로드:', this.cartItems.length, '개 상품');
+        debugLog('🛒 서버에서 장바구니 로드:', this.cartItems.length, '개 상품');
       } else {
         this.cartItems = [];
       }
@@ -254,7 +260,7 @@ class MiniCart {
   }
 
   async addToCart(product) {
-    Logger.log('🛒 addToCart 호출됨:', product);
+    debugLog('🛒 addToCart 호출됨:', product);
     
     // 로그인 상태 확인
     const isLoggedIn = await this.checkLoginStatus();
@@ -286,7 +292,7 @@ class MiniCart {
         await this.loadCartFromServer();
         this.updateCartDisplay();
         this.renderMiniCart();
-        Logger.log('✅ 장바구니에 추가됨:', data.message);
+        debugLog('✅ 장바구니에 추가됨:', data.message);
         return true;
       } else {
         alert(data.message || '장바구니 추가에 실패했습니다.');
@@ -315,7 +321,7 @@ class MiniCart {
         await this.loadCartFromServer();
         this.updateCartDisplay();
         this.renderMiniCart();
-        console.log('✅ 장바구니에서 삭제됨:', data.message);
+        debugLog('✅ 장바구니에서 삭제됨:', data.message);
       } else {
         alert(data.message || '삭제에 실패했습니다.');
       }
@@ -350,7 +356,7 @@ class MiniCart {
         await this.loadCartFromServer();
         this.updateCartDisplay();
         this.renderMiniCart();
-        console.log('✅ 수량 변경됨:', data.message);
+        debugLog('✅ 수량 변경됨:', data.message);
       } else {
         alert(data.message || '수량 변경에 실패했습니다.');
       }
@@ -366,7 +372,7 @@ class MiniCart {
     this.cartItems = [];
     this.updateCartDisplay();
     this.renderMiniCart();
-    console.log('🛒 로그아웃 상태 - 장바구니 숨김');
+    debugLog('🛒 로그아웃 상태 - 장바구니 숨김');
   }
 
   // 로그인 시 장바구니 복원
@@ -376,7 +382,7 @@ class MiniCart {
       await this.loadCartFromServer();
       this.updateCartDisplay();
       this.renderMiniCart();
-      console.log('🛒 로그인 상태 - 장바구니 복원');
+      debugLog('🛒 로그인 상태 - 장바구니 복원');
     }
   }
 
@@ -395,14 +401,14 @@ class MiniCart {
   }
 
   renderMiniCart() {
-    console.log('🎨 renderMiniCart 호출됨, 현재 장바구니:', this.cartItems);
+    debugLog('🎨 renderMiniCart 호출됨, 현재 장바구니:', this.cartItems);
     
     const content = document.getElementById('mini-cart-content');
     const count = document.getElementById('mini-cart-count');
     const total = document.getElementById('mini-cart-total');
     const headerTitle = document.querySelector('.mini-cart-header h3');
     
-    console.log('🔍 요소 확인:', {
+    debugLog('🔍 요소 확인:', {
       content: !!content,
       count: !!count,
       total: !!total,
@@ -427,12 +433,12 @@ class MiniCart {
     const totalPrice = this.cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     if (total) total.textContent = this.formatPrice(totalPrice);
 
-    console.log('📊 장바구니 통계:', { totalItems, totalPrice });
+    debugLog('📊 장바구니 통계:', { totalItems, totalPrice });
 
     // 아이템 렌더링
     if (this.cartItems.length === 0) {
       content.innerHTML = '<div class="empty-cart">장바구니가 비어있습니다.</div>';
-      console.log('📭 장바구니가 비어있습니다');
+      debugLog('📭 장바구니가 비어있습니다');
       return;
     }
 
@@ -451,7 +457,7 @@ class MiniCart {
       </div>
     `).join('');
     
-    console.log('✅ 미니 카트 렌더링 완료:', this.cartItems.length, '개 상품');
+    debugLog('✅ 미니 카트 렌더링 완료:', this.cartItems.length, '개 상품');
   }
 
   formatPrice(price) {
@@ -481,13 +487,13 @@ class MiniCart {
         this.cartItems = [];
         this.updateCartDisplay();
         this.renderMiniCart();
-        Logger.log('🛒 sync: 로그인하지 않아 장바구니를 비웠습니다.');
+        debugLog('🛒 sync: 로그인하지 않아 장바구니를 비웠습니다.');
         return;
       }
       await this.loadCartFromServer();
       this.updateCartDisplay();
       this.renderMiniCart();
-      Logger.log('🛒 sync: 서버 상태와 장바구니 동기화 완료');
+      debugLog('🛒 sync: 서버 상태와 장바구니 동기화 완료');
     } catch (error) {
       console.error('❌ 장바구니 동기화 실패:', error);
     }
@@ -514,7 +520,7 @@ class MiniCart {
         this.cartItems = [];
         this.updateCartDisplay();
         this.renderMiniCart();
-        Logger.log('✅ 장바구니 비우기 완료');
+        debugLog('✅ 장바구니 비우기 완료');
       } else {
         console.error('❌ 장바구니 비우기 실패:', data.message);
       }
@@ -541,7 +547,7 @@ function initializeMiniCart() {
   if (!window.miniCart) {
     miniCart = new MiniCart();
     window.miniCart = miniCart;
-    console.log('✅ 미니 카트 초기화 완료 (mini-cart.js)');
+    debugLog('✅ 미니 카트 초기화 완료 (mini-cart.js)');
   }
 }
 

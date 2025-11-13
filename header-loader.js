@@ -7,6 +7,12 @@ const HEADER_PARTIAL_URL = (function() {
   return 'header.partial';
 })();
 
+const debugLog = (...args) => {
+  if (window.Logger && window.Logger.isDevelopment) {
+    window.Logger.log(...args);
+  }
+};
+
 function getAdminLinkContainer() {
   return document.querySelector('#header-container .header-actions');
 }
@@ -70,7 +76,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (window.miniCart && typeof window.miniCart.bindEvents === 'function') {
           const cartToggle = document.getElementById('cart-toggle');
           if (cartToggle && !cartToggle.hasAttribute('data-bind-attempted')) {
-            console.log('header-loader: header loaded, binding mini-cart events');
+            debugLog('header-loader: header loaded, binding mini-cart events');
             window.miniCart.bindEvents();
             cartToggle.setAttribute('data-bind-attempted', 'true');
           }
@@ -108,7 +114,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const menu = item.querySelector('.mega-menu');
         const link = item.querySelector('a');
         
-        Logger.log(`Setting up menu item ${index}:`, link ? link.textContent : 'No link found');
+        debugLog(`Setting up menu item ${index}:`, link ? link.textContent : 'No link found');
 
         item.addEventListener('mouseenter', (e) => {
           e.preventDefault();
@@ -191,7 +197,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      Logger.log('Dropdown system initialized with', megaItems.length, 'menu items');
+      debugLog('Dropdown system initialized with', megaItems.length, 'menu items');
 
       // Search modal elements
       const searchModal = document.getElementById('search-modal');
@@ -262,9 +268,9 @@ window.addEventListener('DOMContentLoaded', () => {
           priceFilter.addEventListener('change', performSearch);
         }
 
-        Logger.log('header-loader: search modal initialized');
+        debugLog('header-loader: search modal initialized');
       } else {
-        Logger.log('header-loader: search modal elements not found');
+        debugLog('header-loader: search modal elements not found');
       }
 
       // Initialize mypage dropdown and related UI
@@ -283,7 +289,7 @@ function initializeMypageFunctionality() {
   const logoutBtn = document.getElementById('logout-btn');
 
   if (!mypageToggle || !mypageDropdown || !mypageIcon) {
-    Logger.log('header-loader: mypage elements not found');
+    debugLog('header-loader: mypage elements not found');
     return;
   }
 
@@ -318,19 +324,19 @@ function initializeMypageFunctionality() {
 
         if (window.miniCart) {
           window.miniCart.restoreCartForLogin();
-          Logger.log('header-loader: authenticated, restoring mini cart');
+          debugLog('header-loader: authenticated, restoring mini cart');
         }
 
         checkAdminAccess();
-        Logger.log('header-loader: authenticated user', data.user.email);
+        debugLog('header-loader: authenticated user', data.user.email);
       } else {
         setLoggedOutState();
       }
     } catch (error) {
       if (String(error.message).includes('429') || String(error.message).includes('Too Many Requests')) {
-        Logger.log('header-loader: rate limited while checking auth state');
+        debugLog('header-loader: rate limited while checking auth state');
       } else {
-        Logger.log('header-loader: failed to check auth state', error.message);
+        debugLog('header-loader: failed to check auth state', error.message);
       }
       setLoggedOutState();
     }
@@ -344,10 +350,10 @@ function initializeMypageFunctionality() {
 
     if (window.miniCart) {
       window.miniCart.hideCartForLogout();
-      console.log('header-loader: logged-out state, hiding mini cart');
+      debugLog('header-loader: logged-out state, hiding mini cart');
     }
 
-    console.log('header-loader: user is not logged in');
+    debugLog('header-loader: user is not logged in');
   }
 
   function toggleDropdown() {
@@ -367,11 +373,11 @@ function initializeMypageFunctionality() {
         credentials: 'include'
       });
 
-      console.log('header-loader: logout complete');
+      debugLog('header-loader: logout complete');
 
       if (window.miniCart) {
         window.miniCart.hideCartForLogout();
-        console.log('header-loader: hiding mini cart after logout');
+        debugLog('header-loader: hiding mini cart after logout');
       }
 
       const currentPage = window.location.pathname;
@@ -426,37 +432,37 @@ function initializeMypageFunctionality() {
   });
 
   checkLoginStatus();
-  console.log('header-loader: mypage functionality initialised');
+  debugLog('header-loader: mypage functionality initialised');
 
-  console.log('header-loader: mini cart loader state', {
+  debugLog('header-loader: mini cart loader state', {
     hasCatalogData: !!window.CATALOG_DATA,
     hasMiniCart: !!window.miniCart
   });
 
   if (window.scriptsLoading && window.CATALOG_DATA && window.miniCart) {
-    console.log('header-loader: scripts already loaded, skipping');
+    debugLog('header-loader: scripts already loaded, skipping');
     return;
   }
 
   if (!window.CATALOG_DATA) {
-    console.log('header-loader: loading catalog-data.js');
+    debugLog('header-loader: loading catalog-data.js');
     const catalogScript = document.createElement('script');
     catalogScript.src = 'catalog-data.js';
     catalogScript.defer = true;
-    catalogScript.onload = () => console.log('header-loader: catalog-data.js loaded');
+    catalogScript.onload = () => debugLog('header-loader: catalog-data.js loaded');
     catalogScript.onerror = () => console.error('header-loader: catalog-data.js failed to load');
     document.head.appendChild(catalogScript);
   }
 
   if (!window.miniCart) {
-    console.log('header-loader: loading mini-cart.js');
+    debugLog('header-loader: loading mini-cart.js');
     const miniCartScript = document.createElement('script');
     miniCartScript.src = 'mini-cart.js';
     miniCartScript.defer = true;
     miniCartScript.onload = () => {
       setTimeout(() => {
         if (window.miniCart) {
-          console.log('header-loader: mini cart ready');
+          debugLog('header-loader: mini cart ready');
         }
       }, 100);
     };
@@ -465,7 +471,7 @@ function initializeMypageFunctionality() {
     };
     document.head.appendChild(miniCartScript);
   } else {
-    console.log('header-loader: mini cart already loaded');
+    debugLog('header-loader: mini cart already loaded');
     window.scriptsLoading = false;
   }
 }
