@@ -69,7 +69,6 @@ window.addEventListener('DOMContentLoaded', () => {
     .then(res => res.text())
     .then(html => {
       headerContainer.innerHTML = html;
-      checkAdminAccess();
 
       // After the header loads, bind mini-cart events (timing safeguard)
       setTimeout(() => {

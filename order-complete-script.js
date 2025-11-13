@@ -40,12 +40,17 @@ async function loadOrderDetails(orderId) {
     });
     
     if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('주문을 찾을 수 없습니다');
-      } else if (response.status === 403) {
-        throw new Error('접근 권한이 없습니다');
+      if (response.status === 401 || response.status === 403) {
+        console.warn('주문 정보 조회 권한 없음', response.status);
+        showOrderError('주문 정보를 확인하려면 로그인이 필요합니다.');
+        return;
       }
-      throw new Error(`주문 정보 조회 실패: ${response.status}`);
+      if (response.status === 404) {
+        showOrderError('주문을 찾을 수 없습니다. 주문 번호를 확인해주세요.');
+        return;
+      }
+      const errMessage = `주문 정보 조회 실패: ${response.status}`;
+      throw new Error(errMessage);
     }
     
     const result = await response.json();
@@ -72,9 +77,7 @@ async function loadOrderDetails(orderId) {
     
   } catch (error) {
     console.error('❌ 주문 정보 로딩 실패:', error);
-    
-    // 오류 시 사용자에게 알림 + 재시도 옵션 제공
-    showOrderError(error.message);
+    showOrderError(error.message || '주문 정보를 불러오는 중 오류가 발생했습니다.');
   }
 }
 
