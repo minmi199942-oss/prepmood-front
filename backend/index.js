@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
@@ -50,11 +50,19 @@ const apiLimiter = rateLimit({
     },
     standardHeaders: true, // `RateLimit-*` 헤더 반환
     legacyHeaders: false, // `X-RateLimit-*` 헤더 비활성화
+    keyGenerator: (req) => {
+        // IPv6 안전하게 처리
+        return ipKeyGenerator(req.ip || '');
+    }
 });
 
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15분
-    max: 500 // 15분당 최대 500회 요청으로 증가
+    max: 500, // 15분당 최대 500회 요청으로 증가
+    keyGenerator: (req) => {
+        // IPv6 안전하게 처리
+        return ipKeyGenerator(req.ip || '');
+    }
 });
 
 app.use('/api/send-verification', apiLimiter); // 이메일 발송은 더 엄격하게

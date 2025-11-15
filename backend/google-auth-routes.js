@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const GoogleAuthService = require('./google-auth');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { authenticateToken, setTokenCookie } = require('./auth-middleware');
 
 const googleAuth = new GoogleAuthService();
@@ -13,6 +13,10 @@ const authLimiter = rateLimit({
     message: {
         success: false,
         error: '너무 많은 요청입니다. 15분 후에 다시 시도해주세요.'
+    },
+    keyGenerator: (req) => {
+        // IPv6 안전하게 처리
+        return ipKeyGenerator(req.ip || '');
     }
 });
 
