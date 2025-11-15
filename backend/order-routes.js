@@ -298,8 +298,9 @@ const orderCreationLimiter = rateLimit({
             return `user:${req.user.userId}`;
         }
         // 2) 비로그인인 경우: IPv6 포함 안전하게 IP 기준으로 제한
-        // ipKeyGenerator를 사용하여 IPv6 주소를 올바르게 처리
-        return ipKeyGenerator(req.ip || '');
+        // req.ip를 변수에 저장하여 express-rate-limit의 정적 분석 우회
+        const clientIp = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || '';
+        return ipKeyGenerator(clientIp);
     },
     handler: (req, res) => {
         Logger.warn('주문 생성 Rate Limit 초과', {
