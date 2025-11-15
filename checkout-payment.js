@@ -310,6 +310,13 @@ async function proceedWithTossPayment(data) {
     });
     
     try {
+      // 위젯 실행 전에 페이지 제목 스타일 조정 (위젯이 열릴 때 다른 요소들처럼 연하게 보이도록)
+      const paymentTitle = document.querySelector('.checkout-payment-title');
+      if (paymentTitle) {
+        paymentTitle.style.opacity = '0.3';
+        paymentTitle.style.transition = 'opacity 0.3s ease';
+      }
+      
       // 위젯 실행 (결제 완료 시 successUrl로 자동 리다이렉트됨)
       const result = await toss.requestPayment('카드', {
         amount: amount,
@@ -328,6 +335,12 @@ async function proceedWithTossPayment(data) {
       
     } catch (error) {
       console.error('❌ 토스페이먼츠 위젯 오류:', error);
+      // 오류 발생 시 제목 스타일 원복
+      const paymentTitle = document.querySelector('.checkout-payment-title');
+      if (paymentTitle) {
+        paymentTitle.style.opacity = '';
+        paymentTitle.style.transition = '';
+      }
       throw new Error(error.message || '결제 위젯 실행 중 오류가 발생했습니다.');
     }
     
