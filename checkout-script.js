@@ -643,7 +643,7 @@ async function processPayment(orderData) {
           }
         });
       } else {
-        alert(errorMessage);
+      alert(errorMessage);
       }
       
       throw new Error(errorMessage);

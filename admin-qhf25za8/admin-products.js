@@ -434,23 +434,23 @@
     }
 
     if (elements.searchInput) {
-      elements.searchInput.addEventListener('input', filterProducts);
+    elements.searchInput.addEventListener('input', filterProducts);
     }
     if (elements.categoryFilter) {
-      elements.categoryFilter.addEventListener('change', filterProducts);
+    elements.categoryFilter.addEventListener('change', filterProducts);
     }
     if (elements.addProductBtn) {
-      elements.addProductBtn.addEventListener('click', openAddProductModal);
+    elements.addProductBtn.addEventListener('click', openAddProductModal);
     }
     if (elements.logoutBtn) {
-      elements.logoutBtn.addEventListener('click', logout);
+    elements.logoutBtn.addEventListener('click', logout);
     }
-
+    
     document.addEventListener('change', function(e) {
       if (e.target.id === 'productImage' && e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
         const preview = document.getElementById('imagePreview');
-
+        
         if (preview) {
           const reader = new FileReader();
           reader.onload = function(event) {

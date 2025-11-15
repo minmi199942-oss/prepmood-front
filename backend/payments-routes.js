@@ -399,10 +399,19 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
  * @returns {Boolean} 서명 검증 결과
  */
 function verifyWebhookSignature(body, signature, secret) {
+    // 방어적 체크: signature나 secret이 없으면 false 반환
     if (!signature || !secret) {
         Logger.log('[payments][webhook] 서명 또는 시크릿 키 없음', {
             hasSignature: !!signature,
             hasSecret: !!secret
+        });
+        return false;
+    }
+
+    // secret이 기본값이면 검증 실패로 처리
+    if (secret === 'your_webhook_secret_here') {
+        Logger.log('[payments][webhook] 시크릿 키가 기본값입니다', {
+            hasSignature: !!signature
         });
         return false;
     }
@@ -435,6 +444,132 @@ function verifyWebhookSignature(body, signature, secret) {
         });
         return false;
     }
+}
+
+/**
+ * 웹훅 이벤트: 결제 상태 변경 처리
+ * 
+ * @param {Object} connection - MySQL 연결
+ * @param {Object} data - 웹훅 데이터
+ */
+async function handlePaymentStatusChange(connection, data) {
+    if (!data) {
+        Logger.log('[payments][webhook] 결제 상태 변경: 데이터 없음');
+        return;
+    }
+
+    // 토스페이먼츠 웹훅 데이터 구조에 맞춰 필드 추출
+    // seller.changed 이벤트의 경우 data 구조가 다를 수 있음
+    const paymentKey = data.paymentKey || data.payment?.paymentKey || data.id;
+    const orderId = data.orderId || data.payment?.orderId || data.order?.orderId;
+    const status = data.status || data.payment?.status || data.state;
+
+    if (!paymentKey) {
+        Logger.log('[payments][webhook] 결제 상태 변경: paymentKey 없음', { data });
+        return;
+    }
+    
+    // 토스페이먼츠 상태를 내부 상태로 매핑
+    let paymentStatus;
+    let orderStatus;
+    
+    // 토스페이먼츠 상태: DONE, CANCELED, PARTIAL_CANCELED, ABORTED, EXPIRED
+    // seller.changed 이벤트의 경우 상태 값이 다를 수 있으므로 다양한 형식 지원
+    const statusUpper = String(status || '').toUpperCase();
+    
+    if (statusUpper === 'DONE' || statusUpper === 'COMPLETED' || statusUpper === 'CONFIRMED') {
+        paymentStatus = 'captured';
+        orderStatus = 'processing';
+    } else if (statusUpper === 'CANCELED' || statusUpper === 'CANCELLED' || statusUpper === 'PARTIAL_CANCELED') {
+        paymentStatus = 'cancelled';
+        orderStatus = 'cancelled';
+    } else if (statusUpper === 'ABORTED' || statusUpper === 'EXPIRED' || statusUpper === 'FAILED') {
+        paymentStatus = 'failed';
+        orderStatus = 'failed';
+    } else {
+        Logger.log('[payments][webhook] 알 수 없는 결제 상태 (기본값 사용)', { 
+            status,
+            statusUpper,
+            paymentKey,
+            orderId
+        });
+        // 알 수 없는 상태는 로그만 남기고 처리하지 않음
+        return;
+    }
+
+    try {
+        // payments 테이블 업데이트
+        const [paymentRows] = await connection.execute(
+            `UPDATE payments 
+             SET status = ?, updated_at = NOW() 
+             WHERE payment_key = ?`,
+            [paymentStatus, paymentKey]
+        );
+
+        if (paymentRows.affectedRows === 0) {
+            Logger.log('[payments][webhook] payments 테이블에 해당 payment_key 없음', { paymentKey });
+        } else {
+            Logger.log('[payments][webhook] payments 테이블 업데이트 완료', {
+                paymentKey,
+                status: paymentStatus,
+                affectedRows: paymentRows.affectedRows
+            });
+        }
+
+        // orders 테이블 업데이트 (orderId 또는 payment_key로 조회)
+        if (orderId) {
+            const [orderRows] = await connection.execute(
+                `UPDATE orders 
+                 SET status = ?, updated_at = NOW() 
+                 WHERE order_number = ?`,
+                [orderStatus, orderId]
+            );
+
+            if (orderRows.affectedRows > 0) {
+                Logger.log('[payments][webhook] orders 테이블 업데이트 완료', {
+                    orderId,
+                    status: orderStatus,
+                    affectedRows: orderRows.affectedRows
+                });
+            }
+        } else {
+            // orderId가 없으면 payment_key로 orders 조회
+            const [orderRows] = await connection.execute(
+                `UPDATE orders o
+                 INNER JOIN payments p ON o.order_number = p.order_number
+                 SET o.status = ?, o.updated_at = NOW()
+                 WHERE p.payment_key = ?`,
+                [orderStatus, paymentKey]
+            );
+
+            if (orderRows.affectedRows > 0) {
+                Logger.log('[payments][webhook] orders 테이블 업데이트 완료 (payment_key로 조회)', {
+                    paymentKey,
+                    status: orderStatus,
+                    affectedRows: orderRows.affectedRows
+                });
+            }
+        }
+
+    } catch (error) {
+        Logger.log('[payments][webhook] 결제 상태 변경 처리 오류', {
+            error: error.message,
+            paymentKey,
+            orderId
+        });
+        throw error;
+    }
+}
+
+/**
+ * 웹훅 이벤트: 입금 콜백 처리
+ * 
+ * @param {Object} connection - MySQL 연결
+ * @param {Object} data - 웹훅 데이터
+ */
+async function handleDepositCallback(connection, data) {
+    // 입금 콜백은 필요시 구현
+    Logger.log('[payments][webhook] 입금 콜백 수신', { data });
 }
 
 /**
@@ -496,8 +631,43 @@ router.post('/payments/webhook', async (req, res) => {
         });
 
         // 웹훅 이벤트에 따라 payments & orders 동기화 (상태 업데이트)
-        // 예: 결제 완료, 결제 실패, 환불 등
-        // TODO: 상태 동기화 로직 구현
+        let connection;
+        try {
+            connection = await mysql.createConnection(dbConfig);
+            await connection.beginTransaction();
+
+            // 이벤트 타입에 따른 처리
+            // 토스페이먼츠 가이드: seller.changed = 결제 상태 변경 이벤트
+            if (eventType === 'PAYMENT_STATUS_CHANGED' || 
+                eventType === 'CANCEL_STATUS_CHANGED' || 
+                eventType === 'seller.changed') {
+                await handlePaymentStatusChange(connection, data);
+            } else if (eventType === 'DEPOSIT_CALLBACK') {
+                await handleDepositCallback(connection, data);
+            } else if (eventType === 'payout.changed') {
+                // 지급대행 상태 변경 (필요시 구현)
+                Logger.log('[payments][webhook] 지급대행 상태 변경 수신', { data });
+            } else {
+                Logger.log('[payments][webhook] 알 수 없는 이벤트 타입 (로그만 기록)', { 
+                    eventType,
+                    hasData: !!data
+                });
+            }
+
+            await connection.commit();
+            Logger.log('[payments][webhook] 웹훅 처리 완료', { eventType });
+
+        } catch (webhookError) {
+            if (connection) {
+                await connection.rollback();
+                await connection.end();
+            }
+            Logger.log('[payments][webhook] 웹훅 처리 중 오류', {
+                error: webhookError.message,
+                stack: webhookError.stack
+            });
+            // 웹훅 오류는 로그만 남기고 200 반환 (토스페이먼츠 재시도 방지)
+        }
 
         // 웹훅은 항상 200 OK 반환 (토스페이먼츠 재시도 방지)
         res.status(200).json({ received: true });

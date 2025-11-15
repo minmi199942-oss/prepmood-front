@@ -185,10 +185,19 @@ class MiniCart {
       miniCart.classList.add('active');
       overlay.classList.add('active');
       
+      // body 클래스 추가 (CSS에서 헤더 강제 표시용)
+      document.body.classList.add('mini-cart-open');
+      
+      // 헤더 강제 표시
+      const header = document.querySelector('header.main-header');
+      if (header) {
+        header.classList.remove('header--hidden');
+      }
+      
       // 스크롤 방지 (프라다 스타일)
       document.body.style.overflow = 'hidden';
       
-      debugLog('✅ 미니 카트 열림 + 스크롤 방지');
+      debugLog('✅ 미니 카트 열림 + 스크롤 방지 + 헤더 표시');
     }
   }
 
@@ -199,6 +208,9 @@ class MiniCart {
     if (miniCart && overlay) {
       miniCart.classList.remove('active');
       overlay.classList.remove('active');
+      
+      // body 클래스 제거
+      document.body.classList.remove('mini-cart-open');
       
       // 스크롤 복원 (프라다 스타일)
       document.body.style.overflow = '';

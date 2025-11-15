@@ -50,16 +50,31 @@ body {
   color: #111;
   line-height: 1.6;
   font-size: clamp(14px, 2.5vw, 16px);
+  padding-top: var(--header-height, 72px);
 }
 
 /* ===== Header ===== */
-header {
+header.main-header {
   padding: clamp(5px, 1.5vw, 20px) clamp(20px, 5vw, 40px);
   border-bottom: 1px solid #eee;
   background-color: #fff;
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 2147483647;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  transition: transform 0.25s ease;
+}
+
+/* 헤더 숨김 상태 */
+header.main-header.header--hidden {
+  transform: translateY(-100%);
+}
+
+/* 장바구니 열렸을 때 헤더 강제 표시 */
+body.mini-cart-open header.main-header {
+  transform: translateY(0) !important;
+  z-index: 1000;
 }
 
 /* ===== Cart Badge ===== */
@@ -91,7 +106,7 @@ header {
   height: calc(100vh - var(--header-height, 72px));
   background: #fff;
   box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-  z-index: 9999;
+  z-index: 950;
   transition: right 0.3s ease;
   display: flex;
   flex-direction: column;
@@ -249,12 +264,9 @@ header {
 
 .mini-cart-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: rgba(0,0,0,0.5);
-  z-index: 9998;
+  z-index: 900;
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
