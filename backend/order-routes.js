@@ -291,6 +291,10 @@ const orderCreationLimiter = rateLimit({
     max: 5,              // 사용자당 분당 5회 주문 생성 시도 허용
     standardHeaders: true,
     legacyHeaders: false,
+    validate: {
+        // IPv6 검증을 우회 (사용자 기반 제한이므로 IP는 보조)
+        ip: false
+    },
     keyGenerator: (req) => {
         // 1) 로그인한 경우: 사용자 기준으로 제한
         if (req.user && req.user.userId) {
