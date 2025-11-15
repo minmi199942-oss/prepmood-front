@@ -322,18 +322,12 @@ async function proceedWithTossPayment(data) {
     });
     
     try {
-      // 위젯 실행 전에 페이지 제목 스타일 조정 (다른 요소들처럼 연하게 보이도록)
-      const paymentTitle = document.querySelector('.checkout-payment-title');
-      const paymentSubtitle = document.querySelector('.checkout-payment-subtitle');
-      if (paymentTitle) {
-        paymentTitle.style.opacity = '0.3';
-        paymentTitle.style.transition = 'opacity 0.3s ease';
-        paymentTitle.style.pointerEvents = 'none';
-      }
-      if (paymentSubtitle) {
-        paymentSubtitle.style.opacity = '0.3';
-        paymentSubtitle.style.transition = 'opacity 0.3s ease';
-        paymentSubtitle.style.pointerEvents = 'none';
+      // 위젯 실행 전에 페이지 제목 영역 전체를 다른 요소들처럼 연하게 보이도록 조정
+      const paymentHeader = document.querySelector('.checkout-payment-header');
+      if (paymentHeader) {
+        paymentHeader.style.opacity = '0.3';
+        paymentHeader.style.transition = 'opacity 0.3s ease';
+        paymentHeader.style.pointerEvents = 'none';
       }
       
       // 위젯 실행 (결제 완료 시 successUrl로 자동 리다이렉트됨)
@@ -354,18 +348,12 @@ async function proceedWithTossPayment(data) {
       
     } catch (error) {
       console.error('❌ 토스페이먼츠 위젯 오류:', error);
-      // 오류 발생 시 제목 스타일 원복
-      const paymentTitle = document.querySelector('.checkout-payment-title');
-      const paymentSubtitle = document.querySelector('.checkout-payment-subtitle');
-      if (paymentTitle) {
-        paymentTitle.style.opacity = '';
-        paymentTitle.style.transition = '';
-        paymentTitle.style.pointerEvents = '';
-      }
-      if (paymentSubtitle) {
-        paymentSubtitle.style.opacity = '';
-        paymentSubtitle.style.transition = '';
-        paymentSubtitle.style.pointerEvents = '';
+      // 오류 발생 시 제목 영역 스타일 원복
+      const paymentHeader = document.querySelector('.checkout-payment-header');
+      if (paymentHeader) {
+        paymentHeader.style.opacity = '';
+        paymentHeader.style.transition = '';
+        paymentHeader.style.pointerEvents = '';
       }
       throw new Error(error.message || '결제 위젯 실행 중 오류가 발생했습니다.');
     }
