@@ -7,8 +7,7 @@ const { authenticateToken } = require('./auth-middleware');
 const { verifyCSRF } = require('./csrf-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
-const rateLimit = require('express-rate-limit');
-const { ipKeyGenerator } = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 
 // 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
 const COUNTRY_RULES = {
@@ -287,21 +286,18 @@ function validateOrderRequest(req) {
 }
 
 // Rate limiting 미들웨어 (IPv6 환경에서도 동작하도록 사용자 기반 제한)
-// express-rate-limit v8에서는 IP를 직접 사용할 때 ipKeyGenerator를 사용해야 함
 const orderCreationLimiter = rateLimit({
     windowMs: 60 * 1000, // 1분 윈도우
     max: 5,              // 사용자당 분당 5회 주문 생성 시도 허용
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-        const userId = req.user?.userId;
-        if (userId) {
-            // 사용자 인증이 있으면 사용자 ID 기반으로 제한
-            return `user:${userId}`;
+        // 1) 로그인한 경우: 사용자 기준으로 제한
+        if (req.user && req.user.userId) {
+            return `user:${req.user.userId}`;
         }
-        // 인증 정보가 없으면 IP 기반으로 제한 (IPv6 지원)
-        // ipKeyGenerator를 사용하여 IPv6 주소를 올바르게 처리
-        return ipKeyGenerator(req);
+        // 2) 비로그인인 경우: IP 기준으로 제한 (IPv6 안전하게 처리)
+        return ipKeyGenerator(req.ip || '');
     },
     handler: (req, res) => {
         Logger.warn('주문 생성 Rate Limit 초과', {
