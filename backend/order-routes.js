@@ -8,6 +8,7 @@ const { verifyCSRF } = require('./csrf-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
 // 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
 const COUNTRY_RULES = {
@@ -292,19 +293,15 @@ const orderCreationLimiter = rateLimit({
     max: 5,              // 사용자당 분당 5회 주문 생성 시도 허용
     standardHeaders: true,
     legacyHeaders: false,
-    // skip 옵션을 사용하여 IPv6 검증 우회 (사용자 기반 제한이므로 IP는 보조)
-    skip: (req) => {
-        // 사용자 인증이 있으면 IP 검증 건너뛰기
-        return !!req.user?.userId;
-    },
     keyGenerator: (req) => {
         const userId = req.user?.userId;
         if (userId) {
+            // 사용자 인증이 있으면 사용자 ID 기반으로 제한
             return `user:${userId}`;
         }
-        // 인증 정보가 없으면 기본 IP 기반 제한 사용
-        // express-rate-limit이 자동으로 IPv6를 처리함
-        return req.ip;
+        // 인증 정보가 없으면 IP 기반으로 제한 (IPv6 지원)
+        // ipKeyGenerator를 사용하여 IPv6 주소를 올바르게 처리
+        return ipKeyGenerator(req);
     },
     handler: (req, res) => {
         Logger.warn('주문 생성 Rate Limit 초과', {
