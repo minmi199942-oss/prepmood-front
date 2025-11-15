@@ -260,7 +260,7 @@ function showGlobalErrorBanner({
   banner.className = 'global-error-banner';
   banner.style.cssText = `
     position: fixed;
-    top: 24px;
+    top: calc(var(--header-height, 72px) + 24px);
     left: 50%;
     transform: translateX(-50%);
     max-width: min(480px, calc(100% - 32px));
@@ -273,7 +273,7 @@ function showGlobalErrorBanner({
     display: flex;
     align-items: flex-start;
     gap: 16px;
-    z-index: 9999;
+    z-index: 2147483647;
   `;
 
   const content = document.createElement('div');
