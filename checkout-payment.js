@@ -310,12 +310,6 @@ async function proceedWithTossPayment(data) {
     });
     
     try {
-      // 위젯 실행 전에 페이지 제목 숨기기 (위젯이 열릴 때 방해되지 않도록)
-      const paymentTitle = document.querySelector('.checkout-payment-title');
-      if (paymentTitle) {
-        paymentTitle.style.display = 'none';
-      }
-      
       // 위젯 실행 (결제 완료 시 successUrl로 자동 리다이렉트됨)
       const result = await toss.requestPayment('카드', {
         amount: amount,
