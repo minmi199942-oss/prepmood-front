@@ -165,6 +165,18 @@ function bindEventListeners(data) {
   const handlePayment = async function() {
     console.log('💳 결제 진행 시작');
     
+    // 에러 영역 리셋 (새로운 결제 시도 시 이전 에러 제거)
+    const errorDesktop = document.getElementById('payment-error');
+    const errorMobile = document.getElementById('payment-error-mobile');
+    if (errorDesktop) {
+      errorDesktop.textContent = '';
+      errorDesktop.classList.add('hidden');
+    }
+    if (errorMobile) {
+      errorMobile.textContent = '';
+      errorMobile.classList.add('hidden');
+    }
+    
     // 선택된 결제 방법 확인
     const checkedRadio = document.querySelector('input[name="payment"]:checked');
     if (!checkedRadio) {
