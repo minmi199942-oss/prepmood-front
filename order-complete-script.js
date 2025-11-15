@@ -111,8 +111,39 @@ function displayOrderInfoFromServer(data, orderDetail) {
   console.log('📋 서버 응답으로 주문 정보 표시:', data);
   
   const orderInfoSection = document.getElementById('order-info-section');
-  if (orderInfoSection) {
-    orderInfoSection.style.display = 'block';
+  if (!orderInfoSection) {
+    console.error('❌ order-info-section을 찾을 수 없습니다');
+    return;
+  }
+  
+  // showPaymentProcessing()에서 innerHTML을 교체했을 수 있으므로, HTML 구조를 다시 생성
+  orderInfoSection.style.display = 'block';
+  
+  // HTML 구조가 없으면 다시 생성
+  if (!document.getElementById('order-id')) {
+    orderInfoSection.innerHTML = `
+      <h2 class="order-info-title">주문 정보</h2>
+      <div class="order-info-content">
+        <div class="order-info-item">
+          <span class="order-info-label">주문 번호:</span>
+          <span class="order-info-value" id="order-id">-</span>
+        </div>
+        <div class="order-info-item">
+          <span class="order-info-label">주문 금액:</span>
+          <span class="order-info-value" id="order-total">-</span>
+        </div>
+        <div class="order-info-item">
+          <span class="order-info-label">예상 배송일:</span>
+          <span class="order-info-value" id="estimated-delivery">-</span>
+        </div>
+      </div>
+      <div class="shipping-info-section">
+        <h3 class="shipping-info-title">배송 정보</h3>
+        <div class="shipping-info-content" id="shipping-info-content">
+          <!-- 배송 정보가 여기에 표시됩니다 -->
+        </div>
+      </div>
+    `;
   }
   
   // 주문 번호
