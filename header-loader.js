@@ -88,6 +88,14 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       }, 100);
 
+      // 헤더 스크롤 동작 초기화 (프라다 스타일)
+      setTimeout(() => {
+        if (window.initHeaderScroll && typeof window.initHeaderScroll === 'function') {
+          debugLog('header-loader: initializing header scroll behavior');
+          window.initHeaderScroll();
+        }
+      }, 100);
+
       // sync CSS var with actual header height (init + on resize)
       const headerEl = headerContainer.querySelector('header');
       function updateHeaderHeight(){
