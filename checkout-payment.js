@@ -250,12 +250,11 @@ async function proceedWithTossPayment(data) {
     // 2. 토스페이먼츠 결제 위젯 실행
     console.log('💳 토스페이먼츠 위젯 실행...');
     
-    // TODO: 실제 토스페이먼츠 위젯 연동
-    // 현재는 MOCK 모드로 처리
-    const mockPayment = true; // 실제 운영 시 false로 변경
+    // MOCK 모드 체크 (환경변수 또는 설정으로 제어 가능)
+    const useMockPayment = false; // 테스트 키 사용 시 false로 설정
     
-    if (mockPayment) {
-      // MOCK 결제 처리
+    if (useMockPayment) {
+      // MOCK 결제 처리 (개발/테스트용)
       console.log('🔄 MOCK 결제 처리...');
       
       const confirmRes = await window.secureFetch(`${API_BASE}/payments/confirm`, {
@@ -278,38 +277,63 @@ async function proceedWithTossPayment(data) {
       
       const confirmed = await confirmRes.json();
       console.log('✅ 결제 확인 완료:', confirmed);
-    } else {
-      // 실제 토스페이먼츠 위젯 연동
-      // const toss = TossPayments('test_pk_xxx'); // 환경변수에서 가져오기
-      // const result = await toss.requestPayment({
-      //   amount: amount,
-      //   orderId: orderNumber,
-      //   customerName: `${data.shipping.recipient_first_name} ${data.shipping.recipient_last_name}`,
-      //   successUrl: window.location.origin + '/order-complete.html',
-      //   failUrl: window.location.origin + '/checkout-payment.html?status=fail'
-      // });
-      // const { paymentKey } = result;
-      // 
-      // const confirmRes = await window.secureFetch(`${API_BASE}/payments/confirm`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   credentials: 'include',
-      //   body: JSON.stringify({ orderNumber, paymentKey, amount })
-      // });
-      // 
-      // if (!confirmRes.ok) {
-      //   throw new Error('결제 확인 실패');
-      // }
+      
+      // MOCK 모드에서는 바로 완료 페이지로 이동
+      window.location.href = `order-complete.html?orderId=${orderNumber}`;
+      return;
     }
     
-    // 3. 장바구니 동기화 (서버가 정리 후 최신 상태 반영)
-    if (window.miniCart && typeof window.miniCart.sync === 'function') {
-      await window.miniCart.sync();
+    // 실제 토스페이먼츠 위젯 연동
+    const clientKey = window.TOSS_CLIENT_KEY;
+    
+    if (!clientKey) {
+      throw new Error('토스페이먼츠 클라이언트 키가 설정되지 않았습니다.');
     }
     
-    // 4. 주문 완료 페이지로 이동
-    // 성공 시 리다이렉트되므로 버튼 복구 불필요
-    window.location.href = `order-complete.html?orderId=${orderNumber}`;
+    if (typeof TossPayments === 'undefined') {
+      throw new Error('토스페이먼츠 스크립트가 로드되지 않았습니다.');
+    }
+    
+    console.log('💳 TossPayments 초기화 중...', { clientKey: clientKey.substring(0, 10) + '...' });
+    const toss = TossPayments(clientKey);
+    
+    // successUrl/failUrl에 파라미터 포함 (토스페이먼츠가 자동으로 채워줌)
+    const successUrl = `${window.location.origin}/order-complete.html?paymentKey={paymentKey}&orderId=${orderNumber}&amount=${amount}`;
+    const failUrl = `${window.location.origin}/checkout-payment.html?status=fail&code={code}&message={message}`;
+    
+    console.log('💳 결제 위젯 호출...', {
+      amount,
+      orderId: orderNumber,
+      customerName: `${data.shipping.recipient_first_name} ${data.shipping.recipient_last_name}`,
+      successUrl,
+      failUrl
+    });
+    
+    try {
+      // 위젯 실행 (결제 완료 시 successUrl로 자동 리다이렉트됨)
+      const result = await toss.requestPayment('카드', {
+        amount: amount,
+        orderId: orderNumber,
+        orderName: data.items.length === 1 
+          ? data.items[0].name 
+          : `${data.items[0].name} 외 ${data.items.length - 1}개`,
+        customerName: `${data.shipping.recipient_first_name} ${data.shipping.recipient_last_name}`,
+        successUrl: successUrl,
+        failUrl: failUrl
+      });
+      
+      // requestPayment는 위젯이 열리기 전에 Promise를 반환하지만,
+      // 실제 결제 완료는 successUrl로 리다이렉트되므로 여기서는 로깅만
+      console.log('💳 결제 위젯 열림:', result);
+      
+    } catch (error) {
+      console.error('❌ 토스페이먼츠 위젯 오류:', error);
+      throw new Error(error.message || '결제 위젯 실행 중 오류가 발생했습니다.');
+    }
+    
+    // 위젯이 열리면 사용자가 결제를 진행하고,
+    // 완료 시 successUrl로 자동 리다이렉트됨
+    // 결제 확인 및 장바구니 정리는 order-complete-script.js에서 처리됨
     
   } catch (error) {
     console.error('❌ 결제 처리 실패:', error);

@@ -286,6 +286,7 @@ function validateOrderRequest(req) {
 }
 
 // Rate limiting 미들웨어 (IPv6 환경에서도 동작하도록 사용자 기반 제한)
+const { ipKeyGenerator } = require('express-rate-limit');
 const orderCreationLimiter = rateLimit({
     windowMs: 60 * 1000, // 1분 윈도우
     max: 5,              // 사용자당 분당 5회 주문 생성 시도 허용
@@ -296,8 +297,8 @@ const orderCreationLimiter = rateLimit({
         if (userId) {
             return `user:${userId}`;
         }
-        // 인증 정보가 없으면 IP 기반으로 제한 (IPv6도 그대로 사용 가능)
-        return req.ip;
+        // 인증 정보가 없으면 IP 기반으로 제한 (IPv6 지원)
+        return ipKeyGenerator(req);
     },
     handler: (req, res) => {
         Logger.warn('주문 생성 Rate Limit 초과', {
