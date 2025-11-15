@@ -322,13 +322,14 @@ async function proceedWithTossPayment(data) {
     });
     
     try {
-      // 위젯 실행 전에 페이지 제목 스타일 조정 (위젯 오버레이 아래에 있도록)
+      // 위젯 실행 전에 페이지 제목 완전히 숨기기 (위젯이 열릴 때 방해되지 않도록)
       const paymentTitle = document.querySelector('.checkout-payment-title');
+      const paymentSubtitle = document.querySelector('.checkout-payment-subtitle');
       if (paymentTitle) {
-        // z-index를 낮춰서 위젯 오버레이 아래에 위치하도록
-        paymentTitle.style.position = 'relative';
-        paymentTitle.style.zIndex = '-1';
-        paymentTitle.style.transition = 'opacity 0.3s ease, z-index 0s';
+        paymentTitle.style.display = 'none';
+      }
+      if (paymentSubtitle) {
+        paymentSubtitle.style.display = 'none';
       }
       
       // 위젯 실행 (결제 완료 시 successUrl로 자동 리다이렉트됨)
@@ -351,10 +352,12 @@ async function proceedWithTossPayment(data) {
       console.error('❌ 토스페이먼츠 위젯 오류:', error);
       // 오류 발생 시 제목 스타일 원복
       const paymentTitle = document.querySelector('.checkout-payment-title');
+      const paymentSubtitle = document.querySelector('.checkout-payment-subtitle');
       if (paymentTitle) {
-        paymentTitle.style.position = '';
-        paymentTitle.style.zIndex = '';
-        paymentTitle.style.transition = '';
+        paymentTitle.style.display = '';
+      }
+      if (paymentSubtitle) {
+        paymentSubtitle.style.display = '';
       }
       throw new Error(error.message || '결제 위젯 실행 중 오류가 발생했습니다.');
     }
