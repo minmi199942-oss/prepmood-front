@@ -297,9 +297,9 @@ async function proceedWithTossPayment(data) {
     console.log('💳 TossPayments 초기화 중...', { clientKey: clientKey.substring(0, 10) + '...' });
     const toss = TossPayments(clientKey);
     
-    // successUrl/failUrl에 파라미터 포함 (토스페이먼츠가 자동으로 채워줌)
-    const successUrl = `${window.location.origin}/order-complete.html?paymentKey={paymentKey}&orderId=${orderNumber}&amount=${amount}`;
-    const failUrl = `${window.location.origin}/checkout-payment.html?status=fail&code={code}&message={message}`;
+    // successUrl/failUrl은 절대 URL만 필요 (토스페이먼츠가 자동으로 파라미터 추가)
+    const successUrl = `${window.location.origin}/order-complete.html?orderId=${orderNumber}&amount=${amount}`;
+    const failUrl = `${window.location.origin}/checkout-payment.html?status=fail`;
     
     console.log('💳 결제 위젯 호출...', {
       amount,
