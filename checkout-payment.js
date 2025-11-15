@@ -370,15 +370,33 @@ async function proceedWithTossPayment(data) {
     if (error.message) {
       errorMessage = error.message;
     }
-
+    
+    // 토스페이먼츠 에러 코드 매핑
+    if (error.message && error.message.includes('잘못된')) {
+      errorMessage = '결제 정보가 올바르지 않습니다. 다시 시도해주세요.';
+    }
+    
+    // 에러 메시지를 버튼 위에 표시
+    const errorDesktop = document.getElementById('payment-error');
+    const errorMobile = document.getElementById('payment-error-mobile');
+    const displayMessage = `결제에 실패했습니다: ${errorMessage}`;
+    
+    if (errorDesktop) {
+      errorDesktop.textContent = displayMessage;
+      errorDesktop.classList.remove('hidden');
+    }
+    if (errorMobile) {
+      errorMobile.textContent = displayMessage;
+      errorMobile.classList.remove('hidden');
+    }
+    
+    // 글로벌 에러 배너도 표시 (추가 안내용)
     if (window.showGlobalErrorBanner) {
       window.showGlobalErrorBanner({
         title: '결제 처리 실패',
         message: errorMessage,
         onRetry: () => proceedWithTossPayment(data)
       });
-    } else {
-      alert(errorMessage);
     }
   } finally {
     // 에러 발생 시 항상 버튼 복구 (리다이렉트되지 않은 경우에만)
