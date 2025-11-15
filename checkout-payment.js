@@ -322,12 +322,20 @@ async function proceedWithTossPayment(data) {
     });
     
     try {
-      // 위젯 실행 전에 페이지 제목 영역 전체를 다른 요소들처럼 연하게 보이도록 조정
+      // 위젯 실행 전에 페이지 제목 영역을 오버레이 아래로 보내기
+      // 토스페이먼츠 위젯 오버레이는 특정 z-index 범위에 있으므로, 제목 영역을 그 아래로 이동
       const paymentHeader = document.querySelector('.checkout-payment-header');
       if (paymentHeader) {
-        paymentHeader.style.opacity = '0.3';
-        paymentHeader.style.transition = 'opacity 0.3s ease';
-        paymentHeader.style.pointerEvents = 'none';
+        // position을 relative로 설정하고 z-index를 낮춰서 오버레이 아래로
+        const originalPosition = paymentHeader.style.position;
+        const originalZIndex = paymentHeader.style.zIndex;
+        paymentHeader.style.position = 'relative';
+        paymentHeader.style.zIndex = '0';
+        paymentHeader.style.transition = 'opacity 0.3s ease, z-index 0s';
+        
+        // 오류 발생 시 원복을 위해 저장
+        paymentHeader.dataset.originalPosition = originalPosition || '';
+        paymentHeader.dataset.originalZIndex = originalZIndex || '';
       }
       
       // 위젯 실행 (결제 완료 시 successUrl로 자동 리다이렉트됨)
@@ -351,9 +359,11 @@ async function proceedWithTossPayment(data) {
       // 오류 발생 시 제목 영역 스타일 원복
       const paymentHeader = document.querySelector('.checkout-payment-header');
       if (paymentHeader) {
-        paymentHeader.style.opacity = '';
+        paymentHeader.style.position = paymentHeader.dataset.originalPosition || '';
+        paymentHeader.style.zIndex = paymentHeader.dataset.originalZIndex || '';
         paymentHeader.style.transition = '';
-        paymentHeader.style.pointerEvents = '';
+        delete paymentHeader.dataset.originalPosition;
+        delete paymentHeader.dataset.originalZIndex;
       }
       throw new Error(error.message || '결제 위젯 실행 중 오류가 발생했습니다.');
     }
