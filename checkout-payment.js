@@ -322,14 +322,18 @@ async function proceedWithTossPayment(data) {
     });
     
     try {
-      // 위젯 실행 전에 페이지 제목 완전히 숨기기 (위젯이 열릴 때 방해되지 않도록)
+      // 위젯 실행 전에 페이지 제목 스타일 조정 (다른 요소들처럼 연하게 보이도록)
       const paymentTitle = document.querySelector('.checkout-payment-title');
       const paymentSubtitle = document.querySelector('.checkout-payment-subtitle');
       if (paymentTitle) {
-        paymentTitle.style.display = 'none';
+        paymentTitle.style.opacity = '0.3';
+        paymentTitle.style.transition = 'opacity 0.3s ease';
+        paymentTitle.style.pointerEvents = 'none';
       }
       if (paymentSubtitle) {
-        paymentSubtitle.style.display = 'none';
+        paymentSubtitle.style.opacity = '0.3';
+        paymentSubtitle.style.transition = 'opacity 0.3s ease';
+        paymentSubtitle.style.pointerEvents = 'none';
       }
       
       // 위젯 실행 (결제 완료 시 successUrl로 자동 리다이렉트됨)
@@ -354,10 +358,14 @@ async function proceedWithTossPayment(data) {
       const paymentTitle = document.querySelector('.checkout-payment-title');
       const paymentSubtitle = document.querySelector('.checkout-payment-subtitle');
       if (paymentTitle) {
-        paymentTitle.style.display = '';
+        paymentTitle.style.opacity = '';
+        paymentTitle.style.transition = '';
+        paymentTitle.style.pointerEvents = '';
       }
       if (paymentSubtitle) {
-        paymentSubtitle.style.display = '';
+        paymentSubtitle.style.opacity = '';
+        paymentSubtitle.style.transition = '';
+        paymentSubtitle.style.pointerEvents = '';
       }
       throw new Error(error.message || '결제 위젯 실행 중 오류가 발생했습니다.');
     }
