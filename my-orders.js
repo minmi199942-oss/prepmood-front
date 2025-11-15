@@ -1,9 +1,9 @@
 // my-orders.js - 주문 내역 페이지 스크립트
-const API_BASE = (window.API_BASE)
-  ? window.API_BASE
-  : ((window.location && window.location.origin)
-      ? window.location.origin.replace(/\/$/, '') + '/api'
-      : '/api');
+// API_BASE는 utils.js에서 window.API_BASE로 설정됨
+const API_BASE = window.API_BASE || 
+  ((window.location && window.location.origin)
+    ? window.location.origin.replace(/\/$/, '') + '/api'
+    : '/api');
 
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('주문 내역 페이지 로드됨');

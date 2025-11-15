@@ -1,3 +1,9 @@
+// 중복 로드 방지
+if (window.__HEADER_LOADER_INITIALIZED__) {
+  console.warn('header-loader.js: 이미 초기화되었습니다. 중복 로드를 건너뜁니다.');
+} else {
+  window.__HEADER_LOADER_INITIALIZED__ = true;
+
 const ADMIN_LINK_ID = 'admin-nav-link';
 const HEADER_PARTIAL_URL = (function() {
   const origin = window.location.origin;
@@ -469,3 +475,4 @@ function initializeMypageFunctionality() {
     window.scriptsLoading = false;
   }
 }
+} // 중복 로드 방지 블록 닫기
