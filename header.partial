@@ -9,10 +9,6 @@
         </div>
       </a>
     </div>
-    <!-- 모바일 햄버거 메뉴 버튼 -->
-    <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="메뉴 열기">
-      <img src="image/menu-burger.jpg" alt="메뉴" class="burger-icon" />
-    </button>
     <nav class="main-nav">
       <ul class="mega-root">
         <li class="has-mega"><a href="catalog.html?collection=2025">Collection 2025</a>
@@ -92,7 +88,11 @@
         <img src="image/장바구니.jpg" alt="장바구니" class="action-icon" />
         <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
       </a>
-      <a href="#" class="action-link">언어</a>
+      <!-- 모바일 햄버거 메뉴 버튼 -->
+      <button class="mobile-menu-toggle action-link" id="mobile-menu-toggle" aria-label="메뉴 열기">
+        <img src="image/menu-burger.jpg" alt="메뉴" class="action-icon burger-icon" />
+      </button>
+      <a href="#" class="action-link desktop-only">언어</a>
     </div>
   </div>
 </header>
@@ -172,31 +172,25 @@
   </div>
   <nav class="mobile-menu-nav">
     <ul class="mobile-menu-list">
-      <li><a href="catalog.html?collection=2025">Collection 2025</a></li>
-      <li><a href="catalog.html?category=tops">상의(Top)</a></li>
-      <li><a href="catalog.html?category=bottoms">하의(Bottom)</a></li>
-      <li><a href="catalog.html?category=outer">아우터(Outer)</a></li>
-      <li><a href="catalog.html?category=bags">가방(Bag)</a></li>
-      <li><a href="catalog.html?category=accessories">액세서리(Accessories)</a></li>
+      <li><a href="catalog.html?collection=2025">Collection 2025<span class="menu-arrow">></span></a></li>
+      <li><a href="catalog.html?category=tops">상의(Top)<span class="menu-arrow">></span></a></li>
+      <li><a href="catalog.html?category=bottoms">하의(Bottom)<span class="menu-arrow">></span></a></li>
+      <li><a href="catalog.html?category=outer">아우터(Outer)<span class="menu-arrow">></span></a></li>
+      <li><a href="catalog.html?category=bags">가방(Bag)<span class="menu-arrow">></span></a></li>
+      <li><a href="catalog.html?category=accessories">액세서리(Accessories)<span class="menu-arrow">></span></a></li>
     </ul>
   </nav>
+  <div class="mobile-menu-divider"></div>
   <div class="mobile-menu-actions">
-    <a href="#" class="mobile-menu-action" id="mobile-search-toggle">
-      <img src="image/돋보기.jpg" alt="검색" class="mobile-action-icon" />
-      <span>검색</span>
+    <a href="login.html" class="mobile-menu-action" id="mobile-login-link">
+      <span class="mobile-action-text">로그인 또는 계정 생성</span>
     </a>
-    <a href="login.html" class="mobile-menu-action" id="mobile-mypage-link">
-      <img src="image/mypage.jpg" alt="마이페이지" class="mobile-action-icon" />
-      <span>마이페이지</span>
-    </a>
-    <a href="wishlist.html" class="mobile-menu-action">
-      <img src="image/wishlist.jpg" alt="위시리스트" class="mobile-action-icon" />
-      <span>위시리스트</span>
-    </a>
-    <a href="#" class="mobile-menu-action" id="mobile-cart-toggle">
-      <img src="image/장바구니.jpg" alt="장바구니" class="mobile-action-icon" />
-      <span>장바구니</span>
+    <a href="#" class="mobile-menu-action" id="mobile-cart-link">
+      <span class="mobile-action-text">쇼핑백</span>
       <span class="mobile-cart-badge" id="mobile-cart-badge" style="display: none;">0</span>
+    </a>
+    <a href="#" class="mobile-menu-action" id="mobile-contact-link">
+      <span class="mobile-action-text">문의하기</span>
     </a>
   </div>
 </div>

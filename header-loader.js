@@ -493,8 +493,6 @@ function initMobileMenu() {
   const menuClose = document.getElementById('mobile-menu-close');
   const slideMenu = document.getElementById('mobile-slide-menu');
   const menuOverlay = document.getElementById('mobile-menu-overlay');
-  const mobileSearchToggle = document.getElementById('mobile-search-toggle');
-  const mobileCartToggle = document.getElementById('mobile-cart-toggle');
 
   if (!menuToggle || !menuClose || !slideMenu || !menuOverlay) {
     debugLog('header-loader: mobile menu elements not found');
@@ -530,24 +528,10 @@ function initMobileMenu() {
     closeMenu();
   });
 
-  // 모바일 메뉴 내 검색 버튼 클릭
-  if (mobileSearchToggle) {
-    mobileSearchToggle.addEventListener('click', (e) => {
-      e.preventDefault();
-      closeMenu();
-      // 검색 모달 열기
-      const searchToggle = document.getElementById('search-toggle');
-      if (searchToggle) {
-        setTimeout(() => {
-          searchToggle.click();
-        }, 300);
-      }
-    });
-  }
-
-  // 모바일 메뉴 내 장바구니 버튼 클릭
-  if (mobileCartToggle) {
-    mobileCartToggle.addEventListener('click', (e) => {
+  // 모바일 메뉴 내 쇼핑백 링크 클릭
+  const mobileCartLink = document.getElementById('mobile-cart-link');
+  if (mobileCartLink) {
+    mobileCartLink.addEventListener('click', (e) => {
       e.preventDefault();
       closeMenu();
       // 장바구니 열기
@@ -557,6 +541,17 @@ function initMobileMenu() {
           cartToggle.click();
         }, 300);
       }
+    });
+  }
+
+  // 모바일 메뉴 내 문의하기 링크 클릭
+  const mobileContactLink = document.getElementById('mobile-contact-link');
+  if (mobileContactLink) {
+    mobileContactLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeMenu();
+      // 문의하기 처리 (추후 구현)
+      alert('문의하기 기능은 준비 중입니다.');
     });
   }
 

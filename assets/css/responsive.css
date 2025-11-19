@@ -113,18 +113,43 @@
     width: 100%;
   }
   
-  /* 모바일에서 네비게이션과 액션 숨기기 */
+  /* 모바일에서 네비게이션 숨기기 */
   .main-nav {
     display: none !important;
   }
   
+  /* 모바일에서 일부 액션만 표시 */
   .header-actions {
+    display: flex !important;
+    gap: 8px;
+  }
+  
+  /* 모바일에서 마이페이지와 언어 숨기기 */
+  .mypage-container,
+  .header-actions .desktop-only {
     display: none !important;
   }
   
-  /* 햄버거 메뉴 버튼 표시 */
+  /* 햄버거 메뉴 버튼 스타일 */
   .mobile-menu-toggle {
-    display: block !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .mobile-menu-toggle .burger-icon {
+    width: 24px;
+    height: 24px;
+  }
+  
+  /* 모바일 액션 아이콘 크기 조정 */
+  .header-actions .action-icon {
+    width: clamp(20px, 5vw, 24px);
+    height: clamp(20px, 5vw, 24px);
   }
   
   /* 로고 및 브랜드 조정 */
