@@ -4,11 +4,15 @@
     <div class="logo">
       <a href="index.html" style="text-decoration: none;">
         <div class="brand-text">
-          <strong style="font-size: 1.2rem; color: #111;">Pre.pMood</strong>
-          <div class="slogan" style="font-size: 0.75rem; color: #444; font-weight: 300; margin-top: 2px;">Timeless lines, Refined Vibes</div>
+          <strong style="font-size: 1rem; color: #111;">Pre.pMood</strong>
+          <div class="slogan" style="font-size: 0.65rem; color: #444; font-weight: 300; margin-top: 1px;">Timeless lines, Refined Vibes</div>
         </div>
       </a>
     </div>
+    <!-- 모바일 햄버거 메뉴 버튼 -->
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="메뉴 열기">
+      <img src="image/menu-burger.jpg" alt="메뉴" class="burger-icon" />
+    </button>
     <nav class="main-nav">
       <ul class="mega-root">
         <li class="has-mega"><a href="catalog.html?collection=2025">Collection 2025</a>
@@ -155,3 +159,46 @@
 
 <!-- 미니 카트 오버레이 -->
 <div id="mini-cart-overlay" class="mini-cart-overlay"></div>
+
+<!-- 모바일 슬라이드 메뉴 -->
+<div id="mobile-slide-menu" class="mobile-slide-menu">
+  <div class="mobile-menu-header">
+    <div class="mobile-menu-logo">
+      <strong>Pre.pMood</strong>
+    </div>
+    <button class="mobile-menu-close" id="mobile-menu-close" aria-label="메뉴 닫기">
+      <span>&times;</span>
+    </button>
+  </div>
+  <nav class="mobile-menu-nav">
+    <ul class="mobile-menu-list">
+      <li><a href="catalog.html?collection=2025">Collection 2025</a></li>
+      <li><a href="catalog.html?category=tops">상의(Top)</a></li>
+      <li><a href="catalog.html?category=bottoms">하의(Bottom)</a></li>
+      <li><a href="catalog.html?category=outer">아우터(Outer)</a></li>
+      <li><a href="catalog.html?category=bags">가방(Bag)</a></li>
+      <li><a href="catalog.html?category=accessories">액세서리(Accessories)</a></li>
+    </ul>
+  </nav>
+  <div class="mobile-menu-actions">
+    <a href="#" class="mobile-menu-action" id="mobile-search-toggle">
+      <img src="image/돋보기.jpg" alt="검색" class="mobile-action-icon" />
+      <span>검색</span>
+    </a>
+    <a href="login.html" class="mobile-menu-action" id="mobile-mypage-link">
+      <img src="image/mypage.jpg" alt="마이페이지" class="mobile-action-icon" />
+      <span>마이페이지</span>
+    </a>
+    <a href="wishlist.html" class="mobile-menu-action">
+      <img src="image/wishlist.jpg" alt="위시리스트" class="mobile-action-icon" />
+      <span>위시리스트</span>
+    </a>
+    <a href="#" class="mobile-menu-action" id="mobile-cart-toggle">
+      <img src="image/장바구니.jpg" alt="장바구니" class="mobile-action-icon" />
+      <span>장바구니</span>
+      <span class="mobile-cart-badge" id="mobile-cart-badge" style="display: none;">0</span>
+    </a>
+  </div>
+</div>
+<!-- 모바일 메뉴 오버레이 -->
+<div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>

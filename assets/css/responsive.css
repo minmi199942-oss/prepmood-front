@@ -104,11 +104,8 @@
 /* ===== Mobile (≤767px) ===== */
 @media (max-width: 767px) {
   /* Header 모바일 조정 */
-  header {
-    padding: clamp(10px, 3vw, 16px) clamp(12px, 4vw, 20px);
-    flex-direction: column;
-    align-items: flex-start;
-    gap: clamp(12px, 2vw, 16px);
+  header.main-header {
+    padding: clamp(8px, 2vw, 14px) clamp(12px, 4vw, 20px);
   }
   
   .header-content {
@@ -116,14 +113,18 @@
     width: 100%;
   }
   
-  nav ul {
-    gap: clamp(10px, 2.5vw, 18px);
-    flex-wrap: wrap;
-    margin-top: 0;
+  /* 모바일에서 네비게이션과 액션 숨기기 */
+  .main-nav {
+    display: none !important;
   }
   
-  nav ul li a {
-    font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+  .header-actions {
+    display: none !important;
+  }
+  
+  /* 햄버거 메뉴 버튼 표시 */
+  .mobile-menu-toggle {
+    display: block !important;
   }
   
   /* 로고 및 브랜드 조정 */
@@ -138,12 +139,6 @@
   
   .slogan {
     font-size: clamp(0.6rem, 2vw, 0.7rem);
-  }
-  
-  /* 액션 아이콘 조정 */
-  .action-icon {
-    width: clamp(45px, 10vw, 55px);
-    height: clamp(45px, 10vw, 55px);
   }
   
   /* 제품 그리드 모바일 조정 */

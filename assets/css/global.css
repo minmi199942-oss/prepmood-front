@@ -39,20 +39,20 @@
 
 /* ===== CSS Variables ===== */
 :root { 
-  --header-height: 72px; /* 데스크톱 기본값 */
+  --header-height: 60px; /* 데스크톱 기본값 */
 }
 
 /* 태블릿 (768px 이하) */
 @media (max-width: 768px) {
   :root {
-    --header-height: 68px;
+    --header-height: 56px;
   }
 }
 
 /* 모바일 (480px 이하) */
 @media (max-width: 480px) {
   :root {
-    --header-height: 60px;
+    --header-height: 50px;
   }
 }
 
@@ -63,8 +63,13 @@
   box-sizing: border-box;
 }
 
+@font-face {
+  font-family: 'Apple SD Gothic Neo';
+  font-display: swap; /* 폰트 로딩 중에도 텍스트 즉시 표시 */
+}
+
 body {
-  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background-color: #fff;
   color: #111;
   line-height: 1.6;
@@ -74,7 +79,7 @@ body {
 
 /* ===== Header ===== */
 header.main-header {
-  padding: clamp(5px, 1.5vw, 20px) clamp(20px, 5vw, 40px);
+  padding: clamp(8px, 1.2vw, 14px) clamp(15px, 4vw, 30px);
   border-bottom: 1px solid #eee;
   background-color: #fff;
   position: fixed;
@@ -128,10 +133,10 @@ body.mini-cart-open header.main-header {
 }
 
 .slogan {
-  font-size: clamp(0.65rem, 1.8vw, 0.75rem);
+  font-size: clamp(0.6rem, 1.5vw, 0.7rem);
   color: #444;
   font-weight: 300;
-  margin-top: 2px;
+  margin-top: 1px;
   letter-spacing: 0.5px;
 }
 
@@ -728,4 +733,165 @@ nav ul li {
   font-size: clamp(0.65rem, 1vw, 0.75rem);
   letter-spacing: 0.2px;
   font-weight: 300;
+}
+
+/* ===== 모바일 햄버거 메뉴 ===== */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  margin-left: auto;
+  z-index: 1001;
+}
+
+.burger-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* 모바일 슬라이드 메뉴 */
+.mobile-slide-menu {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 85%;
+  max-width: 400px;
+  height: 100vh;
+  background: #fff;
+  z-index: 10000;
+  transition: right 0.3s ease;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+  overflow-y: auto;
+}
+
+.mobile-slide-menu.active {
+  right: 0;
+}
+
+.mobile-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.mobile-menu-logo strong {
+  font-size: 1.2rem;
+  color: #111;
+  font-weight: 600;
+}
+
+.mobile-menu-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #111;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mobile-menu-close:hover {
+  opacity: 0.7;
+}
+
+.mobile-menu-nav {
+  padding: 20px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.mobile-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mobile-menu-list li {
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.mobile-menu-list li:last-child {
+  border-bottom: none;
+}
+
+.mobile-menu-list a {
+  display: block;
+  padding: 16px 20px;
+  color: #111;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 400;
+  transition: background-color 0.2s ease;
+}
+
+.mobile-menu-list a:hover {
+  background-color: #f9f9f9;
+}
+
+.mobile-menu-actions {
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-menu-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: #111;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+.mobile-menu-action:hover {
+  background-color: #f9f9f9;
+}
+
+.mobile-action-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.mobile-cart-badge {
+  position: absolute;
+  right: 20px;
+  background-color: #e74c3c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* 모바일 메뉴 오버레이 */
+.mobile-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.mobile-menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
 }

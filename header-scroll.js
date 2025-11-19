@@ -35,6 +35,14 @@
       const currentScrollY = window.scrollY;
       const scrollDelta = currentScrollY - lastScrollY;
 
+      // 모바일 메뉴가 열려있으면 헤더 항상 표시
+      const mobileMenu = document.getElementById('mobile-slide-menu');
+      if (mobileMenu && mobileMenu.classList.contains('active')) {
+        header.classList.remove('header--hidden');
+        lastScrollY = currentScrollY;
+        return;
+      }
+
       // 장바구니가 열려있으면 헤더 항상 표시
       const miniCart = document.getElementById('mini-cart');
       if (miniCart && miniCart.classList.contains('active')) {
@@ -66,6 +74,12 @@
      * 상단 영역 마우스 호버 시 헤더 표시
      */
     function handleMouseMove(e) {
+      // 모바일 메뉴가 열려있으면 무시
+      const mobileMenu = document.getElementById('mobile-slide-menu');
+      if (mobileMenu && mobileMenu.classList.contains('active')) {
+        return;
+      }
+
       // 장바구니가 열려있으면 무시
       const miniCart = document.getElementById('mini-cart');
       if (miniCart && miniCart.classList.contains('active')) {

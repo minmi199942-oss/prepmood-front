@@ -96,6 +96,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       }, 100);
 
+      // 모바일 햄버거 메뉴 초기화
+      initMobileMenu();
+
       // sync CSS var with actual header height (init + on resize)
       const headerEl = headerContainer.querySelector('header');
       function updateHeaderHeight(){
@@ -482,5 +485,111 @@ function initializeMypageFunctionality() {
     debugLog('header-loader: mini cart already loaded');
     window.scriptsLoading = false;
   }
+}
+
+// 모바일 햄버거 메뉴 초기화
+function initMobileMenu() {
+  const menuToggle = document.getElementById('mobile-menu-toggle');
+  const menuClose = document.getElementById('mobile-menu-close');
+  const slideMenu = document.getElementById('mobile-slide-menu');
+  const menuOverlay = document.getElementById('mobile-menu-overlay');
+  const mobileSearchToggle = document.getElementById('mobile-search-toggle');
+  const mobileCartToggle = document.getElementById('mobile-cart-toggle');
+
+  if (!menuToggle || !menuClose || !slideMenu || !menuOverlay) {
+    debugLog('header-loader: mobile menu elements not found');
+    return;
+  }
+
+  function openMenu() {
+    slideMenu.classList.add('active');
+    menuOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeMenu() {
+    slideMenu.classList.remove('active');
+    menuOverlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  // 햄버거 메뉴 버튼 클릭
+  menuToggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    openMenu();
+  });
+
+  // 닫기 버튼 클릭
+  menuClose.addEventListener('click', (e) => {
+    e.preventDefault();
+    closeMenu();
+  });
+
+  // 오버레이 클릭 시 닫기
+  menuOverlay.addEventListener('click', () => {
+    closeMenu();
+  });
+
+  // 모바일 메뉴 내 검색 버튼 클릭
+  if (mobileSearchToggle) {
+    mobileSearchToggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeMenu();
+      // 검색 모달 열기
+      const searchToggle = document.getElementById('search-toggle');
+      if (searchToggle) {
+        setTimeout(() => {
+          searchToggle.click();
+        }, 300);
+      }
+    });
+  }
+
+  // 모바일 메뉴 내 장바구니 버튼 클릭
+  if (mobileCartToggle) {
+    mobileCartToggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeMenu();
+      // 장바구니 열기
+      const cartToggle = document.getElementById('cart-toggle');
+      if (cartToggle) {
+        setTimeout(() => {
+          cartToggle.click();
+        }, 300);
+      }
+    });
+  }
+
+  // ESC 키로 메뉴 닫기
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && slideMenu.classList.contains('active')) {
+      closeMenu();
+    }
+  });
+
+  // 장바구니 배지 동기화
+  function syncCartBadge() {
+    const desktopBadge = document.getElementById('cart-badge');
+    const mobileBadge = document.getElementById('mobile-cart-badge');
+    if (desktopBadge && mobileBadge) {
+      const count = desktopBadge.textContent || '0';
+      mobileBadge.textContent = count;
+      if (count !== '0' && count !== '') {
+        mobileBadge.style.display = 'block';
+      } else {
+        mobileBadge.style.display = 'none';
+      }
+    }
+  }
+
+  // 장바구니 업데이트 감지
+  const observer = new MutationObserver(syncCartBadge);
+  const cartBadge = document.getElementById('cart-badge');
+  if (cartBadge) {
+    observer.observe(cartBadge, { childList: true, characterData: true, subtree: true });
+    syncCartBadge();
+  }
+
+  debugLog('header-loader: mobile menu initialized');
 }
 } // 중복 로드 방지 블록 닫기

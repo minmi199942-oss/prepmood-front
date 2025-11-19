@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pre.p Mood Store</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- CSS 최적화: 중요 CSS 우선 로드 -->
+  <link rel="preload" href="assets/css/global.css" as="style">
   <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="preload" href="assets/css/page.css" as="style">
   <link rel="stylesheet" href="assets/css/page.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
   <script src="utils.js" defer></script> <!-- ✅ 보안 유틸리티 함수 -->
@@ -14,6 +17,43 @@
   <script src="header-loader.js" defer></script> <!-- ✅ header.html 불러오기 -->
   <script src="header-scroll.js" defer></script> <!-- ✅ 프라다 스타일 헤더 스크롤 제어 -->
   <script src="footer-loader.js" defer></script> <!-- ✅ footer.partial 불러오기 -->
+  <!-- 이미지 지연 로딩 스크립트 -->
+  <script>
+    // 배너 이미지 지연 로딩
+    document.addEventListener('DOMContentLoaded', function() {
+      // 첫 번째 이미지는 즉시 로드
+      const firstHero = document.querySelector('.category-hero');
+      if (firstHero && firstHero.dataset.bg) {
+        firstHero.style.backgroundImage = `url('${firstHero.dataset.bg}')`;
+      }
+      
+      // 나머지 이미지는 Intersection Observer로 지연 로드
+      const lazyHeroes = document.querySelectorAll('.category-hero[data-lazy]');
+      if (lazyHeroes.length && 'IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const hero = entry.target;
+              if (hero.dataset.bg) {
+                hero.style.backgroundImage = `url('${hero.dataset.bg}')`;
+                hero.removeAttribute('data-lazy');
+                observer.unobserve(hero);
+              }
+            }
+          });
+        }, { rootMargin: '50px' });
+        
+        lazyHeroes.forEach(hero => imageObserver.observe(hero));
+      } else {
+        // IntersectionObserver 미지원 브라우저: 모두 즉시 로드
+        lazyHeroes.forEach(hero => {
+          if (hero.dataset.bg) {
+            hero.style.backgroundImage = `url('${hero.dataset.bg}')`;
+          }
+        });
+      }
+    });
+  </script>
 </head>
 <body>
 
@@ -24,42 +64,42 @@
 
   <!-- ✅ 카테고리 배너 섹션 (Apple 스타일) -->
   <main class="home-banners">
-    <section class="category-hero" style="background-image:url('image/shirt.jpg')">
+    <section class="category-hero" data-bg="image/shirt.jpg">
       <div class="hero-content">
         <h2>상의</h2>
         <p>Timeless Essentials</p>
       </div>
     </section>
 
-    <section class="category-hero" style="background-image:url('image/pants.jpg')">
+    <section class="category-hero" data-bg="image/pants.jpg" data-lazy>
       <div class="hero-content">
         <h2>하의</h2>
         <p>Refined Everyday</p>
       </div>
     </section>
 
-    <section class="category-hero" style="background-image:url('image/denim.jpg')">
+    <section class="category-hero" data-bg="image/denim.jpg" data-lazy>
       <div class="hero-content">
         <h2>양복</h2>
         <p>Tailored Confidence</p>
       </div>
     </section>
 
-    <section class="category-hero" style="background-image:url('image/knit.jpg')">
+    <section class="category-hero" data-bg="image/knit.jpg" data-lazy>
       <div class="hero-content">
         <h2>목도리</h2>
         <p>Soft Warmth</p>
       </div>
     </section>
 
-    <section class="category-hero" style="background-image:url('image/hat.jpg')">
+    <section class="category-hero" data-bg="image/hat.jpg" data-lazy>
       <div class="hero-content">
         <h2>신발</h2>
         <p>Move in Style</p>
       </div>
     </section>
 
-    <section class="category-hero" style="background-image:url('image/earring.jpg')">
+    <section class="category-hero" data-bg="image/earring.jpg" data-lazy>
       <div class="hero-content">
         <h2>ACC</h2>
         <p>Subtle Statements</p>
