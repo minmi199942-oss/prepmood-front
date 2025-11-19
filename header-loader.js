@@ -528,6 +528,15 @@ function initMobileMenu() {
     closeMenu();
   });
 
+  // 모바일 메뉴 내 네비게이션 링크 클릭 시 메뉴 닫기
+  const mobileMenuLinks = slideMenu.querySelectorAll('.mobile-menu-list a');
+  mobileMenuLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      // 링크 이동 전에 메뉴 닫기 (약간의 지연을 두어 부드러운 전환)
+      closeMenu();
+    });
+  });
+
   // 모바일 메뉴 내 쇼핑백 링크 클릭
   const mobileCartLink = document.getElementById('mobile-cart-link');
   if (mobileCartLink) {
