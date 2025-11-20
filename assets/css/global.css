@@ -161,8 +161,8 @@ body.mini-cart-open header.main-header {
 }
 
 .action-icon {
-  width: clamp(20px, 3.5vw, 28px);
-  height: clamp(20px, 3.5vw, 28px);
+  width: clamp(18px, 3vw, 24px);
+  height: clamp(18px, 3vw, 24px);
   object-fit: contain;
   transition: opacity 0.2s ease;
 }
@@ -746,8 +746,8 @@ nav ul li {
 }
 
 .burger-icon {
-  width: clamp(18px, 3.5vw, 24px);
-  height: clamp(18px, 3.5vw, 24px);
+  width: clamp(16px, 3vw, 22px);
+  height: clamp(16px, 3vw, 22px);
   object-fit: contain;
 }
 
