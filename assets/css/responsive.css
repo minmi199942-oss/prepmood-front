@@ -142,14 +142,14 @@
   }
   
   .mobile-menu-toggle .burger-icon {
-    width: clamp(18px, 4vw, 22px);
-    height: clamp(18px, 4vw, 22px);
+    width: clamp(16px, 3.5vw, 20px);
+    height: clamp(16px, 3.5vw, 20px);
   }
   
   /* 모바일 액션 아이콘 크기 조정 */
   .header-actions .action-icon {
-    width: clamp(18px, 4vw, 22px);
-    height: clamp(18px, 4vw, 22px);
+    width: clamp(16px, 3.5vw, 20px);
+    height: clamp(16px, 3.5vw, 20px);
   }
   
   /* 로고 및 브랜드 조정 */
