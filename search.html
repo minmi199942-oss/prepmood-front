@@ -157,8 +157,6 @@
 
     // 페이지 로드 시 초기화
     document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM 로드 완료');
-      
       // 초기화 함수들 먼저 실행
       initializeSearch();
       setupFilters();
@@ -166,23 +164,19 @@
       // product-data.js에서 데이터 로드 완료를 기다림
       if (window.productsLoaded) {
         // 이미 로드된 경우
-        console.log('상품 데이터가 이미 로드되어 있습니다');
         loadProducts();
       } else {
         // productsLoaded 이벤트 리스너 추가
         window.addEventListener('productsLoaded', function() {
-          console.log('productsLoaded 이벤트 수신 - 상품 데이터 로드 완료');
           loadProducts();
         });
         
         // 타임아웃 설정 (5초 후에도 데이터가 없으면 에러 표시)
         setTimeout(function() {
           if (allProducts.length === 0 && typeof window.CATALOG_DATA !== 'undefined') {
-            console.warn('타임아웃: 상품 데이터 로드를 기다리는 중...');
             // CATALOG_DATA가 있으면 시도
             loadProducts();
           } else if (typeof window.CATALOG_DATA === 'undefined') {
-            console.error('CATALOG_DATA가 로드되지 않았습니다');
             showError('상품 데이터를 불러올 수 없습니다.');
           }
         }, 5000);
@@ -226,28 +220,21 @@
 
     // 모든 상품 데이터 로드
     function loadProducts() {
-      console.log('=== loadProducts 시작 ===');
-      console.log('CATALOG_DATA 존재 여부:', typeof window.CATALOG_DATA !== 'undefined');
-      
       if (typeof window.CATALOG_DATA === 'undefined') {
-        console.error('CATALOG_DATA가 정의되지 않았습니다.');
         showError('상품 데이터가 로드되지 않았습니다.');
         return;
       }
 
       const catalogData = window.CATALOG_DATA;
-      console.log('catalogData 구조:', Object.keys(catalogData));
       allProducts = [];
 
       // 실제 데이터 구조에 맞게 수정: { tops: { shirts: [] }, bottoms: { pants: [] } }
       Object.keys(catalogData).forEach(mainCategory => {
         const subCategories = catalogData[mainCategory];
-        console.log(`  처리 중인 대분류: ${mainCategory}`);
         
         if (subCategories && typeof subCategories === 'object') {
           Object.keys(subCategories).forEach(subCategory => {
             const products = subCategories[subCategory];
-            console.log(`    처리 중인 소분류: ${subCategory}, 상품 수: ${products.length}`);
             
             if (Array.isArray(products)) {
               products.forEach(product => {
@@ -263,57 +250,34 @@
         }
       });
 
-      console.log('=== 로드 완료 ===');
-      console.log('전체 상품 수:', allProducts.length);
-      if (allProducts.length > 0) {
-        console.log('첫 번째 상품:', allProducts[0]);
-      }
-      
-      // 데이터 로드 후 필터 적용 (검색어가 있으면 함께 처리됨)
-      if (currentSearchQuery) {
-        console.log('검색어가 있으므로 검색 실행:', currentSearchQuery);
-      } else {
-        console.log('검색어가 없으므로 전체 상품 표시');
-      }
       // 필터 적용 (검색어 포함)
       applyFilters();
     }
 
     // 검색 실행 (검색어만 처리, 필터는 applyFilters에서 처리)
     function performSearch() {
-      console.log('=== performSearch 시작 ===');
-      console.log('현재 검색어:', currentSearchQuery);
-      console.log('전체 상품 수:', allProducts.length);
-      
       // 검색어가 있든 없든 필터를 적용 (필터가 검색어도 함께 처리함)
       applyFilters();
     }
 
     // 상품 표시
     function displayProducts(products) {
-      console.log('=== displayProducts 시작 ===');
-      console.log('표시할 상품 수:', products.length);
-      
       const grid = document.getElementById('products-grid');
       const noResults = document.getElementById('no-results');
       const resultsCount = document.getElementById('results-count');
 
       if (!products || products.length === 0) {
-        console.log('상품이 없어서 "결과 없음" 표시');
         grid.style.display = 'none';
         noResults.style.display = 'block';
         resultsCount.textContent = '0개 상품';
         return;
       }
 
-      console.log('상품 그리드 표시');
       grid.style.display = 'grid';
       noResults.style.display = 'none';
       resultsCount.textContent = `${products.length}개 상품`;
 
       const productsHtml = products.map(product => {
-        console.log(`상품 HTML 생성: ${product.name}`);
-        // gender 파라미터 제거, buy.html로 직접 이동
         return `
           <div class="product-card" onclick="goToProduct('${product.id}', '${product.mainCategory}', '${product.subCategory}')">
             <div class="product-image">
@@ -330,7 +294,6 @@
       }).join('');
 
       grid.innerHTML = productsHtml;
-      console.log('상품 HTML 생성 완료');
     }
 
     // 상품 상세 페이지로 이동
@@ -413,7 +376,6 @@
       if (!searchInput) return;
 
       const newQuery = searchInput.value.trim();
-      console.log('새로운 검색어:', newQuery);
 
       // 현재 검색어 업데이트
       currentSearchQuery = newQuery;
@@ -436,7 +398,6 @@
     function applyFilters() {
       // 상품 데이터가 없으면 필터 적용하지 않음
       if (!allProducts || allProducts.length === 0) {
-        console.log('상품 데이터가 없어서 필터를 적용할 수 없습니다.');
         return;
       }
 
@@ -452,7 +413,6 @@
         filtered = filtered.filter(product => 
           product.name.toLowerCase().includes(currentSearchQuery.toLowerCase())
         );
-        console.log('검색어 필터 적용 후:', filtered.length, '개');
       }
 
       // 카테고리 필터
@@ -462,7 +422,6 @@
           const productCategory = product.category || product.mainCategory;
           return categories.includes(productCategory);
         });
-        console.log('카테고리 필터 적용 후:', filtered.length, '개');
       }
 
       // 가격 필터
@@ -486,7 +445,6 @@
             return product.price >= min && product.price <= max;
           }
         });
-        console.log('가격 필터 적용 후:', filtered.length, '개');
       }
 
       // 색상 필터
@@ -508,7 +466,6 @@
             return keywords.some(keyword => productText.includes(keyword));
           });
         });
-        console.log('색상 필터 적용 후:', filtered.length, '개');
       }
 
       filteredProducts = filtered;
@@ -571,47 +528,6 @@
       applyFilters();
     }
 
-    // 테스트용 함수 (콘솔에서 호출 가능)
-    function testSearch() {
-      console.log('=== 검색 테스트 시작 ===');
-      console.log('CATALOG_DATA:', window.CATALOG_DATA);
-      console.log('allProducts 길이:', allProducts.length);
-      console.log('첫 번째 상품:', allProducts[0]);
-      
-      if (allProducts.length > 0) {
-        const testProduct = allProducts[0];
-        console.log('테스트 상품명:', testProduct.name);
-        
-        // 테스트 검색 실행
-        currentSearchQuery = testProduct.name.split(' ')[0]; // 첫 번째 단어로 검색
-        console.log('테스트 검색어:', currentSearchQuery);
-        performSearch();
-      }
-    }
-
-    // Classic 검색 테스트
-    function testClassicSearch() {
-      console.log('=== Classic 검색 테스트 ===');
-      currentSearchQuery = 'Classic';
-      document.getElementById('search-query').textContent = `"${currentSearchQuery}" 검색 결과`;
-      performSearch();
-    }
-
-    // cl 검색 테스트
-    function testClSearch() {
-      console.log('=== cl 검색 테스트 ===');
-      currentSearchQuery = 'cl';
-      document.getElementById('search-query').textContent = `"${currentSearchQuery}" 검색 결과`;
-      performSearch();
-    }
-
-    // 전체 상품 표시
-    function showAllProducts() {
-      console.log('=== 전체 상품 표시 ===');
-      currentSearchQuery = '';
-      document.getElementById('search-query').textContent = '전체 상품';
-      displayProducts(allProducts);
-    }
   </script>
 
   <!-- 푸터 컨테이너 -->
