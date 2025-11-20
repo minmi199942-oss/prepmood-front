@@ -11,6 +11,13 @@ window.CATALOG_DATA = {
   accessories: { caps: [], wallets: [], belts: [], ties: [] }
 };
 
+// Logger가 없으면 console 사용
+const Logger = window.Logger || {
+  log: console.log.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console)
+};
+
 // API에서 상품 데이터 로드
 async function loadProducts() {
   try {
