@@ -44,10 +44,6 @@
             <span>하의</span>
           </label>
           <label class="filter-option">
-            <input type="checkbox" name="category" value="shoes">
-            <span>신발</span>
-          </label>
-          <label class="filter-option">
             <input type="checkbox" name="category" value="bags">
             <span>가방</span>
           </label>
@@ -105,35 +101,6 @@
         </div>
       </div>
 
-      <!-- 소재 필터 -->
-      <div class="filter-section">
-        <div class="filter-toggle">
-          <h4>소재</h4>
-          <span class="toggle-icon">▼</span>
-        </div>
-        <div class="filter-content">
-          <label class="filter-option">
-            <input type="checkbox" name="material" value="cotton">
-            <span>면</span>
-          </label>
-          <label class="filter-option">
-            <input type="checkbox" name="material" value="leather">
-            <span>가죽</span>
-          </label>
-          <label class="filter-option">
-            <input type="checkbox" name="material" value="wool">
-            <span>울</span>
-          </label>
-          <label class="filter-option">
-            <input type="checkbox" name="material" value="silk">
-            <span>실크</span>
-          </label>
-          <label class="filter-option">
-            <input type="checkbox" name="material" value="denim">
-            <span>데님</span>
-          </label>
-        </div>
-      </div>
     </aside>
 
     <!-- 메인 콘텐츠 영역 -->
@@ -419,6 +386,14 @@
         input.addEventListener('change', applyFilters);
       });
 
+      // 색상 필터 이벤트
+      document.querySelectorAll('.color-option').forEach(colorOption => {
+        colorOption.addEventListener('click', function() {
+          this.classList.toggle('selected');
+          applyFilters();
+        });
+      });
+
       // 정렬 옵션
       document.getElementById('sort-select').addEventListener('change', applySorting);
 
@@ -511,11 +486,48 @@
 
       // 가격 필터
       if (price) {
-        const [min, max] = price.split('-').map(p => parseInt(p) || 0);
-        filtered = filtered.filter(product => 
-          product.price >= min && (max === 0 || product.price <= max)
-        );
+        const priceRange = price.split('-');
+        const min = parseInt(priceRange[0]) || 0;
+        let max;
+        
+        if (priceRange[1] === undefined || priceRange[1] === '') {
+          // "200000-" 같은 경우: 최소값 이상 (무제한)
+          max = Infinity;
+        } else {
+          // "0-50000" 같은 경우: 최소값 이상 최대값 이하
+          max = parseInt(priceRange[1]);
+        }
+        
+        filtered = filtered.filter(product => {
+          if (max === Infinity) {
+            return product.price >= min;
+          } else {
+            return product.price >= min && product.price <= max;
+          }
+        });
         console.log('가격 필터 적용 후:', filtered.length, '개');
+      }
+
+      // 색상 필터
+      const selectedColors = Array.from(document.querySelectorAll('.color-option.selected')).map(el => el.dataset.color);
+      if (selectedColors.length > 0) {
+        filtered = filtered.filter(product => {
+          // 상품명이나 설명에서 색상 키워드 검색
+          // 또는 상품 데이터에 color 필드가 있다면 사용
+          const productText = (product.name + ' ' + (product.description || '')).toLowerCase();
+          return selectedColors.some(color => {
+            const colorKeywords = {
+              'black': ['black', '블랙', '검정'],
+              'white': ['white', '화이트', '흰색'],
+              'gray': ['gray', 'grey', '그레이', '회색'],
+              'brown': ['brown', '브라운', '갈색'],
+              'navy': ['navy', '네이비', '남색']
+            };
+            const keywords = colorKeywords[color] || [color];
+            return keywords.some(keyword => productText.includes(keyword));
+          });
+        });
+        console.log('색상 필터 적용 후:', filtered.length, '개');
       }
 
       filteredProducts = filtered;
@@ -547,7 +559,7 @@
 
     // 필터 초기화
     function clearFilters() {
-      // 가격 필터만 초기화 (전체 선택)
+      // 가격 필터 초기화 (전체 선택)
       document.querySelectorAll('input[name="price"]').forEach(input => {
         input.checked = (input.value === '');
       });
@@ -555,6 +567,11 @@
       // 카테고리 필터 초기화
       document.querySelectorAll('input[name="category"]').forEach(input => {
         input.checked = false;
+      });
+
+      // 색상 필터 초기화
+      document.querySelectorAll('.color-option').forEach(colorOption => {
+        colorOption.classList.remove('selected');
       });
 
       // 검색어는 유지하고 필터만 초기화
