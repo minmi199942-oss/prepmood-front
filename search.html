@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="assets/css/page.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
   <script src="catalog-data.js"></script>
+  <script src="product-data.js"></script>
   <script src="header-loader.js" defer></script>
   <script src="header-scroll.js" defer></script>
   <script src="footer-loader.js" defer></script>
@@ -187,37 +188,36 @@
     document.addEventListener('DOMContentLoaded', function() {
       console.log('DOM 로드 완료');
       
-      // catalog-data.js 로드 확인
-      if (typeof window.CATALOG_DATA !== 'undefined') {
-        console.log('CATALOG_DATA 로드됨');
-        initializeSearch();
-        setupFilters();
+      // 초기화 함수들 먼저 실행
+      initializeSearch();
+      setupFilters();
+      
+      // product-data.js에서 데이터 로드 완료를 기다림
+      if (window.productsLoaded) {
+        // 이미 로드된 경우
+        console.log('상품 데이터가 이미 로드되어 있습니다');
         loadProducts();
       } else {
-        console.error('CATALOG_DATA가 로드되지 않았습니다');
-        // 수동으로 데이터 로드 시도
-        loadCatalogData();
+        // productsLoaded 이벤트 리스너 추가
+        window.addEventListener('productsLoaded', function() {
+          console.log('productsLoaded 이벤트 수신 - 상품 데이터 로드 완료');
+          loadProducts();
+        });
+        
+        // 타임아웃 설정 (5초 후에도 데이터가 없으면 에러 표시)
+        setTimeout(function() {
+          if (allProducts.length === 0 && typeof window.CATALOG_DATA !== 'undefined') {
+            console.warn('타임아웃: 상품 데이터 로드를 기다리는 중...');
+            // CATALOG_DATA가 있으면 시도
+            loadProducts();
+          } else if (typeof window.CATALOG_DATA === 'undefined') {
+            console.error('CATALOG_DATA가 로드되지 않았습니다');
+            showError('상품 데이터를 불러올 수 없습니다.');
+          }
+        }, 5000);
       }
     });
 
-    // catalog-data.js 수동 로드
-    function loadCatalogData() {
-      const script = document.createElement('script');
-      script.src = 'catalog-data.js';
-      script.onload = function() {
-        console.log('catalog-data.js 수동 로드 완료');
-        if (typeof window.CATALOG_DATA !== 'undefined') {
-          initializeSearch();
-          setupFilters();
-          loadProducts();
-        }
-      };
-      script.onerror = function() {
-        console.error('catalog-data.js 로드 실패');
-        showError('상품 데이터를 불러올 수 없습니다.');
-      };
-      document.head.appendChild(script);
-    }
 
     // 에러 표시
     function showError(message) {
@@ -268,35 +268,35 @@
       console.log('catalogData 구조:', Object.keys(catalogData));
       allProducts = [];
 
-      // 모든 상품을 평면화하여 배열로 변환
-      ['men', 'women'].forEach(gender => {
-        if (catalogData[gender]) {
-          Object.keys(catalogData[gender]).forEach(mainCategory => {
-            console.log(`  처리 중인 카테고리: ${mainCategory}`);
-            Object.keys(catalogData[gender][mainCategory]).forEach(subCategory => {
-              console.log(`    처리 중인 서브카테고리: ${subCategory}`);
-              const products = catalogData[gender][mainCategory][subCategory];
-              console.log(`      상품 수: ${products.length}`);
-              
+      // 실제 데이터 구조에 맞게 수정: { tops: { shirts: [] }, bottoms: { pants: [] } }
+      Object.keys(catalogData).forEach(mainCategory => {
+        const subCategories = catalogData[mainCategory];
+        console.log(`  처리 중인 대분류: ${mainCategory}`);
+        
+        if (subCategories && typeof subCategories === 'object') {
+          Object.keys(subCategories).forEach(subCategory => {
+            const products = subCategories[subCategory];
+            console.log(`    처리 중인 소분류: ${subCategory}, 상품 수: ${products.length}`);
+            
+            if (Array.isArray(products)) {
               products.forEach(product => {
                 allProducts.push({
                   ...product,
-                  gender,
-                  mainCategory,
-                  subCategory
+                  mainCategory: mainCategory, // tops, bottoms, outer 등
+                  subCategory: subCategory,   // shirts, pants, skirts 등
+                  category: mainCategory      // 필터에서 사용할 필드
                 });
               });
-            });
+            }
           });
-        } else {
-          console.log(`${gender} 데이터가 없습니다.`);
         }
       });
 
       console.log('=== 로드 완료 ===');
       console.log('전체 상품 수:', allProducts.length);
-      console.log('첫 번째 상품:', allProducts[0]);
-      console.log('Classic이 포함된 상품:', allProducts.filter(p => p.name.toLowerCase().includes('classic')));
+      if (allProducts.length > 0) {
+        console.log('첫 번째 상품:', allProducts[0]);
+      }
       
       // 검색어가 있으면 검색 실행
       if (currentSearchQuery) {
@@ -369,8 +369,9 @@
 
       const productsHtml = products.map(product => {
         console.log(`상품 HTML 생성: ${product.name}`);
+        // gender 파라미터 제거, buy.html로 직접 이동
         return `
-          <div class="product-card" onclick="goToProduct('${product.id}', '${product.gender}', '${product.mainCategory}', '${product.subCategory}')">
+          <div class="product-card" onclick="goToProduct('${product.id}', '${product.mainCategory}', '${product.subCategory}')">
             <div class="product-image">
               <img src="${product.image}" alt="${product.name}" loading="lazy" 
                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgwIiBoZWlnaHQ9IjI4MCIgdmlld0JveD0iMCAwIDI4MCAyODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyODAiIGhlaWdodD0iMjgwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNDAgMTIwSDgwdjQwaDgwVjEyMFoiIGZpbGw9IiNEOUQ5RDkiLz4KPHN2Zz4K'">
@@ -389,8 +390,9 @@
     }
 
     // 상품 상세 페이지로 이동
-    function goToProduct(productId, gender, mainCategory, subCategory) {
-      const url = `catalog.html?gender=${gender}&category=${mainCategory}&subcategory=${subCategory}&product=${productId}`;
+    function goToProduct(productId, mainCategory, subCategory) {
+      // buy.html로 직접 이동 (ID 기반)
+      const url = `buy.html?id=${productId}`;
       window.location.href = url;
     }
 
@@ -499,7 +501,11 @@
 
       // 카테고리 필터
       if (categories.length > 0) {
-        filtered = filtered.filter(product => categories.includes(product.mainCategory));
+        filtered = filtered.filter(product => {
+          // product.category 또는 product.mainCategory 사용
+          const productCategory = product.category || product.mainCategory;
+          return categories.includes(productCategory);
+        });
         console.log('카테고리 필터 적용 후:', filtered.length, '개');
       }
 
