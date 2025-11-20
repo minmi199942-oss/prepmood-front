@@ -144,7 +144,7 @@ body.mini-cart-open header.main-header {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: clamp(8px, 1.5vw, 16px);
   margin-left: auto;
 }
 
