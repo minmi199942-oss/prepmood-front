@@ -92,7 +92,9 @@
       <button class="mobile-menu-toggle action-link" id="mobile-menu-toggle" aria-label="메뉴 열기">
         <img src="image/menu-burger.jpg" alt="메뉴" class="action-icon burger-icon" />
       </button>
-      <a href="#" class="action-link desktop-only">언어</a>
+      <a href="#" class="action-link desktop-only">
+        <img src="image/language.jpg" alt="언어" class="action-icon" />
+      </a>
     </div>
   </div>
 </header>
