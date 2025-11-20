@@ -48,6 +48,10 @@
             <span>가방</span>
           </label>
           <label class="filter-option">
+            <input type="checkbox" name="category" value="outer">
+            <span>아우터</span>
+          </label>
+          <label class="filter-option">
             <input type="checkbox" name="category" value="accessories">
             <span>액세서리</span>
           </label>
@@ -265,51 +269,24 @@
         console.log('첫 번째 상품:', allProducts[0]);
       }
       
-      // 검색어가 있으면 검색 실행
+      // 데이터 로드 후 필터 적용 (검색어가 있으면 함께 처리됨)
       if (currentSearchQuery) {
         console.log('검색어가 있으므로 검색 실행:', currentSearchQuery);
-        performSearch();
       } else {
-        // 검색어가 없으면 전체 상품 표시
         console.log('검색어가 없으므로 전체 상품 표시');
-        displayProducts(allProducts);
       }
+      // 필터 적용 (검색어 포함)
+      applyFilters();
     }
 
-    // 검색 실행
+    // 검색 실행 (검색어만 처리, 필터는 applyFilters에서 처리)
     function performSearch() {
       console.log('=== performSearch 시작 ===');
       console.log('현재 검색어:', currentSearchQuery);
       console.log('전체 상품 수:', allProducts.length);
       
-      if (!currentSearchQuery || currentSearchQuery.trim() === '') {
-        console.log('검색어 없음 - 전체 상품 표시');
-        filteredProducts = [...allProducts];
-        displayProducts(filteredProducts);
-        return;
-      }
-
-      // 대소문자 구분 없이 부분 일치 검색
-      const searchTerm = currentSearchQuery.trim().toLowerCase();
-      console.log('검색어 (소문자):', searchTerm);
-
-      const searchResults = allProducts.filter(product => {
-        const productName = product.name.toLowerCase();
-        const isMatch = productName.includes(searchTerm);
-        
-        if (isMatch) {
-          console.log(`매치된 상품: ${product.name} (검색어: ${searchTerm})`);
-        }
-        
-        return isMatch;
-      });
-
-      console.log('=== 검색 완료 ===');
-      console.log('검색 결과 수:', searchResults.length);
-      console.log('검색 결과 상품들:', searchResults.map(p => p.name));
-
-      filteredProducts = searchResults;
-      displayProducts(searchResults);
+      // 검색어가 있든 없든 필터를 적용 (필터가 검색어도 함께 처리함)
+      applyFilters();
     }
 
     // 상품 표시
@@ -438,20 +415,17 @@
       const newQuery = searchInput.value.trim();
       console.log('새로운 검색어:', newQuery);
 
-      // 검색어가 없으면 전체 상품 표시
-      if (!newQuery) {
-        currentSearchQuery = '';
-        document.getElementById('search-query').textContent = '전체 상품';
-        displayProducts(allProducts);
-        return;
-      }
-
       // 현재 검색어 업데이트
       currentSearchQuery = newQuery;
-      document.getElementById('search-query').textContent = `"${currentSearchQuery}" 검색 결과`;
+      
+      if (!newQuery) {
+        document.getElementById('search-query').textContent = '전체 상품';
+      } else {
+        document.getElementById('search-query').textContent = `"${currentSearchQuery}" 검색 결과`;
+      }
 
-      // 검색 실행
-      performSearch();
+      // 필터 적용 (검색어 포함)
+      applyFilters();
 
       // URL 업데이트 (선택사항 - 히스토리 관리)
       const newUrl = `search.html?q=${encodeURIComponent(currentSearchQuery)}`;
