@@ -403,25 +403,9 @@
                             window.location.href = 'index.html';
                         }, 3000);
                     } else {
-                        // 이미 가입된 이메일인 경우 로그인 페이지로 리다이렉트
-                        const errorMessage = (data.message || '').toLowerCase();
-                        const isAlreadyRegistered = 
-                            errorMessage.includes('이미 가입된') ||
-                            errorMessage.includes('이미 등록된') ||
-                            errorMessage.includes('존재하는') ||
-                            errorMessage.includes('already exists') ||
-                            errorMessage.includes('email_already_exists') ||
-                            errorMessage.includes('user_already_exists') ||
-                            data.code === 'EMAIL_ALREADY_EXISTS' ||
-                            data.code === 'USER_ALREADY_EXISTS' ||
-                            data.exists === true ||
-                            data.emailExists === true;
-                        
-                        if (isAlreadyRegistered) {
-                            // 이미 가입된 이메일이면 메시지 표시 후 로그인 페이지로 리다이렉트
-                            this.showError('registerError', '이미 존재하는 이메일입니다.');
-                            
-                            // 2초 후 로그인 페이지로 리다이렉트
+                        // 이미 가입된 이메일인 경우 (최종 안전장치)
+                        if (response.status === 409 || data.code === 'EMAIL_ALREADY_EXISTS') {
+                            this.showError('registerError', '이미 가입된 이메일입니다. 로그인 페이지로 이동합니다.');
                             setTimeout(() => {
                                 window.location.href = 'login.html';
                             }, 2000);
