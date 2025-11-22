@@ -698,6 +698,7 @@ nav ul li {
 .footer-section {
   display: flex;
   flex-direction: column;
+  height: 100%; /* 모든 섹션 높이 동일하게 */
 }
 
 /* 아코디언 토글 버튼 (데스크톱에서는 일반 표시) */
