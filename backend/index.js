@@ -188,7 +188,6 @@ app.post('/api/send-verification', [
             );
 
             if (existingUsers.length > 0) {
-                await connection.end();
                 Logger.log(`❌ 이미 가입된 이메일로 인증 코드 요청: ${email}`);
                 return res.status(409).json({
                     success: false,
@@ -197,14 +196,14 @@ app.post('/api/send-verification', [
                 });
             }
         } catch (dbError) {
-            await connection.end();
             Logger.log('❌ DB 조회 중 오류:', dbError);
             return res.status(500).json({
                 success: false,
                 message: '서버 오류가 발생했습니다.'
             });
+        } finally {
+            await connection.end();
         }
-        await connection.end();
 
         // 인증 코드 생성
         const verificationCode = generateVerificationCode();
