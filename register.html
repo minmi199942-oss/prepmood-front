@@ -284,9 +284,13 @@
                             data.code === 'USER_ALREADY_EXISTS';
                         
                         if (isAlreadyRegistered) {
-                            // 이미 가입된 이메일이면 로그인 페이지로 리다이렉트
-                            alert('이미 가입된 이메일입니다. 로그인 페이지로 이동합니다.');
-                            window.location.href = 'login.html';
+                            // 이미 가입된 이메일이면 메시지 표시 후 로그인 페이지로 리다이렉트
+                            this.showError('emailError', '이미 존재하는 이메일입니다.');
+                            
+                            // 2초 후 로그인 페이지로 리다이렉트
+                            setTimeout(() => {
+                                window.location.href = 'login.html';
+                            }, 2000);
                             return;
                         }
                         
