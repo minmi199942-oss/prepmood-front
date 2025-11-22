@@ -743,6 +743,7 @@ nav ul li {
   cursor: pointer;
   padding: 0;
   z-index: 1001;
+  transform: translateY(-2px); /* 버거 아이콘을 위로 조정 */
 }
 
 .burger-icon {
