@@ -1,8 +1,8 @@
 <!-- 글로벌 푸터 -->
 <footer class="global-footer">
   <div class="footer-container">
-    <!-- 아코디언 섹션들 (위쪽) -->
-    <div class="footer-accordions">
+    <!-- 아코디언 섹션들 (모바일 전용) -->
+    <div class="footer-accordions mobile-only">
       <!-- 정책 및 약관 섹션 (아코디언) -->
       <div class="footer-section footer-accordion">
         <button class="footer-accordion-toggle" aria-expanded="false">
@@ -33,8 +33,30 @@
       </div>
     </div>
 
-    <!-- 메인 푸터 콘텐츠 (아래쪽 - PC: 그리드, 모바일: 통합) -->
+    <!-- 메인 푸터 콘텐츠 (PC: 모든 섹션 그리드, 모바일: 통합) -->
     <div class="footer-main">
+      <!-- 정책 및 약관 섹션 (PC 전용) -->
+      <div class="footer-section desktop-only">
+        <h3 class="footer-title">정책 및 약관</h3>
+        <div class="footer-content">
+          <p class="footer-text">
+            <a href="legal.html" class="footer-link">이용약관</a>
+          </p>
+          <p class="footer-text">
+            <a href="legal.html" class="footer-link">법적 고지</a>
+          </p>
+        </div>
+      </div>
+
+      <!-- 개인정보 처리방침 (PC 전용) -->
+      <div class="footer-section desktop-only">
+        <h3 class="footer-title">개인정보 처리방침</h3>
+        <div class="footer-content">
+          <p class="footer-text">
+            <a href="privacy.html" class="footer-link">개인정보 처리방침</a>
+          </p>
+        </div>
+      </div>
       <!-- 회사 정보 섹션 -->
       <div class="footer-section">
         <h3 class="footer-title">회사 정보</h3>

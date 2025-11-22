@@ -672,16 +672,14 @@ nav ul li {
   padding: 0 clamp(16px, 3vw, 24px);
 }
 
-/* 아코디언 섹션 컨테이너 */
-.footer-accordions {
-  padding: clamp(10px, 2vw, 14px) 0;
-  border-bottom: 1px solid #eee;
-  margin-bottom: clamp(20px, 3vw, 30px);
+/* 아코디언 섹션 컨테이너 (모바일 전용) */
+.footer-accordions.mobile-only {
+  display: none;
 }
 
 .footer-main {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: clamp(16px, 2.5vw, 24px);
   padding: clamp(20px, 3vw, 30px) 0;
   border-bottom: 1px solid #eee;
@@ -690,6 +688,11 @@ nav ul li {
 /* 모바일 전용 통합 콘텐츠 (데스크톱에서는 숨김) */
 .footer-content-unified.mobile-only {
   display: none;
+}
+
+/* PC 전용 섹션 (모바일에서는 숨김) */
+.desktop-only {
+  display: block;
 }
 
 .footer-section {

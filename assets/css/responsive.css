@@ -842,10 +842,14 @@
 /* ===== 글로벌 푸터 반응형 ===== */
 /* 태블릿 (768px ~ 1199px) - 2열 구조 */
 @media (max-width: 1199px) {
-  .footer-accordions {
-    padding: clamp(10px, 2vw, 14px) 0;
-    border-bottom: 1px solid #eee;
-    margin-bottom: clamp(20px, 3vw, 28px);
+  /* 모바일 전용 아코디언 숨김 */
+  .footer-accordions.mobile-only {
+    display: none;
+  }
+  
+  /* PC 전용 섹션 표시 */
+  .desktop-only {
+    display: block;
   }
   
   .footer-main {
@@ -869,11 +873,17 @@
     padding: 0 clamp(16px, 4vw, 20px);
   }
   
-  /* 아코디언 섹션 컨테이너 (위쪽) */
-  .footer-accordions {
+  /* 모바일 전용 아코디언 섹션 컨테이너 (위쪽) */
+  .footer-accordions.mobile-only {
+    display: block;
     padding: 0;
     border-bottom: 1px solid #eee;
     margin-bottom: clamp(20px, 4vw, 28px);
+  }
+  
+  /* PC 전용 섹션 숨김 */
+  .desktop-only {
+    display: none !important;
   }
   
   /* 아코디언 스타일 (모바일) */
