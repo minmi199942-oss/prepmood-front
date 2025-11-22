@@ -33,9 +33,39 @@
       </div>
     </div>
 
-    <!-- 메인 푸터 콘텐츠 (아래쪽 - 통합 정보) -->
+    <!-- 메인 푸터 콘텐츠 (아래쪽 - PC: 그리드, 모바일: 통합) -->
     <div class="footer-main">
-      <div class="footer-content footer-content-unified">
+      <!-- 회사 정보 섹션 -->
+      <div class="footer-section">
+        <h3 class="footer-title">회사 정보</h3>
+        <div class="footer-content">
+          <p class="footer-text">프레피무드 | 대표: 최지원</p>
+          <p class="footer-text">사업자등록번호: 827-27-01774</p>
+          <p class="footer-text">통신판매신고번호: 2025-대구중구-0610호</p>
+          <p class="footer-text">대구광역시 중구 국채보상로 558-1, 2층 D605호</p>
+        </div>
+      </div>
+
+      <!-- 고객센터 섹션 -->
+      <div class="footer-section">
+        <h3 class="footer-title">고객센터</h3>
+        <div class="footer-content">
+          <p class="footer-text"><a href="tel:1555-6035" class="footer-link">1555-6035</a></p>
+          <p class="footer-text"><a href="mailto:prepmoodcare@naver.com" class="footer-link">prepmoodcare@naver.com</a></p>
+        </div>
+      </div>
+
+      <!-- 결제 서비스 섹션 -->
+      <div class="footer-section">
+        <h3 class="footer-title">결제 서비스</h3>
+        <div class="footer-content">
+          <p class="footer-text">NHN KCP, KG이니시스</p>
+          <p class="footer-text">PayPal, WeChat 등 예정</p>
+        </div>
+      </div>
+      
+      <!-- 모바일 전용 통합 콘텐츠 -->
+      <div class="footer-content-unified mobile-only">
         <p class="footer-text">프레피무드 | 대표: 최지원 | 사업자등록번호: 827-27-01774 | 통신판매신고번호: 2025-대구중구-0610호</p>
         <p class="footer-text">대구광역시 중구 국채보상로 558-1, 2층 D605호</p>
         <p class="footer-text">고객센터: <a href="tel:1555-6035" class="footer-link">1555-6035</a> | <a href="mailto:prepmoodcare@naver.com" class="footer-link">prepmoodcare@naver.com</a></p>

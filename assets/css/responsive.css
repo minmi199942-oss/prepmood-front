@@ -840,7 +840,7 @@
 }
 
 /* ===== 글로벌 푸터 반응형 ===== */
-/* 태블릿 (768px ~ 1199px) */
+/* 태블릿 (768px ~ 1199px) - 2열 구조 */
 @media (max-width: 1199px) {
   .footer-accordions {
     padding: clamp(10px, 2vw, 14px) 0;
@@ -849,6 +849,8 @@
   }
   
   .footer-main {
+    grid-template-columns: repeat(2, 1fr);
+    gap: clamp(16px, 2.5vw, 24px);
     padding: clamp(20px, 3vw, 30px) 0;
   }
   
@@ -884,13 +886,22 @@
     border-bottom: none;
   }
   
-  /* 메인 푸터 콘텐츠 (아래쪽 - 통합 정보) */
+  /* 메인 푸터 콘텐츠 (아래쪽 - 모바일: 통합 정보) */
   .footer-main {
+    display: block;
     padding: 0;
     border-bottom: 1px solid #eee;
   }
   
-  .footer-content-unified {
+  /* PC용 섹션들 숨기기 */
+  .footer-main .footer-section {
+    display: none;
+  }
+  
+  /* 모바일 전용 통합 콘텐츠 표시 */
+  .footer-content-unified.mobile-only {
+    display: flex;
+    flex-direction: column;
     gap: clamp(6px, 1.5vw, 8px);
   }
   
