@@ -227,7 +227,6 @@
       }
 
       const catalogData = window.CATALOG_DATA;
-      console.log('📦 loadProducts 시작 - CATALOG_DATA:', catalogData);
       allProducts = [];
 
       // 실제 데이터 구조에 맞게 수정: { tops: { shirts: [] }, bottoms: { pants: [] } }
@@ -239,7 +238,6 @@
             const products = subCategories[subCategory];
             
             if (Array.isArray(products)) {
-              console.log(`  📋 ${mainCategory}.${subCategory}: ${products.length}개 제품`);
               products.forEach(product => {
                 allProducts.push({
                   ...product,
@@ -252,11 +250,6 @@
           });
         }
       });
-
-      console.log('✅ loadProducts 완료 - 전체 상품 수:', allProducts.length);
-      if (allProducts.length > 0) {
-        console.log('  첫 번째 상품 예시:', allProducts[0]);
-      }
 
       // 필터 적용 (검색어 포함)
       applyFilters();

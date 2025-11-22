@@ -21,8 +21,6 @@ const logger = window.Logger || {
 // API에서 상품 데이터 로드
 async function loadProducts() {
   try {
-    logger.log('🔄 API에서 상품 데이터 로드 중...');
-    
     const response = await fetch('/api/products');
     
     // 응답 상태 확인
@@ -37,11 +35,8 @@ async function loadProducts() {
     }
     
     const data = await response.json();
-    logger.log('📥 API 응답 데이터:', data);
     
     if (data.success && data.products) {
-      logger.log('✅ API 데이터 로드 성공:', data.products.length, '개 제품');
-      
       // 제품을 카테고리별로 분류
       const catalogData = {
         tops: { shirts: [], knits: [], 't-shirts': [] },
@@ -51,21 +46,16 @@ async function loadProducts() {
         accessories: { caps: [], wallets: [], belts: [], ties: [] }
       };
       
-      let categorizedCount = 0;
       data.products.forEach(product => {
         if (catalogData[product.category] && catalogData[product.category][product.type]) {
           catalogData[product.category][product.type].push(product);
-          categorizedCount++;
         } else {
           logger.warn('⚠️ 분류되지 않은 제품:', product.id, product.category, product.type);
         }
       });
       
-      logger.log('📊 분류된 제품 수:', categorizedCount, '/', data.products.length);
-      
       // CATALOG_DATA 업데이트
       window.CATALOG_DATA = catalogData;
-      logger.log('📦 업데이트된 CATALOG_DATA:', window.CATALOG_DATA);
       
       // 상품 데이터가 로드되었음을 표시
       window.productsLoaded = true;
@@ -74,15 +64,13 @@ async function loadProducts() {
     } else {
       logger.error('❌ API 데이터 로드 실패 - 응답 형식 오류:', {
         success: data.success,
-        hasProducts: !!data.products,
-        data: data
+        hasProducts: !!data.products
       });
       window.dispatchEvent(new CustomEvent('productsLoadError'));
     }
     
   } catch (error) {
-    logger.error('❌ 상품 데이터 로드 오류:', error);
-    logger.error('❌ 오류 상세:', error.message, error.stack);
+    logger.error('❌ 상품 데이터 로드 오류:', error.message);
     
     // 429 오류인 경우 재시도
     if (error.message.includes('429')) {

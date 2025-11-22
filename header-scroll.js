@@ -24,7 +24,6 @@
 
     // 이미 초기화되었으면 중복 실행 방지
     if (scrollHandler && mouseMoveHandler) {
-      console.log('header-scroll.js: 이미 초기화되었습니다.');
       return true;
     }
 
@@ -113,7 +112,6 @@
     // 초기 상태: 헤더 표시
     header.classList.remove('header--hidden');
 
-    console.log('✅ header-scroll.js 초기화 완료');
     return true;
   };
 

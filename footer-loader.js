@@ -7,7 +7,6 @@ window.addEventListener('DOMContentLoaded', () => {
       .then(res => res.text())
       .then(html => {
         footerContainer.innerHTML = html;
-        console.log('Footer loaded successfully');
         initFooterAccordion(); // 아코디언 기능 초기화
       })
       .catch(error => {
