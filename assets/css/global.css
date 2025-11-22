@@ -680,11 +680,14 @@ nav ul li {
 }
 
 .footer-main {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: clamp(16px, 2.5vw, 24px);
   padding: clamp(20px, 3vw, 30px) 0;
   border-bottom: 1px solid #eee;
+}
+
+.footer-content-unified {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.5vw, 12px);
 }
 
 .footer-section {

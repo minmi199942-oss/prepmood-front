@@ -840,7 +840,7 @@
 }
 
 /* ===== 글로벌 푸터 반응형 ===== */
-/* 태블릿 (768px ~ 1199px) - 2열 구조 */
+/* 태블릿 (768px ~ 1199px) */
 @media (max-width: 1199px) {
   .footer-accordions {
     padding: clamp(10px, 2vw, 14px) 0;
@@ -849,8 +849,6 @@
   }
   
   .footer-main {
-    grid-template-columns: repeat(2, 1fr);
-    gap: clamp(16px, 2.5vw, 24px);
     padding: clamp(20px, 3vw, 30px) 0;
   }
   
@@ -886,12 +884,14 @@
     border-bottom: none;
   }
   
-  /* 메인 푸터 콘텐츠 (아래쪽 - 1열) */
+  /* 메인 푸터 콘텐츠 (아래쪽 - 통합 정보) */
   .footer-main {
-    grid-template-columns: 1fr;
-    gap: clamp(20px, 4vw, 28px);
     padding: 0;
     border-bottom: 1px solid #eee;
+  }
+  
+  .footer-content-unified {
+    gap: clamp(6px, 1.5vw, 8px);
   }
   
   .footer-accordion-toggle {
@@ -934,16 +934,6 @@
     padding-bottom: clamp(14px, 3vw, 18px);
   }
   
-  /* 일반 섹션 스타일 (아코디언 아님) */
-  .footer-main .footer-section {
-    padding-bottom: clamp(16px, 3vw, 20px);
-    border-bottom: 1px solid #eee;
-  }
-  
-  .footer-main .footer-section:last-of-type {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
   
   .footer-section {
     padding-bottom: 0;
