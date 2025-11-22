@@ -272,6 +272,24 @@
                         this.showSuccess('인증 코드가 발송되었습니다.');
                         this.updateNextButton();
                     } else {
+                        // 이미 가입된 이메일인 경우 로그인 페이지로 리다이렉트
+                        const errorMessage = data.message || '';
+                        const isAlreadyRegistered = 
+                            errorMessage.includes('이미 가입된') ||
+                            errorMessage.includes('이미 등록된') ||
+                            errorMessage.includes('존재하는') ||
+                            errorMessage.includes('EMAIL_ALREADY_EXISTS') ||
+                            errorMessage.includes('USER_ALREADY_EXISTS') ||
+                            data.code === 'EMAIL_ALREADY_EXISTS' ||
+                            data.code === 'USER_ALREADY_EXISTS';
+                        
+                        if (isAlreadyRegistered) {
+                            // 이미 가입된 이메일이면 로그인 페이지로 리다이렉트
+                            alert('이미 가입된 이메일입니다. 로그인 페이지로 이동합니다.');
+                            window.location.href = 'login.html';
+                            return;
+                        }
+                        
                         this.showError('emailError', data.message);
                     }
                 } catch (error) {
