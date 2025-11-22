@@ -48,6 +48,15 @@ window.TOSS_CLIENT_KEY = window.location.hostname === 'prepmood.kr'
 - [ ] `checkout-payment.html`에서 하드코딩 제거
 - [ ] 실제 결제 테스트 (테스트 환경)
 
+**⚠️ 런칭 직전 주의사항: 브라우저 캐싱 문제**
+- 테스트 키에서 라이브 키로 변경 시, 브라우저가 이전 `config.js`를 캐싱할 수 있음
+- 해결: `config.js` 로드 시 버전 쿼리 스트링 추가
+  ```html
+  <!-- 런칭 직전에 버전 업데이트 -->
+  <script src="config.js?v=1.0"></script>
+  ```
+- 또는 `config.js` 파일명을 변경 (예: `config-v1.0.js`)
+
 ---
 
 ### 2. API_BASE 통일 ⚠️ Critical
@@ -225,7 +234,7 @@ element.innerHTML = `<div>${escapeHtml(userInput)}</div>`;
 
 ---
 
-### 8. 모바일 환경 실제 기기 테스트
+### 9. 모바일 환경 실제 기기 테스트
 
 **참고**
 - 패션 쇼핑몰은 고객의 80% 이상이 모바일로 접속
@@ -242,7 +251,7 @@ element.innerHTML = `<div>${escapeHtml(userInput)}</div>`;
 
 > **지금 당장은 아니지만, 사용자가 늘어나면 필요한 항목들**
 
-### 8. 에러 모니터링 도구 (Sentry 등)
+### 10. 에러 모니터링 도구 (Sentry 등)
 
 **현재 상태**
 - 서버 로그 + 브라우저 콘솔로 수동 체크 가능
