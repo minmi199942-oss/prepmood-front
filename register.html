@@ -251,7 +251,7 @@
                 if (!this.validateEmail()) return;
 
                 this.setLoading(true);
-                this.verifyBtn.textContent = '諛쒖넚占?..';
+                this.verifyBtn.textContent = '발송중...';
 
                 try {
                     const response = await fetch(`${API_BASE}/send-verification`, {
