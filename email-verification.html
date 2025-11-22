@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/page.css">
     <link rel="stylesheet" href="assets/css/responsive.css">
+    <!-- 환경 설정 (API_BASE 등) -->
+    <script src="config.js"></script>
   <script defer src="header-loader.js"></script>
   <script defer src="header-scroll.js"></script>
   <script defer src="footer-loader.js"></script>
@@ -417,7 +419,8 @@
                 this.hideMessages();
 
                 try {
-                    const response = await fetch('http://localhost:3000/api/verify-code', {
+                    const apiBase = window.API_BASE || '/api';
+                    const response = await fetch(`${apiBase}/verify-code`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -453,7 +456,8 @@
                 this.hideMessages();
 
                 try {
-                    const response = await fetch('http://localhost:3000/api/send-verification', {
+                    const apiBase = window.API_BASE || '/api';
+                    const response = await fetch(`${apiBase}/send-verification`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

@@ -30,7 +30,8 @@ function renderAdminLink() {
 
   var link = document.createElement('a');
   link.id = ADMIN_LINK_ID;
-  link.href = '/admin-qhf25za8/orders.html';
+  const adminPath = window.ADMIN_PATH || '/admin-qhf25za8';
+  link.href = `${adminPath}/orders.html`;
   link.textContent = '관리자';
   link.className = 'action-link';
   container.appendChild(link);

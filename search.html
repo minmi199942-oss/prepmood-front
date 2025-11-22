@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="assets/css/global.css">
   <link rel="stylesheet" href="assets/css/page.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
+  <script src="utils.js"></script>
   <script src="catalog-data.js"></script>
   <script src="product-data.js"></script>
   <script src="header-loader.js" defer></script>
@@ -290,16 +291,23 @@
           imagePath = `image/${imagePath}`;
         }
         
+        // XSS 방지: 사용자 입력 데이터는 escapeHtml로 처리
+        const safeId = escapeHtml(product.id || '');
+        const safeMainCategory = escapeHtml(product.mainCategory || '');
+        const safeSubCategory = escapeHtml(product.subCategory || '');
+        const safeName = escapeHtml(product.name || '상품명');
+        const safeCategory = escapeHtml(product.mainCategory || '');
+        
         return `
-          <div class="product-card" onclick="goToProduct('${product.id}', '${product.mainCategory}', '${product.subCategory}')">
+          <div class="product-card" onclick="goToProduct('${safeId}', '${safeMainCategory}', '${safeSubCategory}')">
             <div class="product-image">
-              <img src="${imagePath}" alt="${product.name || '상품 이미지'}" loading="lazy" 
+              <img src="${imagePath}" alt="${safeName}" loading="lazy" 
                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjgwIiBoZWlnaHQ9IjI4MCIgdmlld0JveD0iMCAwIDI4MCAyODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyODAiIGhlaWdodD0iMjgwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNDAgMTIwSDgwdjQwaDgwVjEyMFoiIGZpbGw9IiNEOUQ5RDkiLz4KPHN2Zz4K'">
             </div>
             <div class="product-info">
-              <h3 class="product-name">${product.name || '상품명'}</h3>
+              <h3 class="product-name">${safeName}</h3>
               <p class="product-price">₩${(product.price || 0).toLocaleString()}</p>
-              <p class="product-category">${product.mainCategory || ''}</p>
+              <p class="product-category">${safeCategory}</p>
             </div>
           </div>
         `;
