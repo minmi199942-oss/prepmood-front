@@ -683,6 +683,7 @@ nav ul li {
   gap: clamp(16px, 2.5vw, 24px);
   padding: clamp(20px, 3vw, 30px) 0;
   border-bottom: 1px solid #eee;
+  align-items: start; /* 상단 정렬로 깔끔하게 */
 }
 
 /* 모바일 전용 통합 콘텐츠 (데스크톱에서는 숨김) */
@@ -699,6 +700,7 @@ nav ul li {
   display: flex;
   flex-direction: column;
   height: 100%; /* 모든 섹션 높이 동일하게 */
+  min-width: 0; /* 그리드 아이템이 동일한 너비를 가지도록 */
 }
 
 /* 아코디언 토글 버튼 (데스크톱에서는 일반 표시) */
