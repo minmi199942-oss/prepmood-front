@@ -842,10 +842,16 @@
 /* ===== 글로벌 푸터 반응형 ===== */
 /* 태블릿 (768px ~ 1199px) - 2열 구조 */
 @media (max-width: 1199px) {
+  .footer-accordions {
+    padding: clamp(10px, 2vw, 14px) 0;
+    border-bottom: 1px solid #eee;
+    margin-bottom: clamp(20px, 3vw, 28px);
+  }
+  
   .footer-main {
     grid-template-columns: repeat(2, 1fr);
-    gap: clamp(8px, 1.5vw, 12px);
-    padding: clamp(9px, 1.75vw, 13px) 0;
+    gap: clamp(16px, 2.5vw, 24px);
+    padding: clamp(20px, 3vw, 30px) 0;
   }
   
   .footer-container {
@@ -859,25 +865,33 @@
     padding: clamp(20px, 4vw, 30px) 0 clamp(15px, 3vw, 20px);
   }
   
+  .footer-container {
+    padding: 0 clamp(16px, 4vw, 20px);
+  }
+  
+  /* 아코디언 섹션 컨테이너 (위쪽) */
+  .footer-accordions {
+    padding: 0;
+    border-bottom: 1px solid #eee;
+    margin-bottom: clamp(20px, 4vw, 28px);
+  }
+  
+  /* 아코디언 스타일 (모바일) */
+  .footer-accordions .footer-accordion {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0;
+  }
+  
+  .footer-accordions .footer-accordion:last-of-type {
+    border-bottom: none;
+  }
+  
+  /* 메인 푸터 콘텐츠 (아래쪽 - 1열) */
   .footer-main {
     grid-template-columns: 1fr;
     gap: clamp(20px, 4vw, 28px);
     padding: 0;
     border-bottom: 1px solid #eee;
-  }
-  
-  .footer-container {
-    padding: 0 clamp(16px, 4vw, 20px);
-  }
-  
-  /* 아코디언 스타일 (모바일) */
-  .footer-accordion {
-    border-bottom: 1px solid #eee;
-    padding-bottom: 0;
-  }
-  
-  .footer-accordion:last-of-type {
-    border-bottom: none;
   }
   
   .footer-accordion-toggle {
@@ -921,12 +935,12 @@
   }
   
   /* 일반 섹션 스타일 (아코디언 아님) */
-  .footer-main .footer-section:not(.footer-accordion) {
+  .footer-main .footer-section {
     padding-bottom: clamp(16px, 3vw, 20px);
     border-bottom: 1px solid #eee;
   }
   
-  .footer-main .footer-section:not(.footer-accordion):last-of-type {
+  .footer-main .footer-section:last-of-type {
     border-bottom: none;
     padding-bottom: 0;
   }
@@ -981,14 +995,6 @@
     letter-spacing: 0.1px;
   }
   
-  /* 아코디언 섹션들 (정책 및 약관, 개인정보 처리방침) */
-  .footer-section.footer-accordion {
-    margin-top: clamp(16px, 3vw, 20px);
-  }
-  
-  .footer-section.footer-accordion:first-of-type {
-    margin-top: 0;
-  }
 }
 
 /* 초소형 모바일 (≤480px) */
@@ -1033,9 +1039,9 @@
     font-size: clamp(0.6rem, 1.4vw, 0.7rem);
   }
   
-  /* 아코디언 섹션들 (초소형 모바일) */
-  .footer-section.footer-accordion {
-    margin-top: clamp(14px, 2.5vw, 18px);
+  /* 아코디언 섹션 컨테이너 (초소형 모바일) */
+  .footer-accordions {
+    margin-bottom: clamp(18px, 3.5vw, 24px);
   }
 }
 

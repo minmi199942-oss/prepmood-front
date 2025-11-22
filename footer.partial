@@ -1,9 +1,41 @@
 <!-- 글로벌 푸터 -->
 <footer class="global-footer">
   <div class="footer-container">
-    <!-- 메인 푸터 콘텐츠 -->
+    <!-- 아코디언 섹션들 (위쪽) -->
+    <div class="footer-accordions">
+      <!-- 정책 및 약관 섹션 (아코디언) -->
+      <div class="footer-section footer-accordion">
+        <button class="footer-accordion-toggle" aria-expanded="false">
+          <h3 class="footer-title">정책 및 약관</h3>
+          <span class="footer-accordion-icon">▼</span>
+        </button>
+        <div class="footer-content footer-accordion-content">
+          <p class="footer-text">
+            <a href="legal.html" class="footer-link">이용약관</a>
+          </p>
+          <p class="footer-text">
+            <a href="legal.html" class="footer-link">법적 고지</a>
+          </p>
+        </div>
+      </div>
+
+      <!-- 개인정보 처리방침 (아코디언) -->
+      <div class="footer-section footer-accordion">
+        <button class="footer-accordion-toggle" aria-expanded="false">
+          <h3 class="footer-title">개인정보 처리방침</h3>
+          <span class="footer-accordion-icon">▼</span>
+        </button>
+        <div class="footer-content footer-accordion-content">
+          <p class="footer-text">
+            <a href="privacy.html" class="footer-link">개인정보 처리방침</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 메인 푸터 콘텐츠 (아래쪽 - 2-3열 그리드) -->
     <div class="footer-main">
-      <!-- 회사 정보 섹션 (일반 스타일) -->
+      <!-- 회사 정보 섹션 -->
       <div class="footer-section">
         <h3 class="footer-title">회사 정보</h3>
         <div class="footer-content">
@@ -15,7 +47,7 @@
         </div>
       </div>
 
-      <!-- 고객센터 섹션 (일반 스타일) -->
+      <!-- 고객센터 섹션 -->
       <div class="footer-section">
         <h3 class="footer-title">고객센터</h3>
         <div class="footer-content">
@@ -24,42 +56,13 @@
         </div>
       </div>
 
-      <!-- 결제 서비스 섹션 (일반 스타일) -->
+      <!-- 결제 서비스 섹션 -->
       <div class="footer-section">
         <h3 class="footer-title">결제 서비스</h3>
         <div class="footer-content">
           <p class="footer-text">PG: NHN KCP, KG이니시스</p>
           <p class="footer-text">국제 결제 서비스: PayPal, WeChat 등 예정</p>
         </div>
-      </div>
-    </div>
-
-    <!-- 정책 및 약관 섹션 (아코디언) -->
-    <div class="footer-section footer-accordion">
-      <button class="footer-accordion-toggle" aria-expanded="false">
-        <h3 class="footer-title">정책 및 약관</h3>
-        <span class="footer-accordion-icon">▼</span>
-      </button>
-      <div class="footer-content footer-accordion-content">
-        <p class="footer-text">
-          <a href="legal.html" class="footer-link">이용약관</a>
-        </p>
-        <p class="footer-text">
-          <a href="legal.html" class="footer-link">법적 고지</a>
-        </p>
-      </div>
-    </div>
-
-    <!-- 개인정보 처리방침 (아코디언) -->
-    <div class="footer-section footer-accordion">
-      <button class="footer-accordion-toggle" aria-expanded="false">
-        <h3 class="footer-title">개인정보 처리방침</h3>
-        <span class="footer-accordion-icon">▼</span>
-      </button>
-      <div class="footer-content footer-accordion-content">
-        <p class="footer-text">
-          <a href="privacy.html" class="footer-link">개인정보 처리방침</a>
-        </p>
       </div>
     </div>
 
