@@ -179,6 +179,33 @@ app.post('/api/send-verification', [
 
         const { email } = req.body;
 
+        // 이미 가입된 이메일인지 확인
+        const connection = await mysql.createConnection(dbConfig);
+        try {
+            const [existingUsers] = await connection.execute(
+                'SELECT user_id FROM users WHERE email = ?',
+                [email]
+            );
+
+            if (existingUsers.length > 0) {
+                await connection.end();
+                Logger.log(`❌ 이미 가입된 이메일로 인증 코드 요청: ${email}`);
+                return res.status(409).json({
+                    success: false,
+                    code: 'EMAIL_ALREADY_EXISTS',
+                    message: '이미 가입된 이메일입니다.'
+                });
+            }
+        } catch (dbError) {
+            await connection.end();
+            Logger.log('❌ DB 조회 중 오류:', dbError);
+            return res.status(500).json({
+                success: false,
+                message: '서버 오류가 발생했습니다.'
+            });
+        }
+        await connection.end();
+
         // 인증 코드 생성
         const verificationCode = generateVerificationCode();
         
@@ -353,8 +380,9 @@ app.post('/api/register', [
         if (existingUsers.length > 0) {
             console.log('❌ 이미 가입된 이메일');
             await connection.end();
-            return res.status(400).json({
+            return res.status(409).json({
                 success: false,
+                code: 'EMAIL_ALREADY_EXISTS',
                 message: '이미 가입된 이메일입니다.'
             });
         }

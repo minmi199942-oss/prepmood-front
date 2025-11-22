@@ -264,74 +264,11 @@
                         body: JSON.stringify({ email })
                     });
 
-                    // 응답 상태 코드 확인
-                    const responseStatus = response.status;
-                    
-                    // 디버깅: 응답 상태와 데이터 로깅
-                    if (window.Logger) {
-                        window.Logger.log('send-verification 응답 상태:', responseStatus);
-                    }
-
                     const data = await response.json();
-                    
-                    // 디버깅: 응답 데이터 로깅
-                    if (window.Logger) {
-                        window.Logger.log('send-verification 응답 데이터:', data);
-                        console.log('전체 응답:', { status: responseStatus, data: data });
-                    }
 
-                    // HTTP 상태 코드가 400대 이상이면 에러로 처리
-                    if (responseStatus >= 400) {
-                        const errorMessage = (data.message || '').toLowerCase();
-                        const isAlreadyRegistered = 
-                            errorMessage.includes('이미 가입된') ||
-                            errorMessage.includes('이미 등록된') ||
-                            errorMessage.includes('존재하는') ||
-                            errorMessage.includes('already exists') ||
-                            errorMessage.includes('email_already_exists') ||
-                            errorMessage.includes('user_already_exists') ||
-                            responseStatus === 409 || // Conflict - 일반적으로 중복 리소스
-                            data.code === 'EMAIL_ALREADY_EXISTS' ||
-                            data.code === 'USER_ALREADY_EXISTS' ||
-                            data.exists === true ||
-                            data.emailExists === true;
-
-                        if (isAlreadyRegistered || responseStatus === 409) {
-                            // 이미 가입된 이메일이면 메시지 표시 후 로그인 페이지로 리다이렉트
-                            this.showError('emailError', '이미 존재하는 이메일입니다.');
-                            
-                            // 2초 후 로그인 페이지로 리다이렉트
-                            setTimeout(() => {
-                                window.location.href = 'login.html';
-                            }, 2000);
-                            this.setLoading(false);
-                            return;
-                        }
-                        
-                        this.showError('emailError', data.message || '인증 코드 발송에 실패했습니다.');
-                        this.setLoading(false);
-                        return;
-                    }
-
-                    // 이미 가입된 이메일 체크 (success 여부와 관계없이)
-                    const errorMessage = (data.message || '').toLowerCase();
-                    const isAlreadyRegistered = 
-                        errorMessage.includes('이미 가입된') ||
-                        errorMessage.includes('이미 등록된') ||
-                        errorMessage.includes('존재하는') ||
-                        errorMessage.includes('already exists') ||
-                        errorMessage.includes('email_already_exists') ||
-                        errorMessage.includes('user_already_exists') ||
-                        data.code === 'EMAIL_ALREADY_EXISTS' ||
-                        data.code === 'USER_ALREADY_EXISTS' ||
-                        data.exists === true ||
-                        data.emailExists === true;
-
-                    if (isAlreadyRegistered) {
-                        // 이미 가입된 이메일이면 메시지 표시 후 로그인 페이지로 리다이렉트
-                        this.showError('emailError', '이미 존재하는 이메일입니다.');
-                        
-                        // 2초 후 로그인 페이지로 리다이렉트
+                    // 1) 이미 가입된 이메일인 경우
+                    if (response.status === 409 || data.code === 'EMAIL_ALREADY_EXISTS') {
+                        this.showError('emailError', '이미 가입된 이메일입니다. 로그인 페이지로 이동합니다.');
                         setTimeout(() => {
                             window.location.href = 'login.html';
                         }, 2000);
@@ -339,20 +276,23 @@
                         return;
                     }
 
-                    if (data.success) {
-                        this.verificationSection.classList.add('show');
-                        this.verifyBtn.textContent = '재발송';
-                        this.showSuccess('인증 코드가 발송되었습니다.');
-                        this.updateNextButton();
-                    } else {
+                    // 2) 그 외 에러
+                    if (!response.ok || data.success === false) {
                         this.showError('emailError', data.message || '인증 코드 발송에 실패했습니다.');
+                        this.setLoading(false);
+                        return;
                     }
+
+                    // 3) 정상 – 인증 코드 발송 완료
+                    this.verificationSection.classList.add('show');
+                    this.verifyBtn.textContent = '재발송';
+                    this.showSuccess('인증 코드가 발송되었습니다.');
+                    this.updateNextButton();
                 } catch (error) {
                     if (window.Logger) {
                         window.Logger.error('send-verification 에러:', error);
                     }
-                    console.error('send-verification 에러 상세:', error);
-                    this.showError('emailError', '인증 코드 발송 중 오류가 발생했습니다.');
+                    this.showError('emailError', '네트워크 오류로 이메일 인증 요청에 실패했습니다.');
                 } finally {
                     this.setLoading(false);
                 }
@@ -374,36 +314,6 @@
                     });
 
                     const data = await response.json();
-                    
-                    // 디버깅: 응답 데이터 로깅
-                    if (window.Logger) {
-                        window.Logger.log('verify-code 응답:', data);
-                    }
-
-                    // 이미 가입된 이메일 체크
-                    const errorMessage = (data.message || '').toLowerCase();
-                    const isAlreadyRegistered = 
-                        errorMessage.includes('이미 가입된') ||
-                        errorMessage.includes('이미 등록된') ||
-                        errorMessage.includes('존재하는') ||
-                        errorMessage.includes('already exists') ||
-                        errorMessage.includes('email_already_exists') ||
-                        errorMessage.includes('user_already_exists') ||
-                        data.code === 'EMAIL_ALREADY_EXISTS' ||
-                        data.code === 'USER_ALREADY_EXISTS' ||
-                        data.exists === true ||
-                        data.emailExists === true;
-
-                    if (isAlreadyRegistered) {
-                        // 이미 가입된 이메일이면 메시지 표시 후 로그인 페이지로 리다이렉트
-                        this.showError('codeError', '이미 존재하는 이메일입니다.');
-                        
-                        // 2초 후 로그인 페이지로 리다이렉트
-                        setTimeout(() => {
-                            window.location.href = 'login.html';
-                        }, 2000);
-                        return false;
-                    }
 
                     if (data.success) {
                         this.emailVerified = true;
