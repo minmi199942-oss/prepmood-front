@@ -21,12 +21,18 @@
 - `checkout-payment.html:17`에 테스트 키 하드코딩
 - 프로덕션에서 테스트 키 사용 시 결제 불가능
 
+**⚠️ 보안 주의사항**
+- **TOSS 키는 반드시 "클라이언트 공개용 키(publishable key)"만 사용**
+- Secret Key는 절대 프론트엔드에 노출하면 안 되며, 서버 환경변수에서만 관리
+- TOSS 문서에서 "이 키는 비밀키입니다"라고 명시된 키는 절대 `config.js`에 두지 않음
+
 **해결 방법**
 ```javascript
 // config.js (새로 생성)
+// ⚠️ 여기서 사용하는 키는 반드시 publishable key (공개 가능한 키)여야 함
 window.TOSS_CLIENT_KEY = window.location.hostname === 'prepmood.kr'
-  ? 'live_gck_...'  // 라이브 키
-  : 'test_gck_jExPeJWYVQx2kJAGjDxx349R5gvN';  // 테스트 키
+  ? 'live_gck_...'  // 라이브 publishable 키
+  : 'test_gck_jExPeJWYVQx2kJAGjDxx349R5gvN';  // 테스트 publishable 키
 
 // checkout-payment.html에서
 <script src="config.js"></script>
@@ -36,6 +42,7 @@ window.TOSS_CLIENT_KEY = window.location.hostname === 'prepmood.kr'
 ```
 
 **체크리스트**
+- [ ] TOSS 문서에서 publishable key 확인
 - [ ] `config.js` 파일 생성
 - [ ] 테스트/라이브 키 구분 로직 추가
 - [ ] `checkout-payment.html`에서 하드코딩 제거
@@ -49,11 +56,20 @@ window.TOSS_CLIENT_KEY = window.location.hostname === 'prepmood.kr'
 - `email-verification.html:420, 456`에 `http://localhost:3000` 하드코딩
 - 프로덕션에서 동작하지 않음
 
+**현재 구조**
+- 프론트엔드와 백엔드가 같은 도메인(same-origin)으로 운영 중
+- 예: `prepmood.kr` (프론트) → `prepmood.kr/api` (백엔드)
+
 **해결 방법**
 ```javascript
 // config.js에 추가
+// 현재: same-origin 구조 (프론트와 백엔드가 같은 도메인)
 window.API_BASE = window.API_BASE || 
   (window.location.origin + '/api');
+
+// 나중에 프론트와 백엔드를 분리할 경우 (예: api.prepmood.kr)
+// config.js에서만 아래처럼 변경하면 됨:
+// window.API_BASE = 'https://api.prepmood.kr';
 
 // email-verification.html에서
 const response = await fetch(`${window.API_BASE}/verify-code`, {
@@ -75,9 +91,16 @@ const response = await fetch(`${window.API_BASE}/verify-code`, {
 - `header-loader.js:33`에 `/admin-qhf25za8` 하드코딩
 - 나중에 경로 변경 시 여러 곳 수정 필요
 
+**⚠️ 보안 주의사항**
+- **관리자 페이지는 URL 숨기는 것만으로는 보안이 되지 않음**
+- 최소한 쿠키/토큰 기반 인증 + 서버 측 접근제어가 필요
+- `window.ADMIN_PATH`는 경로 관리를 위한 것이지, 보안을 위한 것이 아님
+- 실질적인 보안은 서버 측 인증/권한 체크로 처리 (URL 숨기기로 보안을 대체하지 않음)
+
 **해결 방법**
 ```javascript
 // config.js에 추가
+// ⚠️ 이 경로는 관리 편의를 위한 것이며, 보안을 위한 것이 아님
 window.ADMIN_PATH = '/admin-qhf25za8';
 
 // header-loader.js에서
@@ -88,6 +111,7 @@ link.href = `${window.ADMIN_PATH}/orders.html`;
 - [ ] `config.js`에 `window.ADMIN_PATH` 추가
 - [ ] `header-loader.js` 수정
 - [ ] 다른 곳에서 관리자 경로 사용하는지 검색 후 수정
+- [ ] 서버 측 관리자 인증/권한 체크가 제대로 구현되어 있는지 확인
 
 ---
 
@@ -399,6 +423,12 @@ element.innerHTML = `<div>${escapeHtml(userInput)}</div>`;
 
 ---
 
+---
+
+## 📅 문서 메타 정보
+
 **작성일**: 2025-01-XX  
-**점검자**: AI Assistant  
-**다음 점검 예정일**: 1순위 항목 수정 완료 후
+**점검자**: AI Assistant (보조 도구)  
+**다음 점검 예정일**: 
+- 1순위 항목 수정 완료 후 2주 이내
+- 또는 매월 1일 정기 점검 (선택)
