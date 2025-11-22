@@ -27,6 +27,7 @@ async function loadProducts() {
     
     // 응답 상태 확인
     if (!response.ok) {
+      logger.error('❌ API 응답 오류:', response.status, response.statusText);
       if (response.status === 429) {
         logger.warn('⚠️ API 요청 제한 초과, 5초 후 재시도...');
         setTimeout(loadProducts, 5000); // 5초 후 재시도
@@ -36,6 +37,7 @@ async function loadProducts() {
     }
     
     const data = await response.json();
+    logger.log('📥 API 응답 데이터:', data);
     
     if (data.success && data.products) {
       logger.log('✅ API 데이터 로드 성공:', data.products.length, '개 제품');
@@ -49,11 +51,17 @@ async function loadProducts() {
         accessories: { caps: [], wallets: [], belts: [], ties: [] }
       };
       
+      let categorizedCount = 0;
       data.products.forEach(product => {
         if (catalogData[product.category] && catalogData[product.category][product.type]) {
           catalogData[product.category][product.type].push(product);
+          categorizedCount++;
+        } else {
+          logger.warn('⚠️ 분류되지 않은 제품:', product.id, product.category, product.type);
         }
       });
+      
+      logger.log('📊 분류된 제품 수:', categorizedCount, '/', data.products.length);
       
       // CATALOG_DATA 업데이트
       window.CATALOG_DATA = catalogData;
@@ -64,12 +72,17 @@ async function loadProducts() {
       window.dispatchEvent(new CustomEvent('productsLoaded'));
       
     } else {
-      logger.error('❌ API 데이터 로드 실패:', data);
+      logger.error('❌ API 데이터 로드 실패 - 응답 형식 오류:', {
+        success: data.success,
+        hasProducts: !!data.products,
+        data: data
+      });
       window.dispatchEvent(new CustomEvent('productsLoadError'));
     }
     
   } catch (error) {
     logger.error('❌ 상품 데이터 로드 오류:', error);
+    logger.error('❌ 오류 상세:', error.message, error.stack);
     
     // 429 오류인 경우 재시도
     if (error.message.includes('429')) {
