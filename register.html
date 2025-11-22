@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>?뚯썝媛??- Pre.p Mood</title>
+    <title>회원가입 - Pre.p Mood</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/page.css">
@@ -11,86 +11,86 @@
     <link rel="stylesheet" href="assets/css/register.css">
 </head>
 <body>
-    <!-- ?ㅻ뜑 濡쒕뱶 -->
+    <!-- 헤더 로드 -->
     <div id="header-container"></div>
 
     <main class="register-page">
         <div class="register-container">
             <div class="register-header">
-                <h1>?뚯썝媛??/h1>
-                <p>Pre.p Mood??媛?낇븯??寃껋쓣 ?섏쁺?⑸땲??</p>
+                <h1>회원가입</h1>
+                <p>Pre.p Mood에 오신 것을 환영합니다</p>
             </div>
 
-            <!-- ?④퀎 ?쒖떆湲?-->
+            <!-- 단계 표시 -->
             <div class="step-indicator">
                 <div class="step active" id="step1Indicator">
                     <div class="step-number">1</div>
-                    <span>?대찓???몄쬆</span>
+                    <span>이메일 인증</span>
                 </div>
                 <div class="step-divider"></div>
                 <div class="step" id="step2Indicator">
                     <div class="step-number">2</div>
-                    <span>媛쒖씤?뺣낫 ?낅젰</span>
+                    <span>개인정보 입력</span>
                 </div>
             </div>
 
             <div class="success-message" id="successMessage">
-                ?뚯썝媛?낆씠 ?꾨즺?섏뿀?듬땲?? 濡쒓렇???섏씠吏濡??대룞?⑸땲??
+                회원가입이 완료되었습니다. 로그인 페이지로 이동합니다
             </div>
 
-            <!-- 1?④퀎: ?대찓???몄쬆 -->
+            <!-- 1단계: 이메일 인증 -->
             <div class="form-step active" id="step1">
                 <form id="emailVerificationForm">
                     <div class="form-group">
-                        <label for="email">?대찓??/label>
+                        <label for="email">이메일</label>
                         <div class="email-verification">
                             <input type="email" id="email" class="form-input" placeholder="example@email.com" required>
-                            <button type="button" class="verify-btn" id="verifyBtn">?몄쬆 肄붾뱶 諛쒖넚</button>
+                            <button type="button" class="verify-btn" id="verifyBtn">인증 코드 발송</button>
                         </div>
                         <div class="error-message" id="emailError"></div>
                         
                         <div class="verification-code" id="verificationSection">
-                            <input type="text" id="verificationCode" class="form-input" placeholder="?몄쬆 肄붾뱶 6?먮━" maxlength="6">
+                            <input type="text" id="verificationCode" class="form-input" placeholder="인증 코드 6자리" maxlength="6">
                             <div class="error-message" id="codeError"></div>
                         </div>
                     </div>
 
-                    <button type="button" class="next-btn" id="nextToStep2" disabled>?ㅼ쓬 ?④퀎</button>
+                    <button type="button" class="next-btn" id="nextToStep2" disabled>다음 단계</button>
                 </form>
             </div>
 
-            <!-- 2?④퀎: 媛쒖씤?뺣낫 ?낅젰 -->
+            <!-- 2단계: 개인정보 입력 -->
             <div class="form-step" id="step2">
-                <button type="button" class="back-btn" id="backToStep1">???대찓???몄쬆?쇰줈 ?뚯븘媛湲?/button>
+                <button type="button" class="back-btn" id="backToStep1">← 이메일 인증으로 돌아가기</button>
                 
                 <form id="personalInfoForm">
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="lastName">??/label>
-                            <input type="text" id="lastName" class="form-input" placeholder="?? required>
+                            <label for="lastName">성</label>
+                            <input type="text" id="lastName" class="form-input" placeholder="성" required>
                             <div class="error-message" id="lastNameError"></div>
                         </div>
                         <div class="form-group">
-                            <label for="firstName">?대쫫</label>
-                            <input type="text" id="firstName" class="form-input" placeholder="湲몃룞" required>
+                            <label for="firstName">이름</label>
+                            <input type="text" id="firstName" class="form-input" placeholder="이름" required>
                             <div class="error-message" id="firstNameError"></div>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="birthdate">?앸뀈?붿씪</label>
+                        <label for="birthdate">생년월일</label>
                         <input type="date" id="birthdate" class="form-input" required>
                         <div class="error-message" id="birthdateError"></div>
                     </div>
 
                     <div class="form-group">
-                        <label for="phone">?꾪솕踰덊샇 <span class="optional">(?좏깮)</span></label>
+                        <label for="phone">전화번호 <span class="optional">(선택)</span></label>
                         <div class="phone-input">
                             <select id="countryCode" class="country-select">
-                                <option value="+82">??쒕?援?+82</option>
-                                <option value="+1">誘멸뎅 +1</option>
-                                <option value="+81">?쇰낯 +81</option>
-                                <option value="+86">?占쏙옙?占쏙옙 +86</option>
+                                <option value="+82">대한민국 +82</option>
+                                <option value="+1">미국 +1</option>
+                                <option value="+81">일본 +81</option>
+                                <option value="+86">중국 +86</option>
                             </select>
                             <input type="tel" id="phone" class="form-input" placeholder="010-1234-5678">
                         </div>
@@ -98,66 +98,66 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="password">鍮꾬옙?踰덊샇</label>
-                        <input type="password" id="password" class="form-input" placeholder="8???占쎌긽, ?占?占쎈Ц?? ?占쎌옄, ?占쎌닔臾몄옄 ?占쏀븿" required>
+                        <label for="password">비밀번호</label>
+                        <input type="password" id="password" class="form-input" placeholder="8자 이상, 대소문자, 숫자, 특수문자 포함" required>
                         <div class="password-requirements">
-                            <div class="requirement-text">鍮꾬옙?踰덊샇 議곌굔:</div>
-                            <div class="requirement-item">??8???占쎌긽</div>
-                            <div class="requirement-item">???占쎈Ц???占쏀븿</div>
-                            <div class="requirement-item">???占쎈Ц???占쏀븿</div>
-                            <div class="requirement-item">???占쎌옄 ?占쏀븿</div>
-                            <div class="requirement-item">???占쎌닔臾몄옄 ?占쏀븿</div>
+                            <div class="requirement-text">비밀번호 조건:</div>
+                            <div class="requirement-item">최소 8자 이상</div>
+                            <div class="requirement-item">소문자 포함</div>
+                            <div class="requirement-item">대문자 포함</div>
+                            <div class="requirement-item">숫자 포함</div>
+                            <div class="requirement-item">특수문자 포함</div>
                         </div>
                         <div class="error-message" id="passwordError"></div>
                     </div>
 
                     <div class="form-group">
-                        <label for="confirmPassword">鍮꾨?踰덊샇 ?뺤씤</label>
-                        <input type="password" id="confirmPassword" class="form-input" placeholder="鍮꾨?踰덊샇瑜??ㅼ떆 ?낅젰?댁＜?몄슂" required>
+                        <label for="confirmPassword">비밀번호 확인</label>
+                        <input type="password" id="confirmPassword" class="form-input" placeholder="비밀번호를 다시 입력해주세요" required>
                         <div class="error-message" id="confirmPasswordError"></div>
                     </div>
 
-                    <!-- 媛쒖씤?뺣낫 ?숈쓽 ?뱀뀡-->
+                    <!-- 개인정보 동의 섹션-->
                     <div class="consent-section">
-                        <!-- 媛쒖씤?뺣낫 ?섏쭛 諛??댁슜 ?숈쓽 (?꾩닔) -->
+                        <!-- 개인정보 수집 및 이용 동의 (필수) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="privacyConsent" required>
                                 <span class="checkmark"></span>
-                                <span class="consent-text">媛쒖씤?뺣낫 ?섏쭛 諛??댁슜 ?숈쓽 <span class="required">(?꾩닔)</span></span>
+                                <span class="consent-text">개인정보 수집 및 이용 동의 <span class="required">(필수)</span></span>
                             </label>
                             <p class="consent-description">
-                                蹂몄씤? 媛쒖씤?뺣낫 ?섏쭛 諛??댁슜???숈쓽?섎ŉ, ?꾨젅臾대뱶媛 怨좉컼愿由щぉ?곸쑝濡?媛쒖씤?뺣낫瑜?泥섎━?⑥쓣 ?몄젙?⑸땲??
+                                회원은 개인정보 수집 및 이용에 동의하며, 프리무드가 회원의 개인정보를 처리할 수 있도록 설정합니다
                             </p>
                             <div class="error-message" id="privacyConsentError"></div>
                         </div>
 
-                        <!-- 愿묎퀬???뺣낫 ?섏떊 ?숈쓽 (?좏깮) -->
+                        <!-- 마케팅 정보 수신 동의 (선택) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="marketingConsent">
                                 <span class="checkmark"></span>
-                                <span class="consent-text">愿묎퀬???뺣낫 ?섏떊 ?숈쓽 <span class="optional">(?좏깮)</span></span>
+                                <span class="consent-text">마케팅 정보 수신 동의 <span class="optional">(선택)</span></span>
                             </label>
                             <p class="consent-description">
-                                ?댄썑 '?꾨젅臾대뱶' 諛?湲고? 釉뚮옖?쒖쓽 ?꾨젅臾대뱶 ?쒗뭹 諛??쒕퉬?ㅼ뿉 愿??留덉????꾨줈紐⑥뀡 硫붿떆吏, ?댁뒪?덊꽣, 愿묎퀬 諛?移댄깉濡쒓렇瑜??ы븿???낅Т 愿??而ㅻ??덉??댁뀡 ?뺣낫瑜?諛쏆븘蹂댁떆寃좎뒿?덇퉴?
+                                이후 '프리무드' 및 제3자의 프리무드 관련 제품 및 서비스에 대한 프로모션 이메일, SMS, 마케팅 및 이벤트 알림을 받으시려면 아래의 개인정보를 제공받아 사용하시기 바랍니다.
                             </p>
                         </div>
 
-                        <!-- 媛쒖씤?뺣낫 泥섎━ ?덈궡-->
+                        <!-- 개인정보 처리 방침-->
                         <div class="privacy-notice">
                             <p>
-                                ?숈쓽 踰꾪듉???대┃?⑥쑝濡쒖뜥 洹?섎뒗 媛쒖씤?뺣낫 蹂댄샇?뺤콉???숈쓽?섎ŉ, ?꾨젅臾대뱶媛 洹?섏쓽 怨좉컼 愿怨꾨? 愿由ы븯湲??꾪빐 媛쒖씤?뺣낫瑜?泥섎━?섎뒗 寃껋뿉 ?숈쓽?섍쾶 ?⑸땲?? ?꾨젅臾대뱶??洹?섏쓽 ?좏샇?꾩뿉 留욎떠 留욎땄???쒕퉬?ㅻ? ?쒓났?섍린 ?꾪빐 愿??踰뺤씤?ㅺ낵 ?뺣낫瑜?怨듭쑀?????덉뒿?덈떎.
+                                동의 버튼을 클릭하시면 위의 개인정보 수집 및 이용에 동의하시는 것으로, 프리무드가 위의 목적을 위해 개인정보를 처리하는 것에 동의하시는 것으로 간주됩니다. 프리무드는 위의 목적을 위해 아래의 정보를 제공받아 사용하시기 바랍니다.
                             </p>
                         </div>
                     </div>
 
-                    <button type="submit" class="register-btn" id="registerBtn" disabled>?뚯썝媛??/button>
+                    <button type="submit" class="register-btn" id="registerBtn" disabled>회원가입</button>
                 </form>
             </div>
 
             <div class="login-link">
-                ?대? 怨꾩젙???덉쑝?좉??? <a href="login.html">濡쒓렇??/a>
+                이미 계정이 있으신가요? <a href="login.html">로그인</a>
             </div>
         </div>
     </main>
@@ -173,14 +173,15 @@
                 ? window.location.origin.replace(/\/$/, '') + '/api'
                 : '/api');
 
-        // 2?占쎄퀎 ?占쎌썝媛????泥섎━
+        // 2단계 회원가입 폼 처리
         class RegisterForm {
             constructor() {
                 this.currentStep = 1;
                 this.emailVerified = false;
                 this.isLoading = false;
                 
-                // DOM ?占쎌냼??                this.step1 = document.getElementById('step1');
+                // DOM 요소들
+                this.step1 = document.getElementById('step1');
                 this.step2 = document.getElementById('step2');
                 this.step1Indicator = document.getElementById('step1Indicator');
                 this.step2Indicator = document.getElementById('step2Indicator');
@@ -201,10 +202,10 @@
                 this.backToStep1.addEventListener('click', () => this.goToStep1());
                 
                 
-                // ?대깽??由ъ뒪???깅줉
+                // 폼 제출 이벤트 등록
                 document.getElementById('personalInfoForm').addEventListener('submit', (e) => this.handleSubmit(e));
                 
-                // ?ㅼ떆媛??좏슚??寃??
+                // 실시간 유효성 검사 이벤트
                 document.getElementById('email').addEventListener('input', () => {
                     this.validateEmail();
                     this.updateNextButton();
@@ -231,7 +232,8 @@
                 });
                 document.getElementById('password').addEventListener('input', () => {
                     this.validatePassword();
-                    this.validateConfirmPassword(); // 鍮꾬옙?踰덊샇 蹂占????占쎌씤???占쏙옙?占?                    this.updateRegisterButton();
+                    this.validateConfirmPassword(); // 비밀번호 변경 시 확인 비밀번호도 재검증
+                    this.updateRegisterButton();
                 });
                 document.getElementById('confirmPassword').addEventListener('input', () => {
                     this.validateConfirmPassword();
@@ -267,13 +269,13 @@
                     if (data.success) {
                         this.verificationSection.classList.add('show');
                         this.verifyBtn.textContent = '재발송';
-                        this.showSuccess('?占쎌쬆 肄붾뱶媛 諛쒖넚?占쎌뿀?占쎈땲??');
+                        this.showSuccess('인증 코드가 발송되었습니다.');
                         this.updateNextButton();
                     } else {
                         this.showError('emailError', data.message);
                     }
                 } catch (error) {
-                    this.showError('emailError', '?占쏀듃?占쏀겕 ?占쎈쪟媛 諛쒖깮?占쎌뒿?占쎈떎.');
+                    this.showError('emailError', '인증 코드 발송 중 오류가 발생했습니다.');
                 } finally {
                     this.setLoading(false);
                 }
@@ -298,7 +300,7 @@
 
                     if (data.success) {
                         this.emailVerified = true;
-                        this.showSuccess('?占쎈찓???占쎌쬆???占쎈즺?占쎌뿀?占쎈땲??');
+                        this.showSuccess('이메일 인증이 완료되었습니다.');
                         this.updateNextButton();
                         return true;
                     } else {
@@ -306,7 +308,7 @@
                         return false;
                     }
                 } catch (error) {
-                    this.showError('codeError', '?占쏀듃?占쏀겕 ?占쎈쪟媛 諛쒖깮?占쎌뒿?占쎈떎.');
+                    this.showError('codeError', '인증 코드 확인 중 오류가 발생했습니다.');
                     return false;
                 }
             }
@@ -342,7 +344,7 @@
                     this.step1Indicator.classList.remove('active');
                     this.step2Indicator.classList.add('active');
                     
-                    // 2?占쎄퀎占??占쎈룞?????占쎌썝媛??踰꾪듉 ?占쏀깭 ?占쎈뜲?占쏀듃
+                    // 2단계로 이동하면 회원가입 버튼 상태 업데이트
                     this.updateRegisterButton();
                 }
             }
@@ -353,12 +355,12 @@
                 if (!this.validateAllStep2()) return;
 
                 this.setLoading(true);
-                this.registerBtn.textContent = '媛??占?..';
+                this.registerBtn.textContent = '가입중...';
 
                 try {
-                    // ?占쎌젣 ?占쎌썝媛??API ?占쎌텧
+                    // 실제 회원가입 API 호출
                     const formData = this.getFormData();
-                    Logger.log('?占쏙옙 ?占쎌넚???占쎌씠??', formData);
+                    Logger.log('회원가입 요청 데이터:', formData);
                     
                     const response = await fetch(`${API_BASE}/register`, {
                         method: 'POST',
@@ -368,27 +370,27 @@
                         body: JSON.stringify(formData)
                     });
                     
-                    Logger.log('?占쏙옙 ?占쎈떟 ?占쏀깭:', response.status);
+                    Logger.log('회원가입 응답 상태:', response.status);
 
                     const data = await response.json();
-                    Logger.log('?占쏙옙 ?占쎈떟 ?占쎌씠??', data);
+                    Logger.log('회원가입 응답 데이터:', data);
 
                     if (data.success) {
                         document.getElementById('successMessage').style.display = 'block';
                         document.getElementById('personalInfoForm').style.display = 'none';
                         
-                        // 3占???硫붿씤 ?占쎌씠吏占??占쎈룞
+                        // 3초 후 메인 페이지로 이동
                         setTimeout(() => {
                             window.location.href = 'index.html';
                         }, 3000);
                     } else {
-                        this.showError('registerError', data.message || '?占쎌썝媛?占쎌뿉 ?占쏀뙣?占쎌뒿?占쎈떎.');
+                        this.showError('registerError', data.message || '회원가입에 실패했습니다.');
                     }
                 } catch (error) {
-                    this.showError('registerError', '?占쏀듃?占쏀겕 ?占쎈쪟媛 諛쒖깮?占쎌뒿?占쎈떎.');
+                    this.showError('registerError', '회원가입 중 오류가 발생했습니다.');
                 } finally {
                     this.setLoading(false);
-                    this.registerBtn.textContent = '?占쎌썝媛??;
+                    this.registerBtn.textContent = '회원가입';
                 }
             }
 
@@ -401,7 +403,7 @@
                 const countryCode = document.getElementById('countryCode').value;
                 const phone = document.getElementById('phone').value;
 
-                // ?占쏀솕踰덊샇媛 ?占쎈젰??寃쎌슦?占쎈쭔 占??肄붾뱶?占??占쎄퍡 ?占쎌넚
+                // 전화번호가 입력된 경우에만 국가코드와 함께 전송
                 const phoneValue = phone ? `${countryCode}${phone}` : null;
 
                 return {
@@ -418,10 +420,10 @@
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 
                 if (!email) {
-                    this.showError('emailError', '?占쎈찓?占쎌쓣 ?占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('emailError', '이메일을 입력해주세요.');
                     return false;
                 } else if (!emailRegex.test(email)) {
-                    this.showError('emailError', '?占쎈컮占??占쎈찓???占쎌떇???占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('emailError', '올바른 이메일 형식을 입력해주세요.');
                     return false;
                 } else {
                     this.hideError('emailError');
@@ -433,10 +435,10 @@
                 const code = document.getElementById('verificationCode').value;
                 
                 if (this.verificationSection.classList.contains('show') && !code) {
-                    this.showError('codeError', '?占쎌쬆 肄붾뱶占??占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('codeError', '인증 코드를 입력해주세요.');
                     return false;
                 } else if (code && code.length !== 6) {
-                    this.showError('codeError', '?占쎌쬆 肄붾뱶??6?占쎈━?占쎈땲??');
+                    this.showError('codeError', '인증 코드는 6자리입니다.');
                     return false;
                 } else {
                     this.hideError('codeError');
@@ -449,10 +451,10 @@
                 const lastName = document.getElementById('lastName').value;
                 
                 if (!lastName) {
-                    this.showError('lastNameError', '?占쎌쓣 ?占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('lastNameError', '성을 입력해주세요.');
                     return false;
                 } else if (lastName.length < 1) {
-                    this.showError('lastNameError', '?占쎈컮占??占쎌쓣 ?占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('lastNameError', '올바른 성을 입력해주세요.');
                     return false;
                 } else {
                     this.hideError('lastNameError');
@@ -464,10 +466,10 @@
                 const firstName = document.getElementById('firstName').value;
                 
                 if (!firstName) {
-                    this.showError('firstNameError', '?占쎈쫫???占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('firstNameError', '이름을 입력해주세요.');
                     return false;
                 } else if (firstName.length < 1) {
-                    this.showError('firstNameError', '?占쎈컮占??占쎈쫫???占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('firstNameError', '올바른 이름을 입력해주세요.');
                     return false;
                 } else {
                     this.hideError('firstNameError');
@@ -479,7 +481,7 @@
                 const birthdate = document.getElementById('birthdate').value;
                 
                 if (!birthdate) {
-                    this.showError('birthdateError', '?占쎈뀈?占쎌씪???占쏀깮?占쎌＜?占쎌슂.');
+                    this.showError('birthdateError', '생년월일을 선택해주세요.');
                     return false;
                 } else {
                     const birth = new Date(birthdate);
@@ -487,7 +489,7 @@
                     const age = today.getFullYear() - birth.getFullYear();
                     
                     if (age < 14) {
-                        this.showError('birthdateError', '占?14???占쎌긽占?媛??媛?占쏀빀?占쎈떎.');
+                        this.showError('birthdateError', '만 14세 이상만 가입 가능합니다.');
                         return false;
                     } else {
                         this.hideError('birthdateError');
@@ -501,7 +503,7 @@
                 const phoneRegex = /^[0-9-]+$/;
                 
                 if (phone && !phoneRegex.test(phone)) {
-                    this.showError('phoneError', '?占쎈컮占??占쏀솕踰덊샇 ?占쎌떇???占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('phoneError', '올바른 전화번호 형식을 입력해주세요.');
                     return false;
                 } else {
                     this.hideError('phoneError');
@@ -513,25 +515,25 @@
                 const password = document.getElementById('password').value;
                 
                 if (!password) {
-                    this.showError('passwordError', '鍮꾬옙?踰덊샇占??占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('passwordError', '비밀번호를 입력해주세요.');
                     return false;
                 } else if (password.length < 8) {
-                    this.showError('passwordError', '鍮꾬옙?踰덊샇??8???占쎌긽?占쎌뼱???占쎈땲??');
+                    this.showError('passwordError', '비밀번호는 8자 이상이어야 합니다.');
                     return false;
                 } else if (!/(?=.*[a-z])/.test(password)) {
-                    this.showError('passwordError', '鍮꾬옙?踰덊샇???占쎈Ц?占쏙옙? ?占쏀븿?占쎌빞 ?占쎈땲??');
+                    this.showError('passwordError', '비밀번호에 소문자를 포함해야 합니다.');
                     return false;
                 } else if (!/(?=.*[A-Z])/.test(password)) {
-                    this.showError('passwordError', '鍮꾬옙?踰덊샇???占쎈Ц?먲옙??占쏀븿?占쎌빞 ?占쎈땲??');
+                    this.showError('passwordError', '비밀번호에 대문자를 포함해야 합니다.');
                     return false;
                 } else if (!/(?=.*\d)/.test(password)) {
-                    this.showError('passwordError', '鍮꾬옙?踰덊샇???占쎌옄占??占쏀븿?占쎌빞 ?占쎈땲??');
+                    this.showError('passwordError', '비밀번호에 숫자를 포함해야 합니다.');
                     return false;
                 } else if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
-                    this.showError('passwordError', '鍮꾬옙?踰덊샇???占쎌닔臾몄옄占??占쏀븿?占쎌빞 ?占쎈땲??');
+                    this.showError('passwordError', '비밀번호에 특수문자를 포함해야 합니다.');
                     return false;
                 } else if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/.test(password)) {
-                    this.showError('passwordError', '鍮꾬옙?踰덊샇???占쎈Ц, ?占쎌옄, ?占쎌닔臾몄옄占??占쎌슜 媛?占쏀빀?占쎈떎.');
+                    this.showError('passwordError', '비밀번호에 영문, 숫자, 특수문자만 사용 가능합니다.');
                     return false;
                 } else {
                     this.hideError('passwordError');
@@ -544,10 +546,10 @@
                 const confirmPassword = document.getElementById('confirmPassword').value;
                 
                 if (!confirmPassword) {
-                    this.showError('confirmPasswordError', '鍮꾬옙?踰덊샇 ?占쎌씤???占쎈젰?占쎌＜?占쎌슂.');
+                    this.showError('confirmPasswordError', '비밀번호 확인을 입력해주세요.');
                     return false;
                 } else if (password !== confirmPassword) {
-                    this.showError('confirmPasswordError', '鍮꾬옙?踰덊샇媛 ?占쎌튂?占쏙옙? ?占쎌뒿?占쎈떎.');
+                    this.showError('confirmPasswordError', '비밀번호가 일치하지 않습니다.');
                     return false;
                 } else {
                     this.hideError('confirmPasswordError');
@@ -560,7 +562,8 @@
                 const codeValid = this.validateVerificationCode();
                 const code = document.getElementById('verificationCode').value;
                 
-                // ?占쎈찓?占쎌씠 ?占쏀슚?占쎄퀬 ?占쎌쬆 肄붾뱶媛 6?占쎈━占?踰꾪듉 ?占쎌꽦??                // ?占쎌젣 ?占쎌쬆?占?"?占쎌쓬 ?占쎄퀎" 踰꾪듉 ?占쎈┃ ?占쎌뿉占??占쎈룄
+                // 이메일이 유효하고 인증 코드가 6자리면 버튼 활성화
+                // 실제 인증은 "다음 단계" 버튼 클릭 시 수행
                 return emailValid && codeValid && code && code.length === 6;
             }
 
@@ -580,7 +583,7 @@
                 const privacyConsent = document.getElementById('privacyConsent').checked;
                 
                 if (!privacyConsent) {
-                    this.showError('privacyConsentError', '媛쒖씤?占쎈낫 ?占쎌쭛 占??占쎌슜 ?占쎌쓽???占쎌닔?占쎈땲??');
+                    this.showError('privacyConsentError', '개인정보 수집 및 이용 동의가 필요합니다.');
                     return false;
                 } else {
                     this.hideError('privacyConsentError');
@@ -626,9 +629,9 @@
             }
 
             showSuccess(message) {
-                // 媛꾨떒???占쎄났 硫붿떆吏 ?占쎌떆 (?占쎌젣濡쒕뒗 ???占쎄탳??UI ?占쎌슜)
+                // 성공 메시지 표시 (실제로는 토스트 UI 사용)
                 Logger.log('Success:', message);
-                // TODO: ???占쏙옙? ?占쎄났 硫붿떆吏 UI 援ы쁽
+                // TODO: 나중에 토스트 메시지 UI 구현
             }
 
             setLoading(loading) {
@@ -643,12 +646,12 @@
             }
         }
 
-        // ?占쎌씠吏 濡쒕뱶 ??珥덇린??        document.addEventListener('DOMContentLoaded', () => {
+        // DOM 로드 후 초기화
+        document.addEventListener('DOMContentLoaded', () => {
             new RegisterForm();
         });
     </script>
-  <!-- ?占쏀꽣 而⑦뀒?占쎈꼫 -->
+  <!-- 푸터 로드 -->
   <div id="footer-container"></div>
 </body>
 </html>
-
