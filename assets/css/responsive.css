@@ -920,6 +920,17 @@
     padding-bottom: clamp(14px, 3vw, 18px);
   }
   
+  /* 일반 섹션 스타일 (아코디언 아님) */
+  .footer-main .footer-section:not(.footer-accordion) {
+    padding-bottom: clamp(16px, 3vw, 20px);
+    border-bottom: 1px solid #eee;
+  }
+  
+  .footer-main .footer-section:not(.footer-accordion):last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  
   .footer-section {
     padding-bottom: 0;
     border-bottom: none;
@@ -931,6 +942,11 @@
     margin-bottom: clamp(10px, 2vw, 14px);
     color: #111;
     letter-spacing: -0.2px;
+  }
+  
+  /* 아코디언이 아닌 섹션의 제목 */
+  .footer-main .footer-section:not(.footer-accordion) .footer-title {
+    margin-bottom: clamp(10px, 2vw, 14px);
   }
   
   .footer-content {
@@ -965,14 +981,13 @@
     letter-spacing: 0.1px;
   }
   
-  /* 개인정보 처리방침 섹션 (모바일) */
-  .footer-privacy-section {
-    padding: clamp(14px, 3vw, 18px) 0;
-    margin: clamp(16px, 3vw, 20px) 0 0;
+  /* 아코디언 섹션들 (정책 및 약관, 개인정보 처리방침) */
+  .footer-section.footer-accordion {
+    margin-top: clamp(16px, 3vw, 20px);
   }
   
-  .footer-privacy-link {
-    font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  .footer-section.footer-accordion:first-of-type {
+    margin-top: 0;
   }
 }
 
@@ -1018,14 +1033,9 @@
     font-size: clamp(0.6rem, 1.4vw, 0.7rem);
   }
   
-  /* 개인정보 처리방침 섹션 (초소형 모바일) */
-  .footer-privacy-section {
-    padding: clamp(12px, 2.5vw, 16px) 0;
-    margin: clamp(14px, 2.5vw, 18px) 0 0;
-  }
-  
-  .footer-privacy-link {
-    font-size: clamp(0.75rem, 1.6vw, 0.85rem);
+  /* 아코디언 섹션들 (초소형 모바일) */
+  .footer-section.footer-accordion {
+    margin-top: clamp(14px, 2.5vw, 18px);
   }
 }
 

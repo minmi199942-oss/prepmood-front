@@ -3,13 +3,10 @@
   <div class="footer-container">
     <!-- 메인 푸터 콘텐츠 -->
     <div class="footer-main">
-      <!-- 회사 정보 섹션 (아코디언) -->
-      <div class="footer-section footer-accordion">
-        <button class="footer-accordion-toggle" aria-expanded="false">
-          <h3 class="footer-title">회사 정보</h3>
-          <span class="footer-accordion-icon">▼</span>
-        </button>
-        <div class="footer-content footer-accordion-content">
+      <!-- 회사 정보 섹션 (일반 스타일) -->
+      <div class="footer-section">
+        <h3 class="footer-title">회사 정보</h3>
+        <div class="footer-content">
           <p class="footer-text">회사명: 프레피무드</p>
           <p class="footer-text">대표자: 최지원</p>
           <p class="footer-text">사업자등록번호: 827-27-01774</p>
@@ -18,50 +15,52 @@
         </div>
       </div>
 
-      <!-- 고객센터 섹션 (아코디언) -->
-      <div class="footer-section footer-accordion">
-        <button class="footer-accordion-toggle" aria-expanded="false">
-          <h3 class="footer-title">고객센터</h3>
-          <span class="footer-accordion-icon">▼</span>
-        </button>
-        <div class="footer-content footer-accordion-content">
+      <!-- 고객센터 섹션 (일반 스타일) -->
+      <div class="footer-section">
+        <h3 class="footer-title">고객센터</h3>
+        <div class="footer-content">
           <p class="footer-text">고객센터 전화번호: <a href="tel:1555-6035" class="footer-link">1555-6035</a></p>
           <p class="footer-text">이메일: <a href="mailto:prepmoodcare@naver.com" class="footer-link">prepmoodcare@naver.com</a></p>
         </div>
       </div>
 
-      <!-- 정책 및 약관 섹션 (아코디언) -->
-      <div class="footer-section footer-accordion">
-        <button class="footer-accordion-toggle" aria-expanded="false">
-          <h3 class="footer-title">정책 및 약관</h3>
-          <span class="footer-accordion-icon">▼</span>
-        </button>
-        <div class="footer-content footer-accordion-content">
-          <p class="footer-text">
-            <a href="legal.html" class="footer-link">이용약관</a>
-          </p>
-          <p class="footer-text">
-            <a href="legal.html" class="footer-link">법적 고지</a>
-          </p>
-        </div>
-      </div>
-
-      <!-- 결제 서비스 섹션 (아코디언) -->
-      <div class="footer-section footer-accordion">
-        <button class="footer-accordion-toggle" aria-expanded="false">
-          <h3 class="footer-title">결제 서비스</h3>
-          <span class="footer-accordion-icon">▼</span>
-        </button>
-        <div class="footer-content footer-accordion-content">
+      <!-- 결제 서비스 섹션 (일반 스타일) -->
+      <div class="footer-section">
+        <h3 class="footer-title">결제 서비스</h3>
+        <div class="footer-content">
           <p class="footer-text">PG: NHN KCP, KG이니시스</p>
           <p class="footer-text">국제 결제 서비스: PayPal, WeChat 등 예정</p>
         </div>
       </div>
     </div>
 
-    <!-- 개인정보 처리방침 (별도 섹션) -->
-    <div class="footer-privacy-section">
-      <a href="privacy.html" class="footer-privacy-link">개인정보 처리방침</a>
+    <!-- 정책 및 약관 섹션 (아코디언) -->
+    <div class="footer-section footer-accordion">
+      <button class="footer-accordion-toggle" aria-expanded="false">
+        <h3 class="footer-title">정책 및 약관</h3>
+        <span class="footer-accordion-icon">▼</span>
+      </button>
+      <div class="footer-content footer-accordion-content">
+        <p class="footer-text">
+          <a href="legal.html" class="footer-link">이용약관</a>
+        </p>
+        <p class="footer-text">
+          <a href="legal.html" class="footer-link">법적 고지</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- 개인정보 처리방침 (아코디언) -->
+    <div class="footer-section footer-accordion">
+      <button class="footer-accordion-toggle" aria-expanded="false">
+        <h3 class="footer-title">개인정보 처리방침</h3>
+        <span class="footer-accordion-icon">▼</span>
+      </button>
+      <div class="footer-content footer-accordion-content">
+        <p class="footer-text">
+          <a href="privacy.html" class="footer-link">개인정보 처리방침</a>
+        </p>
+      </div>
     </div>
 
     <!-- 푸터 하단 -->
