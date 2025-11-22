@@ -384,34 +384,6 @@
                 if (!this.emailVerified) {
                     const verified = await this.verifyCode();
                     if (verified) {
-                        // 인증 성공 후에도 한 번 더 이메일 존재 여부 확인
-                        const email = document.getElementById('email').value;
-                        try {
-                            const checkResponse = await fetch(`${API_BASE}/check-email`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({ email })
-                            });
-                            
-                            const checkData = await checkResponse.json();
-                            
-                            // 이미 가입된 이메일이면 로그인 페이지로 리다이렉트
-                            if (checkData.exists === true || checkData.emailExists === true) {
-                                this.showError('emailError', '이미 존재하는 이메일입니다.');
-                                setTimeout(() => {
-                                    window.location.href = 'login.html';
-                                }, 2000);
-                                return;
-                            }
-                        } catch (error) {
-                            // check-email API가 없을 수도 있으므로 에러는 무시하고 진행
-                            if (window.Logger) {
-                                window.Logger.warn('check-email API 호출 실패:', error);
-                            }
-                        }
-                        
                         this.showStep(2);
                     }
                 } else {
@@ -478,6 +450,31 @@
                             window.location.href = 'index.html';
                         }, 3000);
                     } else {
+                        // 이미 가입된 이메일인 경우 로그인 페이지로 리다이렉트
+                        const errorMessage = (data.message || '').toLowerCase();
+                        const isAlreadyRegistered = 
+                            errorMessage.includes('이미 가입된') ||
+                            errorMessage.includes('이미 등록된') ||
+                            errorMessage.includes('존재하는') ||
+                            errorMessage.includes('already exists') ||
+                            errorMessage.includes('email_already_exists') ||
+                            errorMessage.includes('user_already_exists') ||
+                            data.code === 'EMAIL_ALREADY_EXISTS' ||
+                            data.code === 'USER_ALREADY_EXISTS' ||
+                            data.exists === true ||
+                            data.emailExists === true;
+                        
+                        if (isAlreadyRegistered) {
+                            // 이미 가입된 이메일이면 메시지 표시 후 로그인 페이지로 리다이렉트
+                            this.showError('registerError', '이미 존재하는 이메일입니다.');
+                            
+                            // 2초 후 로그인 페이지로 리다이렉트
+                            setTimeout(() => {
+                                window.location.href = 'login.html';
+                            }, 2000);
+                            return;
+                        }
+                        
                         this.showError('registerError', data.message || '회원가입에 실패했습니다.');
                     }
                 } catch (error) {
