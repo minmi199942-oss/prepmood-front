@@ -685,6 +685,47 @@ nav ul li {
   flex-direction: column;
 }
 
+/* 아코디언 토글 버튼 (데스크톱에서는 일반 표시) */
+.footer-accordion-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.footer-accordion-toggle .footer-title {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.footer-accordion-icon {
+  font-size: clamp(0.7rem, 1.2vw, 0.8rem);
+  color: #666;
+  transition: transform 0.3s ease;
+  margin-left: 8px;
+}
+
+/* 데스크톱에서는 아코디언 아이콘 숨김 */
+@media (min-width: 768px) {
+  .footer-accordion-toggle {
+    pointer-events: none; /* 클릭 비활성화 */
+  }
+  
+  .footer-accordion-icon {
+    display: none;
+  }
+  
+  .footer-accordion-content {
+    max-height: none !important;
+    display: flex !important;
+  }
+}
+
 .footer-title {
   font-size: clamp(0.8rem, 1.6vw, 0.9rem);
   font-weight: 500;
@@ -733,6 +774,29 @@ nav ul li {
   font-size: clamp(0.65rem, 1vw, 0.75rem);
   letter-spacing: 0.2px;
   font-weight: 300;
+}
+
+/* 개인정보 처리방침 별도 섹션 */
+.footer-privacy-section {
+  padding: clamp(12px, 2vw, 16px) 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  text-align: center;
+}
+
+.footer-privacy-link {
+  color: #111;
+  text-decoration: none;
+  font-size: clamp(0.75rem, 1.4vw, 0.85rem);
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  transition: color 0.2s ease;
+}
+
+.footer-privacy-link:hover {
+  color: #666;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* ===== 모바일 햄버거 메뉴 ===== */
