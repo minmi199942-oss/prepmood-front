@@ -354,11 +354,11 @@
 
 .phone-input {
     display: flex;
+    align-items: center;
     gap: clamp(6px, 1.2vw, 8px);
-    align-items: flex-end;
 }
 
-.country-select {
+.phone-input .country-select {
     padding: clamp(12px, 2.5vw, 16px) clamp(10px, 2vw, 12px);
     font-size: clamp(0.8rem, 1.8vw, 0.9rem);
     border: none;
@@ -366,11 +366,11 @@
     background-color: transparent;
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     font-weight: 300;
-    min-width: clamp(80px, 15vw, 100px);
+    min-width: clamp(120px, 20vw, 140px);
     cursor: pointer;
 }
 
-.country-select:focus {
+.phone-input .country-select:focus {
     outline: none;
     border-bottom-color: #000;
 }
