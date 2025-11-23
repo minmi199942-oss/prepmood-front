@@ -432,6 +432,16 @@
     color: #6c757d;
     margin-bottom: clamp(3px, 0.8vw, 4px);
     font-size: clamp(11px, 2vw, 13px);
+    transition: color 0.2s ease;
+}
+
+.requirement-item.satisfied {
+    color: #000;
+    font-weight: 500;
+}
+
+.requirement-item.unsatisfied {
+    color: #ff3b30;
 }
 
 .requirement-item:last-child {
