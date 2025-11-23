@@ -366,8 +366,10 @@
     background-color: transparent;
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     font-weight: 300;
-    min-width: clamp(120px, 20vw, 140px);
+    min-width: clamp(100px, 18vw, 120px);
+    max-width: 140px;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .phone-input .country-select:focus {
@@ -377,6 +379,7 @@
 
 .phone-input .form-input {
     flex: 1;
+    min-width: 150px;
 }
 
 /* 반응형 */
