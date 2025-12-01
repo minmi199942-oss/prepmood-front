@@ -147,11 +147,44 @@
     height: clamp(14px, 3vw, 18px);
   }
   
-  /* 모바일 액션 아이콘 크기 조정 */
+  /* ===== 모바일 헤더 아이콘 크기 조정 ===== */
+  /* 
+   * 모바일 화면에서 헤더 아이콘 크기를 조정하려면 아래 값을 변경하세요.
+   * clamp(최소값, 반응형값, 최대값) 형식입니다.
+   * 
+   * 예시:
+   * - 더 크게: clamp(20px, 4vw, 28px)
+   * - 더 작게: clamp(12px, 2.5vw, 16px)
+   * - 고정 크기: 24px (clamp 없이)
+   */
   .header-actions .action-icon {
-    width: clamp(14px, 3vw, 18px);
-    height: clamp(14px, 3vw, 18px);
+    /* 기본 모바일 아이콘 크기 */
+    width: clamp(24px, 5vw, 32px);  /* 원하는 최소/최대 크기로 조정 가능 */
+    height: clamp(24px, 5vw, 32px); /* 원하는 최소/최대 크기로 조정 가능 */
   }
+  
+  /* 개별 아이콘 크기 조정 (필요시 주석 해제하여 사용) */
+  /*
+  .header-actions #search-toggle .action-icon {
+    width: clamp(22px, 4.5vw, 30px);
+    height: clamp(22px, 4.5vw, 30px);
+  }
+  
+  .header-actions #mypage-toggle .action-icon {
+    width: clamp(20px, 4vw, 28px);
+    height: clamp(20px, 4vw, 28px);
+  }
+  
+  .header-actions .cart-link .action-icon {
+    width: clamp(22px, 4.5vw, 30px);
+    height: clamp(22px, 4.5vw, 30px);
+  }
+  
+  .header-actions [href="wishlist.html"] .action-icon {
+    width: clamp(20px, 4vw, 28px);
+    height: clamp(20px, 4vw, 28px);
+  }
+  */
   
   /* 로고 및 브랜드 조정 */
   .logo-img {

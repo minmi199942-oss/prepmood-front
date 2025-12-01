@@ -226,7 +226,8 @@
                     this.validateBirthdate();
                     this.updateRegisterButton();
                 });
-                document.getElementById('phone').addEventListener('input', () => {
+                document.getElementById('phone').addEventListener('input', (e) => {
+                    this.formatPhoneNumber(e);
                     this.validatePhone();
                     this.updateRegisterButton();
                 });
@@ -526,17 +527,54 @@
                 }
             }
 
+            formatPhoneNumber(e) {
+                let value = e.target.value;
+                // 숫자만 추출
+                const numbers = value.replace(/[^0-9]/g, '');
+                
+                // 최대 11자리로 제한
+                const limitedNumbers = numbers.slice(0, 11);
+                
+                // 하이픈 자동 삽입 (010-1234-5678 형식)
+                let formatted = '';
+                if (limitedNumbers.length <= 3) {
+                    formatted = limitedNumbers;
+                } else if (limitedNumbers.length <= 7) {
+                    formatted = limitedNumbers.slice(0, 3) + '-' + limitedNumbers.slice(3);
+                } else {
+                    formatted = limitedNumbers.slice(0, 3) + '-' + limitedNumbers.slice(3, 7) + '-' + limitedNumbers.slice(7);
+                }
+                
+                e.target.value = formatted;
+            }
+
             validatePhone() {
                 const phone = document.getElementById('phone').value;
-                const phoneRegex = /^[0-9-]+$/;
+                // 숫자만 추출해서 검증
+                const numbers = phone.replace(/[^0-9]/g, '');
                 
-                if (phone && !phoneRegex.test(phone)) {
-                    this.showError('phoneError', '올바른 전화번호 형식을 입력해주세요.');
-                    return false;
-                } else {
+                // 전화번호가 입력되지 않았으면 통과 (선택 항목)
+                if (!phone || numbers.length === 0) {
                     this.hideError('phoneError');
                     return true;
                 }
+                
+                // 한국 전화번호 형식 검증 (010-1234-5678, 02-1234-5678 등)
+                // 10자리 또는 11자리 숫자만 허용
+                if (numbers.length < 10 || numbers.length > 11) {
+                    this.showError('phoneError', '전화번호는 10자리 또는 11자리여야 합니다.');
+                    return false;
+                }
+                
+                // 올바른 형식인지 확인 (010으로 시작하거나 02, 031 등 지역번호)
+                const phoneRegex = /^(010|011|016|017|018|019|02|031|032|033|041|042|043|044|051|052|053|054|055|061|062|063|064|070)\d{3,4}\d{4}$/;
+                if (!phoneRegex.test(numbers)) {
+                    this.showError('phoneError', '올바른 전화번호 형식을 입력해주세요.');
+                    return false;
+                }
+                
+                this.hideError('phoneError');
+                return true;
             }
 
             updatePasswordRequirements(password) {
