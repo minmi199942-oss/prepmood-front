@@ -151,7 +151,6 @@
       sizeOptionGroup.style.display = 'none';
       // 액세서리의 경우 사이즈를 'Free'로 자동 설정
       selectedSize = 'Free';
-      Logger.log('액세서리 제품: 사이즈 선택 필드 숨김');
       return;
     }
 
@@ -168,8 +167,6 @@
       option.textContent = size === 'F' ? 'Free' : size;
       sizeSelect.appendChild(option);
     });
-
-    Logger.log('사이즈 옵션 생성 완료:', availableSizes);
   }
 
   // 제품 이미지 표시 (같은 이미지 3장 반복)
@@ -249,8 +246,6 @@
     quickBuyBtn.disabled = false;
     cartBtn.classList.add('enabled');
     quickBuyBtn.classList.add('enabled');
-    
-    Logger.log('옵션 변경됨:', { selectedSize, selectedColor });
   }
 
   // 색상 변경 시 이미지 변경 (시뮬레이션)
@@ -260,23 +255,16 @@
 
     // 실제로는 색상별 이미지가 있어야 하지만, 현재는 같은 이미지 사용
     // 추후 색상별 이미지 데이터 구조 확장 필요
-    Logger.log(`선택된 색상: ${selectedColor}`);
-    
     handleOptionChange();
   }
 
   // 장바구니 추가
   async function addToCart() {
-    Logger.log('🛒 addToCart 함수 호출됨!');
-    Logger.log('현재 상태:', {
-      currentProduct: !!currentProduct,
-      selectedSize: selectedSize,
-      selectedColor: selectedColor
-    });
-    
     // 제품이 없는 경우
     if (!currentProduct) {
-      Logger.log('❌ 제품 정보 없음');
+      if (window.Logger) {
+        window.Logger.error('제품 정보 없음');
+      }
       alert('제품 정보를 불러올 수 없습니다.');
       return false;
     }
@@ -291,13 +279,11 @@
 
     // 사이즈와 색상 선택 검증 (액세서리는 사이즈 검증 제외)
     if (!isAccessory && !selectedSize) {
-      Logger.log('❌ 사이즈 선택 안 함');
       showErrorMessage('size-error', '사이즈를 선택해야합니다.');
       return false;
     }
     
     if (!selectedColor) {
-      Logger.log('❌ 색상 선택 안 함');
       showErrorMessage('color-error', '색상을 선택해야합니다.');
       return false;
     }
@@ -321,18 +307,17 @@
     if (window.miniCart) {
       const added = await window.miniCart.addToCart(productToAdd);
       if (added) {
-        Logger.log('✅ 장바구니에 추가됨:', productToAdd);
-        
         // 미니 카트 열기
         window.miniCart.toggleMiniCart();
-        
-        // 성공 메시지 (알림 대신 미니 카트로 표시)
-        Logger.log(`장바구니에 추가되었습니다.\n제품: ${currentProduct.name}\n사이즈: ${selectedSize}\n색상: ${selectedColor}`);
         return true;
       }
       return false;
     } else {
-      console.error('❌ MiniCart가 초기화되지 않았습니다!');
+      if (window.Logger) {
+        window.Logger.error('MiniCart가 초기화되지 않았습니다');
+      } else {
+        console.error('❌ MiniCart가 초기화되지 않았습니다!');
+      }
       alert('장바구니를 사용할 수 없습니다. 페이지를 새로고침해주세요.');
       return false;
     }

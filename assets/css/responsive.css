@@ -156,11 +156,21 @@
    * - 더 크게: clamp(20px, 4vw, 28px)
    * - 더 작게: clamp(12px, 2.5vw, 16px)
    * - 고정 크기: 24px (clamp 없이)
+   * 
+   * ⚠️ 주의: 이 스타일은 헤더(.header-actions) 안의 아이콘에만 적용됩니다.
+   * 상세 상품란의 wishlist-icon은 영향을 받지 않습니다.
    */
-  .header-actions .action-icon {
-    /* 기본 모바일 아이콘 크기 */
-    width: clamp(24px, 5vw, 32px);  /* 원하는 최소/최대 크기로 조정 가능 */
-    height: clamp(24px, 5vw, 32px); /* 원하는 최소/최대 크기로 조정 가능 */
+  .main-header .header-actions .action-link .action-icon {
+    /* 헤더의 액션 아이콘만 타겟팅 (상세 상품란의 wishlist-icon과 분리) */
+    width: clamp(24px, 5vw, 32px) !important;  /* 원하는 최소/최대 크기로 조정 가능 */
+    height: clamp(24px, 5vw, 32px) !important; /* 원하는 최소/최대 크기로 조정 가능 */
+  }
+  
+  /* 상세 상품란의 wishlist-icon은 원래 크기 유지 (보호) */
+  .product-detail-container .wishlist-icon,
+  .wishlist-btn .wishlist-icon {
+    width: clamp(70px, 10vw, 85px) !important;
+    height: clamp(70px, 10vw, 85px) !important;
   }
   
   /* 개별 아이콘 크기 조정 (필요시 주석 해제하여 사용) */
