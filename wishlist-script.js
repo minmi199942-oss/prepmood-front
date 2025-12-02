@@ -67,16 +67,26 @@
 
   // 카탈로그 데이터에서 상품 ID로 상품 찾기
   function findProductById(id) {
-    if (!window.CATALOG_DATA) return null;
+    if (!window.CATALOG_DATA) {
+      if (window.Logger) {
+        window.Logger.error('CATALOG_DATA가 없습니다');
+      }
+      return null;
+    }
 
-    for (const gender in window.CATALOG_DATA) {
-      for (const category in window.CATALOG_DATA[gender]) {
-        for (const type in window.CATALOG_DATA[gender][category]) {
-          const products = window.CATALOG_DATA[gender][category][type];
-          const found = products.find(p => p.id === id);
-          if (found) return found;
+    // 직접 카테고리 구조로 검색 (category -> type -> products[])
+    for (const category in window.CATALOG_DATA) {
+      for (const type in window.CATALOG_DATA[category]) {
+        const products = window.CATALOG_DATA[category][type];
+        const found = products.find(p => p.id === id);
+        if (found) {
+          return found;
         }
       }
+    }
+    
+    if (window.Logger) {
+      window.Logger.warn('제품을 찾을 수 없습니다:', id);
     }
     return null;
   }
@@ -253,8 +263,17 @@
     }
 
     // 카탈로그 데이터 로드 대기
-    if (typeof window.CATALOG_DATA === 'undefined') {
-      setTimeout(init, 100);
+    if (typeof window.CATALOG_DATA === 'undefined' || !window.productsLoaded) {
+      // productsLoaded 이벤트를 기다림
+      window.addEventListener('productsLoaded', init, { once: true });
+      // 타임아웃 대비 폴백
+      setTimeout(() => {
+        if (typeof window.CATALOG_DATA !== 'undefined') {
+          loadWishlist();
+        } else {
+          setTimeout(init, 100);
+        }
+      }, 100);
       return;
     }
 

@@ -402,6 +402,14 @@
   }
 
   // 위시리스트 토글 (API 연동)
+  // 위시리스트 이미지 업데이트 함수
+  function updateWishlistImage(isActive) {
+    const wishlistIcon = document.querySelector('#wishlist-btn .wishlist-icon');
+    if (wishlistIcon) {
+      wishlistIcon.src = isActive ? 'image/fullwishlist.jpg' : 'image/wishlist.jpg';
+    }
+  }
+
   async function toggleWishlist() {
     if (!currentProduct) return;
 
@@ -438,9 +446,11 @@
       if (data.success) {
         if (data.action === 'added') {
           wishlistBtn.classList.add('active');
+          updateWishlistImage(true);
           alert('위시리스트에 추가되었습니다.');
         } else {
           wishlistBtn.classList.remove('active');
+          updateWishlistImage(false);
           alert('위시리스트에서 제거되었습니다.');
         }
       } else {
@@ -470,7 +480,9 @@
       const data = await response.json();
 
       if (data.success && data.isInWishlist) {
-        document.getElementById('wishlist-btn').classList.add('active');
+        const wishlistBtn = document.getElementById('wishlist-btn');
+        wishlistBtn.classList.add('active');
+        updateWishlistImage(true);
       }
     } catch (error) {
       console.error('위시리스트 상태 확인 오류:', error);
