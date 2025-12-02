@@ -1108,8 +1108,9 @@
     padding: clamp(20px, 3.5vw, 32px) clamp(16px, 3vw, 24px);
   }
   
-  .product-images-section {
-    top: clamp(60px, 12vw, 100px);
+  .product-info-section {
+    position: sticky;
+    top: 80px;
   }
   
   .product-images-wrapper .product-image,
@@ -1173,8 +1174,8 @@
     padding: clamp(16px, 3vw, 24px) clamp(12px, 2.5vw, 20px);
   }
   
-  .product-images-section {
-    position: static; /* Remove sticky */
+  .product-info-section {
+    position: static; /* Remove sticky on mobile */
   }
   
   .product-images-wrapper .product-image,
