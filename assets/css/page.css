@@ -1353,7 +1353,7 @@
 .product-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: clamp(12px, 2vw, 16px);
   padding-bottom: clamp(16px, 3vw, 20px);
   border-bottom: 1px solid #eee;
@@ -1381,17 +1381,20 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: clamp(6px, 1vw, 8px);
+  padding: clamp(4px, 0.8vw, 6px);
   transition: transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .wishlist-btn:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .wishlist-icon {
-  width: clamp(80px, 12vw, 100px);
-  height: clamp(80px, 12vw, 100px);
+  width: clamp(24px, 3.5vw, 28px);
+  height: clamp(24px, 3.5vw, 28px);
   object-fit: contain;
   transition: filter 0.3s ease;
 }
@@ -1400,7 +1403,23 @@
   filter: brightness(1.1);
 }
 
+/* 위시리스트 그룹 (위시리스트 + 상품번호) */
+.wishlist-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(4px, 0.8vw, 6px);
+  flex-shrink: 0;
+}
+
 /* 상품 코드 */
+.product-code {
+  font-size: clamp(0.65rem, 1.2vw, 0.75rem);
+  color: #666;
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+}
 
 
   /* 옵션 선택 */
