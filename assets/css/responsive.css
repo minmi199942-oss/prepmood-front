@@ -166,11 +166,11 @@
     height: clamp(24px, 5vw, 32px) !important; /* 원하는 최소/최대 크기로 조정 가능 */
   }
   
-  /* 상세 상품란의 wishlist-icon은 원래 크기 유지 (보호) */
+  /* 상세 상품란의 wishlist-icon은 PC와 동일한 크기 유지 */
   .product-detail-container .wishlist-icon,
   .wishlist-btn .wishlist-icon {
-    width: clamp(70px, 10vw, 85px) !important;
-    height: clamp(70px, 10vw, 85px) !important;
+    width: 100% !important;
+    height: 100% !important;
   }
   
   /* 개별 아이콘 크기 조정 (필요시 주석 해제하여 사용) */
@@ -1195,9 +1195,14 @@
     gap: clamp(5px, 1vw, 7px);
   }
   
+  .wishlist-btn {
+    width: 24px;
+    height: 24px;
+  }
+  
   .wishlist-icon {
-    width: clamp(70px, 10vw, 85px);
-    height: clamp(70px, 10vw, 85px);
+    width: 100%;
+    height: 100%;
   }
   
   .care-image {
