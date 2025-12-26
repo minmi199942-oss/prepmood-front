@@ -34,13 +34,34 @@ function generateToken() {
     const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     let token = '';
     
-    // crypto.randomBytes를 사용하여 안전한 랜덤 생성
-    const randomBytes = crypto.randomBytes(20);
-    
+    // crypto.randomInt 사용 (편향 제거)
     for (let i = 0; i < 20; i++) {
-        token += chars[randomBytes[i] % chars.length];
+        const randomIndex = crypto.randomInt(0, chars.length);
+        token += chars[randomIndex];
     }
     
+    return token;
+}
+
+/**
+ * 중복되지 않는 고유 토큰 생성
+ * @param {Set} existingTokens - 기존 토큰 Set
+ * @returns {string} 고유 토큰
+ */
+function generateUniqueToken(existingTokens) {
+    let token;
+    let attempts = 0;
+    const maxAttempts = 100; // 무한 루프 방지
+    
+    do {
+        token = generateToken();
+        attempts++;
+        if (attempts > maxAttempts) {
+            throw new Error('토큰 생성 실패: 최대 시도 횟수 초과');
+        }
+    } while (existingTokens.has(token));
+    
+    existingTokens.add(token);
     return token;
 }
 
@@ -109,11 +130,12 @@ async function initializeDatabase() {
             return;
         }
         
-        // 3. 각 제품마다 토큰 생성
+        // 3. 각 제품마다 고유 토큰 생성 (중복 방지)
         Logger.log('[INIT] 토큰 생성 중...');
+        const existingTokens = new Set();
         const productsWithToken = products.map(product => ({
             ...product,
-            token: generateToken()
+            token: generateUniqueToken(existingTokens)
         }));
         
         // 4. DB에 삽입

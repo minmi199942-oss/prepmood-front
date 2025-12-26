@@ -11,6 +11,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { rateLimit } = require('express-rate-limit');
 const { 
     getProductByToken, 
     updateFirstVerification, 
@@ -18,24 +19,42 @@ const {
 } = require('./auth-db');
 const Logger = require('./logger');
 
+// Rate Limiting: 무차별 대입 공격 방지
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15분
+    max: 100, // 15분당 최대 100회 인증 시도
+    message: '너무 많은 인증 요청입니다. 잠시 후 다시 시도해주세요.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 /**
  * GET /a/:token
  * 정품 인증 라우트
  * 
  * URL 예시: https://prepmood.kr/a/aB3cD5eF7gH9iJ1kL3mN5
  */
-router.get('/a/:token', async (req, res) => {
+router.get('/a/:token', authLimiter, async (req, res) => {
     const token = req.params.token;
     
     try {
-        Logger.log('[AUTH] 정품 인증 요청:', token);
+        // 토큰 형식 검증 (20자, 영숫자만)
+        if (!/^[a-zA-Z0-9]{20}$/.test(token)) {
+            Logger.warn('[AUTH] 잘못된 토큰 형식:', token.substring(0, 4) + '...');
+            return res.render('fake', {
+                title: '가품 경고 - Pre.p Mood'
+            });
+        }
+        
+        // 토큰 일부만 로깅 (보안)
+        Logger.log('[AUTH] 정품 인증 요청:', token.substring(0, 4) + '...');
         
         // DB에서 제품 조회
         const product = getProductByToken(token);
         
         // Case A: 토큰이 DB에 없음 → 가품 경고
         if (!product) {
-            Logger.warn('[AUTH] 등록되지 않은 토큰:', token);
+            Logger.warn('[AUTH] 등록되지 않은 토큰:', token.substring(0, 4) + '...');
             return res.render('fake', {
                 title: '가품 경고 - Pre.p Mood'
             });
@@ -43,7 +62,7 @@ router.get('/a/:token', async (req, res) => {
         
         // Case B: 첫 인증 (status = 0)
         if (product.status === 0) {
-            Logger.log('[AUTH] 첫 인증 처리:', token);
+            Logger.log('[AUTH] 첫 인증 처리:', token.substring(0, 4) + '...');
             
             // DB 업데이트
             updateFirstVerification(token);
@@ -59,7 +78,7 @@ router.get('/a/:token', async (req, res) => {
         }
         
         // Case C: 재인증 (status >= 1)
-        Logger.log('[AUTH] 재인증 처리:', token);
+        Logger.log('[AUTH] 재인증 처리:', token.substring(0, 4) + '...');
         
         // DB 업데이트 (scan_count 증가)
         updateReVerification(token);
