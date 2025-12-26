@@ -45,12 +45,14 @@ router.get('/api/admin/qrcodes/download', authenticateToken, requireAdmin, (req,
 
         Logger.log(`[QR-DOWNLOAD] 관리자 ${req.user.email}가 QR 코드 ZIP 다운로드 요청 (${files.length}개 파일)`);
 
-        // ZIP 파일명 (타임스탬프 포함)
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        // ZIP 파일명 (타임스탬프 포함, 확장자 명확히)
+        const now = new Date();
+        const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
         const zipFilename = `qrcodes-${timestamp}.zip`;
 
         // ZIP 파일 생성
         res.setHeader('Content-Type', 'application/zip');
+        // 파일명 설정 (ASCII만 사용하여 호환성 확보)
         res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
 
         const archive = archiver('zip', {
