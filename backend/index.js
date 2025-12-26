@@ -78,6 +78,18 @@ app.use(issueCSRFToken); // GET 요청에서 CSRF 토큰 발급
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// EJS 템플릿 엔진 설정 (정품 인증 페이지용)
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// 정품 인증 라우트 (EJS 템플릿 사용)
+const authRoutes = require('./auth-routes');
+app.use('/', authRoutes);
+
+// 정품 인증 DB 초기화 (서버 시작 시)
+const { initDatabase } = require('./auth-db');
+initDatabase();
+
 // MySQL 연결 설정
 const dbConfig = {
     host: process.env.DB_HOST,
