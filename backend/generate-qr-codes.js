@@ -55,9 +55,18 @@ async function generateQRCodes() {
         // 각 제품마다 QR 코드 생성
         for (const product of products) {
             try {
-                const url = BASE_URL + product.token;
+                // URL 생성 (BASE_URL 끝에 슬래시가 있는지 확인)
+                const baseUrl = BASE_URL.endsWith('/') ? BASE_URL : BASE_URL + '/';
+                const url = baseUrl + product.token;
                 const filename = `${product.internal_code}.png`;
                 const filepath = path.join(OUTPUT_DIR, filename);
+
+                // 첫 번째 제품의 URL을 로그로 출력 (디버깅용)
+                if (successCount === 0) {
+                    Logger.log(`[QR] 샘플 URL 생성: ${url}`);
+                    Logger.log(`[QR] BASE_URL: ${BASE_URL}`);
+                    Logger.log(`[QR] Token: ${product.token}`);
+                }
 
                 // QR 코드 생성 (400x400 이상, ERROR_CORRECT_H)
                 await QRCode.toFile(filepath, url, {

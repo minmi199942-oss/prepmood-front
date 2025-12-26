@@ -51,9 +51,10 @@ router.get('/api/admin/qrcodes/download', authenticateToken, requireAdmin, (req,
         const zipFilename = `qrcodes-${timestamp}.zip`;
 
         // ZIP 파일 생성
-        res.setHeader('Content-Type', 'application/zip');
-        // 파일명 설정 (ASCII만 사용하여 호환성 확보)
-        res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
+        // Content-Type을 application/octet-stream으로 설정하여 브라우저 호환성 확보
+        res.setHeader('Content-Type', 'application/octet-stream');
+        // 파일명 설정 (따옴표로 감싸고, ASCII만 사용)
+        res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"; filename*=UTF-8''${encodeURIComponent(zipFilename)}`);
 
         const archive = archiver('zip', {
             zlib: { level: 9 } // 최대 압축
