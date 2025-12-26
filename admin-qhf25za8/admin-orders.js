@@ -23,6 +23,7 @@
     statusFilter: document.getElementById('statusFilter'),
     searchInput: document.getElementById('searchInput'),
     refreshBtn: document.getElementById('refreshBtn'),
+    downloadQRCodesBtn: document.getElementById('downloadQRCodesBtn'),
     pagination: document.getElementById('pagination'),
     todayOrders: document.getElementById('todayOrders'),
     todayRevenue: document.getElementById('todayRevenue'),
@@ -106,6 +107,11 @@
       loadOrders();
       loadStats();
     });
+
+    // QR 코드 다운로드
+    if (elements.downloadQRCodesBtn) {
+      elements.downloadQRCodesBtn.addEventListener('click', downloadQRCodes);
+    }
 
     // 모달 닫기
     elements.closeModal.addEventListener('click', () => {
@@ -522,6 +528,69 @@
       elements.todayOrders.textContent = '-';
       elements.todayRevenue.textContent = '-';
       elements.pendingOrders.textContent = '-';
+    }
+  }
+
+  // ============================================
+  // QR 코드 다운로드
+  // ============================================
+  async function downloadQRCodes() {
+    try {
+      // 버튼 비활성화
+      if (elements.downloadQRCodesBtn) {
+        elements.downloadQRCodesBtn.disabled = true;
+        elements.downloadQRCodesBtn.textContent = '⏳ 다운로드 중...';
+      }
+
+      // API 호출
+      const response = await fetch(`${API_BASE}/admin/qrcodes/download`, {
+        credentials: 'include'  // JWT 쿠키 포함
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          alert('관리자 권한이 필요합니다.');
+          return;
+        }
+        const errorData = await response.json().catch(() => ({ message: '다운로드 실패' }));
+        throw new Error(errorData.message || 'QR 코드 다운로드에 실패했습니다.');
+      }
+
+      // Blob으로 변환
+      const blob = await response.blob();
+      
+      // 파일명 추출 (Content-Disposition 헤더에서)
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'qrcodes.zip';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // 다운로드
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      // 성공 메시지
+      alert('QR 코드 ZIP 파일이 다운로드되었습니다.');
+
+    } catch (error) {
+      console.error('QR 코드 다운로드 실패:', error);
+      alert('QR 코드 다운로드에 실패했습니다: ' + error.message);
+    } finally {
+      // 버튼 활성화
+      if (elements.downloadQRCodesBtn) {
+        elements.downloadQRCodesBtn.disabled = false;
+        elements.downloadQRCodesBtn.textContent = '📥 QR 코드 다운로드';
+      }
     }
   }
 
