@@ -10,6 +10,7 @@
  * node generate-qr-codes.js
  */
 
+require('dotenv').config();
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
@@ -19,7 +20,7 @@ const Logger = require('./logger');
 // DB 파일 경로
 const DB_PATH = path.join(__dirname, 'prep.db');
 const OUTPUT_DIR = path.join(__dirname, '..', 'output_qrcodes');
-const BASE_URL = 'https://prepmood.kr/a/';
+const BASE_URL = process.env.AUTH_BASE_URL || 'https://prepmood.kr/a/';
 
 /**
  * QR 코드 생성

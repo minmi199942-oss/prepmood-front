@@ -10,11 +10,15 @@
  * node init-auth-db.js
  */
 
+require('dotenv').config();
 const XLSX = require('xlsx');
 const path = require('path');
 const crypto = require('crypto');
 const { initDatabase, insertProducts } = require('./auth-db');
 const Logger = require('./logger');
+
+// 환경 변수
+const BASE_URL = process.env.AUTH_BASE_URL || 'https://prepmood.kr/a/';
 
 // xlsx 파일 경로 (프로젝트 루트)
 const XLSX_PATH = path.join(__dirname, '..', 'products.xlsx');
@@ -127,7 +131,7 @@ async function initializeDatabase() {
             Logger.log('\n📋 샘플 토큰 (테스트용):');
             Logger.log(`   제품: ${productsWithToken[0].product_name}`);
             Logger.log(`   토큰: ${productsWithToken[0].token}`);
-            Logger.log(`   URL: https://prepmood.kr/a/${productsWithToken[0].token}`);
+            Logger.log(`   URL: ${BASE_URL}${productsWithToken[0].token}`);
         }
         
     } catch (error) {
