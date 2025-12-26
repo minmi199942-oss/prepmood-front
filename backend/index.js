@@ -78,6 +78,9 @@ app.use(issueCSRFToken); // GET 요청에서 CSRF 토큰 발급
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// QR 코드 이미지 서빙 (정품 인증용)
+app.use('/qrcodes', express.static(path.join(__dirname, '..', 'output_qrcodes')));
+
 // EJS 템플릿 엔진 설정 (정품 인증 페이지용)
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
