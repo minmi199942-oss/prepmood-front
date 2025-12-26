@@ -1194,6 +1194,10 @@ app.use('/api', cartRoutes);
 // 결제 라우트
 app.use('/api', paymentsRoutes);
 
+// QR 코드 다운로드 라우트 (관리자 전용)
+const qrcodeDownloadRoutes = require('./qrcode-download-routes');
+app.use('/', qrcodeDownloadRoutes);
+
 // 서버 시작
 app.listen(PORT, async () => {
     // 프로덕션 환경 validation (서버 시작 후 즉시 체크)
