@@ -91,13 +91,16 @@ if (fs.existsSync(OUTPUT_DIR)) {
     console.log('\n❌ QR 코드 폴더가 없습니다:', OUTPUT_DIR);
 }
 
-// 4. 샘플 데이터
-console.log('\n📋 샘플 제품 (처음 5개):');
-const samples = db.prepare('SELECT internal_code, product_name, token FROM products LIMIT 5').all();
-samples.forEach((p, i) => {
+// 4. 전체 제품 목록
+console.log('\n📋 전체 제품 목록:');
+const allProducts = db.prepare('SELECT internal_code, product_name, token, status, scan_count FROM products ORDER BY internal_code').all();
+allProducts.forEach((p, i) => {
+    const statusText = p.status === 0 ? '미인증' : p.status === 1 ? '인증됨' : '주의';
     console.log(`   ${i + 1}. ${p.internal_code} - ${p.product_name}`);
     console.log(`      토큰: ${p.token}`);
+    console.log(`      상태: ${statusText} | 스캔: ${p.scan_count}회`);
     console.log(`      URL: https://prepmood.kr/a/${p.token}`);
+    console.log('');
 });
 
 db.close();
