@@ -79,7 +79,10 @@ const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // QR 코드 이미지 서빙 (정품 인증용)
-app.use('/qrcodes', express.static(path.join(__dirname, '..', 'output_qrcodes')));
+// 운영 환경에서는 보안상 공개하지 않음 (ZIP 다운로드로만 제공)
+if (process.env.NODE_ENV !== 'production') {
+    app.use('/qrcodes', express.static(path.join(__dirname, '..', 'output_qrcodes')));
+}
 
 // EJS 템플릿 엔진 설정 (정품 인증 페이지용)
 app.set('view engine', 'ejs');

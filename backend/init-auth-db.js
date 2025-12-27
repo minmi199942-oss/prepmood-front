@@ -119,6 +119,28 @@ async function initializeDatabase() {
         Logger.log('정품 인증 DB 초기화 시작');
         Logger.log('='.repeat(50));
         
+        // 0. DB 파일 존재 여부 확인 (기존 데이터 보존)
+        const fs = require('fs');
+        const DB_PATH = path.join(__dirname, 'prep.db');
+        
+        if (fs.existsSync(DB_PATH)) {
+            // 기존 DB의 제품 개수 확인
+            const { initDatabase } = require('./auth-db');
+            initDatabase(); // 테이블 생성 확인
+            
+            const Database = require('better-sqlite3');
+            const db = new Database(DB_PATH);
+            const count = db.prepare('SELECT COUNT(*) as count FROM products').get().count;
+            db.close();
+            
+            Logger.warn('[INIT] ⚠️  DB가 이미 존재합니다!');
+            Logger.warn(`[INIT] 기존 데이터 보존: ${count}개 제품`);
+            Logger.warn('[INIT] 기존 데이터를 보존하기 위해 초기화를 중단합니다.');
+            Logger.warn('[INIT] 재초기화가 필요한 경우 기존 DB 파일을 삭제 후 다시 실행하세요.');
+            Logger.log('='.repeat(50));
+            return;
+        }
+        
         // 1. DB 초기화
         initDatabase();
         

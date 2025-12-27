@@ -22,7 +22,7 @@ const Logger = require('./logger');
 // Rate Limiting: 무차별 대입 공격 방지
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15분
-    max: 100, // 15분당 최대 100회 인증 시도
+    max: 50, // 15분당 최대 50회 인증 시도 (운영 환경 기준)
     message: '너무 많은 인증 요청입니다. 잠시 후 다시 시도해주세요.',
     standardHeaders: true,
     legacyHeaders: false,
