@@ -10,6 +10,11 @@ TIMESTAMP=$(date +%F_%H%M%S)
 
 echo "🚀 배포 시작: $TIMESTAMP"
 
+# 0. PM2 실행 경로 확인
+echo "📋 PM2 실행 경로 확인:"
+pm2 describe prepmood-backend 2>/dev/null | grep -E "script|cwd|exec" || echo "⚠️ PM2 프로세스 정보를 가져올 수 없습니다."
+echo ""
+
 # 1. Git 업데이트
 cd "$REPO_DIR"
 echo "📥 Git pull 중..."
@@ -23,14 +28,26 @@ echo "✅ 백업 완료: $BACKUP_DIR/backend_backup_$TIMESTAMP.tgz"
 
 # 3. backend 동기화 (운영 전용 폴더/파일 제외)
 echo "📦 파일 동기화 중..."
-rsync -av --delete \
-  --exclude ".env" \
-  --exclude "prep.db" \
-  --exclude "node_modules/" \
-  --exclude "uploads/" \
-  --exclude "*.log" \
-  --exclude ".well-known/" \
-  "$REPO_DIR/backend/" "$LIVE_BACKEND/"
+
+# exclude 목록 동적 생성 (실제 존재하는 것만)
+EXCLUDE_ARGS=(
+  "--exclude=.env"
+  "--exclude=node_modules/"
+)
+
+# 실제 존재하는 운영 전용 파일/폴더만 exclude에 추가
+cd "$LIVE_BACKEND"
+[ -f ".env" ] && EXCLUDE_ARGS+=("--exclude=.env")
+[ -d "uploads" ] && EXCLUDE_ARGS+=("--exclude=uploads/")
+[ -f "prep.db" ] && EXCLUDE_ARGS+=("--exclude=prep.db")
+[ -d ".well-known" ] && EXCLUDE_ARGS+=("--exclude=.well-known/")
+
+# 로그 파일 패턴 (존재 여부 확인)
+if ls *.log 1> /dev/null 2>&1; then
+  EXCLUDE_ARGS+=("--exclude=*.log")
+fi
+
+rsync -av --delete "${EXCLUDE_ARGS[@]}" "$REPO_DIR/backend/" "$LIVE_BACKEND/"
 
 # 4. 의존성 설치
 cd "$LIVE_BACKEND"
