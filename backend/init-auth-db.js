@@ -13,7 +13,9 @@
 require('dotenv').config();
 const XLSX = require('xlsx');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
+const Database = require('better-sqlite3');
 const { initDatabase, insertProducts } = require('./auth-db');
 const Logger = require('./logger');
 
@@ -120,15 +122,12 @@ async function initializeDatabase() {
         Logger.log('='.repeat(50));
         
         // 0. DB 파일 존재 여부 확인 (기존 데이터 보존)
-        const fs = require('fs');
         const DB_PATH = path.join(__dirname, 'prep.db');
         
         if (fs.existsSync(DB_PATH)) {
             // 기존 DB의 제품 개수 확인
-            const { initDatabase } = require('./auth-db');
             initDatabase(); // 테이블 생성 확인
             
-            const Database = require('better-sqlite3');
             const db = new Database(DB_PATH);
             const count = db.prepare('SELECT COUNT(*) as count FROM products').get().count;
             db.close();
