@@ -71,6 +71,7 @@
       if (window.Logger) {
         window.Logger.error('CATALOG_DATA가 없습니다');
       }
+      console.warn('CATALOG_DATA가 없습니다');
       return null;
     }
 
@@ -78,16 +79,49 @@
     for (const category in window.CATALOG_DATA) {
       for (const type in window.CATALOG_DATA[category]) {
         const products = window.CATALOG_DATA[category][type];
-        const found = products.find(p => p.id === id);
+        if (!Array.isArray(products)) continue;
+        
+        // 정확한 ID 매칭 시도
+        let found = products.find(p => p.id === id);
+        
+        // 대소문자 무시 매칭 시도
+        if (!found) {
+          found = products.find(p => p.id && p.id.toLowerCase() === id.toLowerCase());
+        }
+        
+        // 공백 제거 후 매칭 시도
+        if (!found) {
+          const normalizedId = id.replace(/\s+/g, '');
+          found = products.find(p => p.id && p.id.replace(/\s+/g, '') === normalizedId);
+        }
+        
         if (found) {
           return found;
         }
       }
     }
     
+    // 디버깅: 사용 가능한 상품 ID 샘플 출력
     if (window.Logger) {
       window.Logger.warn('제품을 찾을 수 없습니다:', id);
     }
+    console.warn('제품을 찾을 수 없습니다:', id);
+    console.warn('CATALOG_DATA 구조:', Object.keys(window.CATALOG_DATA));
+    
+    // 샘플 상품 ID 출력 (디버깅용)
+    let sampleIds = [];
+    for (const category in window.CATALOG_DATA) {
+      for (const type in window.CATALOG_DATA[category]) {
+        const products = window.CATALOG_DATA[category][type];
+        if (Array.isArray(products) && products.length > 0) {
+          sampleIds.push(...products.slice(0, 3).map(p => p.id));
+        }
+      }
+    }
+    if (sampleIds.length > 0) {
+      console.warn('사용 가능한 상품 ID 샘플:', sampleIds);
+    }
+    
     return null;
   }
 
@@ -156,15 +190,22 @@
   // 위시리스트 상품 표시
   function displayWishlistProducts(wishlists) {
     const wishlistGrid = document.getElementById('wishlist-grid');
+    const emptyState = document.getElementById('empty-state');
     wishlistGrid.innerHTML = '';
+
+    let foundCount = 0;
+    let notFoundIds = [];
 
     wishlists.forEach(item => {
       const product = findProductById(item.product_id);
 
       if (!product) {
         console.warn(`상품을 찾을 수 없습니다: ${item.product_id}`);
+        notFoundIds.push(item.product_id);
         return;
       }
+      
+      foundCount++;
 
       // 상품 카드 생성
       const card = document.createElement('div');
@@ -189,6 +230,22 @@
 
       wishlistGrid.appendChild(card);
     });
+
+    // 찾지 못한 상품이 있는 경우 경고
+    if (notFoundIds.length > 0) {
+      console.warn(`총 ${notFoundIds.length}개의 상품을 찾을 수 없습니다:`, notFoundIds);
+      console.warn('CATALOG_DATA가 제대로 로드되었는지 확인하세요.');
+    }
+
+    // 찾은 상품이 없는 경우 빈 상태 표시
+    if (foundCount === 0 && wishlists.length > 0) {
+      const emptyState = document.getElementById('empty-state');
+      const wishlistCountSpan = document.getElementById('wishlist-count');
+      wishlistGrid.style.display = 'none';
+      emptyState.style.display = 'flex';
+      wishlistCountSpan.textContent = '0';
+      console.warn('위시리스트에 상품이 있지만 CATALOG_DATA에서 찾을 수 없습니다.');
+    }
 
     // 제거 버튼 이벤트 리스너 등록
     const removeButtons = wishlistGrid.querySelectorAll('.wishlist-remove-btn');

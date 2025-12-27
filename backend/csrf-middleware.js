@@ -19,15 +19,61 @@ function issueCSRFToken(req, res, next) {
     // GET 요청에서만 토큰 발급
     if (req.method === 'GET' && !req.cookies['xsrf-token']) {
         const token = generateCSRFToken();
-        res.cookie('xsrf-token', token, {
+        
+        // 프로덕션 환경 감지
+        const isProduction = process.env.NODE_ENV === 'production';
+        
+        // HTTPS 감지 (Cloudflare 프록시 고려)
+        // Cloudflare를 통하면 x-forwarded-proto가 'https'로 설정됨
+        const forwardedProto = req.get('x-forwarded-proto');
+        const isSecure = isProduction || 
+                        req.protocol === 'https' || 
+                        forwardedProto === 'https' ||
+                        req.secure;
+        
+        // 쿠키 옵션 설정
+        // sameSite: 'lax' 선택 근거:
+        // - 프론트와 API가 같은 사이트(prepmood.kr의 registrable domain) 내에서 일반 fetch로 호출
+        // - cross-site 컨텍스트(외부 도메인/iframe)가 필요 없으므로 'lax'로 충분
+        // - 'none'은 secure: true 필수이며, cross-site 요청에만 필요
+        const cookieOptions = {
             httpOnly: false,      // JavaScript에서 읽을 수 있도록
-            secure: false,        // 로컬/프로덕션 모두에서 테스트 가능하게
-            sameSite: 'none',     // 크로스 도메인 허용
+            secure: isSecure,     // HTTPS에서만 전송 (프로덕션)
+            sameSite: 'lax',      // 같은 사이트 요청에 적합
             path: '/',
             maxAge: 24 * 60 * 60 * 1000 // 24시간
-        });
+        };
         
-        console.log('✅ CSRF 토큰 발급:', token.substring(0, 16) + '...');
+        // www/non-www 호환성을 위해 도메인 범위 확대 (프로덕션에서만)
+        // 주의: domain: '.prepmood.kr'는 "엄격화"가 아니라 "범위 확대"
+        // - host-only 쿠키(domain 미설정)가 더 엄격함
+        // - '.prepmood.kr'는 모든 서브도메인에 쿠키 전송 (보안/범위 트레이드오프)
+        // - 더 엄격한 방법: www를 301로 통일 + host-only 쿠키
+        if (isProduction) {
+            const host = req.get('host') || '';
+            // prepmood.kr 또는 www.prepmood.kr인 경우 .prepmood.kr로 설정
+            // 단, 서브도메인(api, admin 등)은 제외
+            if (host === 'prepmood.kr' || host === 'www.prepmood.kr') {
+                cookieOptions.domain = '.prepmood.kr';
+            }
+        }
+        
+        res.cookie('xsrf-token', token, cookieOptions);
+        
+        // 디버깅: 쿠키 설정 정보 로깅
+        console.log('✅ CSRF 토큰 발급:', token.substring(0, 16) + '...', {
+            isProduction,
+            isSecure,
+            host: req.get('host'),
+            protocol: req.protocol,
+            forwardedProto: req.get('x-forwarded-proto'),
+            cookieOptions: {
+                secure: cookieOptions.secure,
+                sameSite: cookieOptions.sameSite,
+                domain: cookieOptions.domain || '(host-only)',
+                path: cookieOptions.path
+            }
+        });
     }
     
     next();

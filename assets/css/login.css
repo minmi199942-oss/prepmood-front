@@ -12,12 +12,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: clamp(16px, 3vw, 24px) clamp(20px, 4vw, 32px);
+  padding-top: clamp(8px, 1.5vw, 12px);
+  padding-bottom: clamp(8px, 1.5vw, 12px);
+  padding-left: clamp(20px, 4vw, 32px);
+  padding-right: clamp(20px, 4vw, 32px);
   background: #fff;
   border-bottom: 1px solid #eee;
   position: sticky;
   top: 0;
   z-index: 100;
+  min-height: 50px;
 }
 
 .close-btn {
@@ -46,6 +50,7 @@
   font-weight: 600;
   color: #111;
   margin: 0;
+  line-height: 1.2;
 }
 
 /* ===== 로그인 메인 영역 ===== */
@@ -339,7 +344,11 @@
 /* ===== 반응형 디자인 ===== */
 @media (max-width: 768px) {
   .login-header {
-    padding: clamp(12px, 2.5vw, 20px) clamp(16px, 3vw, 24px);
+    padding-top: clamp(6px, 1.5vw, 10px);
+    padding-bottom: clamp(6px, 1.5vw, 10px);
+    padding-left: clamp(16px, 3vw, 24px);
+    padding-right: clamp(16px, 3vw, 24px);
+    min-height: 45px;
   }
   
   .login-main {
@@ -367,7 +376,11 @@
 
 @media (max-width: 480px) {
   .login-header {
-    padding: clamp(10px, 2vw, 16px) clamp(12px, 2.5vw, 20px);
+    padding-top: clamp(6px, 1.5vw, 10px);
+    padding-bottom: clamp(6px, 1.5vw, 10px);
+    padding-left: clamp(12px, 2.5vw, 20px);
+    padding-right: clamp(12px, 2.5vw, 20px);
+    min-height: 42px;
   }
   
   .login-title {

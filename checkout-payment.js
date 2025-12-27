@@ -29,13 +29,22 @@ document.addEventListener('DOMContentLoaded', async function() {
   
   // CSRF 토큰 받기 (GET 요청으로 토큰 발급)
   try {
-    await fetch(`${API_BASE}/auth/status`, {
+    const statusRes = await fetch(`${API_BASE}/auth/status`, {
       method: 'GET',
       credentials: 'include'
     });
-    console.log('✅ CSRF 토큰 발급 완료');
+    
+    // 쿠키 확인 (디버깅용)
+    const cookies = document.cookie;
+    const hasCSRFToken = cookies.includes('xsrf-token=');
+    
+    if (hasCSRFToken) {
+      console.log('✅ CSRF 토큰 발급 완료 (쿠키 확인됨)');
+    } else {
+      console.warn('⚠️ CSRF 토큰 쿠키가 없습니다. 쿠키:', cookies);
+    }
   } catch (error) {
-    console.warn('⚠️ CSRF 토큰 발급 실패:', error);
+    console.error('❌ CSRF 토큰 발급 실패:', error);
   }
   
   // URL 파라미터 확인 (토스페이먼츠 fail URL 처리)
