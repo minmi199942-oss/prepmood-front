@@ -160,5 +160,54 @@ router.get('/api/admin/qrcodes/list', authenticateToken, requireAdmin, (req, res
     }
 });
 
+/**
+ * POST /api/admin/auth/revoke
+ * 토큰 무효화 (관리자 전용)
+ */
+const { revokeToken } = require('./auth-db');
+
+router.post('/api/admin/auth/revoke', authenticateToken, requireAdmin, (req, res) => {
+    try {
+        const { token } = req.body;
+        
+        if (!token || !/^[a-zA-Z0-9]{20}$/.test(token)) {
+            return res.status(400).json({
+                success: false,
+                message: '유효한 토큰을 입력해주세요.'
+            });
+        }
+        
+        const success = revokeToken(token);
+        
+        if (success) {
+            // 감사 로그
+            const auditInfo = {
+                admin_email: req.user.email,
+                ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+                token: token.substring(0, 4) + '...',
+                timestamp: new Date().toISOString()
+            };
+            
+            Logger.log(`[AUTH-REVOKE-AUDIT] ${JSON.stringify(auditInfo)}`);
+            
+            res.json({
+                success: true,
+                message: '토큰이 무효화되었습니다.'
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                message: '토큰을 찾을 수 없습니다.'
+            });
+        }
+    } catch (error) {
+        Logger.error('[AUTH-REVOKE] 토큰 무효화 실패:', error);
+        res.status(500).json({
+            success: false,
+            message: '토큰 무효화 중 오류가 발생했습니다.'
+        });
+    }
+});
+
 module.exports = router;
 
