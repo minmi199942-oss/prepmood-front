@@ -24,8 +24,19 @@ const TOSS_ERROR_MESSAGES = {
   INVALID_REQUEST: '결제 요청 정보가 올바르지 않습니다.'
 };
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   console.log('💳 3단계: 결제 방법 선택 페이지 로드됨');
+  
+  // CSRF 토큰 받기 (GET 요청으로 토큰 발급)
+  try {
+    await fetch(`${API_BASE}/auth/status`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    console.log('✅ CSRF 토큰 발급 완료');
+  } catch (error) {
+    console.warn('⚠️ CSRF 토큰 발급 실패:', error);
+  }
   
   // URL 파라미터 확인 (토스페이먼츠 fail URL 처리)
   const urlParams = new URLSearchParams(window.location.search);
