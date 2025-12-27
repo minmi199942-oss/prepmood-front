@@ -29,23 +29,21 @@ echo "✅ 백업 완료: $BACKUP_DIR/backend_backup_$TIMESTAMP.tgz"
 # 3. backend 동기화 (운영 전용 폴더/파일 제외)
 echo "📦 파일 동기화 중..."
 
-# exclude 목록 동적 생성 (실제 존재하는 것만)
+# 기본 exclude (런타임 디렉토리 미래 대비 포함)
 EXCLUDE_ARGS=(
   "--exclude=.env"
   "--exclude=node_modules/"
+  "--exclude=uploads/"
+  "--exclude=storage/"
+  "--exclude=logs/"
+  "--exclude=data/"
+  "--exclude=.well-known/"
+  "--exclude=*.log"
 )
 
-# 실제 존재하는 운영 전용 파일/폴더만 exclude에 추가
+# 동적 추가: 특정 파일이 존재하면 추가 보호
 cd "$LIVE_BACKEND"
-[ -f ".env" ] && EXCLUDE_ARGS+=("--exclude=.env")
-[ -d "uploads" ] && EXCLUDE_ARGS+=("--exclude=uploads/")
 [ -f "prep.db" ] && EXCLUDE_ARGS+=("--exclude=prep.db")
-[ -d ".well-known" ] && EXCLUDE_ARGS+=("--exclude=.well-known/")
-
-# 로그 파일 패턴 (존재 여부 확인)
-if ls *.log 1> /dev/null 2>&1; then
-  EXCLUDE_ARGS+=("--exclude=*.log")
-fi
 
 rsync -av --delete "${EXCLUDE_ARGS[@]}" "$REPO_DIR/backend/" "$LIVE_BACKEND/"
 
@@ -66,6 +64,18 @@ pm2 restart prepmood-backend
 sleep 2
 echo "🔍 서버 상태 확인..."
 pm2 status prepmood-backend
+
+# 7. 헬스체크 (실패 시 배포 실패 처리)
+echo "🏥 헬스체크 중..."
+if curl -fsS https://prepmood.kr/auth/health >/dev/null 2>&1; then
+  echo "✅ 헬스체크 성공"
+else
+  echo "❌ 헬스체크 실패 - 배포 실패로 처리"
+  echo "💡 롤백 방법:"
+  echo "   tar -C /var/www/html -xzf $BACKUP_DIR/backend_backup_$TIMESTAMP.tgz"
+  echo "   pm2 restart prepmood-backend"
+  exit 1
+fi
 
 echo "✅ 배포 완료: $TIMESTAMP"
 echo "💡 롤백이 필요한 경우:"
