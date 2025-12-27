@@ -21,6 +21,11 @@ ls -la backend/package.json
 cd backend
 npm install
 
+# 만약 npm install이 실패하면 (특히 better-sqlite3 빌드 실패 시):
+# sudo apt-get update
+# sudo apt-get install -y build-essential python3 make g++
+# npm install
+
 # 4. lockfile 생성 확인
 ls -la package-lock.json
 
@@ -60,4 +65,10 @@ chmod +x /root/deploy.sh
 - Windows에서 `better-sqlite3` 빌드 실패는 정상 (Visual Studio 필요)
 - VPS(Linux)에서 `npm install` 실행하면 lockfile 생성 가능
 - 레포에 lockfile을 커밋해야 다음 배포에서 `npm ci`가 정상 동작
+- VPS에서 `npm install` 실패 시: `sudo apt-get install -y build-essential python3 make g++` 후 재시도
+
+## .env.backup 관련
+
+- `deleting .env.backup`은 문제 없음 (임시 파일 또는 이전 방식의 찌꺼기)
+- 중요한 건 `deleting .env` 본체가 나오면 안 됨
 

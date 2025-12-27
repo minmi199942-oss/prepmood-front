@@ -58,6 +58,7 @@ if [ -f package-lock.json ]; then
     npm install --omit=dev
   fi
 else
+  echo "⚠️ package-lock.json 없음 - npm install"
   npm install --omit=dev
 fi
 
