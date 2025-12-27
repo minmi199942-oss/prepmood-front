@@ -134,16 +134,24 @@ chmod +x fix-perms.sh
 ./fix-perms.sh
 ```
 
-**배포 루틴에 포함** (권장):
+**배포 루틴** (권장):
 ```bash
-# 배포 스크립트 예시 (deploy.sh)
-#!/bin/bash
-cd /var/www/html
-git pull origin main
-cd backend
-npm install
-./fix-perms.sh  # 권한 고정
-pm2 restart prepmood-backend
+# VPS에 배포 스크립트 설치
+# 1. deploy.sh (실제 배포)
+# 2. deploy-check.sh (배포 전 확인)
+
+# 배포 전 확인 (dry-run)
+/root/deploy-check.sh
+
+# 배포 실행
+/root/deploy.sh
+
+# 배포 스크립트는 다음을 보호합니다:
+# - .env (환경 변수)
+# - prep.db (SQLite DB)
+# - output_qrcodes/ (QR 코드 이미지)
+# - uploads/ (사용자 업로드 파일)
+# - node_modules/ (자동 재설치)
 ```
 
 ---
