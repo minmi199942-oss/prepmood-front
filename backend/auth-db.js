@@ -9,6 +9,7 @@
 
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 const Logger = require('./logger');
 
 // DB 파일 경로 (backend 폴더 내)
@@ -44,6 +45,19 @@ function initDatabase() {
                 last_verified_at TEXT
             )
         `);
+        
+        // DB 파일 권한 설정 (소유자만 읽기/쓰기: 600)
+        // Windows에서는 chmod가 동작하지 않으므로 try-catch로 감쌈
+        try {
+            if (fs.existsSync(DB_PATH)) {
+                fs.chmodSync(DB_PATH, 0o600);
+            }
+        } catch (error) {
+            // Windows 환경에서는 무시 (권한 시스템이 다름)
+            if (process.platform !== 'win32') {
+                Logger.warn('[AUTH-DB] 파일 권한 설정 실패 (무시됨):', error.message);
+            }
+        }
         
         Logger.log('[AUTH-DB] SQLite DB 초기화 완료:', DB_PATH);
         return db;

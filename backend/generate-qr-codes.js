@@ -33,7 +33,10 @@ async function generateQRCodes() {
 
         // 출력 폴더 생성
         if (!fs.existsSync(OUTPUT_DIR)) {
-            fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+            fs.mkdirSync(OUTPUT_DIR, { 
+                recursive: true,
+                mode: 0o755 // rwxr-xr-x (소유자: 읽기/쓰기/실행, 그룹/기타: 읽기/실행)
+            });
             Logger.log('[QR] 출력 폴더 생성:', OUTPUT_DIR);
         }
 
@@ -79,6 +82,17 @@ async function generateQRCodes() {
                         light: '#FFFFFF'
                     }
                 });
+                
+                // 파일 권한 설정 (소유자: 읽기/쓰기, 그룹/기타: 읽기: 644)
+                // Windows에서는 chmod가 동작하지 않으므로 try-catch로 감쌈
+                try {
+                    fs.chmodSync(filepath, 0o644);
+                } catch (error) {
+                    // Windows 환경에서는 무시 (권한 시스템이 다름)
+                    if (process.platform !== 'win32') {
+                        Logger.warn(`[QR] 파일 권한 설정 실패 (무시됨): ${filepath}`);
+                    }
+                }
 
                 successCount++;
                 
