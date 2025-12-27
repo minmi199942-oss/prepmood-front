@@ -2,7 +2,7 @@
 -- 이 스크립트를 MySQL 관리 도구(phpMyAdmin, MySQL Workbench 등)에서 실행하세요
 
 -- 1. 새로운 강력한 비밀번호 생성 (아래 비밀번호를 더 복잡하게 변경하세요)
-SET @new_password = 'PrepmoodAPI2025!@#$';
+SET @new_password = 'CHANGE_ME_TO_STRONG_PASSWORD';
 
 -- 2. 전용 사용자 생성
 CREATE USER 'prepmood_api'@'localhost' IDENTIFIED BY @new_password;
@@ -21,6 +21,6 @@ SHOW GRANTS FOR 'prepmood_api'@'localhost';
 
 -- 실행 후 .env 파일을 다음과 같이 수정하세요:
 -- DB_USER=prepmood_api
--- DB_PASSWORD=PrepmoodAPI2025!@#$
+-- DB_PASSWORD=<YOUR_STRONG_PASSWORD>
 
 
