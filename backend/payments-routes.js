@@ -685,47 +685,22 @@ async function handleDepositCallback(connection, data) {
  * 
  * 토스페이먼츠 웹훅 수신 엔드포인트
  * 
- * HMAC 서명 검증:
- * - 토스페이먼츠 웹훅은 HMAC 서명을 x-toss-signature 헤더에 포함하여 전송합니다.
- * - WEBHOOK_SHARED_SECRET 환경변수로 서명을 검증합니다.
- * - 검증 실패 시 401 반환
+ * 🔒 보안: 재조회 검증 방식
+ * - 토스페이먼츠 웹훅은 HMAC 서명을 제공하지 않습니다.
+ * - 웹훅 payload를 그대로 신뢰하지 않고, 토스 API로 재조회하여 검증합니다.
+ * - handlePaymentStatusChange 내부에서 verifyPaymentWithToss() 호출
+ * - 재조회 실패 또는 데이터 불일치 시 웹훅 처리 중단
  * 
  * 참고: 토스 웹훅 문서
  * https://docs.tosspayments.com/guides/v2/webhook/overview
  */
 router.post('/payments/webhook', async (req, res) => {
     try {
-        // HMAC 서명 검증 (WEBHOOK_SHARED_SECRET이 설정되어 있을 때만 활성화)
-        const webhookSecret = process.env.WEBHOOK_SHARED_SECRET;
-        const signature = req.headers['x-toss-signature'];
-
-        if (webhookSecret && webhookSecret !== 'your_webhook_secret_here') {
-            // 시크릿 키가 설정되어 있으면 서명 검증 수행
-            const rawBody = req.body; // Express는 body-parser로 이미 파싱됨
-            // 원본 raw body가 필요한 경우, express.raw() 미들웨어 또는 body를 다시 직렬화
-
-            // body가 객체인 경우 JSON.stringify로 직렬화
-            const isValid = verifyWebhookSignature(rawBody, signature, webhookSecret);
-
-            if (!isValid) {
-                Logger.log('[payments][webhook] 서명 검증 실패 - 401 반환', {
-                    hasSignature: !!signature,
-                    hasSecret: !!webhookSecret
-                });
-                return res.status(401).json({ 
-                    success: false,
-                    error: 'Invalid signature',
-                    code: 'INVALID_SIGNATURE'
-                });
-            }
-
-            Logger.log('[payments][webhook] 서명 검증 성공');
-        } else {
-            // 시크릿 키가 설정되지 않았으면 검증 건너뛰기 (개발 단계)
-            Logger.log('[payments][webhook] 서명 검증 건너뜀 (시크릿 키 미설정)', {
-                hasSecret: !!webhookSecret
-            });
-        }
+        // 🔒 보안: 토스 웹훅은 시크릿 서명을 제공하지 않으므로
+        // 재조회 검증으로 대체 (handlePaymentStatusChange 내부에서 수행)
+        // WEBHOOK_SHARED_SECRET은 내부 웹훅용으로만 사용 (토스 웹훅에는 불필요)
+        
+        Logger.log('[payments][webhook] 웹훅 수신 - 재조회 검증으로 처리 예정');
 
         const { eventType, data } = req.body;
 
