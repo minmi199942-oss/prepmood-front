@@ -19,6 +19,70 @@ const {
 } = require('./auth-db');
 const Logger = require('./logger');
 
+// 이상 패턴 감지용 (메모리 기반, 운영에서는 Redis 권장)
+const suspiciousPatterns = {
+    failedTokens: new Map(), // IP별 가품 시도 횟수
+    firstVerifications: new Map(), // 첫 인증 추적 (token -> {ip, time, count})
+    recentVerifications: [] // 최근 인증 기록 (최대 1000개)
+};
+
+// 이상 패턴 감지 함수
+function detectSuspiciousPattern(token, ip, isFirstVerification, isFake) {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    // 1. 가품 시도 패턴 감지
+    if (isFake) {
+        const attempts = suspiciousPatterns.failedTokens.get(ip) || 0;
+        suspiciousPatterns.failedTokens.set(ip, attempts + 1);
+        
+        if (attempts + 1 > 10) {
+            Logger.warn(`[SECURITY-ALERT] ${ip}에서 비정상적인 가품 시도 다수 감지: ${attempts + 1}회`);
+            // TODO: 관리자에게 알림 발송 (이메일/슬랙 등)
+        }
+    }
+    
+    // 2. 첫 인증 이상 패턴 감지
+    if (isFirstVerification) {
+        const record = suspiciousPatterns.firstVerifications.get(token) || { ip, time: now, count: 0 };
+        record.count++;
+        suspiciousPatterns.firstVerifications.set(token, record);
+        
+        // 짧은 시간 내 다른 IP에서 재인증 시도
+        if (record.count > 1 && record.ip !== ip) {
+            const timeDiff = (now - record.time) / 1000; // 초
+            if (timeDiff < 300) { // 5분 이내
+                Logger.warn(`[SECURITY-ALERT] 토큰 ${token.substring(0, 4)}...가 ${timeDiff}초 내 다른 IP(${record.ip} → ${ip})에서 재인증 시도`);
+            }
+        }
+        
+        // 새벽 시간대 대량 첫 인증 (2시~6시)
+        if (hour >= 2 && hour < 6) {
+            const recentCount = suspiciousPatterns.recentVerifications.filter(
+                r => r.isFirst && r.hour >= 2 && r.hour < 6
+            ).length;
+            
+            if (recentCount > 5) {
+                Logger.warn(`[SECURITY-ALERT] 새벽 시간대(${hour}시) 첫 인증 다수 발생: 최근 ${recentCount}건`);
+            }
+        }
+        
+        // 최근 인증 기록에 추가
+        suspiciousPatterns.recentVerifications.push({
+            token: token.substring(0, 4) + '...',
+            ip,
+            hour,
+            isFirst: true,
+            time: now
+        });
+        
+        // 최대 1000개만 유지
+        if (suspiciousPatterns.recentVerifications.length > 1000) {
+            suspiciousPatterns.recentVerifications.shift();
+        }
+    }
+}
+
 // Rate Limiting: 무차별 대입 공격 방지
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15분
@@ -55,6 +119,10 @@ router.get('/a/:token', authLimiter, async (req, res) => {
         // Case A: 토큰이 DB에 없음 → 가품 경고
         if (!product) {
             Logger.warn('[AUTH] 등록되지 않은 토큰:', token.substring(0, 4) + '...');
+            
+            // 이상 패턴 감지
+            detectSuspiciousPattern(token, req.ip || req.headers['x-real-ip'] || 'unknown', false, true);
+            
             return res.render('fake', {
                 title: '가품 경고 - Pre.p Mood'
             });
@@ -63,6 +131,9 @@ router.get('/a/:token', authLimiter, async (req, res) => {
         // Case B: 첫 인증 (status = 0)
         if (product.status === 0) {
             Logger.log('[AUTH] 첫 인증 처리:', token.substring(0, 4) + '...');
+            
+            // 이상 패턴 감지 (첫 인증)
+            detectSuspiciousPattern(token, req.ip || req.headers['x-real-ip'] || 'unknown', true, false);
             
             // DB 업데이트
             updateFirstVerification(token);

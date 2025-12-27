@@ -11,8 +11,18 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
+const { rateLimit } = require('express-rate-limit');
 const { authenticateToken, requireAdmin } = require('./auth-middleware');
 const Logger = require('./logger');
+
+// 관리자 다운로드 전용 rate limit (15분당 10회)
+const adminDownloadLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15분
+    max: 10, // 15분당 최대 10회
+    message: '너무 많은 다운로드 요청입니다. 잠시 후 다시 시도해주세요.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 // QR 코드 이미지 폴더 경로
 const QR_CODES_DIR = path.join(__dirname, '..', 'output_qrcodes');
@@ -21,7 +31,7 @@ const QR_CODES_DIR = path.join(__dirname, '..', 'output_qrcodes');
  * GET /api/admin/qrcodes/download
  * 모든 QR 코드 이미지를 ZIP으로 다운로드 (관리자 전용)
  */
-router.get('/api/admin/qrcodes/download', authenticateToken, requireAdmin, (req, res) => {
+router.get('/api/admin/qrcodes/download', authenticateToken, requireAdmin, adminDownloadLimiter, (req, res) => {
     try {
         // QR 코드 폴더 확인
         if (!fs.existsSync(QR_CODES_DIR)) {
@@ -43,6 +53,17 @@ router.get('/api/admin/qrcodes/download', authenticateToken, requireAdmin, (req,
             });
         }
 
+        // 감사 로그 (IP, 시간, 관리자, 파일 개수)
+        const auditInfo = {
+            admin_email: req.user.email,
+            admin_id: req.user.id || 'unknown',
+            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            user_agent: req.headers['user-agent'] || 'unknown',
+            file_count: files.length,
+            timestamp: new Date().toISOString()
+        };
+        
+        Logger.log(`[QR-DOWNLOAD-AUDIT] ${JSON.stringify(auditInfo)}`);
         Logger.log(`[QR-DOWNLOAD] 관리자 ${req.user.email}가 QR 코드 ZIP 다운로드 요청 (${files.length}개 파일)`);
 
         // ZIP 파일명 (타임스탬프 포함, 확장자 명확히)
