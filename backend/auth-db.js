@@ -179,6 +179,35 @@ function insertProducts(products) {
 }
 
 /**
+ * 토큰 무효화 (revoke)
+ * @param {string} token - 제품 토큰
+ * @returns {boolean} 성공 여부
+ */
+function revokeToken(token) {
+    if (!db) {
+        initDatabase();
+    }
+
+    try {
+        const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        
+        const stmt = db.prepare(`
+            UPDATE products
+            SET status = 3,
+                last_verified_at = ?
+            WHERE token = ?
+        `);
+        
+        const result = stmt.run(now, token);
+        Logger.log(`[AUTH-DB] 토큰 무효화 완료: ${token.substring(0, 4)}... (영향: ${result.changes}개)`);
+        return result.changes > 0;
+    } catch (error) {
+        Logger.error('[AUTH-DB] 토큰 무효화 실패:', error);
+        return false;
+    }
+}
+
+/**
  * DB 연결 종료 (서버 종료 시)
  */
 function closeDatabase() {
@@ -195,6 +224,7 @@ module.exports = {
     updateFirstVerification,
     updateReVerification,
     insertProducts,
+    revokeToken,
     closeDatabase
 };
 

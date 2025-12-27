@@ -15,7 +15,8 @@ const { rateLimit } = require('express-rate-limit');
 const { 
     getProductByToken, 
     updateFirstVerification, 
-    updateReVerification 
+    updateReVerification,
+    revokeToken
 } = require('./auth-db');
 const Logger = require('./logger');
 
@@ -123,6 +124,14 @@ router.get('/a/:token', authLimiter, async (req, res) => {
             // 이상 패턴 감지
             detectSuspiciousPattern(token, req.ip || req.headers['x-real-ip'] || 'unknown', false, true);
             
+            return res.render('fake', {
+                title: '가품 경고 - Pre.p Mood'
+            });
+        }
+        
+        // Case A-2: 토큰이 무효화됨 (status = 3)
+        if (product.status === 3) {
+            Logger.warn('[AUTH] 무효화된 토큰:', token.substring(0, 4) + '...');
             return res.render('fake', {
                 title: '가품 경고 - Pre.p Mood'
             });
