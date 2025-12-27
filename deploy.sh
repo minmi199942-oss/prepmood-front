@@ -51,7 +51,12 @@ rsync -av --delete "${EXCLUDE_ARGS[@]}" "$REPO_DIR/backend/" "$LIVE_BACKEND/"
 cd "$LIVE_BACKEND"
 echo "📚 의존성 설치 중..."
 if [ -f package-lock.json ]; then
-  npm ci --omit=dev
+  if npm ci --omit=dev; then
+    echo "✅ npm ci 성공"
+  else
+    echo "⚠️ npm ci 실패 - npm install로 폴백"
+    npm install --omit=dev
+  fi
 else
   npm install --omit=dev
 fi
