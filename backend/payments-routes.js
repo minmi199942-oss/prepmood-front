@@ -447,6 +447,56 @@ function verifyWebhookSignature(body, signature, secret) {
 }
 
 /**
+ * 토스페이먼츠 결제 조회 API (재조회 검증용)
+ * 
+ * @param {string} paymentKey - 결제 키
+ * @returns {Object|null} 토스 API 응답 또는 null
+ */
+async function verifyPaymentWithToss(paymentKey) {
+    try {
+        const tossApiBase = process.env.TOSS_API_BASE || 'https://api.tosspayments.com';
+        const tossSecretKey = process.env.TOSS_SECRET_KEY;
+
+        if (!tossSecretKey) {
+            Logger.log('[payments][webhook] TOSS_SECRET_KEY가 설정되지 않아 재조회 검증을 건너뜁니다.');
+            return null;
+        }
+
+        const response = await fetch(`${tossApiBase}/v1/payments/${paymentKey}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Basic ${Buffer.from(`${tossSecretKey}:`).toString('base64')}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            Logger.log('[payments][webhook] 토스 결제 조회 실패', {
+                paymentKey: paymentKey.substring(0, 10) + '...',
+                status: response.status,
+                statusText: response.statusText
+            });
+            return null;
+        }
+
+        const paymentData = await response.json();
+        Logger.log('[payments][webhook] 토스 결제 재조회 성공', {
+            paymentKey: paymentKey.substring(0, 10) + '...',
+            status: paymentData.status,
+            orderId: paymentData.orderId
+        });
+
+        return paymentData;
+    } catch (error) {
+        Logger.log('[payments][webhook] 토스 결제 조회 중 오류', {
+            error: error.message,
+            paymentKey: paymentKey ? paymentKey.substring(0, 10) + '...' : 'unknown'
+        });
+        return null;
+    }
+}
+
+/**
  * 웹훅 이벤트: 결제 상태 변경 처리
  * 
  * @param {Object} connection - MySQL 연결
@@ -462,19 +512,57 @@ async function handlePaymentStatusChange(connection, data) {
     // seller.changed 이벤트의 경우 data 구조가 다를 수 있음
     const paymentKey = data.paymentKey || data.payment?.paymentKey || data.id;
     const orderId = data.orderId || data.payment?.orderId || data.order?.orderId;
-    const status = data.status || data.payment?.status || data.state;
+    const webhookStatus = data.status || data.payment?.status || data.state;
+    const webhookAmount = data.totalAmount || data.payment?.totalAmount || data.amount;
 
     if (!paymentKey) {
         Logger.log('[payments][webhook] 결제 상태 변경: paymentKey 없음', { data });
         return;
     }
+
+    // 🔒 보안: 토스 API로 재조회 검증 (웹훅 payload를 그대로 신뢰하지 않음)
+    const verifiedPayment = await verifyPaymentWithToss(paymentKey);
     
-    // 토스페이먼츠 상태를 내부 상태로 매핑
+    if (!verifiedPayment) {
+        Logger.warn('[payments][webhook] 토스 재조회 실패 - 웹훅 처리 중단', {
+            paymentKey: paymentKey.substring(0, 10) + '...',
+            orderId
+        });
+        // 재조회 실패 시 웹훅 처리 중단 (보안)
+        return;
+    }
+
+    // 재조회 결과로 실제 상태 확인
+    const status = verifiedPayment.status;
+    const verifiedOrderId = verifiedPayment.orderId;
+    const verifiedAmount = verifiedPayment.totalAmount;
+
+    // 웹훅 payload와 재조회 결과 일치 여부 검증
+    if (orderId && verifiedOrderId && orderId !== verifiedOrderId) {
+        Logger.warn('[payments][webhook] orderId 불일치 - 웹훅 처리 중단', {
+            webhookOrderId: orderId,
+            verifiedOrderId: verifiedOrderId,
+            paymentKey: paymentKey.substring(0, 10) + '...'
+        });
+        return;
+    }
+
+    if (webhookAmount && verifiedAmount && webhookAmount !== verifiedAmount) {
+        Logger.warn('[payments][webhook] amount 불일치 - 웹훅 처리 중단', {
+            webhookAmount,
+            verifiedAmount,
+            paymentKey: paymentKey.substring(0, 10) + '...'
+        });
+        return;
+    }
+
+    // 재조회 결과를 기준으로 상태 매핑 (웹훅 payload가 아닌 실제 토스 응답 사용)
+    
+    // 토스페이먼츠 상태를 내부 상태로 매핑 (재조회 결과 기준)
     let paymentStatus;
     let orderStatus;
     
     // 토스페이먼츠 상태: DONE, CANCELED, PARTIAL_CANCELED, ABORTED, EXPIRED
-    // seller.changed 이벤트의 경우 상태 값이 다를 수 있으므로 다양한 형식 지원
     const statusUpper = String(status || '').toUpperCase();
     
     if (statusUpper === 'DONE' || statusUpper === 'COMPLETED' || statusUpper === 'CONFIRMED') {
@@ -490,11 +578,30 @@ async function handlePaymentStatusChange(connection, data) {
         Logger.log('[payments][webhook] 알 수 없는 결제 상태 (기본값 사용)', { 
             status,
             statusUpper,
-            paymentKey,
-            orderId
+            paymentKey: paymentKey.substring(0, 10) + '...',
+            orderId: verifiedOrderId
         });
         // 알 수 없는 상태는 로그만 남기고 처리하지 않음
         return;
+    }
+
+    // 멱등성 처리: 이미 처리된 paymentKey인지 확인
+    const [existingPayments] = await connection.execute(
+        `SELECT status, updated_at FROM payments WHERE payment_key = ?`,
+        [paymentKey]
+    );
+
+    if (existingPayments.length > 0) {
+        const existingStatus = existingPayments[0].status;
+        // 이미 같은 상태로 처리되었으면 건너뛰기
+        if (existingStatus === paymentStatus) {
+            Logger.log('[payments][webhook] 이미 처리된 결제 (멱등성)', {
+                paymentKey: paymentKey.substring(0, 10) + '...',
+                status: paymentStatus,
+                orderId: verifiedOrderId
+            });
+            return;
+        }
     }
 
     try {
@@ -516,18 +623,19 @@ async function handlePaymentStatusChange(connection, data) {
             });
         }
 
-        // orders 테이블 업데이트 (orderId 또는 payment_key로 조회)
-        if (orderId) {
+        // orders 테이블 업데이트 (재조회 결과의 orderId 사용)
+        const finalOrderId = verifiedOrderId || orderId;
+        if (finalOrderId) {
             const [orderRows] = await connection.execute(
                 `UPDATE orders 
                  SET status = ?, updated_at = NOW() 
                  WHERE order_number = ?`,
-                [orderStatus, orderId]
+                [orderStatus, finalOrderId]
             );
 
             if (orderRows.affectedRows > 0) {
                 Logger.log('[payments][webhook] orders 테이블 업데이트 완료', {
-                    orderId,
+                    orderId: finalOrderId,
                     status: orderStatus,
                     affectedRows: orderRows.affectedRows
                 });
@@ -544,7 +652,7 @@ async function handlePaymentStatusChange(connection, data) {
 
             if (orderRows.affectedRows > 0) {
                 Logger.log('[payments][webhook] orders 테이블 업데이트 완료 (payment_key로 조회)', {
-                    paymentKey,
+                    paymentKey: paymentKey.substring(0, 10) + '...',
                     status: orderStatus,
                     affectedRows: orderRows.affectedRows
                 });
@@ -554,8 +662,8 @@ async function handlePaymentStatusChange(connection, data) {
     } catch (error) {
         Logger.log('[payments][webhook] 결제 상태 변경 처리 오류', {
             error: error.message,
-            paymentKey,
-            orderId
+            paymentKey: paymentKey ? paymentKey.substring(0, 10) + '...' : 'unknown',
+            orderId: verifiedOrderId || orderId
         });
         throw error;
     }
