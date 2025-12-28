@@ -47,6 +47,27 @@ cd "$LIVE_BACKEND"
 
 rsync -av --delete "${EXCLUDE_ARGS[@]}" "$REPO_DIR/backend/" "$LIVE_BACKEND/"
 
+# 3-2. 루트 HTML 파일 동기화 (login.html 등)
+echo "📦 루트 HTML 파일 동기화 중..."
+LIVE_ROOT="/var/www/html"
+ROOT_HTML_FILES=(
+    "login.html"
+    "index.html"
+    "register.html"
+    "my-profile.html"
+    "my-orders.html"
+    "complete-profile.html"
+    "utils.js"
+    "google-callback.html"
+)
+
+for file in "${ROOT_HTML_FILES[@]}"; do
+    if [ -f "$REPO_DIR/$file" ]; then
+        cp "$REPO_DIR/$file" "$LIVE_ROOT/$file"
+        echo "  ✅ $file 동기화 완료"
+    fi
+done
+
 # 4. 의존성 설치
 cd "$LIVE_BACKEND"
 echo "📚 의존성 설치 중..."
