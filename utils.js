@@ -61,7 +61,12 @@ const Logger = {
   
   log: function(...args) {
     // 중요한 로그는 프로덕션에서도 출력
-    if (this.isDevelopment || args[0]?.includes('🔄') || args[0]?.includes('✅') || args[0]?.includes('📦')) {
+    if (this.isDevelopment || 
+        args[0]?.includes('🔄') || 
+        args[0]?.includes('✅') || 
+        args[0]?.includes('📦') || 
+        args[0]?.includes('📋') ||  // returnTo 디버깅용
+        args[0]?.includes('🚀')) {  // 리다이렉트 디버깅용
       console.log(...args);
     }
   },
@@ -174,7 +179,10 @@ function secureFetch(url, options = {}) {
       const fetchOptions = {
         ...baseOptions,
         headers,
-        signal: controller.signal
+        signal: controller.signal,
+        // 쿠키를 항상 포함하도록 기본값 설정
+        // null/undefined만 'include'로 대체 (의도적인 'omit' 등은 유지)
+        credentials: baseOptions.credentials ?? 'include'
       };
       delete fetchOptions.timeoutMs;
       delete fetchOptions.idempotent;
