@@ -54,7 +54,8 @@ LIVE_ROOT="/var/www/html"
 # 허용 목록 기반 rsync (의도치 않은 파일 노출 방지)
 # 패턴: login.html, index.html, register.html, my-*.html, complete-profile.html, google-callback.html
 # JS: utils.js, common.js 등 명시적으로 배포해야 하는 것만
-rsync -av --delete \
+# 주의: --delete 제거 (robots.txt, favicon.ico, images/ 등 기존 파일 보호)
+rsync -av \
   --include="index.html" \
   --include="login.html" \
   --include="register.html" \
@@ -63,12 +64,11 @@ rsync -av --delete \
   --include="google-callback.html" \
   --include="utils.js" \
   --include="common.js" \
-  --chown=www-data:www-data \
-  --chmod=F644 \
+  --chmod=644 \
   --exclude="*" \
   "$REPO_DIR/" "$LIVE_ROOT/"
 
-echo "  ✅ 루트 파일 동기화 완료 (허용 목록 기반)"
+echo "  ✅ 루트 파일 동기화 완료 (허용 목록 기반, 기존 파일 보호)"
 
 # 4. 의존성 설치
 cd "$LIVE_BACKEND"
@@ -110,13 +110,22 @@ fi
 echo "🔍 배포 후 검증 중..."
 VERIFICATION_FAILED=0
 
-# login.html에 디버그 마커 확인
-if grep -q "login.html JS LOADED" "$LIVE_ROOT/login.html" 2>/dev/null; then
-  echo "  ✅ login.html 검증: 디버그 마커 확인됨"
-else
-  echo "  ⚠️  login.html 검증: 디버그 마커 없음 (최신 버전이 아닐 수 있음)"
-  VERIFICATION_FAILED=1
-fi
+# 필수 파일 존재 및 크기 확인
+REQUIRED_FILES=("login.html" "index.html" "utils.js")
+for file in "${REQUIRED_FILES[@]}"; do
+  if [ -f "$LIVE_ROOT/$file" ]; then
+    FILE_SIZE=$(stat -c %s "$LIVE_ROOT/$file" 2>/dev/null || echo "0")
+    if [ "$FILE_SIZE" -gt 0 ]; then
+      echo "  ✅ $file 존재 및 크기 확인 (${FILE_SIZE} bytes)"
+    else
+      echo "  ❌ $file 크기가 0입니다"
+      VERIFICATION_FAILED=1
+    fi
+  else
+    echo "  ❌ $file 존재하지 않음"
+    VERIFICATION_FAILED=1
+  fi
+done
 
 # 파일 타임스탬프 확인 (최근 5분 이내 수정된 파일인지)
 LOGIN_MTIME=$(stat -c %Y "$LIVE_ROOT/login.html" 2>/dev/null || echo "0")
@@ -142,16 +151,13 @@ if [ -f "$LIVE_BACKEND/index.js" ]; then
   fi
 fi
 
-# 필수 파일 존재 확인
-REQUIRED_FILES=("login.html" "index.html" "utils.js")
-for file in "${REQUIRED_FILES[@]}"; do
-  if [ -f "$LIVE_ROOT/$file" ]; then
-    echo "  ✅ $file 존재 확인"
-  else
-    echo "  ❌ $file 존재하지 않음"
-    VERIFICATION_FAILED=1
-  fi
-done
+# 실제 URL 접근 테스트 (login.html 키워드 확인)
+if curl -fsS "https://prepmood.kr/login.html" 2>/dev/null | grep -q "로그인" >/dev/null 2>&1; then
+  echo "  ✅ login.html URL 접근 확인: 정상 서빙 중"
+else
+  echo "  ⚠️  login.html URL 접근 확인: 응답 이상 (캐시 문제일 수 있음)"
+  # URL 검증 실패는 치명적이지 않으므로 VERIFICATION_FAILED는 증가시키지 않음
+fi
 
 if [ $VERIFICATION_FAILED -eq 1 ]; then
   echo "⚠️  배포 검증 경고: 일부 파일이 예상과 다를 수 있습니다"

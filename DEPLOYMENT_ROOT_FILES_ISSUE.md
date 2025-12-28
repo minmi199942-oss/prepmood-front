@@ -120,7 +120,7 @@ done
 
 ### 3. 근본적인 해결책 (장기)
 
-**옵션 1: 자동 감지 방식 (권장)**
+**옵션 1: 자동 감지 방식 (⚠️ 보안 위험)**
 ```bash
 # 루트의 모든 .html, .js 파일 자동 동기화
 find "$REPO_DIR" -maxdepth 1 -type f \( -name "*.html" -o -name "*.js" \) \
@@ -132,18 +132,26 @@ find "$REPO_DIR" -maxdepth 1 -type f \( -name "*.html" -o -name "*.js" \) \
 - 수동 관리 불필요
 
 **단점:**
+- ❌ **보안 위험**: `debug.html`, `temp.html`, `test-payment.html` 같은 파일이 실수로 배포될 수 있음
 - 불필요한 파일도 복사될 수 있음 (예: `test.html`)
 - `.gitignore`에 명시된 파일도 복사됨
 
-**옵션 2: 디렉토리 기반 동기화**
+**옵션 2: 허용 목록 기반 rsync (✅ 권장)**
 ```bash
-# 루트의 특정 디렉토리만 동기화
-rsync -av --delete \
-    --include="*.html" \
-    --include="*.js" \
+# 허용 목록만 동기화 (--delete 제거로 기존 파일 보호)
+rsync -av \
+    --include="login.html" \
+    --include="index.html" \
+    --include="my-*.html" \
+    --include="utils.js" \
     --exclude="*" \
     "$REPO_DIR/" "$LIVE_ROOT/"
 ```
+
+**장점:**
+- ✅ 의도치 않은 파일 노출 방지
+- ✅ 기존 파일 보호 (robots.txt, favicon.ico 등)
+- ✅ 부분 배포 가능성 낮춤 (cp 루프보다 안정적)
 
 **옵션 3: 구조 개선 (대규모 리팩토링)**
 ```
