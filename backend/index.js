@@ -1208,9 +1208,11 @@ const googleAuthRoutes = require('./google-auth-routes');
 const productRoutes = require('./product-routes');
 const orderRoutes = require('./order-routes');
 const paymentsRoutes = require('./payments-routes');
+const deployWebhook = require('./deploy-webhook');
 
 app.use('/api', googleAuthRoutes);
 app.use('/api', productRoutes);
+app.use('/api', deployWebhook);
 app.use('/api', orderRoutes);
 
 // 장바구니 라우트
