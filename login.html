@@ -80,6 +80,14 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="utils.js" defer></script>
   
+  <!-- 🔥 디버깅: login.html JS 로드 확인 -->
+  <script>
+    console.log('🔥 login.html JS LOADED');
+    window.addEventListener('error', (e) => {
+      console.error('[DBG] window error', e.message, e.filename, e.lineno);
+    });
+  </script>
+  
   <script>
     const API_BASE = (window.API_BASE)
       ? window.API_BASE
@@ -300,6 +308,9 @@
       loginForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        console.log('🔥 [DBG] 로그인 폼 제출 시작');
+        console.log('🔥 [DBG] returnTo 변수:', returnTo, typeof returnTo);
+        
         const email = emailInput.value.trim();
         const password = passwordInput.value.trim();
 
@@ -310,6 +321,9 @@
 
         loginBtn.disabled = true;
         loginBtn.textContent = '로그인 중...';
+
+        console.log('🔥 [DBG] API 요청 시작:', `${API_BASE}/login`);
+        console.log('🔥 [DBG] 요청 body:', { email, password, returnTo: returnTo || null });
 
         try {
           const response = await fetch(`${API_BASE}/login`, {
