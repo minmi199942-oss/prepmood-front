@@ -332,7 +332,7 @@ function requireAuthForHTML(req, res, next) {
             const queryString = new URLSearchParams(req.query).toString();
             returnTo = `${returnTo}?${queryString}`;
         }
-        Logger.log('[AUTH] 비로그인 리다이렉트:', { returnTo, originalUrl: req.originalUrl, path: req.path });
+        console.log('📋 [AUTH] 비로그인 리다이렉트:', { returnTo, originalUrl: req.originalUrl, path: req.path });
         return res.redirect(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
     }
     
