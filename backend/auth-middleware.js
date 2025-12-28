@@ -325,7 +325,14 @@ function requireAuthForHTML(req, res, next) {
     
     if (!jwtToken) {
         // 비로그인 상태 → 로그인 페이지로 리다이렉트
-        const returnTo = req.originalUrl;  // /a/:token (서버가 만든 내부 경로, 이미 검증됨)
+        // req.originalUrl이 라우터에서 제대로 작동하지 않을 수 있으므로 req.path 사용
+        let returnTo = req.originalUrl || req.path;
+        // 쿼리 스트링이 있으면 포함
+        if (req.query && Object.keys(req.query).length > 0) {
+            const queryString = new URLSearchParams(req.query).toString();
+            returnTo = `${returnTo}?${queryString}`;
+        }
+        Logger.log('[AUTH] 비로그인 리다이렉트:', { returnTo, originalUrl: req.originalUrl, path: req.path });
         return res.redirect(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
     }
     
@@ -339,7 +346,13 @@ function requireAuthForHTML(req, res, next) {
         next();
     } catch (error) {
         // 토큰 유효하지 않음 → 로그인 페이지로 리다이렉트
-        const returnTo = req.originalUrl;
+        let returnTo = req.originalUrl || req.path;
+        // 쿼리 스트링이 있으면 포함
+        if (req.query && Object.keys(req.query).length > 0) {
+            const queryString = new URLSearchParams(req.query).toString();
+            returnTo = `${returnTo}?${queryString}`;
+        }
+        Logger.log('[AUTH] 토큰 만료 리다이렉트:', { returnTo, originalUrl: req.originalUrl, path: req.path });
         return res.redirect(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
     }
 }

@@ -542,6 +542,10 @@ app.post('/api/login', [
         const redirectTo = validateReturnTo(req.body?.returnTo) || '/';
 
         console.log(`✅ 로그인 성공: ${email}`);
+        console.log(`📋 returnTo 처리:`, { 
+            received: req.body?.returnTo, 
+            validated: redirectTo 
+        });
         res.json({
             success: true,
             message: '로그인에 성공했습니다.',

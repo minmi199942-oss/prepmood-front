@@ -327,6 +327,10 @@
 
           const data = await response.json();
           Logger.log('로그인 응답:', data);
+          Logger.log('📋 returnTo 처리:', { 
+            urlParam: returnTo, 
+            serverRedirectTo: data.redirectTo 
+          });
 
           if (data.success) {
             // 로그인 성공
@@ -337,7 +341,9 @@
             sessionStorage.setItem('userName', data.user.name);
             
             // ✅ 서버가 검증해서 내려준 redirectTo만 사용 (절대 URL 파라미터 직접 사용 안 함)
-            window.location.href = data.redirectTo || 'index.html';
+            const finalRedirect = data.redirectTo || 'index.html';
+            Logger.log('🚀 최종 리다이렉트:', finalRedirect);
+            window.location.href = finalRedirect;
           } else {
             // 로그인 실패
             alert(data.message || '로그인에 실패했습니다.');
