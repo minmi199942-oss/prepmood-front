@@ -51,12 +51,17 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
 
 **문제 확인**: 2025-12-27 (서버 로그 및 브라우저 네트워크 캡처)
 
-**조치 진행** (2025-12-27):
-1. ✅ CSRF 토큰 발급 미들웨어 추가 (`issueCSRFToken`) - 이미 구현됨
-2. ✅ 프론트엔드에서 CSRF 토큰 요청 로직 추가 (`checkout-payment.js`) - 이미 구현됨
-3. 🔄 쿠키 설정 보완 진행 중 (`csrf-middleware.js`)
+**조치 완료** (2025-12-28 해결 확인):
+1. ✅ CSRF 토큰 발급 미들웨어 추가 (`issueCSRFToken`) - 구현 완료
+2. ✅ 프론트엔드에서 CSRF 토큰 요청 로직 추가 (`checkout-payment.js`) - 구현 완료
+3. ✅ 쿠키 설정 보완 완료 (`csrf-middleware.js`)
    - `isProductionDomain` 체크 추가로 프로덕션 도메인에서 `secure: true` 보장
-   - **배포 후 실제 동작 확인 필요** (아직 검증되지 않음)
+   - **배포 후 정상 동작 확인됨** (2025-12-28)
+
+**해결 확인**:
+- 브라우저 Application 탭에서 `xsrf-token` 쿠키 확인: `Secure: ✓`, `SameSite: Lax`
+- 서버 로그에서 `✅ CSRF 검증 성공: POST /orders` 확인
+- 결제 프로세스 정상 진행 확인
 
 **참고**: 
 - 현재 코드는 `sameSite: 'lax'`로 설정되어 있으나, 브라우저에서 `SameSite=None`으로 표시되었을 가능성 있음
@@ -259,8 +264,9 @@ git pull origin main  # 이건 필요
 ## 5. 요약
 
 ### 결제 시스템 문제
-- **직접 원인**: 브라우저가 CSRF 토큰 쿠키를 저장/전송하지 못함 (Set-Cookie의 Secure 속성 누락 가능성)
-- **조치**: 쿠키 설정 보완 진행 중 (배포 후 검증 필요)
+- **직접 원인**: 브라우저가 CSRF 토큰 쿠키를 저장/전송하지 못함 (Set-Cookie의 Secure 속성 누락)
+- **조치**: 쿠키 설정 보완 완료 (`isProductionDomain` 체크 추가로 `secure: true` 보장)
+- **해결 확인**: 2025-12-28 (서버 로그 및 브라우저 쿠키 확인)
 
 ### 배포 시스템 변경
 - **예전**: `/var/www/html/backend`에서 직접 `git pull` → 보안 문제 (`.git` 노출)
