@@ -19,6 +19,7 @@ const {
     revokeToken
 } = require('./auth-db');
 const Logger = require('./logger');
+const { requireAuthForHTML } = require('./auth-middleware');
 
 // 이상 패턴 감지용 (메모리 기반, 운영에서는 Redis 권장)
 const suspiciousPatterns = {
@@ -98,18 +99,17 @@ const authLimiter = rateLimit({
  * 정품 인증 라우트
  * 
  * URL 예시: https://prepmood.kr/a/aB3cD5eF7gH9iJ1kL3mN5
+ * 
+ * 미들웨어 순서:
+ * 1. authLimiter (Rate Limiting)
+ * 2. requireAuthForHTML (토큰 형식 검증 + 로그인 체크)
+ * 3. 실제 페이지 렌더/처리
  */
-router.get('/a/:token', authLimiter, async (req, res) => {
+router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
     const token = req.params.token;
     
     try {
-        // 토큰 형식 검증 (20자, 영숫자만)
-        if (!/^[a-zA-Z0-9]{20}$/.test(token)) {
-            Logger.warn('[AUTH] 잘못된 토큰 형식:', token.substring(0, 4) + '...');
-            return res.render('fake', {
-                title: '가품 경고 - Pre.p Mood'
-            });
-        }
+        // ✅ 토큰 형식 검증은 requireAuthForHTML에서 이미 수행됨 (중복 제거)
         
         // 토큰 일부만 로깅 (보안)
         Logger.log('[AUTH] 정품 인증 요청:', token.substring(0, 4) + '...');

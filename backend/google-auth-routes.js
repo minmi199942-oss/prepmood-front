@@ -56,7 +56,11 @@ router.post('/auth/google/login', authLimiter, async (req, res) => {
         const jwtToken = googleAuth.generateJWT(userResult.user);
 
         // httpOnly 쿠키로 토큰 설정
-        setTokenCookie(res, jwtToken);
+        setTokenCookie(res, jwtToken, req);
+
+        // returnTo 처리: req.body에서 바로 검증 후 사용 (일반 로그인과 동일)
+        const { validateReturnTo } = require('./auth-middleware');
+        const redirectTo = validateReturnTo(req.body?.returnTo) || '/';
 
         // 추가 정보 입력 필요 여부 확인 (Google 사용자는 기본 정보만으로도 충분)
         const needsAdditionalInfo = false; // Google 로그인 사용자는 추가 정보 불필요
@@ -64,6 +68,7 @@ router.post('/auth/google/login', authLimiter, async (req, res) => {
         res.json({
             success: true,
             message: 'Google 로그인 성공',
+            redirectTo: redirectTo,  // 프론트에서 사용
             user: userResult.user,
             // ✅ token은 httpOnly 쿠키로 전송되므로 응답 본문에 포함하지 않음
             needsAdditionalInfo: needsAdditionalInfo

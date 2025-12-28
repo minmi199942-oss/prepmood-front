@@ -90,8 +90,15 @@
     // Google OAuth 설정
     const GOOGLE_CLIENT_ID = '496755897469-23ftq4affabq1jegpuph6oer7jes5a5s.apps.googleusercontent.com';
     
-    // Google 로그인 콜백 함수 (429 오류 처리 개선)
+    // Google 로그인 콜백 함수 (기존 Google Sign-In 버튼용)
     async function handleGoogleSignIn(response) {
+      // DOMContentLoaded 내부의 returnTo를 사용하기 위해 별도 함수로 분리
+      // 이 함수는 initializeGoogleSignIn에서 사용됨 (기존 Google Sign-In 버튼용)
+      await handleGoogleSignInWithReturnTo(response, null);
+    }
+    
+    // ✅ returnTo를 포함한 Google 로그인 처리 함수
+    async function handleGoogleSignInWithReturnTo(response, returnToParam) {
       try {
         Logger.log('Google 로그인 토큰 수신:', response.credential);
         
@@ -102,7 +109,10 @@
             'Content-Type': 'application/json',
           },
           credentials: 'include',
-          body: JSON.stringify({ idToken: response.credential })
+          body: JSON.stringify({ 
+            idToken: response.credential,
+            returnTo: returnToParam || null  // ✅ returnTo 포함
+          })
         });
 
         // 429 오류인 경우 별도 처리
@@ -125,7 +135,8 @@
             window.location.href = 'complete-profile.html';
           } else {
             alert(`Google 로그인 성공! 환영합니다! ${data.user.name}님`);
-            window.location.href = 'index.html';
+            // ✅ 서버가 검증해서 내려준 redirectTo만 사용 (절대 URL 파라미터 직접 사용 안 함)
+            window.location.href = data.redirectTo || 'index.html';
           }
         } else {
           alert(data.error || 'Google 로그인에 실패했습니다.');
@@ -151,6 +162,10 @@
     }
     
     document.addEventListener('DOMContentLoaded', function() {
+      // ✅ returnTo를 페이지 로드 시 읽어서 스코프 유지
+      const urlParams = new URLSearchParams(window.location.search);
+      const returnTo = urlParams.get('returnTo');  // 페이지 파라미터 기반이면 자연스럽게 유지됨
+      
       const loginForm = document.getElementById('loginForm');
       const loginBtn = document.getElementById('loginBtn');
       const emailInput = document.getElementById('email');
@@ -210,7 +225,8 @@
               // Cross-Origin-Opener-Policy 오류 무시
               Logger.log('팝업 닫기 오류 무시:', e.message);
             }
-            await handleGoogleSignIn({ credential: event.data.idToken });
+            // ✅ returnTo를 스코프에서 접근 가능하도록 클로저 사용
+            handleGoogleSignInWithReturnTo({ credential: event.data.idToken }, returnTo);
             window.removeEventListener('message', messageHandler);
           } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
             // 팝업 닫기 (오류 무시)
@@ -302,7 +318,11 @@
               'Content-Type': 'application/json',
             },
             credentials: 'include', // JWT 쿠키 받기 위해 필요!
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ 
+              email, 
+              password,
+              returnTo: returnTo || null  // ✅ returnTo 포함
+            })
           });
 
           const data = await response.json();
@@ -316,8 +336,8 @@
             // 최소한의 정보만 sessionStorage에 저장 (환영 메시지용)
             sessionStorage.setItem('userName', data.user.name);
             
-            // 메인 페이지로 이동
-            window.location.href = 'index.html';
+            // ✅ 서버가 검증해서 내려준 redirectTo만 사용 (절대 URL 파라미터 직접 사용 안 함)
+            window.location.href = data.redirectTo || 'index.html';
           } else {
             // 로그인 실패
             alert(data.message || '로그인에 실패했습니다.');

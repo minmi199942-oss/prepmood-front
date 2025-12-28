@@ -140,29 +140,75 @@ function generateToken(user, expiresIn = '7d') {
  * @param {String} token - JWT 토큰
  * @param {Number} maxAge - 쿠키 만료 시간 (밀리초, 기본: 7일)
  */
-function setTokenCookie(res, token, maxAge = 7 * 24 * 60 * 60 * 1000) {
-    res.cookie('accessToken', token, {
-        httpOnly: true,      // JavaScript로 접근 불가 (XSS 방지)
-        secure: process.env.NODE_ENV === 'production',  // HTTPS만 (프로덕션)
-        sameSite: 'none',  // 크로스 오리진 쿠키 허용
-        maxAge: maxAge,      // 쿠키 만료 시간
-        path: '/'            // 모든 경로에서 사용
-    });
+function setTokenCookie(res, token, req = null, maxAge = 7 * 24 * 60 * 60 * 1000) {
+    // 프로덕션 환경 감지
+    const isProduction = process.env.NODE_ENV === 'production';
     
-    console.log(`✅ JWT 쿠키 설정 완료 (만료: ${maxAge / 1000 / 60 / 60}시간)`);
+    // HTTPS 감지 (프록시 환경 고려)
+    let isSecure = isProduction;
+    if (req) {
+        const forwardedProto = req.get('x-forwarded-proto');
+        isSecure = isSecure || 
+                   req.protocol === 'https' || 
+                   forwardedProto === 'https' ||
+                   req.secure;
+    }
+    
+    // 쿠키 옵션 설정
+    // sameSite: 'lax' - 같은 사이트 요청에 적합 (cross-site 불필요)
+    const cookieOptions = {
+        httpOnly: true,      // JavaScript로 접근 불가 (XSS 방지)
+        secure: isSecure,   // HTTPS에서만 전송 (프로덕션)
+        sameSite: 'lax',    // 같은 사이트 요청에 적합
+        maxAge: maxAge,     // 쿠키 만료 시간
+        path: '/'           // 모든 경로에서 사용
+    };
+    
+    // www/non-www 호환성을 위해 도메인 범위 확대 (프로덕션에서만)
+    // 주의: domain: '.prepmood.kr'는 "엄격화"가 아니라 "범위 확대" (보안/범위 트레이드오프)
+    if (isProduction && req) {
+        const host = req.get('host') || '';
+        if (host === 'prepmood.kr' || host === 'www.prepmood.kr') {
+            cookieOptions.domain = '.prepmood.kr';
+        }
+    }
+    
+    res.cookie('accessToken', token, cookieOptions);
+    
+    console.log(`✅ JWT 쿠키 설정 완료 (만료: ${maxAge / 1000 / 60 / 60}시간, secure: ${isSecure})`);
 }
 
 /**
  * JWT 토큰 쿠키 삭제 (로그아웃)
  * @param {Object} res - Express response 객체
  */
-function clearTokenCookie(res) {
-    res.clearCookie('accessToken', {
+function clearTokenCookie(res, req = null) {
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    let isSecure = isProduction;
+    if (req) {
+        const forwardedProto = req.get('x-forwarded-proto');
+        isSecure = isSecure || 
+                   req.protocol === 'https' || 
+                   forwardedProto === 'https' ||
+                   req.secure;
+    }
+    
+    const cookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+        secure: isSecure,
+        sameSite: 'lax',
         path: '/'
-    });
+    };
+    
+    if (isProduction && req) {
+        const host = req.get('host') || '';
+        if (host === 'prepmood.kr' || host === 'www.prepmood.kr') {
+            cookieOptions.domain = '.prepmood.kr';
+        }
+    }
+    
+    res.clearCookie('accessToken', cookieOptions);
     
     console.log('✅ JWT 쿠키 삭제 완료 (로그아웃)');
 }
@@ -221,6 +267,83 @@ function requireAdmin(req, res, next) {
     next();
 }
 
+/**
+ * returnTo 검증 함수 (Open Redirect 방지)
+ * - 내부 경로만 허용
+ * - 화이트리스트 기반 검증
+ * 
+ * @param {String} returnTo - 리다이렉트할 경로
+ * @returns {String|null} - 검증된 경로 또는 null
+ */
+function validateReturnTo(returnTo) {
+    if (!returnTo || typeof returnTo !== 'string') return null;
+    if (returnTo.length > 200) return null;
+
+    // 내부 경로만 허용
+    if (!returnTo.startsWith('/')) return null;
+    if (returnTo.startsWith('//')) return null;     // protocol-relative 차단
+    if (returnTo.includes('\\')) return null;       // windows path 차단
+    if (returnTo.includes('\0')) return null;        // 널 바이트 차단
+    if (returnTo.includes('://')) return null;       // 명시적 외부 스킴 차단
+
+    // ✅ MVP 화이트리스트 (의도치 않은 내부 이동 방지)
+    const allowed =
+        returnTo === '/' ||
+        returnTo === '/index.html' ||
+        returnTo === '/my-profile.html' ||
+        returnTo.startsWith('/a/');  // /a/:token 형식 (쿼리 포함 가능)
+
+    return allowed ? returnTo : null;
+}
+
+/**
+ * HTML 페이지용 인증 미들웨어
+ * - 토큰 형식 검증 먼저 수행 (returnTo에 이상한 값 방지)
+ * - 비로그인 시 login.html로 리다이렉트 (returnTo 포함)
+ * - 로그인 상태면 next() 호출
+ * 
+ * @param {Object} req - Express request 객체
+ * @param {Object} res - Express response 객체
+ * @param {Function} next - Express next 함수
+ */
+function requireAuthForHTML(req, res, next) {
+    // ✅ 토큰 형식 검증 먼저 (returnTo에 이상한 값이 들어가는 것 방지)
+    // /a/:token 라우트인 경우
+    if (req.path.startsWith('/a/')) {
+        const token = req.params.token;
+        // 토큰 형식 검증 (20자 영숫자)
+        if (!token || !/^[a-zA-Z0-9]{20}$/.test(token)) {
+            // 잘못된 토큰 형식 → fake 렌더 (가품/오입력 문제이므로 로그인으로 보내지 않음)
+            Logger.warn('[AUTH] 잘못된 토큰 형식:', token ? token.substring(0, 4) + '...' : 'null');
+            return res.render('fake', {
+                title: '가품 경고 - Pre.p Mood'
+            });
+        }
+    }
+    
+    const jwtToken = req.cookies?.accessToken;
+    
+    if (!jwtToken) {
+        // 비로그인 상태 → 로그인 페이지로 리다이렉트
+        const returnTo = req.originalUrl;  // /a/:token (서버가 만든 내부 경로, 이미 검증됨)
+        return res.redirect(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
+    }
+    
+    try {
+        const decoded = jwt.verify(jwtToken, process.env.JWT_SECRET);
+        req.user = {
+            userId: decoded.userId,
+            email: decoded.email,
+            name: decoded.name
+        };
+        next();
+    } catch (error) {
+        // 토큰 유효하지 않음 → 로그인 페이지로 리다이렉트
+        const returnTo = req.originalUrl;
+        return res.redirect(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
+    }
+}
+
 module.exports = {
     authenticateToken,
     optionalAuth,
@@ -228,6 +351,8 @@ module.exports = {
     setTokenCookie,
     clearTokenCookie,
     requireAdmin,
-    isAdminEmail
+    isAdminEmail,
+    validateReturnTo,
+    requireAuthForHTML
 };
 

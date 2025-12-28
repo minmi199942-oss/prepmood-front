@@ -16,14 +16,28 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust proxy (nginx 프록시 설정 - 보안을 위해 특정 IP만 신뢰)
-// 'loopback'은 127.0.0.1만 신뢰 (nginx가 같은 서버에서 실행될 때)
+// Trust proxy 설정
+// 현재 구조: Cloudflare → Nginx → Node.js
+// - Nginx가 같은 서버(loopback)에서 실행되므로 'loopback'만 신뢰해도 충분
+// - Nginx가 X-Forwarded-Proto 헤더를 설정하므로, 쿠키 설정 로직은 forwarded-proto를 우선적으로 사용
+// 주의: req.secure/req.protocol도 체크하므로, trust proxy가 loopback이면 이 값들은 http로 인식될 수 있음
+// 하지만 forwarded-proto를 우선 체크하므로 실제 동작에는 문제 없음
+// 더 일관성 있게 하려면: 모든 secure 판단을 forwarded-proto 기반으로 통일하거나, trust proxy를 1/true로 설정
 app.set('trust proxy', 'loopback');
 
 // CORS 설정 (특정 도메인만 허용) - helmet보다 먼저 설정
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
-    process.env.ALLOWED_ORIGINS.split(',') : 
-    ['http://localhost:8000', 'http://localhost:3000', 'http://127.0.0.1:8000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5500', 'http://localhost:5500', 'https://prepmood.kr'];
+    process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim()) : 
+    [
+        'http://localhost:8000', 
+        'http://localhost:3000', 
+        'http://127.0.0.1:8000', 
+        'http://127.0.0.1:3000', 
+        'http://127.0.0.1:5500', 
+        'http://localhost:5500', 
+        'https://prepmood.kr',
+        'https://www.prepmood.kr'  // www 서브도메인 추가
+    ];
 
 Logger.log('Allowed origins:', allowedOrigins);
 
@@ -521,12 +535,17 @@ app.post('/api/login', [
         });
 
         // httpOnly 쿠키로 토큰 설정
-        setTokenCookie(res, token);
+        setTokenCookie(res, token, req);
+
+        // returnTo 처리: req.body에서 바로 검증 후 사용
+        const { validateReturnTo } = require('./auth-middleware');
+        const redirectTo = validateReturnTo(req.body?.returnTo) || '/';
 
         console.log(`✅ 로그인 성공: ${email}`);
         res.json({
             success: true,
             message: '로그인에 성공했습니다.',
+            redirectTo: redirectTo,  // 프론트에서 사용
             user: {
                 id: user.user_id,
                 email: user.email,
@@ -619,7 +638,7 @@ app.post('/api/admin/login', [
         }, '12h');
 
         // 12시간 유효한 쿠키
-        setTokenCookie(res, token, 12 * 60 * 60 * 1000);
+        setTokenCookie(res, token, req, 12 * 60 * 60 * 1000);
 
         Logger.log('[ADMIN][LOGIN] 성공', { email: normalizedEmail, ip: req.ip });
         res.json({
@@ -1162,7 +1181,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 
 // 로그아웃 API
 app.post('/api/logout', (req, res) => {
-    clearTokenCookie(res);
+    clearTokenCookie(res, req);
     res.json({
         success: true,
         message: '로그아웃되었습니다.'
