@@ -25,8 +25,13 @@ function issueCSRFToken(req, res, next) {
         
         // HTTPS 감지 (Cloudflare 프록시 고려)
         // Cloudflare를 통하면 x-forwarded-proto가 'https'로 설정됨
+        // 중요: 프로덕션 환경(prepmood.kr)에서는 항상 HTTPS를 사용하므로 secure: true 필수
         const forwardedProto = req.get('x-forwarded-proto');
+        const host = req.get('host') || '';
+        // 프로덕션 도메인 확인 (NODE_ENV가 설정되지 않았더라도 도메인으로 판단)
+        const isProductionDomain = host === 'prepmood.kr' || host === 'www.prepmood.kr';
         const isSecure = isProduction || 
+                        isProductionDomain || // 프로덕션 도메인이면 항상 secure
                         req.protocol === 'https' || 
                         forwardedProto === 'https' ||
                         req.secure;
@@ -44,13 +49,12 @@ function issueCSRFToken(req, res, next) {
             maxAge: 24 * 60 * 60 * 1000 // 24시간
         };
         
-        // www/non-www 호환성을 위해 도메인 범위 확대 (프로덕션에서만)
+        // www/non-www 호환성을 위해 도메인 범위 확대 (프로덕션 도메인에서만)
         // 주의: domain: '.prepmood.kr'는 "엄격화"가 아니라 "범위 확대"
         // - host-only 쿠키(domain 미설정)가 더 엄격함
         // - '.prepmood.kr'는 모든 서브도메인에 쿠키 전송 (보안/범위 트레이드오프)
         // - 더 엄격한 방법: www를 301로 통일 + host-only 쿠키
-        if (isProduction) {
-            const host = req.get('host') || '';
+        if (isProduction || isProductionDomain) {
             // prepmood.kr 또는 www.prepmood.kr인 경우 .prepmood.kr로 설정
             // 단, 서브도메인(api, admin 등)은 제외
             if (host === 'prepmood.kr' || host === 'www.prepmood.kr') {
@@ -63,10 +67,11 @@ function issueCSRFToken(req, res, next) {
         // 디버깅: 쿠키 설정 정보 로깅
         console.log('✅ CSRF 토큰 발급:', token.substring(0, 16) + '...', {
             isProduction,
+            isProductionDomain,
             isSecure,
-            host: req.get('host'),
+            host: host,
             protocol: req.protocol,
-            forwardedProto: req.get('x-forwarded-proto'),
+            forwardedProto: forwardedProto,
             cookieOptions: {
                 secure: cookieOptions.secure,
                 sameSite: cookieOptions.sameSite,
