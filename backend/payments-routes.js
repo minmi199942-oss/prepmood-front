@@ -480,7 +480,7 @@ async function verifyPaymentWithToss(paymentKey) {
         }
 
         const paymentData = await response.json();
-        Logger.log('[payments][webhook] 토스 결제 재조회 성공', {
+        Logger.log('✅ [payments][webhook] 토스 결제 재조회 성공', {
             paymentKey: paymentKey.substring(0, 10) + '...',
             status: paymentData.status,
             orderId: paymentData.orderId
@@ -616,7 +616,7 @@ async function handlePaymentStatusChange(connection, data) {
         if (paymentRows.affectedRows === 0) {
             Logger.log('[payments][webhook] payments 테이블에 해당 payment_key 없음', { paymentKey });
         } else {
-            Logger.log('[payments][webhook] payments 테이블 업데이트 완료', {
+            Logger.log('✅ [payments][webhook] payments 테이블 업데이트 완료', {
                 paymentKey,
                 status: paymentStatus,
                 affectedRows: paymentRows.affectedRows
@@ -634,7 +634,7 @@ async function handlePaymentStatusChange(connection, data) {
             );
 
             if (orderRows.affectedRows > 0) {
-                Logger.log('[payments][webhook] orders 테이블 업데이트 완료', {
+                Logger.log('✅ [payments][webhook] orders 테이블 업데이트 완료', {
                     orderId: finalOrderId,
                     status: orderStatus,
                     affectedRows: orderRows.affectedRows
@@ -700,11 +700,11 @@ router.post('/payments/webhook', async (req, res) => {
         // 재조회 검증으로 대체 (handlePaymentStatusChange 내부에서 수행)
         // WEBHOOK_SHARED_SECRET은 내부 웹훅용으로만 사용 (토스 웹훅에는 불필요)
         
-        Logger.log('[payments][webhook] 웹훅 수신 - 재조회 검증으로 처리 예정');
+        Logger.log('✅ [payments][webhook] 웹훅 수신 - 재조회 검증으로 처리 예정');
 
         const { eventType, data } = req.body;
 
-        Logger.log('[payments][webhook] 웹훅 수신 (서명 검증 완료)', {
+        Logger.log('✅ [payments][webhook] 웹훅 수신 (서명 검증 완료)', {
             eventType,
             data: data ? {
                 orderId: data.orderId,
@@ -738,7 +738,7 @@ router.post('/payments/webhook', async (req, res) => {
             }
 
             await connection.commit();
-            Logger.log('[payments][webhook] 웹훅 처리 완료', { eventType });
+            Logger.log('✅ [payments][webhook] 웹훅 처리 완료', { eventType });
 
         } catch (webhookError) {
             if (connection) {
