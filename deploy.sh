@@ -47,23 +47,28 @@ cd "$LIVE_BACKEND"
 
 rsync -av --delete "${EXCLUDE_ARGS[@]}" "$REPO_DIR/backend/" "$LIVE_BACKEND/"
 
-# 3-2. 루트 HTML/JS 파일 동기화 (자동 감지)
+# 3-2. 루트 HTML/JS 파일 동기화 (허용 목록 기반 - 보안 강화)
 echo "📦 루트 HTML/JS 파일 동기화 중..."
 LIVE_ROOT="/var/www/html"
 
-# 루트의 모든 .html, .js 파일 자동 동기화 (backend/, prep_server/, image/, assets/ 제외)
-find "$REPO_DIR" -maxdepth 1 -type f \( -name "*.html" -o -name "*.js" \) \
-    ! -name "deploy*.sh" \
-    ! -name "*.test.js" \
-    ! -name "*.spec.js" \
-    | while read -r file; do
-    filename=$(basename "$file")
-    # 특정 디렉토리나 파일 제외
-    if [[ "$filename" != "package.json" ]] && [[ "$filename" != "package-lock.json" ]]; then
-        cp "$file" "$LIVE_ROOT/$filename"
-        echo "  ✅ $filename 동기화 완료"
-    fi
-done
+# 허용 목록 기반 rsync (의도치 않은 파일 노출 방지)
+# 패턴: login.html, index.html, register.html, my-*.html, complete-profile.html, google-callback.html
+# JS: utils.js, common.js 등 명시적으로 배포해야 하는 것만
+rsync -av --delete \
+  --include="index.html" \
+  --include="login.html" \
+  --include="register.html" \
+  --include="my-*.html" \
+  --include="complete-profile.html" \
+  --include="google-callback.html" \
+  --include="utils.js" \
+  --include="common.js" \
+  --chown=www-data:www-data \
+  --chmod=F644 \
+  --exclude="*" \
+  "$REPO_DIR/" "$LIVE_ROOT/"
+
+echo "  ✅ 루트 파일 동기화 완료 (허용 목록 기반)"
 
 # 4. 의존성 설치
 cd "$LIVE_BACKEND"
@@ -101,6 +106,61 @@ else
   exit 1
 fi
 
+# 8. 배포 후 자동 검증 (루트 파일 실제 갱신 확인)
+echo "🔍 배포 후 검증 중..."
+VERIFICATION_FAILED=0
+
+# login.html에 디버그 마커 확인
+if grep -q "login.html JS LOADED" "$LIVE_ROOT/login.html" 2>/dev/null; then
+  echo "  ✅ login.html 검증: 디버그 마커 확인됨"
+else
+  echo "  ⚠️  login.html 검증: 디버그 마커 없음 (최신 버전이 아닐 수 있음)"
+  VERIFICATION_FAILED=1
+fi
+
+# 파일 타임스탬프 확인 (최근 5분 이내 수정된 파일인지)
+LOGIN_MTIME=$(stat -c %Y "$LIVE_ROOT/login.html" 2>/dev/null || echo "0")
+CURRENT_TIME=$(date +%s)
+TIME_DIFF=$((CURRENT_TIME - LOGIN_MTIME))
+
+if [ $TIME_DIFF -lt 300 ]; then
+  echo "  ✅ login.html 타임스탬프: 최근 갱신됨 (${TIME_DIFF}초 전)"
+else
+  echo "  ⚠️  login.html 타임스탬프: 오래됨 (${TIME_DIFF}초 전, 5분 이상)"
+  VERIFICATION_FAILED=1
+fi
+
+# backend/index.js 타임스탬프 확인
+if [ -f "$LIVE_BACKEND/index.js" ]; then
+  BACKEND_MTIME=$(stat -c %Y "$LIVE_BACKEND/index.js" 2>/dev/null || echo "0")
+  BACKEND_TIME_DIFF=$((CURRENT_TIME - BACKEND_MTIME))
+  if [ $BACKEND_TIME_DIFF -lt 300 ]; then
+    echo "  ✅ backend/index.js 타임스탬프: 최근 갱신됨 (${BACKEND_TIME_DIFF}초 전)"
+  else
+    echo "  ⚠️  backend/index.js 타임스탬프: 오래됨 (${BACKEND_TIME_DIFF}초 전)"
+    VERIFICATION_FAILED=1
+  fi
+fi
+
+# 필수 파일 존재 확인
+REQUIRED_FILES=("login.html" "index.html" "utils.js")
+for file in "${REQUIRED_FILES[@]}"; do
+  if [ -f "$LIVE_ROOT/$file" ]; then
+    echo "  ✅ $file 존재 확인"
+  else
+    echo "  ❌ $file 존재하지 않음"
+    VERIFICATION_FAILED=1
+  fi
+done
+
+if [ $VERIFICATION_FAILED -eq 1 ]; then
+  echo "⚠️  배포 검증 경고: 일부 파일이 예상과 다를 수 있습니다"
+  echo "💡 수동 확인 권장: ls -la $LIVE_ROOT/login.html"
+else
+  echo "✅ 배포 검증 완료: 모든 파일 정상"
+fi
+
+echo ""
 echo "✅ 배포 완료: $TIMESTAMP"
 echo "💡 롤백이 필요한 경우:"
 echo "   tar -C /var/www/html -xzf $BACKUP_DIR/backend_backup_$TIMESTAMP.tgz"
