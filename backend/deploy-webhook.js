@@ -111,7 +111,8 @@ router.post('/deploy/webhook', async (req, res) => {
         // 완료 로그는 deploy-run.log에서 확인해야 함
         // /bin/bash -lc를 사용하여 쉘 리다이렉트가 제대로 작동하도록 함
         // bash -x로 각 라인 실행 시마다 로그를 남겨서 정확한 중단 지점 확인
-        const deployCommand = `/bin/bash -lc "bash -x /root/deploy.sh >> '${DEPLOY_RUN_LOG}' 2>&1"`;
+        // /root/prepmood-repo/deploy.sh를 직접 실행하여 동기화 누락 문제 방지
+        const deployCommand = `/bin/bash -lc "bash -x /root/prepmood-repo/deploy.sh >> '${DEPLOY_RUN_LOG}' 2>&1"`;
         const deployProcess = exec(deployCommand, {
             cwd: '/root',
             env: { ...process.env, PATH: process.env.PATH },
