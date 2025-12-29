@@ -228,7 +228,58 @@ CREATE TABLE warranties (
 
 ---
 
-## 4. 정책 변경 절차
+## 4. 마이그레이션 정책 (Migration Policy)
+
+### 4.1 마이그레이션 파일 불변성 (Immutable Migrations)
+
+**정책**: 이미 실행된 마이그레이션 파일은 **절대 수정할 수 없습니다**.
+
+**근거**:
+- `run-migration.js`는 `file_hash`를 사용하여 파일 변경을 감지합니다
+- 이미 `success` 상태로 기록된 마이그레이션 파일이 변경되면 `fail-fast` (종료 코드 2)로 실행이 중단됩니다
+- 마이그레이션 이력의 무결성 보장
+
+**구현 규칙**:
+- 마이그레이션 파일 수정이 필요하면 **새 번호의 마이그레이션 파일**을 생성합니다
+- 예: `001_create_warranties_table.sql` 수정 필요 → `002_fix_warranties_fk.sql` 생성
+
+### 4.2 실패한 마이그레이션 처리
+
+**정책**: `failed` 상태로 기록된 마이그레이션은 **재실행 가능**하지만, **원칙적으로 재실행하지 않습니다**.
+
+**근거**:
+- `run-migration.js`는 `failed` 상태 마이그레이션을 재실행 허용하지만, 이는 기술적 허용일 뿐입니다
+- 실패 원인을 분석하고 **새 마이그레이션 파일로 해결**하는 것이 안전합니다
+- 실패 기록은 감사 로그로 보존됩니다
+
+**구현 규칙**:
+- 실패한 마이그레이션은 그대로 두고, 새 마이그레이션 파일로 문제를 해결합니다
+- 예: `001_create_warranties_table.sql` 실패 (FK 오류) → `002_fix_warranties_fk.sql` 생성
+
+**특별 케이스: `001_create_warranties_table.sql`**
+- **재실행 금지**: 이 파일은 `users(id)` 참조 오류로 실패했으며, `002_fix_warranties_fk.sql`로 해결되었습니다
+- `001`을 재실행하면 동일한 오류가 발생하며, `002`와 충돌할 수 있습니다
+- **운영 정책**: `001_create_warranties_table.sql`은 **절대 재실행하지 않습니다**
+
+### 4.3 마이그레이션 실행 절차
+
+**정책**: 마이그레이션은 `backend/run-migration.js`를 통해서만 실행합니다.
+
+**사용법**:
+```bash
+cd /var/www/html/backend
+node run-migration.js migrations/XXX_description.sql
+```
+
+**안전장치**:
+- `migrations/` 디렉토리 밖의 파일 실행 차단
+- `schema_migrations` 테이블로 실행 이력 기록
+- 중복 실행 방지 (file_hash 불일치 시 fail-fast)
+- 동시 실행 경합 처리
+
+---
+
+## 5. 정책 변경 절차
 
 ### 4.1 변경 시 고려사항
 1. **기존 데이터 영향도**: 마이그레이션 필요 여부
@@ -241,7 +292,7 @@ CREATE TABLE warranties (
 
 ---
 
-## 5. 현재 상태 체크리스트
+## 6. 현재 상태 체크리스트
 
 ### ✅ 확정된 정책
 - [x] 시간 정책: UTC 저장, ISO 8601 응답
@@ -250,7 +301,7 @@ CREATE TABLE warranties (
 - [x] 토큰 소유권: 1 token = 1 owner (UNIQUE 제약)
 
 ### ⏳ 향후 구현 예정
-- [ ] `warranties` 테이블 생성 (위 정책 반영)
+- [x] `warranties` 테이블 생성 (위 정책 반영) ✅ 2025-12-29 완료
 - [ ] `formatDateTimeToISO()` 유틸 함수 (ISO 8601 변환)
 - [ ] mysql2 `timezone: 'Z'` 또는 `dateStrings: true` 옵션 추가 (UTC 정책 준수 검증 후 필요 시)
 
