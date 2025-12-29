@@ -100,8 +100,11 @@ fi
 
 # 5. 서버 재시작
 echo "🔄 서버 재시작 중..."
+# set -e 상태에서 exit code를 저장하려면 일시적으로 set +e로 감싸야 함
+set +e
 pm2 restart prepmood-backend
 PM2_RESTART_EXIT=$?
+set -e
 echo "📋 PM2_RESTART_EXIT=$PM2_RESTART_EXIT"
 echo "✅ AFTER_PM2_RESTART_REACHED"
 
