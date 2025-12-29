@@ -12,6 +12,7 @@
 const express = require('express');
 const router = express.Router();
 const { rateLimit } = require('express-rate-limit');
+const mysql = require('mysql2/promise');
 const { 
     getProductByToken, 
     updateFirstVerification, 
@@ -19,7 +20,8 @@ const {
     revokeToken
 } = require('./auth-db');
 const Logger = require('./logger');
-const { requireAuthForHTML } = require('./auth-middleware');
+const { requireAuthForHTML, authenticateToken } = require('./auth-middleware');
+require('dotenv').config();
 
 // 이상 패턴 감지용 (메모리 기반, 운영에서는 Redis 권장)
 const suspiciousPatterns = {
@@ -184,6 +186,177 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
         res.status(500).render('error', {
             title: '오류 발생 - Pre.p Mood',
             message: '정품 인증 처리 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+/**
+ * POST /a/:token
+ * 디지털 보증서 발급 엔드포인트
+ * 
+ * 역할:
+ * - 로그인한 사용자가 QR 토큰으로 보증서를 발급받음
+ * - warranties 테이블에 INSERT
+ * 
+ * 미들웨어 순서:
+ * 1. authLimiter (Rate Limiting)
+ * 2. authenticateToken (JWT 인증 - JSON 응답용)
+ * 3. 실제 보증서 발급 처리
+ */
+router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
+    const token = req.params.token;
+    const userId = req.user.userId;
+    
+    try {
+        // ✅ 토큰 형식 검증 (20자 영숫자)
+        if (!token || !/^[a-zA-Z0-9]{20}$/.test(token)) {
+            Logger.warn('[WARRANTY] 잘못된 토큰 형식:', token ? token.substring(0, 4) + '...' : 'null');
+            return res.status(400).json({
+                success: false,
+                message: '잘못된 토큰 형식입니다.',
+                code: 'INVALID_TOKEN_FORMAT'
+            });
+        }
+        
+        // 토큰 일부만 로깅 (보안)
+        Logger.log('[WARRANTY] 보증서 발급 요청:', {
+            token_prefix: token.substring(0, 4) + '...',
+            user_id: userId
+        });
+        
+        // MySQL 연결
+        const dbConfig = {
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        };
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        try {
+            // 1. 토큰 중복 확인 (이미 발급된 보증서인지)
+            const [existing] = await connection.execute(
+                'SELECT id, user_id, token, verified_at, created_at FROM warranties WHERE token = ?',
+                [token]
+            );
+            
+            if (existing.length > 0) {
+                const warranty = existing[0];
+                Logger.warn('[WARRANTY] 이미 발급된 토큰:', {
+                    token_prefix: token.substring(0, 4) + '...',
+                    existing_user_id: warranty.user_id,
+                    request_user_id: userId
+                });
+                
+                await connection.end();
+                
+                // 다른 사용자가 이미 발급받은 경우
+                if (warranty.user_id !== userId) {
+                    return res.status(409).json({
+                        success: false,
+                        message: '이미 다른 사용자가 발급받은 토큰입니다.',
+                        code: 'TOKEN_ALREADY_ISSUED'
+                    });
+                }
+                
+                // 같은 사용자가 이미 발급받은 경우 (중복 요청)
+                return res.status(200).json({
+                    success: true,
+                    message: '이미 발급받은 보증서입니다.',
+                    code: 'ALREADY_ISSUED',
+                    warranty: {
+                        id: warranty.id,
+                        token: warranty.token.substring(0, 4) + '...',
+                        verified_at: warranty.verified_at,
+                        created_at: warranty.created_at
+                    }
+                });
+            }
+            
+            // 2. UTC 시간 생성 (정책 준수: 'YYYY-MM-DD HH:MM:SS' 형식)
+            const now = new Date();
+            const utcDateTime = now.toISOString().replace('T', ' ').substring(0, 19); // 'YYYY-MM-DD HH:MM:SS'
+            
+            // 3. warranties 테이블에 INSERT
+            const [result] = await connection.execute(
+                'INSERT INTO warranties (user_id, token, verified_at, created_at) VALUES (?, ?, ?, ?)',
+                [userId, token, utcDateTime, utcDateTime]
+            );
+            
+            Logger.log('[WARRANTY] 보증서 발급 성공:', {
+                warranty_id: result.insertId,
+                token_prefix: token.substring(0, 4) + '...',
+                user_id: userId,
+                verified_at: utcDateTime
+            });
+            
+            await connection.end();
+            
+            // 4. 성공 응답
+            return res.status(201).json({
+                success: true,
+                message: '보증서가 발급되었습니다.',
+                warranty: {
+                    id: result.insertId,
+                    token: token.substring(0, 4) + '...',
+                    verified_at: utcDateTime,
+                    created_at: utcDateTime
+                }
+            });
+            
+        } catch (dbError) {
+            await connection.end();
+            
+            // UNIQUE 제약 위반 (동시 요청 등)
+            if (dbError.code === 'ER_DUP_ENTRY' || dbError.errno === 1062) {
+                Logger.warn('[WARRANTY] 토큰 중복 (동시 요청 가능성):', {
+                    token_prefix: token.substring(0, 4) + '...',
+                    message: dbError.message
+                });
+                
+                return res.status(409).json({
+                    success: false,
+                    message: '이미 발급된 토큰입니다.',
+                    code: 'DUPLICATE_TOKEN'
+                });
+            }
+            
+            // FK 제약 위반 (user_id가 존재하지 않음 - 드문 경우)
+            if (dbError.code === 'ER_NO_REFERENCED_ROW_2' || dbError.errno === 1452) {
+                Logger.error('[WARRANTY] FK 제약 위반 (user_id 없음):', {
+                    user_id: userId,
+                    message: dbError.message
+                });
+                
+                return res.status(400).json({
+                    success: false,
+                    message: '유효하지 않은 사용자입니다.',
+                    code: 'INVALID_USER'
+                });
+            }
+            
+            // 기타 DB 오류
+            throw dbError;
+        }
+        
+    } catch (error) {
+        Logger.error('[WARRANTY] 보증서 발급 실패:', {
+            message: error.message,
+            code: error.code,
+            route: req.path,
+            method: req.method,
+            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            token_prefix: token ? token.substring(0, 4) : null,
+            user_id: userId
+        });
+        
+        return res.status(500).json({
+            success: false,
+            message: '보증서 발급 중 오류가 발생했습니다.',
+            code: 'INTERNAL_ERROR'
         });
     }
 });
