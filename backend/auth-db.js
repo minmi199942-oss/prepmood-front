@@ -62,7 +62,10 @@ function initDatabase() {
         Logger.log('[AUTH-DB] SQLite DB 초기화 완료:', DB_PATH);
         return db;
     } catch (error) {
-        Logger.error('[AUTH-DB] DB 초기화 실패:', error);
+        Logger.error('[AUTH-DB] DB 초기화 실패:', {
+            message: error.message,
+            code: error.code
+        });
         throw error;
     }
 }
@@ -88,7 +91,10 @@ function getProductByToken(token) {
         const product = stmt.get(token);
         return product || null;
     } catch (error) {
-        Logger.error('[AUTH-DB] 제품 조회 실패:', error);
+        Logger.error('[AUTH-DB] 제품 조회 실패:', {
+            message: error.message,
+            code: error.code
+        });
         return null;
     }
 }
@@ -117,7 +123,10 @@ function updateFirstVerification(token) {
         stmt.run(now, now, token);
         Logger.log('[AUTH-DB] 첫 인증 완료:', token);
     } catch (error) {
-        Logger.error('[AUTH-DB] 첫 인증 업데이트 실패:', error);
+        Logger.error('[AUTH-DB] 첫 인증 업데이트 실패:', {
+            message: error.message,
+            code: error.code
+        });
         throw error;
     }
 }
@@ -144,7 +153,10 @@ function updateReVerification(token) {
         stmt.run(now, token);
         Logger.log('[AUTH-DB] 재인증 완료:', token);
     } catch (error) {
-        Logger.error('[AUTH-DB] 재인증 업데이트 실패:', error);
+        Logger.error('[AUTH-DB] 재인증 업데이트 실패:', {
+            message: error.message,
+            code: error.code
+        });
         throw error;
     }
 }
@@ -173,7 +185,10 @@ function insertProducts(products) {
         insertMany(products);
         Logger.log(`[AUTH-DB] ${products.length}개 제품 데이터 삽입 완료`);
     } catch (error) {
-        Logger.error('[AUTH-DB] 제품 삽입 실패:', error);
+        Logger.error('[AUTH-DB] 제품 삽입 실패:', {
+            message: error.message,
+            code: error.code
+        });
         throw error;
     }
 }
@@ -202,7 +217,10 @@ function revokeToken(token) {
         Logger.log(`[AUTH-DB] 토큰 무효화 완료: ${token.substring(0, 4)}... (영향: ${result.changes}개)`);
         return result.changes > 0;
     } catch (error) {
-        Logger.error('[AUTH-DB] 토큰 무효화 실패:', error);
+        Logger.error('[AUTH-DB] 토큰 무효화 실패:', {
+            message: error.message,
+            code: error.code
+        });
         return false;
     }
 }

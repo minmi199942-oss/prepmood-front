@@ -127,7 +127,10 @@ async function generateQRCodes() {
         }
 
     } catch (error) {
-        Logger.error('[QR] QR 코드 생성 실패:', error);
+        Logger.error('[QR] QR 코드 생성 실패:', {
+            message: error.message,
+            code: error.code
+        });
         process.exit(1);
     }
 }
@@ -139,7 +142,10 @@ if (require.main === module) {
             process.exit(0);
         })
         .catch((error) => {
-            Logger.error('[QR] 오류:', error);
+            Logger.error('[QR] 오류:', {
+                message: error.message,
+                code: error.code
+            });
             process.exit(1);
         });
 }

@@ -140,7 +140,10 @@ function checkAuthData() {
         Logger.log('='.repeat(60));
 
     } catch (error) {
-        Logger.error('❌ 데이터 확인 실패:', error);
+        Logger.error('❌ 데이터 확인 실패:', {
+            message: error.message,
+            code: error.code
+        });
         process.exit(1);
     }
 }

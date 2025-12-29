@@ -173,7 +173,14 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
         });
         
     } catch (error) {
-        Logger.error('[AUTH] 정품 인증 처리 실패:', error);
+        Logger.error('[AUTH] 정품 인증 처리 실패:', {
+            message: error.message,
+            code: error.code,
+            route: req.path,
+            method: req.method,
+            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            token_prefix: token ? token.substring(0, 4) : null
+        });
         res.status(500).render('error', {
             title: '오류 발생 - Pre.p Mood',
             message: '정품 인증 처리 중 오류가 발생했습니다.'

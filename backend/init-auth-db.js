@@ -107,7 +107,10 @@ function readXlsxFile() {
         return products;
         
     } catch (error) {
-        Logger.error('[INIT] xlsx 파일 읽기 실패:', error);
+        Logger.error('[INIT] xlsx 파일 읽기 실패:', {
+            message: error.message,
+            code: error.code
+        });
         throw error;
     }
 }
@@ -178,7 +181,10 @@ async function initializeDatabase() {
         }
         
     } catch (error) {
-        Logger.error('[INIT] 초기화 실패:', error);
+        Logger.error('[INIT] 초기화 실패:', {
+            message: error.message,
+            code: error.code
+        });
         process.exit(1);
     }
 }
@@ -190,7 +196,10 @@ if (require.main === module) {
             process.exit(0);
         })
         .catch((error) => {
-            Logger.error('[INIT] 오류:', error);
+            Logger.error('[INIT] 오류:', {
+                message: error.message,
+                code: error.code
+            });
             process.exit(1);
         });
 }

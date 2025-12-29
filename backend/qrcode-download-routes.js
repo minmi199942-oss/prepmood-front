@@ -107,7 +107,13 @@ router.get('/api/admin/qrcodes/download', authenticateToken, requireAdmin, admin
         Logger.log(`[QR-DOWNLOAD] ZIP 파일 생성 완료: ${zipFilename} (${files.length}개 파일)`);
 
     } catch (error) {
-        Logger.error('[QR-DOWNLOAD] 다운로드 처리 실패:', error);
+        Logger.error('[QR-DOWNLOAD] 다운로드 처리 실패:', {
+            message: error.message,
+            code: error.code,
+            route: req.path,
+            method: req.method,
+            ip: req.ip || req.headers['x-real-ip'] || 'unknown'
+        });
         if (!res.headersSent) {
             res.status(500).json({
                 success: false,
@@ -152,7 +158,13 @@ router.get('/api/admin/qrcodes/list', authenticateToken, requireAdmin, (req, res
         });
 
     } catch (error) {
-        Logger.error('[QR-LIST] 파일 목록 조회 실패:', error);
+        Logger.error('[QR-LIST] 파일 목록 조회 실패:', {
+            message: error.message,
+            code: error.code,
+            route: req.path,
+            method: req.method,
+            ip: req.ip || req.headers['x-real-ip'] || 'unknown'
+        });
         res.status(500).json({
             success: false,
             message: '파일 목록 조회 중 오류가 발생했습니다.'
@@ -201,7 +213,13 @@ router.post('/api/admin/auth/revoke', authenticateToken, requireAdmin, (req, res
             });
         }
     } catch (error) {
-        Logger.error('[AUTH-REVOKE] 토큰 무효화 실패:', error);
+        Logger.error('[AUTH-REVOKE] 토큰 무효화 실패:', {
+            message: error.message,
+            code: error.code,
+            route: req.path,
+            method: req.method,
+            ip: req.ip || req.headers['x-real-ip'] || 'unknown'
+        });
         res.status(500).json({
             success: false,
             message: '토큰 무효화 중 오류가 발생했습니다.'
