@@ -554,7 +554,9 @@
   // ============================================
   // 페이지 로드 시 초기화
   // ============================================
-  document.addEventListener('DOMContentLoaded', init);
+  // init은 admin-layout.js의 inline 스크립트에서 호출됨
+  // 전역에 노출하여 inline 스크립트에서 접근 가능하게 함
+  window.init = init;
 
 })();
 

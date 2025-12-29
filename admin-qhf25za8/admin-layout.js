@@ -93,7 +93,9 @@ async function checkAdminAccess() {
       return false;
     }
 
-    // 성공 시 추가 처리 없음 (로깅 정책: 브라우저 콘솔 최소화)
+    // 성공 시 응답 바디 파싱 (필요 없지만 일관성을 위해)
+    // response.ok가 true일 때만 파싱하므로 안전함
+    await response.json();
     return true;
 
   } catch (error) {
