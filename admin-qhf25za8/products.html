@@ -8,18 +8,7 @@
   <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-  <!-- 관리자 헤더 -->
-  <header class="admin-header">
-    <div class="admin-header-content">
-      <h1>Pre.pMood 관리자</h1>
-      <nav class="admin-nav">
-        <a href="products.html" class="active">상품 관리</a>
-        <a href="orders.html">주문 관리</a>
-        <a href="../index.html">사이트로 이동</a>
-        <a href="#" id="logoutBtn" class="logout-btn">로그아웃</a>
-      </nav>
-    </div>
-  </header>
+  <!-- 관리자 헤더는 admin-layout.js에서 동적 생성됨 -->
 
   <!-- 메인 컨텐츠 -->
   <main class="admin-main">
@@ -153,7 +142,22 @@
     </div>
   </div>
 
+  <!-- 공통 레이아웃 스크립트 (헤더/네비게이션) -->
+  <script src="admin-layout.js"></script>
+  <!-- 페이지별 스크립트 -->
   <script src="admin-products.js"></script>
+  <script>
+    // 공통 레이아웃 초기화
+    document.addEventListener('DOMContentLoaded', async () => {
+      const layoutInitialized = await initAdminLayout('products');
+      if (layoutInitialized) {
+        // 레이아웃 초기화 성공 후 페이지별 초기화
+        if (typeof init === 'function') {
+          init();
+        }
+      }
+    });
+  </script>
 </body>
 </html>
 

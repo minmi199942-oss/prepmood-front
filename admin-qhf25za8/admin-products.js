@@ -20,32 +20,9 @@
     productsGrid: document.getElementById('productsGrid'),
     searchInput: document.getElementById('searchInput'),
     categoryFilter: document.getElementById('categoryFilter'),
-    addProductBtn: document.getElementById('addProductBtn'),
-    logoutBtn: document.getElementById('logoutBtn')
+    addProductBtn: document.getElementById('addProductBtn')
+    // logoutBtn과 checkAdminAccess는 admin-layout.js에서 처리됨
   };
-
-  async function checkAdminAccess() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/check`, {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-      alert('관리자 권한이 없습니다.');
-      window.location.href = 'login.html';
-        return false;
-      }
-
-      const data = await response.json();
-      console.log('✅ 관리자 인증 성공:', data.email);
-      return true;
-    } catch (error) {
-      console.error('관리자 인증 실패:', error);
-      alert('로그인이 필요합니다.');
-      window.location.href = 'login.html';
-      return false;
-    }
-  }
 
   // 상품 목록 로드
   async function loadProducts() {
@@ -428,10 +405,8 @@
   }
 
   async function init() {
-    const hasAccess = await checkAdminAccess();
-    if (!hasAccess) {
-      return;
-    }
+    // 관리자 권한 확인은 admin-layout.js에서 처리됨
+    // 여기서는 페이지별 기능만 초기화
 
     if (elements.searchInput) {
     elements.searchInput.addEventListener('input', filterProducts);
@@ -442,9 +417,7 @@
     if (elements.addProductBtn) {
     elements.addProductBtn.addEventListener('click', openAddProductModal);
     }
-    if (elements.logoutBtn) {
-    elements.logoutBtn.addEventListener('click', logout);
-    }
+    // 로그아웃은 admin-layout.js에서 처리됨
     
     document.addEventListener('change', function(e) {
       if (e.target.id === 'productImage' && e.target.files && e.target.files[0]) {

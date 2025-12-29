@@ -32,17 +32,16 @@
     closeModal: document.getElementById('closeModal'),
     closeDetailBtn: document.getElementById('closeDetailBtn'),
     orderDetailContent: document.getElementById('orderDetailContent'),
-    modalOrderTitle: document.getElementById('modalOrderTitle'),
-    logoutBtn: document.getElementById('logoutBtn')
+    modalOrderTitle: document.getElementById('modalOrderTitle')
+    // logoutBtn은 admin-layout.js에서 처리됨
   };
 
   // ============================================
   // 초기화
   // ============================================
   async function init() {
-    // 관리자 권한 확인
-    const hasAccess = await checkAdminAccess();
-    if (!hasAccess) return;
+    // 관리자 권한 확인은 admin-layout.js에서 처리됨
+    // 여기서는 페이지별 기능만 초기화
 
     // 이벤트 리스너 설정
     setupEventListeners();
@@ -52,34 +51,6 @@
 
     // 통계 로드
     loadStats();
-  }
-
-  // ============================================
-  // 관리자 권한 확인
-  // ============================================
-  async function checkAdminAccess() {
-    try {
-      const response = await fetch(`${API_BASE}/admin/check`, {
-        credentials: 'include'  // JWT 쿠키 포함
-      });
-
-      if (!response.ok) {
-        console.error('관리자 권한 없음:', response.status);
-        alert('관리자 권한이 없습니다.');
-        window.location.href = 'login.html';
-        return false;
-      }
-
-      const data = await response.json();
-      console.log('✅ 관리자 인증 성공:', data.email);
-      return true;
-
-    } catch (error) {
-      console.error('권한 확인 실패:', error);
-      alert('로그인이 필요합니다.');
-      window.location.href = 'login.html';
-      return false;
-    }
   }
 
   // ============================================
@@ -129,21 +100,7 @@
       }
     });
 
-    // 로그아웃
-    elements.logoutBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      if (confirm('로그아웃하시겠습니까?')) {
-        try {
-          await fetch(`${API_BASE}/logout`, {
-            method: 'POST',
-            credentials: 'include'
-          });
-        } catch (error) {
-          console.error('로그아웃 오류:', error);
-        }
-        window.location.href = 'login.html';
-      }
-    });
+    // 로그아웃은 admin-layout.js에서 처리됨
   }
 
   // ============================================
