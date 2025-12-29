@@ -215,7 +215,12 @@
               <input type="file" id="productImage" accept="image/*">
               <button type="button" id="uploadBtn" class="btn-secondary">이미지 업로드</button>
               <div id="imagePreview" class="image-preview">
-                ${product.image ? `<img src="${product.image}" alt="상품 이미지">` : ''}
+                ${product.image ? (() => {
+                  const modalImageUrl = product.image.startsWith('/') || product.image.startsWith('http') 
+                    ? product.image 
+                    : '/image/' + product.image.replace(/^image\//, '');
+                  return `<img src="${modalImageUrl}" alt="상품 이미지">`;
+                })() : ''}
               </div>
             </div>
           </div>
