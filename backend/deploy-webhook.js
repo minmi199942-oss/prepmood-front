@@ -103,46 +103,60 @@ router.post('/deploy/webhook', async (req, res) => {
         logToFile('🚀 자동 배포 시작', commitInfo);
         console.log('[DEPLOY] 🚀 자동 배포 시작', commitInfo);
 
-        // 배포 스크립트를 백그라운드로 실행 (응답 블로킹 방지)
-        const deployProcess = exec('/root/deploy.sh', {
+        // 배포 실행 로그 파일 경로 (deploy.sh의 stdout/stderr를 여기에 저장)
+        const DEPLOY_RUN_LOG = path.join(__dirname, 'deploy-run.log');
+        
+        // 배포 스크립트를 백그라운드로 실행 (stdout/stderr를 파일로 리다이렉트)
+        // 주의: pm2 restart로 인해 이 프로세스가 재시작될 수 있으므로,
+        // 완료 로그는 deploy-run.log에서 확인해야 함
+        const deployCommand = `/root/deploy.sh >> ${DEPLOY_RUN_LOG} 2>&1`;
+        const deployProcess = exec(deployCommand, {
             cwd: '/root',
             env: { ...process.env, PATH: process.env.PATH },
-            maxBuffer: 10 * 1024 * 1024 // 10MB 버퍼 (배포 스크립트 출력이 클 수 있음)
+            maxBuffer: 10 * 1024 * 1024 // 10MB 버퍼
         }, (error, stdout, stderr) => {
-            const timestamp = new Date().toISOString();
+            // 주의: pm2 restart로 인해 이 콜백이 실행되지 않을 수 있음
+            // 실제 배포 결과는 deploy-run.log에서 확인
             if (error) {
-                logToFile('❌ 배포 실패', {
-                    error: error.message,
-                    code: error.code,
-                    signal: error.signal,
-                    stderr: stderr ? stderr.substring(0, 500) : 'no stderr'
-                });
-                console.log('[DEPLOY] ❌ 배포 실패', {
+                logToFile('❌ 배포 프로세스 오류 (콜백)', {
                     error: error.message,
                     code: error.code,
                     signal: error.signal
                 });
-            } else {
-                logToFile('✅ 배포 완료', {
-                    stdoutLength: stdout ? stdout.length : 0,
-                    stderrLength: stderr ? stderr.length : 0,
-                    stdout: stdout ? stdout.substring(0, 500) : 'no stdout'
+                console.log('[DEPLOY] ❌ 배포 프로세스 오류 (콜백)', {
+                    error: error.message,
+                    code: error.code
                 });
-                console.log('[DEPLOY] ✅ 배포 완료', {
+            } else {
+                // 성공해도 이 콜백은 실행되지 않을 가능성이 높음 (pm2 restart 때문)
+                logToFile('✅ 배포 완료 (콜백)', {
+                    stdoutLength: stdout ? stdout.length : 0
+                });
+                console.log('[DEPLOY] ✅ 배포 완료 (콜백)', {
                     stdoutLength: stdout ? stdout.length : 0
                 });
             }
         });
 
-        // 프로세스 종료 이벤트 리스너 추가 (디버깅용)
+        // 프로세스 시작 로그 (이건 재시작 전에 기록됨)
+        logToFile('📤 deploy.sh 실행 요청', { 
+            pid: deployProcess.pid,
+            logFile: DEPLOY_RUN_LOG
+        });
+        console.log('[DEPLOY] 📤 deploy.sh 실행 요청', { 
+            pid: deployProcess.pid,
+            logFile: DEPLOY_RUN_LOG
+        });
+
+        // 프로세스 이벤트 리스너 (디버깅용, 실행되지 않을 수 있음)
         deployProcess.on('close', (code) => {
-            logToFile('📋 배포 프로세스 종료', { exitCode: code });
-            console.log('[DEPLOY] 📋 배포 프로세스 종료', { exitCode: code });
+            logToFile('📋 배포 프로세스 종료 (이벤트)', { exitCode: code });
+            console.log('[DEPLOY] 📋 배포 프로세스 종료 (이벤트)', { exitCode: code });
         });
 
         deployProcess.on('error', (error) => {
-            logToFile('❌ 배포 프로세스 실행 오류', { error: error.message });
-            console.error('[DEPLOY] ❌ 배포 프로세스 실행 오류', error);
+            logToFile('❌ 배포 프로세스 실행 오류 (이벤트)', { error: error.message });
+            console.error('[DEPLOY] ❌ 배포 프로세스 실행 오류 (이벤트)', error);
         });
 
         // 즉시 응답 반환 (GitHub webhook 타임아웃 방지)

@@ -5,6 +5,19 @@ REPO_DIR="/root/prepmood-repo"
 LIVE_BACKEND="/var/www/html/backend"
 BACKUP_DIR="/var/www/html/backups"
 
+# 배포 락 (중복 실행 방지)
+LOCK="/tmp/prepmood-deploy.lock"
+if [ -e "$LOCK" ]; then
+    LOCK_PID=$(cat "$LOCK" 2>/dev/null || echo "unknown")
+    echo "⛔ 이미 배포가 진행 중입니다. (PID: $LOCK_PID)"
+    echo "⛔ 잠금 파일: $LOCK"
+    exit 0
+fi
+
+# 락 파일 생성 (현재 프로세스 ID 저장)
+echo $$ > "$LOCK"
+trap 'rm -f "$LOCK"' EXIT INT TERM
+
 # 타임스탬프
 TIMESTAMP=$(date +%F_%H%M%S)
 
