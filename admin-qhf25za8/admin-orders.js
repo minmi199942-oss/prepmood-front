@@ -149,7 +149,8 @@
       elements.pagination.style.display = 'flex';
 
     } catch (error) {
-      console.error('주문 로드 실패:', error);
+      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
+      console.error('주문 로드 실패:', error.message);
       elements.loadingState.style.display = 'none';
       alert('주문 목록을 불러오는데 실패했습니다.');
     }
@@ -276,7 +277,8 @@
       elements.orderDetailModal.classList.add('show');
 
     } catch (error) {
-      console.error('주문 상세 로드 실패:', error);
+      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
+      console.error('주문 상세 로드 실패:', error.message);
       alert('주문 정보를 불러오는데 실패했습니다.');
     }
   };
@@ -439,7 +441,8 @@
       loadStats();   // 통계 새로고침
 
     } catch (error) {
-      console.error('상태 변경 실패:', error);
+      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
+      console.error('상태 변경 실패:', error.message);
       alert('상태 변경에 실패했습니다.');
     }
   };
@@ -481,7 +484,8 @@
       }
 
     } catch (error) {
-      console.error('통계 로드 실패:', error);
+      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
+      console.error('통계 로드 실패:', error.message);
       elements.todayOrders.textContent = '-';
       elements.todayRevenue.textContent = '-';
       elements.pendingOrders.textContent = '-';
@@ -540,7 +544,8 @@
       alert('QR 코드 ZIP 파일이 다운로드되었습니다.');
 
     } catch (error) {
-      console.error('QR 코드 다운로드 실패:', error);
+      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
+      console.error('QR 코드 다운로드 실패:', error.message);
       alert('QR 코드 다운로드에 실패했습니다: ' + error.message);
     } finally {
       // 버튼 활성화

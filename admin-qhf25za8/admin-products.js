@@ -47,7 +47,8 @@
         throw new Error(data.message || '상품 목록을 불러오는데 실패했습니다.');
       }
     } catch (error) {
-      console.error('상품 로드 오류:', error);
+      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
+      console.error('상품 로드 오류:', error.message);
       elements.productsGrid.innerHTML = `
         <div class="error-state">
           <p>상품 목록을 불러올 수 없습니다.</p>
@@ -247,7 +248,8 @@
         throw new Error(data.message || '이미지 업로드에 실패했습니다.');
       }
     } catch (error) {
-      console.error('이미지 업로드 오류:', error);
+      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
+      console.error('이미지 업로드 오류:', error.message);
       throw error;
     }
   }
@@ -336,7 +338,8 @@
         throw new Error(data.message || '상품 저장에 실패했습니다.');
       }
     } catch (error) {
-      console.error('상품 저장 오류:', error);
+      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
+      console.error('상품 저장 오류:', error.message);
       alert(`상품 저장 오류: ${error.message}`);
     }
   }
@@ -366,7 +369,8 @@
         throw new Error(data.message || '상품 삭제에 실패했습니다.');
       }
     } catch (error) {
-      console.error('상품 삭제 오류:', error);
+      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
+      console.error('상품 삭제 오류:', error.message);
       alert(`상품 삭제 오류: ${error.message}`);
     }
   }

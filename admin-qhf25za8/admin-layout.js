@@ -11,10 +11,11 @@
 const API_BASE = '/api';
 
 // 네비게이션 메뉴 구조
+// Phase 2 전까지 inquiries는 비활성화 (404 피로도 방지)
 const NAV_MENU = [
   { id: 'products', label: '상품 관리', href: 'products.html' },
   { id: 'orders', label: '주문 관리', href: 'orders.html' },
-  { id: 'inquiries', label: '고객 문의', href: 'inquiries.html' }, // Phase 2에서 추가 예정
+  // { id: 'inquiries', label: '고객 문의', href: 'inquiries.html' }, // Phase 2에서 활성화 예정
 ];
 
 /**
