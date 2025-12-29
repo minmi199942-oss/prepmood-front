@@ -128,7 +128,7 @@ async function checkMigrationHistory(connection, migrationFile, fileHash) {
  * @param {string} params.status - 실행 상태 ('success' | 'failed')
  * @param {number} params.executionTimeMs - 실행 시간 (밀리초)
  * @param {string|null} params.errorMessage - 에러 메시지 (실패 시)
- * @returns {boolean} - 기록 성공 여부 (UNIQUE 충돌 시 false)
+ * @returns {Object|null} - 기록 성공 시 null, UNIQUE 충돌 시 기존 기록 반환
  */
 async function recordMigration(connection, params) {
     const { migrationFile, fileHash, status, executionTimeMs, errorMessage = null } = params;
@@ -138,12 +138,16 @@ async function recordMigration(connection, params) {
             'INSERT INTO schema_migrations (migration_file, file_hash, executed_at, execution_time_ms, status, error_message) VALUES (?, ?, NOW(), ?, ?, ?)',
             [migrationFile, fileHash, executionTimeMs, status, errorMessage]
         );
-        return true;
+        return null; // 기록 성공
     } catch (error) {
-        // UNIQUE 충돌: 다른 프로세스가 이미 실행 중이거나 완료
+        // UNIQUE 충돌: 다른 프로세스가 이미 기록
         if (error.code === 'ER_DUP_ENTRY') {
-            // 이미 기록이 있음 → 동시 실행 경합 상황
-            return false;
+            // 실제 DB 상태를 다시 조회하여 확인
+            const [rows] = await connection.execute(
+                'SELECT * FROM schema_migrations WHERE migration_file = ?',
+                [migrationFile]
+            );
+            return rows[0] || null; // 기존 기록 반환
         }
         throw error; // 다른 에러는 재던지기
     }
@@ -193,7 +197,7 @@ async function runMigration() {
         const executionTime = Date.now() - startTime;
         
         // 실행 이력 기록 (동시 실행 경합 처리)
-        const recorded = await recordMigration(connection, {
+        const existingRecord = await recordMigration(connection, {
             migrationFile,
             fileHash,
             status: 'success',
@@ -201,11 +205,20 @@ async function runMigration() {
             errorMessage: null
         });
         
-        if (!recorded) {
-            // UNIQUE 충돌: 다른 프로세스가 이미 실행 완료
-            console.log('⚠️  다른 프로세스가 이미 마이그레이션을 완료했습니다.');
-            console.log('   이 프로세스는 종료합니다.');
-            process.exit(0); // 정상 종료 (이미 적용됨)
+        if (existingRecord) {
+            // UNIQUE 충돌: 다른 프로세스가 이미 기록
+            if (existingRecord.status === 'success') {
+                // 다른 프로세스가 성공적으로 완료
+                console.log('⚠️  다른 프로세스가 이미 마이그레이션을 완료했습니다.');
+                console.log(`   실행 시간: ${existingRecord.executed_at}`);
+                process.exit(0); // 정상 종료 (이미 적용됨)
+            } else if (existingRecord.status === 'failed') {
+                // 다른 프로세스가 실패한 상태로 기록
+                console.error('❌ 다른 프로세스가 마이그레이션을 실패한 상태로 기록했습니다.');
+                console.error(`   실패 시간: ${existingRecord.executed_at}`);
+                console.error(`   에러: ${existingRecord.error_message || '알 수 없음'}`);
+                process.exit(1); // 비정상 종료 (실패 상태)
+            }
         }
         
         console.log(`✅ 마이그레이션 완료 (${executionTime}ms)`);
@@ -221,7 +234,7 @@ async function runMigration() {
             // 이미 존재하는 경우도 성공으로 기록 (동시 실행 경합 처리)
             if (connection) {
                 const fileHash = calculateFileHash(migrationPath);
-                const recorded = await recordMigration(connection, {
+                const existingRecord = await recordMigration(connection, {
                     migrationFile,
                     fileHash,
                     status: 'success',
@@ -229,17 +242,23 @@ async function runMigration() {
                     errorMessage: 'Table/constraint already exists'
                 });
                 
-                if (!recorded) {
+                if (existingRecord) {
                     // UNIQUE 충돌: 다른 프로세스가 이미 기록
-                    console.log('⚠️  다른 프로세스가 이미 마이그레이션을 완료했습니다.');
-                    process.exit(0); // 정상 종료
+                    if (existingRecord.status === 'success') {
+                        console.log('⚠️  다른 프로세스가 이미 마이그레이션을 완료했습니다.');
+                        process.exit(0); // 정상 종료
+                    } else {
+                        // 다른 프로세스가 실패 상태로 기록 (드문 경우)
+                        console.error('❌ 다른 프로세스가 실패 상태로 기록했습니다.');
+                        process.exit(1);
+                    }
                 }
             }
         } else {
             // 실패 이력 기록 (동시 실행 경합 처리)
             if (connection) {
                 const fileHash = calculateFileHash(migrationPath);
-                const recorded = await recordMigration(connection, {
+                const existingRecord = await recordMigration(connection, {
                     migrationFile,
                     fileHash,
                     status: 'failed',
@@ -247,9 +266,15 @@ async function runMigration() {
                     errorMessage: error.message
                 });
                 
-                // UNIQUE 충돌이 나도 실패는 실패이므로 종료 코드는 1 유지
-                if (!recorded) {
-                    console.log('⚠️  다른 프로세스가 이미 마이그레이션을 기록했습니다.');
+                if (existingRecord) {
+                    // UNIQUE 충돌: 다른 프로세스가 이미 기록
+                    if (existingRecord.status === 'failed') {
+                        console.error('⚠️  다른 프로세스가 이미 실패 상태로 기록했습니다.');
+                        console.error(`   에러: ${existingRecord.error_message || '알 수 없음'}`);
+                    } else {
+                        // 다른 프로세스가 성공 상태로 기록 (드문 경우)
+                        console.log('⚠️  다른 프로세스가 성공 상태로 기록했습니다.');
+                    }
                 }
             }
             process.exit(1); // 비정상 종료 (마이그레이션 실패)
