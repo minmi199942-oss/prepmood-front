@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS warranties (
     token VARCHAR(20) NOT NULL UNIQUE,  -- ✅ 1 token = 1 owner (UNIQUE 제약)
     verified_at DATETIME NOT NULL,      -- ✅ 앱에서 UTC로 넣음 ('YYYY-MM-DD HH:MM:SS' 형식)
     created_at DATETIME NOT NULL,       -- ✅ 앱에서 UTC로 넣음 (DEFAULT 제거)
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
     INDEX idx_user_id (user_id)  -- ✅ 사용자별 보증서 조회 최적화
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
