@@ -106,13 +106,27 @@ router.post('/deploy/webhook', async (req, res) => {
         // 배포 실행 로그 파일 경로 (deploy.sh의 stdout/stderr를 여기에 저장)
         const DEPLOY_RUN_LOG = path.join(__dirname, 'deploy-run.log');
         
+        // 경로 검증 (보안: command injection 방지)
+        if (!DEPLOY_RUN_LOG || !DEPLOY_RUN_LOG.startsWith(__dirname) || DEPLOY_RUN_LOG.includes('..')) {
+            logToFile('❌ 잘못된 로그 파일 경로', { path: DEPLOY_RUN_LOG });
+            return res.status(500).json({ error: 'Invalid log path' });
+        }
+        
+        // 배포 스크립트 경로 검증
+        const DEPLOY_SCRIPT = '/root/prepmood-repo/deploy.sh';
+        if (!fs.existsSync(DEPLOY_SCRIPT)) {
+            logToFile('❌ 배포 스크립트 없음', { path: DEPLOY_SCRIPT });
+            return res.status(500).json({ error: 'Deploy script not found' });
+        }
+        
         // 배포 스크립트를 백그라운드로 실행 (stdout/stderr를 파일로 리다이렉트)
         // 주의: pm2 restart로 인해 이 프로세스가 재시작될 수 있으므로,
         // 완료 로그는 deploy-run.log에서 확인해야 함
         // /bin/bash -lc를 사용하여 쉘 리다이렉트가 제대로 작동하도록 함
         // bash -x로 각 라인 실행 시마다 로그를 남겨서 정확한 중단 지점 확인
         // /root/prepmood-repo/deploy.sh를 직접 실행하여 동기화 누락 문제 방지
-        const deployCommand = `/bin/bash -lc "bash -x /root/prepmood-repo/deploy.sh >> '${DEPLOY_RUN_LOG}' 2>&1"`;
+        // 보안: 경로를 직접 문자열로 사용 (변수 삽입 방지)
+        const deployCommand = `/bin/bash -lc "bash -x ${DEPLOY_SCRIPT} >> '${DEPLOY_RUN_LOG.replace(/'/g, "'\\''")}' 2>&1"`;
         const deployProcess = exec(deployCommand, {
             cwd: '/root',
             env: { ...process.env, PATH: process.env.PATH },
