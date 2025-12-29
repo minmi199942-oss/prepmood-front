@@ -128,7 +128,9 @@ async function checkMigrationHistory(connection, migrationFile, fileHash) {
  * @param {string} params.status - 실행 상태 ('success' | 'failed')
  * @param {number} params.executionTimeMs - 실행 시간 (밀리초)
  * @param {string|null} params.errorMessage - 에러 메시지 (실패 시)
- * @returns {Object|null} - 기록 성공 시 null, UNIQUE 충돌 시 기존 기록 반환
+ * @returns {Object} - { inserted: boolean, existing?: Object }
+ *   - inserted: true → 기록 성공
+ *   - inserted: false → UNIQUE 충돌, existing에 기존 기록 포함
  */
 async function recordMigration(connection, params) {
     const { migrationFile, fileHash, status, executionTimeMs, errorMessage = null } = params;
@@ -138,7 +140,7 @@ async function recordMigration(connection, params) {
             'INSERT INTO schema_migrations (migration_file, file_hash, executed_at, execution_time_ms, status, error_message) VALUES (?, ?, NOW(), ?, ?, ?)',
             [migrationFile, fileHash, executionTimeMs, status, errorMessage]
         );
-        return null; // 기록 성공
+        return { inserted: true }; // 기록 성공
     } catch (error) {
         // UNIQUE 충돌: 다른 프로세스가 이미 기록
         if (error.code === 'ER_DUP_ENTRY') {
@@ -147,7 +149,10 @@ async function recordMigration(connection, params) {
                 'SELECT * FROM schema_migrations WHERE migration_file = ?',
                 [migrationFile]
             );
-            return rows[0] || null; // 기존 기록 반환
+            return {
+                inserted: false,
+                existing: rows[0] || null // 기존 기록 반환
+            };
         }
         throw error; // 다른 에러는 재던지기
     }
@@ -197,7 +202,7 @@ async function runMigration() {
         const executionTime = Date.now() - startTime;
         
         // 실행 이력 기록 (동시 실행 경합 처리)
-        const existingRecord = await recordMigration(connection, {
+        const recordResult = await recordMigration(connection, {
             migrationFile,
             fileHash,
             status: 'success',
@@ -205,19 +210,45 @@ async function runMigration() {
             errorMessage: null
         });
         
-        if (existingRecord) {
+        if (!recordResult.inserted) {
             // UNIQUE 충돌: 다른 프로세스가 이미 기록
-            if (existingRecord.status === 'success') {
+            const existing = recordResult.existing;
+            
+            if (!existing) {
+                // 드문 경우: 충돌했는데 조회 결과가 없음
+                console.error('❌ UNIQUE 충돌 발생했으나 기존 기록을 찾을 수 없습니다.');
+                process.exit(1);
+            }
+            
+            // file_hash 비교 (파일 변경 감지가 최우선)
+            if (existing.file_hash !== fileHash) {
+                console.error(`❌ 마이그레이션 파일이 변경되었습니다: ${migrationFile}`);
+                console.error(`   기존 해시: ${existing.file_hash.substring(0, 8)}...`);
+                console.error(`   현재 해시: ${fileHash.substring(0, 8)}...`);
+                console.error(`   실행 시간: ${existing.executed_at}`);
+                console.error('');
+                console.error('⚠️  마이그레이션 정책 위반:');
+                console.error('   이미 실행된 마이그레이션 파일을 수정할 수 없습니다.');
+                console.error('   새 마이그레이션 파일(예: 002_...)을 생성하여 변경사항을 적용하세요.');
+                process.exit(2); // 파일 변경 감지
+            }
+            
+            // file_hash가 동일한 경우, status 확인
+            if (existing.status === 'success') {
                 // 다른 프로세스가 성공적으로 완료
                 console.log('⚠️  다른 프로세스가 이미 마이그레이션을 완료했습니다.');
-                console.log(`   실행 시간: ${existingRecord.executed_at}`);
+                console.log(`   실행 시간: ${existing.executed_at}`);
                 process.exit(0); // 정상 종료 (이미 적용됨)
-            } else if (existingRecord.status === 'failed') {
+            } else if (existing.status === 'failed') {
                 // 다른 프로세스가 실패한 상태로 기록
                 console.error('❌ 다른 프로세스가 마이그레이션을 실패한 상태로 기록했습니다.');
-                console.error(`   실패 시간: ${existingRecord.executed_at}`);
-                console.error(`   에러: ${existingRecord.error_message || '알 수 없음'}`);
+                console.error(`   실패 시간: ${existing.executed_at}`);
+                console.error(`   에러: ${existing.error_message || '알 수 없음'}`);
                 process.exit(1); // 비정상 종료 (실패 상태)
+            } else {
+                // 예상치 못한 status 값
+                console.error(`❌ 예상치 못한 상태: ${existing.status}`);
+                process.exit(1);
             }
         }
         
@@ -234,7 +265,7 @@ async function runMigration() {
             // 이미 존재하는 경우도 성공으로 기록 (동시 실행 경합 처리)
             if (connection) {
                 const fileHash = calculateFileHash(migrationPath);
-                const existingRecord = await recordMigration(connection, {
+                const recordResult = await recordMigration(connection, {
                     migrationFile,
                     fileHash,
                     status: 'success',
@@ -242,15 +273,25 @@ async function runMigration() {
                     errorMessage: 'Table/constraint already exists'
                 });
                 
-                if (existingRecord) {
+                if (!recordResult.inserted) {
                     // UNIQUE 충돌: 다른 프로세스가 이미 기록
-                    if (existingRecord.status === 'success') {
-                        console.log('⚠️  다른 프로세스가 이미 마이그레이션을 완료했습니다.');
-                        process.exit(0); // 정상 종료
-                    } else {
-                        // 다른 프로세스가 실패 상태로 기록 (드문 경우)
-                        console.error('❌ 다른 프로세스가 실패 상태로 기록했습니다.');
-                        process.exit(1);
+                    const existing = recordResult.existing;
+                    
+                    if (existing) {
+                        // file_hash 비교 (파일 변경 감지가 최우선)
+                        if (existing.file_hash !== fileHash) {
+                            console.error(`❌ 마이그레이션 파일이 변경되었습니다: ${migrationFile}`);
+                            process.exit(2); // 파일 변경 감지
+                        }
+                        
+                        // file_hash가 동일한 경우, status 확인
+                        if (existing.status === 'success') {
+                            console.log('⚠️  다른 프로세스가 이미 마이그레이션을 완료했습니다.');
+                            process.exit(0); // 정상 종료
+                        } else if (existing.status === 'failed') {
+                            console.error('❌ 다른 프로세스가 실패 상태로 기록했습니다.');
+                            process.exit(1);
+                        }
                     }
                 }
             }
@@ -258,7 +299,7 @@ async function runMigration() {
             // 실패 이력 기록 (동시 실행 경합 처리)
             if (connection) {
                 const fileHash = calculateFileHash(migrationPath);
-                const existingRecord = await recordMigration(connection, {
+                const recordResult = await recordMigration(connection, {
                     migrationFile,
                     fileHash,
                     status: 'failed',
@@ -266,14 +307,25 @@ async function runMigration() {
                     errorMessage: error.message
                 });
                 
-                if (existingRecord) {
+                if (!recordResult.inserted) {
                     // UNIQUE 충돌: 다른 프로세스가 이미 기록
-                    if (existingRecord.status === 'failed') {
-                        console.error('⚠️  다른 프로세스가 이미 실패 상태로 기록했습니다.');
-                        console.error(`   에러: ${existingRecord.error_message || '알 수 없음'}`);
-                    } else {
-                        // 다른 프로세스가 성공 상태로 기록 (드문 경우)
-                        console.log('⚠️  다른 프로세스가 성공 상태로 기록했습니다.');
+                    const existing = recordResult.existing;
+                    
+                    if (existing) {
+                        // file_hash 비교
+                        if (existing.file_hash !== fileHash) {
+                            console.error(`❌ 마이그레이션 파일이 변경되었습니다: ${migrationFile}`);
+                            process.exit(2); // 파일 변경 감지
+                        }
+                        
+                        // status 확인
+                        if (existing.status === 'failed') {
+                            console.error('⚠️  다른 프로세스가 이미 실패 상태로 기록했습니다.');
+                            console.error(`   에러: ${existing.error_message || '알 수 없음'}`);
+                        } else if (existing.status === 'success') {
+                            // 다른 프로세스가 성공 상태로 기록 (드문 경우)
+                            console.log('⚠️  다른 프로세스가 성공 상태로 기록했습니다.');
+                        }
                     }
                 }
             }
