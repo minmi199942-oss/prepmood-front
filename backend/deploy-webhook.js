@@ -110,7 +110,8 @@ router.post('/deploy/webhook', async (req, res) => {
         // 주의: pm2 restart로 인해 이 프로세스가 재시작될 수 있으므로,
         // 완료 로그는 deploy-run.log에서 확인해야 함
         // /bin/bash -lc를 사용하여 쉘 리다이렉트가 제대로 작동하도록 함
-        const deployCommand = `/bin/bash -lc "/root/deploy.sh >> '${DEPLOY_RUN_LOG}' 2>&1"`;
+        // bash -x로 각 라인 실행 시마다 로그를 남겨서 정확한 중단 지점 확인
+        const deployCommand = `/bin/bash -lc "bash -x /root/deploy.sh >> '${DEPLOY_RUN_LOG}' 2>&1"`;
         const deployProcess = exec(deployCommand, {
             cwd: '/root',
             env: { ...process.env, PATH: process.env.PATH },

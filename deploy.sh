@@ -101,6 +101,9 @@ fi
 # 5. 서버 재시작
 echo "🔄 서버 재시작 중..."
 pm2 restart prepmood-backend
+PM2_RESTART_EXIT=$?
+echo "📋 PM2_RESTART_EXIT=$PM2_RESTART_EXIT"
+echo "✅ AFTER_PM2_RESTART_REACHED"
 
 # 6. 상태 확인
 sleep 2
