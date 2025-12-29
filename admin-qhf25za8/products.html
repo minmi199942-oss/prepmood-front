@@ -147,15 +147,11 @@
   <!-- 페이지별 스크립트 -->
   <script src="admin-products.js"></script>
   <script>
-    // 공통 레이아웃 초기화
+    // 공통 레이아웃 초기화 (권한 체크 + 헤더 렌더링)
     document.addEventListener('DOMContentLoaded', async () => {
-      const layoutInitialized = await initAdminLayout('products');
-      if (layoutInitialized) {
-        // 레이아웃 초기화 성공 후 페이지별 초기화
-        if (typeof init === 'function') {
-          init();
-        }
-      }
+      const ok = await initAdminLayout('products');
+      if (!ok) return;
+      if (typeof init === 'function') init();
     });
   </script>
 </body>

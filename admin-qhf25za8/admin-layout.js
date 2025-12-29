@@ -71,7 +71,7 @@ async function handleLogout(e) {
       window.location.href = 'login.html';
     }
   } catch (error) {
-    console.error('로그아웃 실패:', error);
+    // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
     // 에러 발생해도 로그인 페이지로 이동
     window.location.href = 'login.html';
   }
@@ -88,18 +88,16 @@ async function checkAdminAccess() {
     });
 
     if (!response.ok) {
-      console.error('관리자 권한 없음:', response.status);
       alert('관리자 권한이 없습니다.');
       window.location.href = 'login.html';
       return false;
     }
 
-    const data = await response.json();
-    console.log('✅ 관리자 인증 성공:', data.email);
+    // 성공 시 추가 처리 없음 (로깅 정책: 브라우저 콘솔 최소화)
     return true;
 
   } catch (error) {
-    console.error('권한 확인 실패:', error);
+    // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
     alert('로그인이 필요합니다.');
     window.location.href = 'login.html';
     return false;
