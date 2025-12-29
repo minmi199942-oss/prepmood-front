@@ -555,8 +555,10 @@
   // 페이지 로드 시 초기화
   // ============================================
   // init은 admin-layout.js의 inline 스크립트에서 호출됨
-  // 전역에 노출하여 inline 스크립트에서 접근 가능하게 함
-  window.init = init;
+  // 네임스페이스 패턴으로 전역 충돌 방지
+  window.AdminPages = window.AdminPages || {};
+  window.AdminPages.orders = window.AdminPages.orders || {};
+  window.AdminPages.orders.init = init;
 
 })();
 

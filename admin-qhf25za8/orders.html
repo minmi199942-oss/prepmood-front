@@ -373,7 +373,10 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const ok = await initAdminLayout('orders');
       if (!ok) return;
-      if (typeof init === 'function') init();
+      
+      // 네임스페이스 패턴으로 페이지별 init 호출
+      const fn = window.AdminPages?.orders?.init;
+      if (typeof fn === 'function') fn();
     });
   </script>
 </body>

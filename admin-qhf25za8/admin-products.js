@@ -434,8 +434,10 @@
   }
 
   // init은 admin-layout.js의 inline 스크립트에서 호출됨
-  // 전역에 노출하여 inline 스크립트에서 접근 가능하게 함
-  window.init = init;
+  // 네임스페이스 패턴으로 전역 충돌 방지
+  window.AdminPages = window.AdminPages || {};
+  window.AdminPages.products = window.AdminPages.products || {};
+  window.AdminPages.products.init = init;
 
   // 전역 함수로 등록 (HTML에서 호출하기 위해)
   window.openAddProductModal = openAddProductModal;

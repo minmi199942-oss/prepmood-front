@@ -93,9 +93,8 @@ async function checkAdminAccess() {
       return false;
     }
 
-    // 성공 시 응답 바디 파싱 (필요 없지만 일관성을 위해)
-    // response.ok가 true일 때만 파싱하므로 안전함
-    await response.json();
+    // 성공 시 응답 바디 파싱 생략 (실제로 필요 없음)
+    // 운영 안정성: 파싱 예외 위험 제거
     return true;
 
   } catch (error) {
