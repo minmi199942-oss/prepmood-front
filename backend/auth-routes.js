@@ -208,15 +208,15 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     
     try {
-        // ✅ 토큰 형식 검증 (20자 영숫자)
-        if (!token || !/^[a-zA-Z0-9]{20}$/.test(token)) {
-            Logger.warn('[WARRANTY] 잘못된 토큰 형식:', token ? token.substring(0, 4) + '...' : 'null');
-            return res.status(400).json({
-                success: false,
-                message: '잘못된 토큰 형식입니다.',
-                code: 'INVALID_TOKEN_FORMAT'
-            });
-        }
+            // ✅ 토큰 형식 검증 (20자 영숫자)
+            if (!token || !/^[a-zA-Z0-9]{20}$/.test(token)) {
+                Logger.warn('[WARRANTY] 잘못된 토큰 형식:', token ? token.substring(0, 4) + '...' : 'null');
+                return res.status(400).json({
+                    success: false,
+                    message: '잘못된 토큰 형식입니다.',
+                    code: 'INVALID_TOKEN'
+                });
+            }
         
         // 토큰 일부만 로깅 (보안)
         Logger.log('[WARRANTY] 보증서 발급 요청:', {
@@ -258,7 +258,7 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                     return res.status(409).json({
                         success: false,
                         message: '이미 다른 사용자가 발급받은 토큰입니다.',
-                        code: 'TOKEN_ALREADY_ISSUED'
+                        code: 'TOKEN_ALREADY_USED'
                     });
                 }
                 
@@ -266,7 +266,7 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 return res.status(200).json({
                     success: true,
                     message: '이미 발급받은 보증서입니다.',
-                    code: 'ALREADY_ISSUED',
+                    code: 'TOKEN_ALREADY_USED',
                     warranty: {
                         id: warranty.id,
                         token: warranty.token.substring(0, 4) + '...',
@@ -320,7 +320,7 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 return res.status(409).json({
                     success: false,
                     message: '이미 발급된 토큰입니다.',
-                    code: 'DUPLICATE_TOKEN'
+                    code: 'TOKEN_ALREADY_USED'
                 });
             }
             

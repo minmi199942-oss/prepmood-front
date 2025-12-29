@@ -114,8 +114,21 @@ async function checkMigrationHistory(connection, migrationFile, fileHash) {
         }
     }
     
-    // 실패한 마이그레이션은 재실행 가능 (null 반환)
-    return null;
+    // 실패한 마이그레이션은 재실행 금지 (정책: 불변성)
+    if (history.status === 'failed') {
+        console.error(`❌ 마이그레이션이 실패한 상태로 기록되어 있습니다: ${migrationFile}`);
+        console.error(`   실패 시간: ${history.executed_at}`);
+        console.error(`   에러: ${history.error_message || '알 수 없음'}`);
+        console.error('');
+        console.error('⚠️  마이그레이션 정책:');
+        console.error('   실패한 마이그레이션은 재실행할 수 없습니다.');
+        console.error('   새 마이그레이션 파일(예: 002_...)을 생성하여 문제를 해결하세요.');
+        process.exit(1); // 실패 상태 (종료 코드 1)
+    }
+    
+    // 예상치 못한 status 값
+    console.error(`❌ 예상치 못한 상태: ${history.status}`);
+    process.exit(1);
 }
 
 /**
