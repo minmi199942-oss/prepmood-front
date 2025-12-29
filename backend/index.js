@@ -99,7 +99,8 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Nginx를 우회한 직접 접근 차단 (관리자 HTML 파일)
-app.all(/^\/(admin|admin-[^/]+)\.html$/, (req, res) => {
+// 루트의 admin*.html만 차단, 서브디렉토리는 허용
+app.all(/^\/admin(-[^/]+)?\.html$/, (req, res) => {
     res.status(403).send('Forbidden');
 });
 
