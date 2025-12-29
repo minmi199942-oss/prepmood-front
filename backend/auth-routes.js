@@ -266,7 +266,7 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 return res.status(200).json({
                     success: true,
                     message: '이미 발급받은 보증서입니다.',
-                    code: 'TOKEN_ALREADY_USED',
+                    code: 'ALREADY_ISSUED',
                     warranty: {
                         id: warranty.id,
                         token: warranty.token.substring(0, 4) + '...',
