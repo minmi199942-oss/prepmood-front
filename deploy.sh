@@ -67,6 +67,7 @@ LIVE_ROOT="/var/www/html"
 # 허용 목록 기반 rsync (의도치 않은 파일 노출 방지)
 # 패턴: login.html, index.html, register.html, my-*.html, complete-profile.html, google-callback.html
 # JS: utils.js, common.js 등 명시적으로 배포해야 하는 것만
+# 관리자 페이지: admin-qhf25za8/ 디렉토리 전체
 # 주의: --delete 제거 (robots.txt, favicon.ico, images/ 등 기존 파일 보호)
 rsync -av \
   --include="index.html" \
@@ -77,6 +78,8 @@ rsync -av \
   --include="google-callback.html" \
   --include="utils.js" \
   --include="common.js" \
+  --include="admin-qhf25za8/" \
+  --include="admin-qhf25za8/**" \
   --chmod=644 \
   --exclude="*" \
   "$REPO_DIR/" "$LIVE_ROOT/"
@@ -184,6 +187,14 @@ if [ $VERIFICATION_FAILED -eq 1 ]; then
 else
   echo "✅ 배포 검증 완료: 모든 파일 정상"
 fi
+
+# --- permissions fix (prevent nginx 403) ---
+echo "🔧 디렉토리/파일 권한 보정 중 (Nginx 접근 보장)..."
+chmod 755 /var/www/html
+find /var/www/html -type d -exec chmod 755 {} \;
+find /var/www/html -type f -exec chmod 644 {} \;
+echo "  ✅ 권한 보정 완료"
+# ------------------------------------------
 
 echo ""
 echo "✅ 배포 완료: $TIMESTAMP"
