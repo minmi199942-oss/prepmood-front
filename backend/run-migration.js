@@ -143,10 +143,11 @@ async function recordMigration(connection, params) {
         return { inserted: true }; // 기록 성공
     } catch (error) {
         // UNIQUE 충돌: 다른 프로세스가 이미 기록
-        if (error.code === 'ER_DUP_ENTRY') {
+        if (error.code === 'ER_DUP_ENTRY' || error.code === 1062) {
             // 실제 DB 상태를 다시 조회하여 확인
+            // UNIQUE 제약이 있으므로 정확히 1건만 반환됨 (LIMIT 1은 안전장치)
             const [rows] = await connection.execute(
-                'SELECT * FROM schema_migrations WHERE migration_file = ?',
+                'SELECT * FROM schema_migrations WHERE migration_file = ? LIMIT 1',
                 [migrationFile]
             );
             return {
