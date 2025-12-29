@@ -83,7 +83,11 @@ router.get('/api/admin/qrcodes/download', authenticateToken, requireAdmin, admin
 
         // 에러 처리
         archive.on('error', (err) => {
-            Logger.error('[QR-DOWNLOAD] ZIP 생성 실패:', err);
+            Logger.error('[QR-DOWNLOAD] ZIP 생성 실패:', {
+                message: err.message,
+                code: err.code,
+                admin_email: req.user?.email
+            });
             if (!res.headersSent) {
                 res.status(500).json({
                     success: false,
