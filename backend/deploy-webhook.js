@@ -104,27 +104,45 @@ router.post('/deploy/webhook', async (req, res) => {
         console.log('[DEPLOY] 🚀 자동 배포 시작', commitInfo);
 
         // 배포 스크립트를 백그라운드로 실행 (응답 블로킹 방지)
-        exec('/root/deploy.sh', {
+        const deployProcess = exec('/root/deploy.sh', {
             cwd: '/root',
-            env: { ...process.env, PATH: process.env.PATH }
+            env: { ...process.env, PATH: process.env.PATH },
+            maxBuffer: 10 * 1024 * 1024 // 10MB 버퍼 (배포 스크립트 출력이 클 수 있음)
         }, (error, stdout, stderr) => {
+            const timestamp = new Date().toISOString();
             if (error) {
                 logToFile('❌ 배포 실패', {
                     error: error.message,
-                    stderr: stderr.substring(0, 500)
+                    code: error.code,
+                    signal: error.signal,
+                    stderr: stderr ? stderr.substring(0, 500) : 'no stderr'
                 });
                 console.log('[DEPLOY] ❌ 배포 실패', {
                     error: error.message,
-                    stderr: stderr.substring(0, 500)
+                    code: error.code,
+                    signal: error.signal
                 });
             } else {
                 logToFile('✅ 배포 완료', {
-                    stdout: stdout.substring(0, 500)
+                    stdoutLength: stdout ? stdout.length : 0,
+                    stderrLength: stderr ? stderr.length : 0,
+                    stdout: stdout ? stdout.substring(0, 500) : 'no stdout'
                 });
                 console.log('[DEPLOY] ✅ 배포 완료', {
-                    stdout: stdout.substring(0, 500)
+                    stdoutLength: stdout ? stdout.length : 0
                 });
             }
+        });
+
+        // 프로세스 종료 이벤트 리스너 추가 (디버깅용)
+        deployProcess.on('close', (code) => {
+            logToFile('📋 배포 프로세스 종료', { exitCode: code });
+            console.log('[DEPLOY] 📋 배포 프로세스 종료', { exitCode: code });
+        });
+
+        deployProcess.on('error', (error) => {
+            logToFile('❌ 배포 프로세스 실행 오류', { error: error.message });
+            console.error('[DEPLOY] ❌ 배포 프로세스 실행 오류', error);
         });
 
         // 즉시 응답 반환 (GitHub webhook 타임아웃 방지)
