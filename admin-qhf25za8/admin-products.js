@@ -75,10 +75,24 @@
       return;
     }
 
-    elements.productsGrid.innerHTML = productsToRender.map(product => `
+    elements.productsGrid.innerHTML = productsToRender.map(product => {
+      // 이미지 경로 정규화: 상대 경로를 절대 경로로 변환
+      let imageUrl = '/image/shirt.jpg'; // 기본 이미지
+      
+      if (product.image) {
+        // 이미 절대 경로인 경우 (/ 또는 http로 시작)
+        if (product.image.startsWith('/') || product.image.startsWith('http')) {
+          imageUrl = product.image;
+        } else {
+          // 상대 경로인 경우 /image/를 앞에 붙임
+          imageUrl = '/image/' + product.image.replace(/^image\//, '');
+        }
+      }
+      
+      return `
       <div class="product-card" data-id="${product.id}">
-        <img class="product-card-image" src="${product.image || 'image/shirt.jpg'}" alt="${escapeHtml(product.name)}" 
-             onerror="this.src='image/shirt.jpg'">
+        <img class="product-card-image" src="${imageUrl}" alt="${escapeHtml(product.name)}" 
+             onerror="this.src='/image/shirt.jpg'">
         <div class="product-card-name">${escapeHtml(product.name)}</div>
         <div class="product-card-price">${formatKRW(product.price)}</div>
         <div class="product-card-meta">
