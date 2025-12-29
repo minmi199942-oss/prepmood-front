@@ -371,23 +371,7 @@
     }
   }
 
-  // 로그아웃
-  async function logout() {
-    if (!confirm('로그아웃 하시겠습니까?')) {
-      return;
-    }
-
-    try {
-      await fetch(`${API_BASE_URL}/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-    } catch (error) {
-      console.error('로그아웃 오류:', error);
-    } finally {
-      window.location.href = 'login.html';
-    }
-  }
+  // logout 함수는 admin-layout.js에서 처리됨
 
   // 유틸리티 함수들
   function formatKRW(amount) {
