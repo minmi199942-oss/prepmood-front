@@ -45,17 +45,23 @@ if (!fs.existsSync(migrationPath)) {
 
 /**
  * schema_migrations 테이블 생성 (실행 이력 기록용)
+ * 
+ * 안전장치:
+ * - migration_file에 UNIQUE 제약 (DB 레벨 중복 방지)
+ * - file_hash로 파일 내용 변경 감지
  */
 async function ensureSchemaMigrationsTable(connection) {
     await connection.query(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
             id INT AUTO_INCREMENT PRIMARY KEY,
             migration_file VARCHAR(255) NOT NULL UNIQUE,
+            file_hash VARCHAR(64) NOT NULL COMMENT 'SHA256 해시 (파일 내용 변경 감지)',
             executed_at DATETIME NOT NULL,
             execution_time_ms INT,
             status ENUM('success', 'failed') NOT NULL,
             error_message TEXT,
-            INDEX idx_migration_file (migration_file)
+            INDEX idx_migration_file (migration_file),
+            INDEX idx_executed_at (executed_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 }
@@ -100,18 +106,25 @@ async function runMigration() {
         // 안전장치 2: schema_migrations 테이블 생성
         await ensureSchemaMigrationsTable(connection);
         
+        // 파일 해시 계산
+        const fileHash = calculateFileHash(migrationPath);
+        
         // 안전장치 3: 중복 실행 확인
-        const history = await checkMigrationHistory(connection, migrationFile);
-        if (history && history.status === 'success') {
+        const history = await checkMigrationHistory(connection, migrationFile, fileHash);
+        if (history && history.status === 'success' && !history.fileChanged) {
             console.log(`⚠️  이미 실행된 마이그레이션입니다: ${migrationFile}`);
             console.log(`   실행 시간: ${history.executed_at}`);
             console.log(`   재실행하려면 schema_migrations 테이블에서 해당 레코드를 삭제하세요.`);
             return;
         }
         
+        if (history && history.fileChanged) {
+            console.log(`⚠️  파일 내용이 변경되었습니다. 재실행합니다.`);
+        }
+        
         // 마이그레이션 파일 읽기
         const sql = fs.readFileSync(migrationPath, 'utf8');
-        console.log(`📄 마이그레이션 파일 읽기 완료: ${migrationFile}`);
+        console.log(`📄 마이그레이션 파일: ${migrationFile}`);
         
         // SQL 실행 (트랜잭션은 DDL 특성상 제한적이지만, 최소한 이력은 기록)
         console.log('🚀 마이그레이션 실행 중...');
@@ -120,9 +133,9 @@ async function runMigration() {
         const executionTime = Date.now() - startTime;
         
         // 실행 이력 기록
-        await recordMigration(connection, migrationFile, 'success', executionTime);
+        await recordMigration(connection, migrationFile, fileHash, 'success', executionTime);
         
-        console.log(`✅ 마이그레이션 완료! (${executionTime}ms)`);
+        console.log(`✅ 마이그레이션 완료 (${executionTime}ms)`);
         
     } catch (error) {
         const executionTime = Date.now() - startTime;
@@ -134,12 +147,14 @@ async function runMigration() {
             console.log('⚠️  테이블/제약조건이 이미 존재합니다. (정상)');
             // 이미 존재하는 경우도 성공으로 기록
             if (connection) {
-                await recordMigration(connection, migrationFile, 'success', executionTime, 'Table/constraint already exists');
+                const fileHash = calculateFileHash(migrationPath);
+                await recordMigration(connection, migrationFile, fileHash, 'success', executionTime, 'Table/constraint already exists');
             }
         } else {
             // 실패 이력 기록
             if (connection) {
-                await recordMigration(connection, migrationFile, 'failed', executionTime, error.message);
+                const fileHash = calculateFileHash(migrationPath);
+                await recordMigration(connection, migrationFile, fileHash, 'failed', executionTime, error.message);
             }
             process.exit(1);
         }
