@@ -25,8 +25,8 @@ require('dotenv').config();
 
 const execAsync = promisify(exec);
 
-// 배포 웹훅 로그 파일 경로
-const DEPLOY_LOG_FILE = '/var/log/deploy-webhook.log';
+// 배포 웹훅 로그 파일 경로 (backend 디렉토리 내부 - 권한 문제 방지)
+const DEPLOY_LOG_FILE = path.join(__dirname, 'deploy-webhook.log');
 
 // 로그 파일에 기록하는 헬퍼 함수
 function logToFile(message, data = {}) {
