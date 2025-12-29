@@ -98,6 +98,11 @@ if (process.env.NODE_ENV !== 'production') {
     app.use('/qrcodes', express.static(path.join(__dirname, '..', 'output_qrcodes')));
 }
 
+// Nginx를 우회한 직접 접근 차단 (관리자 HTML 파일)
+app.all(/^\/(admin|admin-[^/]+)\.html$/, (req, res) => {
+    res.status(403).send('Forbidden');
+});
+
 // EJS 템플릿 엔진 설정 (정품 인증 페이지용)
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
