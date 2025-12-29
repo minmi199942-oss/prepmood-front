@@ -67,9 +67,7 @@ LIVE_ROOT="/var/www/html"
 # 허용 목록 기반 rsync (의도치 않은 파일 노출 방지)
 # 패턴: login.html, index.html, register.html, my-*.html, complete-profile.html, google-callback.html
 # JS: utils.js, common.js 등 명시적으로 배포해야 하는 것만
-# 관리자 페이지: admin-qhf25za8/ 디렉토리 전체
 # 주의: --delete 제거 (robots.txt, favicon.ico, images/ 등 기존 파일 보호)
-# rsync include 패턴 순서 중요: 디렉토리 먼저, 그 다음 내용
 rsync -av \
   --include="index.html" \
   --include="login.html" \
@@ -79,13 +77,20 @@ rsync -av \
   --include="google-callback.html" \
   --include="utils.js" \
   --include="common.js" \
-  --include="admin-qhf25za8/" \
-  --include="admin-qhf25za8/***" \
   --chmod=644 \
   --exclude="*" \
   "$REPO_DIR/" "$LIVE_ROOT/"
 
 echo "  ✅ 루트 파일 동기화 완료 (허용 목록 기반, 기존 파일 보호)"
+
+# 3-3. 관리자 페이지 디렉토리 동기화 (별도 처리)
+echo "📦 관리자 페이지 디렉토리 동기화 중..."
+if [ -d "$REPO_DIR/admin-qhf25za8" ]; then
+  rsync -av --chmod=644 "$REPO_DIR/admin-qhf25za8/" "$LIVE_ROOT/admin-qhf25za8/"
+  echo "  ✅ admin-qhf25za8 디렉토리 동기화 완료"
+else
+  echo "  ⚠️  admin-qhf25za8 디렉토리가 없습니다"
+fi
 
 # 4. 의존성 설치
 cd "$LIVE_BACKEND"
