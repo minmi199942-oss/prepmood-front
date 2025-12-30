@@ -55,7 +55,7 @@ function renderOrderItems(items) {
   container.innerHTML = items.map(item => `
     <div style="display: flex; gap: 15px; padding: 15px 0; border-bottom: 1px solid #eee;">
       <div>
-        <img src="image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" style="width: 80px; height: 80px; object-fit: cover;">
+        <img src="/image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" style="width: 80px; height: 80px; object-fit: cover;">
       </div>
       <div style="flex: 1;">
         <p style="font-weight: 600; margin-bottom: 5px;">${escapeHtml(item.name)}</p>

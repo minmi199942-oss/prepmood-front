@@ -90,8 +90,8 @@ function renderOrders(orders) {
       <div class="order-item">
         <div class="order-image">
           ${order.items && order.items.length > 0 ? 
-            `<img src="image/${escapeHtml(order.items[0].image)}" alt="${escapeHtml(order.items[0].name)}" class="product-image" onerror="this.src='image/default.jpg'">` : 
-            `<img src="image/default.jpg" alt="상품" class="product-image">`
+            `<img src="/image/${escapeHtml(order.items[0].image)}" alt="${escapeHtml(order.items[0].name)}" class="product-image" onerror="this.src='/image/default.jpg'">` : 
+            `<img src="/image/default.jpg" alt="상품" class="product-image">`
           }
         </div>
         <div class="order-details">

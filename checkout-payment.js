@@ -104,7 +104,7 @@ function renderOrderItems(items) {
     
     return `
       <div class="order-item">
-        <img src="image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.src='image/default.jpg'">
+        <img src="/image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.src='/image/default.jpg'">
         <div class="item-details">
           <div class="item-name">${escapeHtml(item.name)}</div>
           <div class="item-meta">${escapeHtml(item.size || '')} ${escapeHtml(item.color || '')} · 수량 ${item.quantity}</div>
