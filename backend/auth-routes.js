@@ -163,21 +163,21 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
         
             // Case B: 첫 인증 (first_scanned_at이 NULL)
             const isFirstScan = !tokenMaster.first_scanned_at;
+            const userId = req.user.userId; // requireAuthForHTML에서 설정됨
+            const clientIp = getClientIp(req);
+            const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
             
             if (isFirstScan) {
                 Logger.log('[AUTH] 첫 인증 처리:', token.substring(0, 4) + '...');
                 
                 // 이상 패턴 감지 (첫 인증)
-                const clientIp = getClientIp(req);
                 detectSuspiciousPattern(token, clientIp, true, false);
                 
                 // ✅ 보증서 자동 발급 로직 추가
-                const userId = req.user.userId; // requireAuthForHTML에서 설정됨
                 let warrantyPublicId = null;
                 
                 try {
-                    // 1. token_master 스캔 카운트 업데이트
-                    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                    // 1. token_master 스캔 카운트 업데이트 (먼저 실행)
                     await connection.execute(
                         `UPDATE token_master 
                          SET scan_count = scan_count + 1,
@@ -237,14 +237,30 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                         );
                         
                         // token_master owner 업데이트
-                        await connection.execute(
-                            `UPDATE token_master 
-                             SET owner_user_id = ?,
-                                 owner_warranty_public_id = ?,
-                                 updated_at = ?
-                             WHERE token = ?`,
-                            [userId, publicId, now, token]
-                        );
+                        try {
+                            await connection.execute(
+                                `UPDATE token_master 
+                                 SET owner_user_id = ?,
+                                     owner_warranty_public_id = ?,
+                                     updated_at = ?
+                                 WHERE token = ?`,
+                                [userId, publicId, now, token]
+                            );
+                            Logger.log('[AUTH] token_master owner 업데이트 성공:', {
+                                token_prefix: token.substring(0, 4) + '...',
+                                user_id: userId,
+                                public_id: publicId
+                            });
+                        } catch (updateError) {
+                            // token_master 업데이트 실패는 별도 로깅 (중요)
+                            Logger.error('[AUTH] token_master owner 업데이트 실패:', {
+                                message: updateError.message,
+                                token_prefix: token.substring(0, 4) + '...',
+                                user_id: userId,
+                                public_id: publicId
+                            });
+                            // 보증서는 이미 발급되었으므로 계속 진행
+                        }
                         
                         warrantyPublicId = publicId;
                         Logger.log('[AUTH] 보증서 자동 발급 성공:', {
@@ -274,23 +290,22 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                 });
             }
         
-            // Case C: 재인증 (first_scanned_at이 이미 있음)
-            Logger.log('[AUTH] 재인증 처리:', token.substring(0, 4) + '...');
-            
-            const userId = req.user.userId;
-            let warrantyPublicId = null;
-            
-            try {
-                // 1. token_master 스캔 카운트 업데이트
-                const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                await connection.execute(
-                    `UPDATE token_master 
-                     SET scan_count = scan_count + 1,
-                         last_scanned_at = ?,
-                         updated_at = ?
-                     WHERE token = ?`,
-                    [now, now, token]
-                );
+            } else {
+                // Case C: 재인증 (first_scanned_at이 이미 있음)
+                Logger.log('[AUTH] 재인증 처리:', token.substring(0, 4) + '...');
+                
+                let warrantyPublicId = null;
+                
+                try {
+                    // 1. token_master 스캔 카운트 업데이트
+                    await connection.execute(
+                        `UPDATE token_master 
+                         SET scan_count = scan_count + 1,
+                             last_scanned_at = ?,
+                             updated_at = ?
+                         WHERE token = ?`,
+                        [now, now, token]
+                    );
                 
                 // 2. scan_logs INSERT (GeoIP 포함)
                 const clientIp = getClientIp(req);
@@ -507,14 +522,30 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
             );
             
             // 6. token_master owner 업데이트
-            await connection.execute(
-                `UPDATE token_master 
-                 SET owner_user_id = ?,
-                     owner_warranty_public_id = ?,
-                     updated_at = ?
-                 WHERE token = ?`,
-                [userId, publicId, utcDateTime, token]
-            );
+            try {
+                await connection.execute(
+                    `UPDATE token_master 
+                     SET owner_user_id = ?,
+                         owner_warranty_public_id = ?,
+                         updated_at = ?
+                     WHERE token = ?`,
+                    [userId, publicId, utcDateTime, token]
+                );
+                Logger.log('[WARRANTY] token_master owner 업데이트 성공:', {
+                    token_prefix: token.substring(0, 4) + '...',
+                    user_id: userId,
+                    public_id: publicId
+                });
+            } catch (updateError) {
+                // token_master 업데이트 실패는 별도 로깅 (중요)
+                Logger.error('[WARRANTY] token_master owner 업데이트 실패:', {
+                    message: updateError.message,
+                    token_prefix: token.substring(0, 4) + '...',
+                    user_id: userId,
+                    public_id: publicId
+                });
+                // 보증서는 이미 발급되었으므로 계속 진행
+            }
             
             Logger.log('[WARRANTY] 보증서 발급 성공:', {
                 warranty_id: result.insertId,
