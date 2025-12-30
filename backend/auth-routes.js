@@ -111,6 +111,8 @@ const authLimiter = rateLimit({
 router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
     const token = req.params.token;
     
+    let connection = null;
+    
     try {
         // ✅ 토큰 형식 검증은 requireAuthForHTML에서 이미 수행됨 (중복 제거)
         
@@ -127,7 +129,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         };
         
-        const connection = await mysql.createConnection(dbConfig);
+        connection = await mysql.createConnection(dbConfig);
         
         try {
             // ✅ SQLite 제거, MySQL token_master 조회
@@ -144,7 +146,6 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                 const clientIp = getClientIp(req);
                 detectSuspiciousPattern(token, clientIp, false, true);
                 
-                await connection.end();
                 return res.status(400).render('fake', {
                     title: '가품 경고 - Pre.p Mood'
                 });
@@ -155,7 +156,6 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
             // Case A-2: 토큰이 차단됨 (is_blocked = 1)
             if (tokenMaster.is_blocked === 1) {
                 Logger.warn('[AUTH] 차단된 토큰:', token.substring(0, 4) + '...');
-                await connection.end();
                 return res.status(400).render('fake', {
                     title: '가품 경고 - Pre.p Mood'
                 });
@@ -178,7 +178,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                 
                 try {
                     // 1. token_master 스캔 카운트 업데이트 (먼저 실행)
-                    await connection.execute(
+                    const [scanUpdateResult] = await connection.execute(
                         `UPDATE token_master 
                          SET scan_count = scan_count + 1,
                              first_scanned_at = ?,
@@ -187,6 +187,12 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                          WHERE token = ?`,
                         [now, now, now, token]
                     );
+                    
+                    if (scanUpdateResult.affectedRows === 0) {
+                        Logger.error('[AUTH] token_master 스캔 카운트 업데이트 실패: affectedRows=0', {
+                            token_prefix: token.substring(0, 4) + '...'
+                        });
+                    }
                     
                     // 2. scan_logs INSERT (GeoIP 포함)
                     const geo = geoip.lookup(clientIp);
@@ -238,7 +244,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                         
                         // token_master owner 업데이트
                         try {
-                            await connection.execute(
+                            const [updateResult] = await connection.execute(
                                 `UPDATE token_master 
                                  SET owner_user_id = ?,
                                      owner_warranty_public_id = ?,
@@ -246,15 +252,27 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                                  WHERE token = ?`,
                                 [userId, publicId, now, token]
                             );
-                            Logger.log('[AUTH] token_master owner 업데이트 성공:', {
-                                token_prefix: token.substring(0, 4) + '...',
-                                user_id: userId,
-                                public_id: publicId
-                            });
+                            
+                            if (updateResult.affectedRows === 0) {
+                                Logger.error('[AUTH] token_master owner 업데이트 실패: affectedRows=0', {
+                                    token_prefix: token.substring(0, 4) + '...',
+                                    user_id: userId,
+                                    public_id: publicId
+                                });
+                            } else {
+                                Logger.log('[AUTH] token_master owner 업데이트 성공:', {
+                                    token_prefix: token.substring(0, 4) + '...',
+                                    user_id: userId,
+                                    public_id: publicId,
+                                    affectedRows: updateResult.affectedRows
+                                });
+                            }
                         } catch (updateError) {
                             // token_master 업데이트 실패는 별도 로깅 (중요)
                             Logger.error('[AUTH] token_master owner 업데이트 실패:', {
                                 message: updateError.message,
+                                code: updateError.code,
+                                errno: updateError.errno,
                                 token_prefix: token.substring(0, 4) + '...',
                                 user_id: userId,
                                 public_id: publicId
@@ -277,8 +295,6 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                     });
                 }
                 
-                await connection.end();
-                
                 return res.render('success', {
                     title: '정품 인증 성공 - Pre.p Mood',
                     product: {
@@ -296,7 +312,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                 
                 try {
                     // 1. token_master 스캔 카운트 업데이트
-                    await connection.execute(
+                    const [updateResult] = await connection.execute(
                         `UPDATE token_master 
                          SET scan_count = scan_count + 1,
                              last_scanned_at = ?,
@@ -304,6 +320,12 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                          WHERE token = ?`,
                         [now, now, token]
                     );
+                    
+                    if (updateResult.affectedRows === 0) {
+                        Logger.error('[AUTH] token_master 스캔 카운트 업데이트 실패: affectedRows=0', {
+                            token_prefix: token.substring(0, 4) + '...'
+                        });
+                    }
                     
                     // 2. scan_logs INSERT (GeoIP 포함)
                     const clientIp = getClientIp(req);
@@ -338,24 +360,36 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                         warrantyPublicId = existing[0].public_id;
                     }
                 } catch (dbError) {
-                Logger.error('[AUTH] 재인증 처리 실패:', {
-                    message: dbError.message,
-                    token_prefix: token.substring(0, 4) + '...'
+                    Logger.error('[AUTH] 재인증 처리 실패:', {
+                        message: dbError.message,
+                        code: dbError.code,
+                        errno: dbError.errno,
+                        token_prefix: token.substring(0, 4) + '...'
+                    });
+                }
+            
+                return res.render('warning', {
+                    title: '이미 인증된 제품 - Pre.p Mood',
+                    product: {
+                        product_name: tokenMaster.product_name,
+                        internal_code: tokenMaster.internal_code
+                    },
+                    first_verified_at: tokenMaster.first_scanned_at,
+                    warranty_public_id: warrantyPublicId
                 });
             }
-            
-            await connection.end();
-            
-            return res.render('warning', {
-                title: '이미 인증된 제품 - Pre.p Mood',
-                product: {
-                    product_name: tokenMaster.product_name,
-                    internal_code: tokenMaster.internal_code
-                },
-                first_verified_at: tokenMaster.first_scanned_at,
-                warranty_public_id: warrantyPublicId
-            });
-        
+        } finally {
+            // connection.end()는 finally에서 한 번만 실행 (방어 코드 포함)
+            if (connection) {
+                try {
+                    await connection.end();
+                } catch (endError) {
+                    Logger.error('[AUTH] connection.end() 실패:', {
+                        message: endError.message
+                    });
+                }
+            }
+        }
     } catch (error) {
         Logger.error('[AUTH] 정품 인증 처리 실패:', {
             message: error.message,
@@ -416,7 +450,8 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         };
         
-        const connection = await mysql.createConnection(dbConfig);
+        let connection = null;
+        connection = await mysql.createConnection(dbConfig);
         
         try {
             // 1. token_master에서 제품 정보 조회
@@ -426,7 +461,6 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
             );
             
             if (tokenMasterRows.length === 0) {
-                await connection.end();
                 return res.status(400).json({
                     success: false,
                     message: '등록되지 않은 토큰입니다.',
@@ -449,8 +483,6 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                     existing_user_id: warranty.user_id,
                     request_user_id: userId
                 });
-                
-                await connection.end();
                 
                 // 다른 사용자가 이미 발급받은 경우
                 if (warranty.user_id !== userId) {
@@ -519,9 +551,9 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 [userId, token, publicId, productName, utcDateTime, utcDateTime]
             );
             
-            // 6. token_master owner 업데이트
+            // 6. token_master owner 업데이트 (POST는 owner만, scan_count는 /a/:token에서만)
             try {
-                await connection.execute(
+                const [updateResult] = await connection.execute(
                     `UPDATE token_master 
                      SET owner_user_id = ?,
                          owner_warranty_public_id = ?,
@@ -529,15 +561,27 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                      WHERE token = ?`,
                     [userId, publicId, utcDateTime, token]
                 );
-                Logger.log('[WARRANTY] token_master owner 업데이트 성공:', {
-                    token_prefix: token.substring(0, 4) + '...',
-                    user_id: userId,
-                    public_id: publicId
-                });
+                
+                if (updateResult.affectedRows === 0) {
+                    Logger.error('[WARRANTY] token_master owner 업데이트 실패: affectedRows=0', {
+                        token_prefix: token.substring(0, 4) + '...',
+                        user_id: userId,
+                        public_id: publicId
+                    });
+                } else {
+                    Logger.log('[WARRANTY] token_master owner 업데이트 성공:', {
+                        token_prefix: token.substring(0, 4) + '...',
+                        user_id: userId,
+                        public_id: publicId,
+                        affectedRows: updateResult.affectedRows
+                    });
+                }
             } catch (updateError) {
                 // token_master 업데이트 실패는 별도 로깅 (중요)
                 Logger.error('[WARRANTY] token_master owner 업데이트 실패:', {
                     message: updateError.message,
+                    code: updateError.code,
+                    errno: updateError.errno,
                     token_prefix: token.substring(0, 4) + '...',
                     user_id: userId,
                     public_id: publicId
@@ -554,9 +598,7 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 verified_at: utcDateTime
             });
             
-            await connection.end();
-            
-            // 6. 성공 응답 (token 제외, public_id 포함)
+            // 7. 성공 응답 (token 제외, public_id 포함)
             const utcDateTimeISO = now.toISOString(); // 이미 ISO 8601 형식
             
             return res.status(201).json({
@@ -570,9 +612,19 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                     created_at: utcDateTimeISO
                 }
             });
-            
+        } finally {
+            // connection.end()는 finally에서 한 번만 실행 (방어 코드 포함)
+            if (connection) {
+                try {
+                    await connection.end();
+                } catch (endError) {
+                    Logger.error('[WARRANTY] connection.end() 실패:', {
+                        message: endError.message
+                    });
+                }
+            }
+        }
         } catch (dbError) {
-            await connection.end();
             
             // UNIQUE 제약 위반 (동시 요청 등)
             if (dbError.code === 'ER_DUP_ENTRY' || dbError.errno === 1062) {
