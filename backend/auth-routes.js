@@ -269,16 +269,25 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 
                 // 같은 사용자가 이미 발급받은 경우 (중복 요청)
                 // ✅ token은 절대 응답에 포함하지 않음 (보안)
+                // TODO: 나중에 utils/datetime-utils.js로 유틸화 권장
                 const formatDateTimeToISO = (datetimeValue) => {
                     if (!datetimeValue) return null;
                     
                     // Date 객체인 경우
                     if (datetimeValue instanceof Date) {
-                        return datetimeValue.toISOString();
+                        // 밀리초 제거 (정책: 초 단위)
+                        return datetimeValue.toISOString().replace(/\.\d{3}Z$/, 'Z');
                     }
                     
-                    // 문자열인 경우 ('YYYY-MM-DD HH:MM:SS' 형식)
+                    // 문자열인 경우
                     if (typeof datetimeValue === 'string') {
+                        // 이미 ISO 형식인 경우 (T 포함)
+                        if (datetimeValue.includes('T')) {
+                            // Z가 없으면 추가, 밀리초가 있으면 제거
+                            let iso = datetimeValue.endsWith('Z') ? datetimeValue : datetimeValue + 'Z';
+                            return iso.replace(/\.\d{3}Z$/, 'Z');
+                        }
+                        // MySQL DATETIME 형식 ('YYYY-MM-DD HH:MM:SS')
                         return datetimeValue.replace(' ', 'T') + 'Z';
                     }
                     
@@ -607,16 +616,26 @@ router.get('/api/warranties/:public_id', authLimiter, authenticateToken, async (
             
             // 3. 시간 형식 변환 (DATETIME → ISO 8601)
             // mysql2는 DATETIME을 Date 객체 또는 문자열로 반환할 수 있음
+            // 정책: ISO 8601 형식 (Z 포함, 초 단위) - CORE_POLICIES.md 참고
+            // TODO: 나중에 utils/datetime-utils.js로 유틸화 권장
             const formatDateTimeToISO = (datetimeValue) => {
                 if (!datetimeValue) return null;
                 
                 // Date 객체인 경우
                 if (datetimeValue instanceof Date) {
-                    return datetimeValue.toISOString();
+                    // 밀리초 제거 (정책: 초 단위)
+                    return datetimeValue.toISOString().replace(/\.\d{3}Z$/, 'Z');
                 }
                 
-                // 문자열인 경우 ('YYYY-MM-DD HH:MM:SS' 형식)
+                // 문자열인 경우
                 if (typeof datetimeValue === 'string') {
+                    // 이미 ISO 형식인 경우 (T 포함)
+                    if (datetimeValue.includes('T')) {
+                        // Z가 없으면 추가, 밀리초가 있으면 제거
+                        let iso = datetimeValue.endsWith('Z') ? datetimeValue : datetimeValue + 'Z';
+                        return iso.replace(/\.\d{3}Z$/, 'Z');
+                    }
+                    // MySQL DATETIME 형식 ('YYYY-MM-DD HH:MM:SS')
                     return datetimeValue.replace(' ', 'T') + 'Z';
                 }
                 
