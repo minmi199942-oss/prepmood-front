@@ -400,8 +400,17 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
  */
 router.get('/api/warranties/me', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = parseInt(req.query.offset) || 0;
+    
+    // 페이지네이션 파라미터 검증 및 정수 변환
+    let limit = parseInt(req.query.limit, 10);
+    let offset = parseInt(req.query.offset, 10);
+    
+    // 기본값 설정 (NaN이거나 정수가 아닌 경우)
+    if (!Number.isInteger(limit) || limit < 1) limit = 20;
+    if (!Number.isInteger(offset) || offset < 0) offset = 0;
+    
+    // 범위 제한
+    if (limit > 100) limit = 100;
     
     try {
         // MySQL 연결
@@ -418,27 +427,14 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
         
         try {
             // 1. 보증서 목록 조회 (token 제외)
-            // 주의: MySQL prepared statement에서 LIMIT/OFFSET은 변수 바인딩 불가
-            // 숫자 검증 후 문자열 보간 사용 (SQL injection 방지)
-            const safeLimit = parseInt(limit) || 20;
-            const safeOffset = parseInt(offset) || 0;
-            
-            if (isNaN(safeLimit) || isNaN(safeOffset) || safeLimit < 1 || safeLimit > 100 || safeOffset < 0) {
-                await connection.end();
-                return res.status(400).json({
-                    success: false,
-                    message: '잘못된 페이지네이션 파라미터입니다.',
-                    code: 'INVALID_PAGING'
-                });
-            }
-            
+            // LIMIT ?, ? 형태로 바인딩 사용 (offset, limit 순서)
             const [warranties] = await connection.execute(
                 `SELECT id, public_id, product_name, created_at, verified_at 
                  FROM warranties 
                  WHERE user_id = ? 
                  ORDER BY created_at DESC 
-                 LIMIT ${safeLimit} OFFSET ${safeOffset}`,
-                [userId]
+                 LIMIT ? OFFSET ?`,
+                [userId, limit, offset]
             );
             
             // 2. 총 개수 조회 (COUNT)
