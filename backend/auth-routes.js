@@ -14,6 +14,7 @@ const router = express.Router();
 const { rateLimit } = require('express-rate-limit');
 const mysql = require('mysql2/promise');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 const { 
     getProductByToken, 
     updateFirstVerification, 
