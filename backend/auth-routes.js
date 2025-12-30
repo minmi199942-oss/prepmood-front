@@ -16,13 +16,12 @@ const mysql = require('mysql2/promise');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const { 
-    getProductByToken, 
-    updateFirstVerification, 
-    updateReVerification,
     revokeToken
 } = require('./auth-db');
 const Logger = require('./logger');
 const { requireAuthForHTML, authenticateToken } = require('./auth-middleware');
+const { getClientIp } = require('./utils/get-client-ip');
+const geoip = require('geoip-lite');
 require('dotenv').config();
 
 // 이상 패턴 감지용 (메모리 기반, 운영에서는 Redis 권장)
@@ -118,66 +117,103 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
         // 토큰 일부만 로깅 (보안)
         Logger.log('[AUTH] 정품 인증 요청:', token.substring(0, 4) + '...');
         
-        // DB에서 제품 조회
-        const product = getProductByToken(token);
+        // MySQL 연결
+        const dbConfig = {
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        };
         
-        // Case A: 토큰이 DB에 없음 → 가품 경고
-        if (!product) {
-            Logger.warn('[AUTH] 등록되지 않은 토큰:', token.substring(0, 4) + '...');
-            
-            // 이상 패턴 감지
-            detectSuspiciousPattern(token, req.ip || req.headers['x-real-ip'] || 'unknown', false, true);
-            
-            // ✅ status code 400 추가
-            return res.status(400).render('fake', {
-                title: '가품 경고 - Pre.p Mood'
-            });
-        }
+        const connection = await mysql.createConnection(dbConfig);
         
-        // Case A-2: 토큰이 무효화됨 (status = 3)
-        if (product.status === 3) {
-            Logger.warn('[AUTH] 무효화된 토큰:', token.substring(0, 4) + '...');
-            // ✅ status code 400 추가
-            return res.status(400).render('fake', {
-                title: '가품 경고 - Pre.p Mood'
-            });
-        }
-        
-        // Case B: 첫 인증 (status = 0)
-        if (product.status === 0) {
-            Logger.log('[AUTH] 첫 인증 처리:', token.substring(0, 4) + '...');
+        try {
+            // ✅ SQLite 제거, MySQL token_master 조회
+            const [tokenMasterRows] = await connection.execute(
+                'SELECT * FROM token_master WHERE token = ?',
+                [token]
+            );
             
-            // 이상 패턴 감지 (첫 인증)
-            detectSuspiciousPattern(token, req.ip || req.headers['x-real-ip'] || 'unknown', true, false);
-            
-            // DB 업데이트
-            updateFirstVerification(token);
-            
-            // 업데이트된 정보 다시 조회
-            const updatedProduct = getProductByToken(token);
-            
-            // ✅ 보증서 자동 발급 로직 추가
-            const userId = req.user.userId; // requireAuthForHTML에서 설정됨
-            let warrantyPublicId = null;
-            
-            try {
-                // MySQL 연결
-                const dbConfig = {
-                    host: process.env.DB_HOST,
-                    user: process.env.DB_USER,
-                    password: process.env.DB_PASSWORD,
-                    database: process.env.DB_NAME,
-                    port: process.env.DB_PORT || 3306,
-                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-                };
+            // Case A: 토큰이 DB에 없음 → 가품 경고
+            if (tokenMasterRows.length === 0) {
+                Logger.warn('[AUTH] 등록되지 않은 토큰:', token.substring(0, 4) + '...');
                 
-                const connection = await mysql.createConnection(dbConfig);
+                // 이상 패턴 감지
+                const clientIp = getClientIp(req);
+                detectSuspiciousPattern(token, clientIp, false, true);
+                
+                await connection.end();
+                return res.status(400).render('fake', {
+                    title: '가품 경고 - Pre.p Mood'
+                });
+            }
+            
+            const tokenMaster = tokenMasterRows[0];
+            
+            // Case A-2: 토큰이 차단됨 (is_blocked = 1)
+            if (tokenMaster.is_blocked === 1) {
+                Logger.warn('[AUTH] 차단된 토큰:', token.substring(0, 4) + '...');
+                await connection.end();
+                return res.status(400).render('fake', {
+                    title: '가품 경고 - Pre.p Mood'
+                });
+            }
+        
+            // Case B: 첫 인증 (first_scanned_at이 NULL)
+            const isFirstScan = !tokenMaster.first_scanned_at;
+            
+            if (isFirstScan) {
+                Logger.log('[AUTH] 첫 인증 처리:', token.substring(0, 4) + '...');
+                
+                // 이상 패턴 감지 (첫 인증)
+                const clientIp = getClientIp(req);
+                detectSuspiciousPattern(token, clientIp, true, false);
+                
+                // ✅ 보증서 자동 발급 로직 추가
+                const userId = req.user.userId; // requireAuthForHTML에서 설정됨
+                let warrantyPublicId = null;
                 
                 try {
-                    // 1. SQLite에서 제품 정보 조회 (product_name 가져오기)
-                    const productName = updatedProduct ? updatedProduct.product_name : null;
+                    // 1. token_master 스캔 카운트 업데이트
+                    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                    await connection.execute(
+                        `UPDATE token_master 
+                         SET scan_count = scan_count + 1,
+                             first_scanned_at = ?,
+                             last_scanned_at = ?,
+                             updated_at = ?
+                         WHERE token = ?`,
+                        [now, now, now, token]
+                    );
                     
-                    // 2. 이미 발급된 보증서가 있는지 확인
+                    // 2. scan_logs INSERT (GeoIP 포함)
+                    const geo = geoip.lookup(clientIp);
+                    const countryCode = geo ? geo.country : null;
+                    const countryName = geo ? geo.country : null;
+                    
+                    await connection.execute(
+                        `INSERT INTO scan_logs 
+                         (token, user_id, warranty_public_id, ip_address, country_code, country_name, user_agent, event_type, created_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            token,
+                            userId,
+                            tokenMaster.owner_warranty_public_id || null,
+                            clientIp,
+                            countryCode,
+                            countryName,
+                            req.headers['user-agent'] || null,
+                            'verify_success_first',
+                            now
+                        ]
+                    );
+                    
+                    // 3. product_name 가져오기 (token_master에서)
+                    const productName = tokenMaster.product_name;
+                    
+                    // 4. 이미 발급된 보증서가 있는지 확인
                     const [existing] = await connection.execute(
                         'SELECT public_id FROM warranties WHERE token = ? AND user_id = ?',
                         [token, userId]
@@ -193,12 +229,21 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                     } else {
                         // 새로 발급
                         const publicId = uuidv4();
-                        const now = new Date();
-                        const utcDateTime = now.toISOString().replace('T', ' ').substring(0, 19);
+                        const utcDateTime = now;
                         
                         await connection.execute(
                             'INSERT INTO warranties (user_id, token, public_id, product_name, verified_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
                             [userId, token, publicId, productName, utcDateTime, utcDateTime]
+                        );
+                        
+                        // token_master owner 업데이트
+                        await connection.execute(
+                            `UPDATE token_master 
+                             SET owner_user_id = ?,
+                                 owner_warranty_public_id = ?,
+                                 updated_at = ?
+                             WHERE token = ?`,
+                            [userId, publicId, now, token]
                         );
                         
                         warrantyPublicId = publicId;
@@ -208,58 +253,69 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                             user_id: userId
                         });
                     }
-                    
-                    await connection.end();
                 } catch (dbError) {
-                    await connection.end();
                     // 보증서 발급 실패해도 정품 인증은 성공으로 처리
                     Logger.error('[AUTH] 보증서 발급 실패 (인증은 성공):', {
                         message: dbError.message,
                         token_prefix: token.substring(0, 4) + '...'
                     });
                 }
-            } catch (error) {
-                // 보증서 발급 실패해도 정품 인증은 성공으로 처리
-                Logger.error('[AUTH] 보증서 발급 중 오류 (인증은 성공):', {
-                    message: error.message,
-                    token_prefix: token.substring(0, 4) + '...'
+                
+                await connection.end();
+                
+                return res.render('success', {
+                    title: '정품 인증 성공 - Pre.p Mood',
+                    product: {
+                        product_name: tokenMaster.product_name,
+                        internal_code: tokenMaster.internal_code
+                    },
+                    verified_at: now,
+                    warranty_public_id: warrantyPublicId
                 });
             }
+        
+            // Case C: 재인증 (first_scanned_at이 이미 있음)
+            Logger.log('[AUTH] 재인증 처리:', token.substring(0, 4) + '...');
             
-            return res.render('success', {
-                title: '정품 인증 성공 - Pre.p Mood',
-                product: updatedProduct,
-                verified_at: updatedProduct.first_verified_at,
-                warranty_public_id: warrantyPublicId  // ✅ public_id 전달
-            });
-        }
-        
-        // Case C: 재인증 (status >= 1)
-        Logger.log('[AUTH] 재인증 처리:', token.substring(0, 4) + '...');
-        
-        // DB 업데이트 (scan_count 증가)
-        updateReVerification(token);
-        
-        // 업데이트된 정보 다시 조회
-        const updatedProduct = getProductByToken(token);
-        
-        // ✅ 기존 보증서 확인 (있는 경우에만)
-        const userId = req.user.userId;
-        let warrantyPublicId = null;
-        
-        try {
-            const dbConfig = {
-                host: process.env.DB_HOST,
-                user: process.env.DB_USER,
-                password: process.env.DB_PASSWORD,
-                database: process.env.DB_NAME,
-                port: process.env.DB_PORT || 3306,
-                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-            };
-            
-            const connection = await mysql.createConnection(dbConfig);
+            const userId = req.user.userId;
+            let warrantyPublicId = null;
             
             try {
+                // 1. token_master 스캔 카운트 업데이트
+                const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                await connection.execute(
+                    `UPDATE token_master 
+                     SET scan_count = scan_count + 1,
+                         last_scanned_at = ?,
+                         updated_at = ?
+                     WHERE token = ?`,
+                    [now, now, token]
+                );
+                
+                // 2. scan_logs INSERT (GeoIP 포함)
+                const clientIp = getClientIp(req);
+                const geo = geoip.lookup(clientIp);
+                const countryCode = geo ? geo.country : null;
+                const countryName = geo ? geo.country : null;
+                
+                await connection.execute(
+                    `INSERT INTO scan_logs 
+                     (token, user_id, warranty_public_id, ip_address, country_code, country_name, user_agent, event_type, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        token,
+                        userId,
+                        tokenMaster.owner_warranty_public_id || null,
+                        clientIp,
+                        countryCode,
+                        countryName,
+                        req.headers['user-agent'] || null,
+                        'verify_success_repeat',
+                        now
+                    ]
+                );
+                
+                // 3. 기존 보증서 확인
                 const [existing] = await connection.execute(
                     'SELECT public_id FROM warranties WHERE token = ? AND user_id = ?',
                     [token, userId]
@@ -268,28 +324,24 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                 if (existing.length > 0) {
                     warrantyPublicId = existing[0].public_id;
                 }
-                
-                await connection.end();
             } catch (dbError) {
-                await connection.end();
-                Logger.error('[AUTH] 보증서 조회 실패:', {
+                Logger.error('[AUTH] 재인증 처리 실패:', {
                     message: dbError.message,
                     token_prefix: token.substring(0, 4) + '...'
                 });
             }
-        } catch (error) {
-            Logger.error('[AUTH] 보증서 조회 중 오류:', {
-                message: error.message,
-                token_prefix: token.substring(0, 4) + '...'
+            
+            await connection.end();
+            
+            return res.render('warning', {
+                title: '이미 인증된 제품 - Pre.p Mood',
+                product: {
+                    product_name: tokenMaster.product_name,
+                    internal_code: tokenMaster.internal_code
+                },
+                first_verified_at: tokenMaster.first_scanned_at,
+                warranty_public_id: warrantyPublicId
             });
-        }
-        
-        return res.render('warning', {
-            title: '이미 인증된 제품 - Pre.p Mood',
-            product: updatedProduct,
-            first_verified_at: updatedProduct.first_verified_at,
-            warranty_public_id: warrantyPublicId  // ✅ public_id 전달 (있으면)
-        });
         
     } catch (error) {
         Logger.error('[AUTH] 정품 인증 처리 실패:', {
@@ -297,7 +349,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
             code: error.code,
             route: req.path,
             method: req.method,
-            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            ip: getClientIp(req),
             token_prefix: token ? token.substring(0, 4) : null
         });
         res.status(500).render('error', {
@@ -354,9 +406,22 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
         const connection = await mysql.createConnection(dbConfig);
         
         try {
-            // 1. SQLite에서 제품 정보 조회 (product_name 가져오기)
-            const product = getProductByToken(token);
-            const productName = product ? product.product_name : null;
+            // 1. token_master에서 제품 정보 조회
+            const [tokenMasterRows] = await connection.execute(
+                'SELECT product_name FROM token_master WHERE token = ?',
+                [token]
+            );
+            
+            if (tokenMasterRows.length === 0) {
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: '등록되지 않은 토큰입니다.',
+                    code: 'INVALID_TOKEN'
+                });
+            }
+            
+            const productName = tokenMasterRows[0].product_name;
             
             // 2. 토큰 중복 확인 (이미 발급된 보증서인지)
             const [existing] = await connection.execute(
@@ -441,6 +506,16 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 [userId, token, publicId, productName, utcDateTime, utcDateTime]
             );
             
+            // 6. token_master owner 업데이트
+            await connection.execute(
+                `UPDATE token_master 
+                 SET owner_user_id = ?,
+                     owner_warranty_public_id = ?,
+                     updated_at = ?
+                 WHERE token = ?`,
+                [userId, publicId, utcDateTime, token]
+            );
+            
             Logger.log('[WARRANTY] 보증서 발급 성공:', {
                 warranty_id: result.insertId,
                 public_id: publicId,
@@ -508,7 +583,7 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
             code: error.code,
             route: req.path,
             method: req.method,
-            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            ip: getClientIp(req),
             token_prefix: token ? token.substring(0, 4) : null,
             user_id: userId
         });
@@ -660,7 +735,7 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
             code: error.code,
             route: req.path,
             method: req.method,
-            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            ip: getClientIp(req),
             user_id: userId
         });
         
@@ -797,7 +872,7 @@ router.get('/api/warranties/:public_id', authLimiter, authenticateToken, async (
             code: error.code,
             route: req.path,
             method: req.method,
-            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            ip: getClientIp(req),
             public_id: publicId,
             user_id: userId
         });
@@ -845,7 +920,7 @@ router.get('/warranty/:public_id', authLimiter, requireAuthForHTML, async (req, 
             code: error.code,
             route: req.path,
             method: req.method,
-            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            ip: getClientIp(req),
             public_id: publicId
         });
         
