@@ -288,8 +288,6 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                     verified_at: now,
                     warranty_public_id: warrantyPublicId
                 });
-            }
-        
             } else {
                 // Case C: 재인증 (first_scanned_at이 이미 있음)
                 Logger.log('[AUTH] 재인증 처리:', token.substring(0, 4) + '...');
@@ -306,40 +304,40 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                          WHERE token = ?`,
                         [now, now, token]
                     );
-                
-                // 2. scan_logs INSERT (GeoIP 포함)
-                const clientIp = getClientIp(req);
-                const geo = geoip.lookup(clientIp);
-                const countryCode = geo ? geo.country : null;
-                const countryName = geo ? geo.country : null;
-                
-                await connection.execute(
-                    `INSERT INTO scan_logs 
-                     (token, user_id, warranty_public_id, ip_address, country_code, country_name, user_agent, event_type, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [
-                        token,
-                        userId,
-                        tokenMaster.owner_warranty_public_id || null,
-                        clientIp,
-                        countryCode,
-                        countryName,
-                        req.headers['user-agent'] || null,
-                        'verify_success_repeat',
-                        now
-                    ]
-                );
-                
-                // 3. 기존 보증서 확인
-                const [existing] = await connection.execute(
-                    'SELECT public_id FROM warranties WHERE token = ? AND user_id = ?',
-                    [token, userId]
-                );
-                
-                if (existing.length > 0) {
-                    warrantyPublicId = existing[0].public_id;
-                }
-            } catch (dbError) {
+                    
+                    // 2. scan_logs INSERT (GeoIP 포함)
+                    const clientIp = getClientIp(req);
+                    const geo = geoip.lookup(clientIp);
+                    const countryCode = geo ? geo.country : null;
+                    const countryName = geo ? geo.country : null;
+                    
+                    await connection.execute(
+                        `INSERT INTO scan_logs 
+                         (token, user_id, warranty_public_id, ip_address, country_code, country_name, user_agent, event_type, created_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            token,
+                            userId,
+                            tokenMaster.owner_warranty_public_id || null,
+                            clientIp,
+                            countryCode,
+                            countryName,
+                            req.headers['user-agent'] || null,
+                            'verify_success_repeat',
+                            now
+                        ]
+                    );
+                    
+                    // 3. 기존 보증서 확인
+                    const [existing] = await connection.execute(
+                        'SELECT public_id FROM warranties WHERE token = ? AND user_id = ?',
+                        [token, userId]
+                    );
+                    
+                    if (existing.length > 0) {
+                        warrantyPublicId = existing[0].public_id;
+                    }
+                } catch (dbError) {
                 Logger.error('[AUTH] 재인증 처리 실패:', {
                     message: dbError.message,
                     token_prefix: token.substring(0, 4) + '...'
