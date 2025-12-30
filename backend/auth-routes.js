@@ -128,7 +128,8 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
             // 이상 패턴 감지
             detectSuspiciousPattern(token, req.ip || req.headers['x-real-ip'] || 'unknown', false, true);
             
-            return res.render('fake', {
+            // ✅ status code 400 추가
+            return res.status(400).render('fake', {
                 title: '가품 경고 - Pre.p Mood'
             });
         }
@@ -136,7 +137,8 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
         // Case A-2: 토큰이 무효화됨 (status = 3)
         if (product.status === 3) {
             Logger.warn('[AUTH] 무효화된 토큰:', token.substring(0, 4) + '...');
-            return res.render('fake', {
+            // ✅ status code 400 추가
+            return res.status(400).render('fake', {
                 title: '가품 경고 - Pre.p Mood'
             });
         }
@@ -154,10 +156,81 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
             // 업데이트된 정보 다시 조회
             const updatedProduct = getProductByToken(token);
             
+            // ✅ 보증서 자동 발급 로직 추가
+            const userId = req.user.userId; // requireAuthForHTML에서 설정됨
+            let warrantyPublicId = null;
+            
+            try {
+                // MySQL 연결
+                const dbConfig = {
+                    host: process.env.DB_HOST,
+                    user: process.env.DB_USER,
+                    password: process.env.DB_PASSWORD,
+                    database: process.env.DB_NAME,
+                    port: process.env.DB_PORT || 3306,
+                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+                };
+                
+                const connection = await mysql.createConnection(dbConfig);
+                
+                try {
+                    // 1. SQLite에서 제품 정보 조회 (product_name 가져오기)
+                    const productName = updatedProduct ? updatedProduct.product_name : null;
+                    
+                    // 2. 이미 발급된 보증서가 있는지 확인
+                    const [existing] = await connection.execute(
+                        'SELECT public_id FROM warranties WHERE token = ? AND user_id = ?',
+                        [token, userId]
+                    );
+                    
+                    if (existing.length > 0) {
+                        // 이미 발급된 경우
+                        warrantyPublicId = existing[0].public_id;
+                        Logger.log('[AUTH] 기존 보증서 확인:', {
+                            token_prefix: token.substring(0, 4) + '...',
+                            public_id: warrantyPublicId
+                        });
+                    } else {
+                        // 새로 발급
+                        const publicId = uuidv4();
+                        const now = new Date();
+                        const utcDateTime = now.toISOString().replace('T', ' ').substring(0, 19);
+                        
+                        await connection.execute(
+                            'INSERT INTO warranties (user_id, token, public_id, product_name, verified_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                            [userId, token, publicId, productName, utcDateTime, utcDateTime]
+                        );
+                        
+                        warrantyPublicId = publicId;
+                        Logger.log('[AUTH] 보증서 자동 발급 성공:', {
+                            token_prefix: token.substring(0, 4) + '...',
+                            public_id: publicId,
+                            user_id: userId
+                        });
+                    }
+                    
+                    await connection.end();
+                } catch (dbError) {
+                    await connection.end();
+                    // 보증서 발급 실패해도 정품 인증은 성공으로 처리
+                    Logger.error('[AUTH] 보증서 발급 실패 (인증은 성공):', {
+                        message: dbError.message,
+                        token_prefix: token.substring(0, 4) + '...'
+                    });
+                }
+            } catch (error) {
+                // 보증서 발급 실패해도 정품 인증은 성공으로 처리
+                Logger.error('[AUTH] 보증서 발급 중 오류 (인증은 성공):', {
+                    message: error.message,
+                    token_prefix: token.substring(0, 4) + '...'
+                });
+            }
+            
             return res.render('success', {
                 title: '정품 인증 성공 - Pre.p Mood',
                 product: updatedProduct,
-                verified_at: updatedProduct.first_verified_at
+                verified_at: updatedProduct.first_verified_at,
+                warranty_public_id: warrantyPublicId  // ✅ public_id 전달
             });
         }
         
@@ -170,10 +243,52 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
         // 업데이트된 정보 다시 조회
         const updatedProduct = getProductByToken(token);
         
+        // ✅ 기존 보증서 확인 (있는 경우에만)
+        const userId = req.user.userId;
+        let warrantyPublicId = null;
+        
+        try {
+            const dbConfig = {
+                host: process.env.DB_HOST,
+                user: process.env.DB_USER,
+                password: process.env.DB_PASSWORD,
+                database: process.env.DB_NAME,
+                port: process.env.DB_PORT || 3306,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+            };
+            
+            const connection = await mysql.createConnection(dbConfig);
+            
+            try {
+                const [existing] = await connection.execute(
+                    'SELECT public_id FROM warranties WHERE token = ? AND user_id = ?',
+                    [token, userId]
+                );
+                
+                if (existing.length > 0) {
+                    warrantyPublicId = existing[0].public_id;
+                }
+                
+                await connection.end();
+            } catch (dbError) {
+                await connection.end();
+                Logger.error('[AUTH] 보증서 조회 실패:', {
+                    message: dbError.message,
+                    token_prefix: token.substring(0, 4) + '...'
+                });
+            }
+        } catch (error) {
+            Logger.error('[AUTH] 보증서 조회 중 오류:', {
+                message: error.message,
+                token_prefix: token.substring(0, 4) + '...'
+            });
+        }
+        
         return res.render('warning', {
             title: '이미 인증된 제품 - Pre.p Mood',
             product: updatedProduct,
-            first_verified_at: updatedProduct.first_verified_at
+            first_verified_at: updatedProduct.first_verified_at,
+            warranty_public_id: warrantyPublicId  // ✅ public_id 전달 (있으면)
         });
         
     } catch (error) {

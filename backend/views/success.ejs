@@ -144,6 +144,63 @@
             letter-spacing: 0.5px;
         }
         
+        /* 버튼 컨테이너 */
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 30px;
+        }
+        
+        .primary-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .primary-button:hover {
+            background: #45a049;
+        }
+        
+        .secondary-button {
+            background: transparent;
+            color: #666;
+            border: 1px solid #ddd;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .secondary-button:hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+        
+        .warranty-notice {
+            background: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+            font-size: 14px;
+            color: #2e7d32;
+            line-height: 1.6;
+        }
+        
         @media (max-width: 480px) {
             .container {
                 padding: 30px 20px;
@@ -196,6 +253,29 @@
         </div>
         
         <div class="verified-badge">✓ 정품 인증 완료</div>
+        
+        <!-- ✅ 보증서 안내 추가 -->
+        <% if (warranty_public_id) { %>
+            <div class="warranty-notice">
+                <strong>디지털 보증서가 발급되었습니다.</strong><br>
+                발급된 보증서는 마이페이지 → 내 보증서에서 언제든 확인할 수 있습니다.
+            </div>
+            
+            <div class="button-container">
+                <a href="/my-warranties.html" class="primary-button">
+                    보증서 확인하기
+                </a>
+                <a href="/index.html" class="secondary-button">
+                    홈으로 돌아가기
+                </a>
+            </div>
+        <% } else { %>
+            <div class="button-container">
+                <a href="/index.html" class="primary-button">
+                    홈으로 돌아가기
+                </a>
+            </div>
+        <% } %>
         
         <div class="brand">Pre.p Mood</div>
         

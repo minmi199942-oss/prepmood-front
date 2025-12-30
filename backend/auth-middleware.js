@@ -291,6 +291,9 @@ function validateReturnTo(returnTo) {
         returnTo === '/' ||
         returnTo === '/index.html' ||
         returnTo === '/my-profile.html' ||
+        returnTo === '/my-warranties.html' ||
+        returnTo === '/my-orders.html' ||
+        returnTo === '/my-reservations.html' ||
         returnTo.startsWith('/a/');  // /a/:token 형식 (쿼리 포함 가능)
 
     return allowed ? returnTo : null;
@@ -307,15 +310,15 @@ function validateReturnTo(returnTo) {
  * @param {Function} next - Express next 함수
  */
 function requireAuthForHTML(req, res, next) {
-    // ✅ 토큰 형식 검증 먼저 (returnTo에 이상한 값이 들어가는 것 방지)
-    // /a/:token 라우트인 경우
+    // ✅ 1. 토큰 파싱: req.path에서 직접 파싱 (정규식에서 \? 제거)
     if (req.path.startsWith('/a/')) {
-        const token = req.params.token;
-        // 토큰 형식 검증 (20자 영숫자)
+        const pathMatch = req.path.match(/^\/a\/([a-zA-Z0-9]{20})(?:\/|$)/);
+        const token = pathMatch ? pathMatch[1] : null;
+        
         if (!token || !/^[a-zA-Z0-9]{20}$/.test(token)) {
-            // 잘못된 토큰 형식 → fake 렌더 (가품/오입력 문제이므로 로그인으로 보내지 않음)
             Logger.warn('[AUTH] 잘못된 토큰 형식:', token ? token.substring(0, 4) + '...' : 'null');
-            return res.render('fake', {
+            // ✅ 3. status code 400 추가
+            return res.status(400).render('fake', {
                 title: '가품 경고 - Pre.p Mood'
             });
         }
@@ -324,16 +327,25 @@ function requireAuthForHTML(req, res, next) {
     const jwtToken = req.cookies?.accessToken;
     
     if (!jwtToken) {
-        // 비로그인 상태 → 로그인 페이지로 리다이렉트
-        // req.originalUrl이 라우터에서 제대로 작동하지 않을 수 있으므로 req.path 사용
-        let returnTo = req.originalUrl || req.path;
-        // 쿼리 스트링이 있으면 포함
-        if (req.query && Object.keys(req.query).length > 0) {
-            const queryString = new URLSearchParams(req.query).toString();
-            returnTo = `${returnTo}?${queryString}`;
+        // ✅ returnTo: req.originalUrl 그대로 사용 (쿼리 포함)
+        const returnTo = req.originalUrl || req.path;
+        
+        // ✅ URLSearchParams로 안전하게 조립
+        const isQrAuth = req.path.startsWith('/a/');
+        const loginParams = new URLSearchParams();
+        loginParams.set('returnTo', returnTo);
+        if (isQrAuth) {
+            loginParams.set('reason', 'qr_auth');
         }
-        console.log('📋 [AUTH] 비로그인 리다이렉트:', { returnTo, originalUrl: req.originalUrl, path: req.path });
-        return res.redirect(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
+        
+        console.log('📋 [AUTH] 비로그인 리다이렉트:', { 
+            returnTo, 
+            originalUrl: req.originalUrl, 
+            path: req.path,
+            reason: isQrAuth ? 'qr_auth' : null
+        });
+        
+        return res.redirect(`/login.html?${loginParams.toString()}`);
     }
     
     try {
@@ -345,15 +357,24 @@ function requireAuthForHTML(req, res, next) {
         };
         next();
     } catch (error) {
-        // 토큰 유효하지 않음 → 로그인 페이지로 리다이렉트
-        let returnTo = req.originalUrl || req.path;
-        // 쿼리 스트링이 있으면 포함
-        if (req.query && Object.keys(req.query).length > 0) {
-            const queryString = new URLSearchParams(req.query).toString();
-            returnTo = `${returnTo}?${queryString}`;
+        // ✅ 토큰 만료 시에도 동일하게 처리
+        const returnTo = req.originalUrl || req.path;
+        
+        const isQrAuth = req.path.startsWith('/a/');
+        const loginParams = new URLSearchParams();
+        loginParams.set('returnTo', returnTo);
+        if (isQrAuth) {
+            loginParams.set('reason', 'qr_auth');
         }
-        Logger.log('[AUTH] 토큰 만료 리다이렉트:', { returnTo, originalUrl: req.originalUrl, path: req.path });
-        return res.redirect(`/login.html?returnTo=${encodeURIComponent(returnTo)}`);
+        
+        Logger.log('[AUTH] 토큰 만료 리다이렉트:', { 
+            returnTo, 
+            originalUrl: req.originalUrl, 
+            path: req.path,
+            reason: isQrAuth ? 'qr_auth' : null
+        });
+        
+        return res.redirect(`/login.html?${loginParams.toString()}`);
     }
 }
 

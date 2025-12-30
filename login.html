@@ -8,6 +8,105 @@
   <link rel="stylesheet" href="assets/css/page.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
   <link rel="stylesheet" href="assets/css/login.css">
+  <style>
+    /* QR 인증 안내 배너 */
+    .qr-auth-notice {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      animation: slideIn 0.3s ease-out;
+      position: relative;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .qr-auth-notice .notice-icon {
+      font-size: 28px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .qr-auth-notice .notice-content {
+      flex: 1;
+    }
+
+    .qr-auth-notice .notice-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: white;
+      line-height: 1.4;
+    }
+
+    .qr-auth-notice .notice-text {
+      font-size: 13px;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.5;
+    }
+
+    .qr-auth-notice .notice-close {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+      padding: 0;
+    }
+
+    .qr-auth-notice .notice-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    @media (max-width: 480px) {
+      .qr-auth-notice {
+        padding: 14px 16px;
+        gap: 12px;
+      }
+      
+      .qr-auth-notice .notice-icon {
+        font-size: 24px;
+      }
+      
+      .qr-auth-notice .notice-title {
+        font-size: 14px;
+      }
+      
+      .qr-auth-notice .notice-text {
+        font-size: 12px;
+      }
+      
+      .qr-auth-notice .notice-close {
+        width: 20px;
+        height: 20px;
+        font-size: 16px;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="login-container">
@@ -22,6 +121,16 @@
 
     <main class="login-main">
       <div class="login-box">
+      <!-- ✅ QR 인증 안내 배너 (조건부 표시) -->
+      <div id="qr-auth-notice" class="qr-auth-notice" style="display: none;">
+        <div class="notice-icon">🔐</div>
+        <div class="notice-content">
+          <h3 class="notice-title">정품 인증을 위해 로그인이 필요합니다.</h3>
+          <p class="notice-text">로그인 후 인증 페이지로 이동합니다.</p>
+        </div>
+        <button class="notice-close" id="closeQrNotice" aria-label="닫기">×</button>
+      </div>
+      
       <!-- 소셜 로그인 버튼들 -->
       <div class="social-login-container">
         <button class="social-login-btn google-login-btn" id="googleLoginBtn">
@@ -173,6 +282,33 @@
       // ✅ returnTo를 페이지 로드 시 읽어서 스코프 유지
       const urlParams = new URLSearchParams(window.location.search);
       const returnTo = urlParams.get('returnTo');  // 페이지 파라미터 기반이면 자연스럽게 유지됨
+      const reason = urlParams.get('reason'); // ✅ reason 파라미터 확인
+      
+      // ✅ QR 인증 안내 배너 표시 로직
+      const qrAuthNotice = document.getElementById('qr-auth-notice');
+      const closeQrNotice = document.getElementById('closeQrNotice');
+      
+      if (reason === 'qr_auth' && qrAuthNotice) {
+        // reason=qr_auth일 때만 배너 표시
+        qrAuthNotice.style.display = 'flex';
+        
+        // 닫기 버튼 클릭 시 배너 숨김 및 URL에서 reason만 제거 (returnTo 유지)
+        if (closeQrNotice) {
+          closeQrNotice.addEventListener('click', function() {
+            qrAuthNotice.style.display = 'none';
+            
+            // ✅ 옵션 A: URL에서 reason만 제거, returnTo는 유지
+            const newParams = new URLSearchParams(window.location.search);
+            newParams.delete('reason');
+            const newUrl = window.location.pathname + 
+                (newParams.toString() ? '?' + newParams.toString() : '');
+            history.replaceState(null, '', newUrl);
+          });
+        }
+      } else if (qrAuthNotice) {
+        // 일반 로그인 페이지면 배너 숨김
+        qrAuthNotice.style.display = 'none';
+      }
       
       const loginForm = document.getElementById('loginForm');
       const loginBtn = document.getElementById('loginBtn');
