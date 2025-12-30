@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>보증서 상세 - Pre.p Mood</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/page.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+    <script defer src="utils.js"></script>
+    <script defer src="header-loader.js"></script>
+    <script defer src="header-scroll.js"></script>
+    <script defer src="footer-loader.js"></script>
+    <script defer src="warranty-detail.js"></script>
+</head>
+<body>
+    <!-- 헤더 컨테이너 -->
+    <div id="header-container"></div>
+
+    <!-- 메인 컨텐츠 -->
+    <main class="warranty-detail-main">
+        <!-- 로고 섹션 -->
+        <div class="logo-section">
+            <img src="image/prepmoodlogo.jpg" alt="Pre.p Mood" class="main-logo">
+        </div>
+
+        <!-- 메인 레이아웃 -->
+        <div class="main-layout">
+            <!-- 좌측 사이드바 -->
+            <aside class="sidebar">
+                <div class="sidebar-content">
+                    <!-- 사용자 환영 메시지 -->
+                    <div class="user-welcome">
+                        <h2 id="user-welcome-text">님 환영합니다.</h2>
+                    </div>
+
+                    <!-- 네비게이션 메뉴 -->
+                    <nav class="sidebar-nav">
+                        <a href="my-orders.html" class="nav-item" data-page="orders">
+                            <span>내 주문</span>
+                            <div class="nav-underline"></div>
+                        </a>
+                        <a href="my-reservations.html" class="nav-item" data-page="reservations">
+                            <span>예약</span>
+                            <div class="nav-underline"></div>
+                        </a>
+                        <a href="my-warranties.html" class="nav-item" data-page="warranties">
+                            <span>내 보증서</span>
+                            <div class="nav-underline"></div>
+                        </a>
+                        <a href="my-profile.html" class="nav-item" data-page="profile">
+                            <span>내 프로필</span>
+                            <div class="nav-underline"></div>
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- 우측 메인 영역 -->
+            <section class="main-content">
+                <div class="content-container">
+                    <!-- 뒤로가기 버튼 -->
+                    <div class="back-button-container">
+                        <a href="my-warranties.html" class="back-button">← 보증서 목록으로</a>
+                    </div>
+
+                    <!-- 페이지 제목 -->
+                    <div class="page-header">
+                        <h1 class="page-title">보증서 상세</h1>
+                        <p class="page-subtitle">디지털 보증서 정보</p>
+                        <p class="page-english">Warranty Detail</p>
+                    </div>
+
+                    <!-- 보증서 상세 영역 -->
+                    <div class="warranty-detail-section">
+                        <!-- 로딩 상태 -->
+                        <div id="loading-warranty" class="loading-warranty">
+                            <p>보증서 정보를 불러오는 중...</p>
+                        </div>
+
+                        <!-- 보증서 상세 정보 -->
+                        <div id="warranty-detail-content" class="warranty-detail-content" style="display: none;">
+                            <!-- JavaScript로 동적 생성 -->
+                        </div>
+
+                        <!-- 보증서 없음 상태 -->
+                        <div id="no-warranty" class="no-warranty" style="display: none;">
+                            <div class="no-warranty-content">
+                                <h2 class="no-warranty-title">보증서를 찾을 수 없습니다.</h2>
+                                <p class="no-warranty-subtitle">보증서 ID가 올바른지 확인해주세요.</p>
+                                <a href="my-warranties.html" class="back-to-list-button">보증서 목록으로 돌아가기</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 푸터 컨테이너 -->
+    <div id="footer-container"></div>
+</body>
+</html>
+

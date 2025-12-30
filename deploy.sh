@@ -74,6 +74,7 @@ rsync -av \
   --include="login.html" \
   --include="register.html" \
   --include="my-*.html" \
+  --include="warranty-detail.html" \
   --include="complete-profile.html" \
   --include="google-callback.html" \
   --include="catalog.html" \
@@ -94,6 +95,7 @@ rsync -av \
   --include="utils.js" \
   --include="common.js" \
   --include="my-*.js" \
+  --include="warranty-detail.js" \
   --include="header-loader.js" \
   --include="header-scroll.js" \
   --include="footer-loader.js" \

@@ -3264,3 +3264,163 @@
   color: #666;
   font-size: clamp(0.9rem, 2vw, 1rem);
 }
+
+/* ===== 보증서 상세 페이지 ===== */
+.warranty-detail-main {
+  min-height: calc(100vh - var(--header-height, 72px));
+  padding-top: clamp(30px, 5vw, 40px);
+  background-color: #ffffff;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+.back-button-container {
+  margin-bottom: clamp(20px, 4vw, 24px);
+}
+
+.back-button {
+  color: #111;
+  text-decoration: none;
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  letter-spacing: 0.1px;
+  transition: opacity 0.2s ease;
+  display: inline-block;
+}
+
+.back-button:hover {
+  opacity: 0.7;
+}
+
+.warranty-detail-section {
+  margin-top: clamp(30px, 5vw, 40px);
+}
+
+.warranty-detail-card {
+  background-color: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 0;
+  padding: clamp(30px, 5vw, 40px);
+  max-width: 800px;
+}
+
+.warranty-detail-header {
+  margin-bottom: clamp(30px, 5vw, 40px);
+  padding-bottom: clamp(20px, 4vw, 24px);
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.warranty-detail-header .warranty-product-name {
+  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  font-weight: 600;
+  color: #111;
+  margin-bottom: clamp(12px, 2.5vw, 16px);
+  letter-spacing: 0.2px;
+}
+
+.warranty-id-badge {
+  font-size: clamp(0.85rem, 1.8vw, 0.9rem);
+  color: #666;
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}
+
+.warranty-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 4vw, 24px);
+  margin-bottom: clamp(30px, 5vw, 40px);
+}
+
+.warranty-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: clamp(20px, 4vw, 24px);
+  padding-bottom: clamp(16px, 3vw, 20px);
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.warranty-info-item:last-child {
+  border-bottom: none;
+}
+
+.warranty-info-label {
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  color: #666;
+  font-weight: 500;
+  flex: 0 0 120px;
+  letter-spacing: 0.1px;
+}
+
+.warranty-info-value {
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  color: #111;
+  flex: 1;
+  text-align: right;
+  letter-spacing: 0.1px;
+}
+
+.warranty-info-value.warranty-id {
+  font-family: monospace;
+  font-size: clamp(0.85rem, 1.8vw, 0.9rem);
+  word-break: break-all;
+  text-align: left;
+}
+
+.warranty-detail-footer {
+  padding-top: clamp(20px, 4vw, 24px);
+  border-top: 1px solid #e5e5e5;
+}
+
+.warranty-note {
+  font-size: clamp(0.85rem, 1.8vw, 0.9rem);
+  color: #999;
+  line-height: 1.6;
+  letter-spacing: 0.1px;
+}
+
+.loading-warranty {
+  text-align: center;
+  padding: clamp(60px, 10vw, 80px) clamp(20px, 4vw, 30px);
+  color: #666;
+  font-size: clamp(0.9rem, 2vw, 1rem);
+}
+
+.no-warranty {
+  text-align: center;
+  padding: clamp(60px, 10vw, 80px) clamp(20px, 4vw, 30px);
+}
+
+.no-warranty-content {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.no-warranty-title {
+  font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+  font-weight: 400;
+  color: #666;
+  margin-bottom: clamp(12px, 2.5vw, 16px);
+}
+
+.no-warranty-subtitle {
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  color: #999;
+  margin-bottom: clamp(24px, 4vw, 32px);
+}
+
+.back-to-list-button {
+  display: inline-block;
+  padding: clamp(10px, 2vw, 12px) clamp(20px, 4vw, 24px);
+  border: 1px solid #111;
+  background-color: transparent;
+  color: #111;
+  text-decoration: none;
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+}
+
+.back-to-list-button:hover {
+  background-color: #111;
+  color: #fff;
+}

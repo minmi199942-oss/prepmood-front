@@ -716,20 +716,12 @@ router.get('/warranty/:public_id', authLimiter, requireAuthForHTML, async (req, 
         // public_id 형식 검증 (UUID v4)
         if (!publicId || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(publicId)) {
             Logger.warn('[WARRANTY] 잘못된 public_id 형식 (HTML):', publicId);
-            return res.status(400).render('error', {
-                title: '오류 발생 - Pre.p Mood',
-                message: '잘못된 보증서 ID 형식입니다.'
-            });
+            return res.status(400).sendFile(path.join(__dirname, '..', 'warranty-detail.html'));
         }
         
-        // TODO: HTML 페이지 렌더링
-        // 현재는 JSON API만 구현되어 있으므로, 프론트엔드에서 처리하거나
-        // 여기서 /api/warranties/:public_id를 호출하여 렌더링할 수 있습니다.
-        // 예시: const warranty = await fetchInternalAPI(`/api/warranties/${publicId}`);
-        //       return res.render('warranty-detail', { warranty });
-        
-        // 임시: JSON API로 리다이렉트 (프론트엔드에서 처리)
-        return res.redirect(`/api/warranties/${publicId}`);
+        // HTML 파일 서빙 (JavaScript에서 public_id를 추출하여 API 호출)
+        // 로그인 체크는 requireAuthForHTML 미들웨어에서 이미 완료됨
+        return res.sendFile(path.join(__dirname, '..', 'warranty-detail.html'));
         
     } catch (error) {
         Logger.error('[WARRANTY] 보증서 상세 조회 실패 (HTML):', {
@@ -741,10 +733,7 @@ router.get('/warranty/:public_id', authLimiter, requireAuthForHTML, async (req, 
             public_id: publicId
         });
         
-        return res.status(500).render('error', {
-            title: '오류 발생 - Pre.p Mood',
-            message: '보증서 조회 중 오류가 발생했습니다.'
-        });
+        return res.status(500).sendFile(path.join(__dirname, '..', 'warranty-detail.html'));
     }
 });
 
