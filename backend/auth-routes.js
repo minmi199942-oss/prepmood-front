@@ -402,6 +402,7 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     
     // 페이지네이션 파라미터 검증 및 정수 변환
+    // 주의: 문자열 보간 사용을 위해 Number.isInteger()로 확정 검증 필수
     let limit = parseInt(req.query.limit, 10);
     let offset = parseInt(req.query.offset, 10);
     
@@ -411,6 +412,12 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
     
     // 범위 제한
     if (limit > 100) limit = 100;
+    
+    // 최종 검증: 문자열 보간에 사용되므로 반드시 정수 확정
+    if (!Number.isInteger(limit) || !Number.isInteger(offset)) {
+        limit = 20;
+        offset = 0;
+    }
     
     try {
         // MySQL 연결
