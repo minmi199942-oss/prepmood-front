@@ -846,7 +846,8 @@
 }
 
 /* ===== 내 프로필 페이지 ===== */
-.my-profile-main {
+.my-profile-main,
+.my-warranties-main {
   min-height: calc(100vh - var(--header-height, 72px));
   padding-top: clamp(30px, 5vw, 40px);
   background-color: #ffffff;
@@ -3159,4 +3160,107 @@
 
 .btn-table-action.danger:hover {
   background: #dc2626;
+}
+
+/* ===== 내 보증서 페이지 ===== */
+.warranties-section {
+  margin-top: clamp(30px, 5vw, 40px);
+}
+
+.warranties-list {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 3vw, 20px);
+}
+
+.warranty-item {
+  background-color: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 0;
+  padding: clamp(20px, 4vw, 24px);
+  transition: all 0.2s ease;
+}
+
+.warranty-item:hover {
+  border-color: #111;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.warranty-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: clamp(20px, 4vw, 24px);
+}
+
+.warranty-info {
+  flex: 1;
+}
+
+.warranty-product-name {
+  font-size: clamp(1rem, 2.2vw, 1.1rem);
+  font-weight: 500;
+  color: #111;
+  margin-bottom: clamp(8px, 1.5vw, 10px);
+  letter-spacing: 0.2px;
+}
+
+.warranty-date,
+.warranty-verified {
+  font-size: clamp(0.85rem, 1.8vw, 0.9rem);
+  color: #666;
+  margin-bottom: clamp(4px, 1vw, 6px);
+  letter-spacing: 0.1px;
+}
+
+.warranty-actions {
+  flex-shrink: 0;
+}
+
+.warranty-detail-link {
+  color: #111;
+  text-decoration: none;
+  font-size: clamp(0.85rem, 1.8vw, 0.9rem);
+  letter-spacing: 0.2px;
+  transition: opacity 0.2s ease;
+  display: inline-block;
+  padding: clamp(8px, 1.5vw, 10px) clamp(16px, 3vw, 20px);
+  border: 1px solid #111;
+  background-color: transparent;
+}
+
+.warranty-detail-link:hover {
+  opacity: 0.7;
+  background-color: #111;
+  color: #fff;
+}
+
+.no-warranties {
+  text-align: center;
+  padding: clamp(60px, 10vw, 80px) clamp(20px, 4vw, 30px);
+}
+
+.no-warranties-content {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.no-warranties-title {
+  font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+  font-weight: 400;
+  color: #666;
+  margin-bottom: clamp(12px, 2.5vw, 16px);
+}
+
+.no-warranties-subtitle {
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  color: #999;
+  margin-bottom: clamp(20px, 4vw, 24px);
+}
+
+.loading-warranties {
+  text-align: center;
+  padding: clamp(40px, 8vw, 60px) clamp(20px, 4vw, 30px);
+  color: #666;
+  font-size: clamp(0.9rem, 2vw, 1rem);
 }
