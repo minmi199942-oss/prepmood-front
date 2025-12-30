@@ -234,6 +234,13 @@ echo "🔧 디렉토리/파일 권한 보정 중 (Nginx 접근 보장)..."
 chmod 755 /var/www/html
 find /var/www/html -type d -exec chmod 755 {} \;
 find /var/www/html -type f -exec chmod 644 {} \;
+# 소유자 설정 (Nginx가 읽을 수 있도록)
+if id "www-data" &>/dev/null; then
+  chown -R www-data:www-data /var/www/html
+  echo "  ✅ 소유자 설정 완료 (www-data:www-data)"
+else
+  echo "  ⚠️  www-data 사용자를 찾을 수 없습니다. 수동 확인 필요"
+fi
 echo "  ✅ 권한 보정 완료"
 # ------------------------------------------
 
