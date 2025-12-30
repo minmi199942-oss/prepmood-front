@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   // 로그인 상태 확인
   const userInfo = await checkLoginStatus();
   if (!userInfo) {
-    window.location.href = 'login.html';
+    window.location.href = '/login.html';
     return;
   }
 
