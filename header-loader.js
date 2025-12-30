@@ -103,6 +103,22 @@ window.addEventListener('DOMContentLoaded', () => {
       }
       updateHeaderHeight();
       window.addEventListener('resize', updateHeaderHeight);
+      
+      // 브라우저 크기 변경 시 모바일 메뉴 로그인 상태 업데이트 (debounce 적용)
+      let resizeTimeout;
+      const resizeHandler = () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          // 모바일 메뉴가 보이는 상태일 때 로그인 상태 확인
+          const slideMenu = document.getElementById('mobile-slide-menu');
+          if (slideMenu && slideMenu.classList.contains('active')) {
+            if (window.updateMobileLoginStatus) {
+              window.updateMobileLoginStatus();
+            }
+          }
+        }, 300);
+      };
+      window.addEventListener('resize', resizeHandler);
 
       // 드롭다운 메뉴 목록 초기화
       const megaItems = headerContainer.querySelectorAll('.has-mega');
@@ -328,6 +344,16 @@ function initializeMypageFunctionality() {
         mypageIcon.src = '/image/loginmypage.jpg';
         mypageIcon.classList.add('mypage-icon-logged-in');
 
+        // 모바일 메뉴 로그인 링크 업데이트
+        const mobileLoginLink = document.getElementById('mobile-login-link');
+        if (mobileLoginLink) {
+          mobileLoginLink.href = '/my-profile.html';
+          const textElement = mobileLoginLink.querySelector('.mobile-action-text');
+          if (textElement) {
+            textElement.textContent = '마이페이지';
+          }
+        }
+
         if (window.miniCart) {
           window.miniCart.restoreCartForLogin();
           debugLog('header-loader: authenticated, restoring mini cart');
@@ -353,6 +379,16 @@ function initializeMypageFunctionality() {
     mypageToggle.href = 'login.html';
     mypageIcon.src = '/image/mypage.jpg';
     mypageIcon.classList.remove('mypage-icon-logged-in');
+
+    // 모바일 메뉴 로그인 링크 업데이트
+    const mobileLoginLink = document.getElementById('mobile-login-link');
+    if (mobileLoginLink) {
+      mobileLoginLink.href = '/login.html';
+      const textElement = mobileLoginLink.querySelector('.mobile-action-text');
+      if (textElement) {
+        textElement.textContent = '로그인 또는 계정 생성';
+      }
+    }
 
     if (window.miniCart) {
       window.miniCart.hideCartForLogout();
@@ -437,8 +473,12 @@ function initializeMypageFunctionality() {
     }
   });
 
-  checkLoginStatus();
-  debugLog('header-loader: mypage functionality initialised');
+  // 헤더가 완전히 로드된 후 로그인 상태 확인 (모바일 링크 요소가 존재하는지 보장)
+  // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 실행
+  setTimeout(() => {
+    checkLoginStatus();
+    debugLog('header-loader: mypage functionality initialised');
+  }, 100);
 
   debugLog('header-loader: mini cart loader state', {
     hasCatalogData: !!window.CATALOG_DATA,
@@ -494,10 +534,52 @@ function initMobileMenu() {
     return;
   }
 
+  const getApiBaseUrl = () => {
+    const origin = window.location.origin;
+    return origin && origin !== 'null'
+      ? origin.replace(/\/$/, '') + '/api'
+      : '/api';
+  };
+
+  // 모바일 로그인 상태 업데이트 함수 (재사용 가능)
+  function updateMobileLoginStatus() {
+    const mobileLoginLink = document.getElementById('mobile-login-link');
+    if (!mobileLoginLink) return;
+    
+    fetch(`${getApiBaseUrl()}/auth/status`, {
+      credentials: 'include'
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && data.success && data.authenticated && data.user) {
+          mobileLoginLink.href = '/my-profile.html';
+          const textElement = mobileLoginLink.querySelector('.mobile-action-text');
+          if (textElement) {
+            textElement.textContent = '마이페이지';
+          }
+        } else {
+          mobileLoginLink.href = '/login.html';
+          const textElement = mobileLoginLink.querySelector('.mobile-action-text');
+          if (textElement) {
+            textElement.textContent = '로그인 또는 계정 생성';
+          }
+        }
+      })
+      .catch(() => {
+        // 에러 발생 시 기본 상태 유지
+      });
+  }
+
+  // 전역으로 노출하여 다른 곳에서도 호출 가능하게 함
+  window.updateMobileLoginStatus = updateMobileLoginStatus;
+
   function openMenu() {
     slideMenu.classList.add('active');
     menuOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
+    
+    // 모바일 메뉴가 열릴 때 로그인 상태 확인 (모바일에서 쿠키 동기화 문제 대응)
+    updateMobileLoginStatus();
   }
 
   function closeMenu() {
