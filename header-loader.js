@@ -331,7 +331,7 @@ function initializeMypageFunctionality() {
 
       if (data.success && data.authenticated && data.user) {
         mypageToggle.href = '#';
-        mypageIcon.src = 'image/loginmypage.jpg';
+        mypageIcon.src = '/image/loginmypage.jpg';
         mypageIcon.classList.add('mypage-icon-logged-in');
 
         if (window.miniCart) {
@@ -357,7 +357,7 @@ function initializeMypageFunctionality() {
   function setLoggedOutState() {
     removeAdminLink();
     mypageToggle.href = 'login.html';
-    mypageIcon.src = 'image/mypage.jpg';
+    mypageIcon.src = '/image/mypage.jpg';
     mypageIcon.classList.remove('mypage-icon-logged-in');
 
     if (window.miniCart) {
@@ -459,7 +459,7 @@ function initializeMypageFunctionality() {
   if (!window.CATALOG_DATA) {
     debugLog('header-loader: loading catalog-data.js');
     const catalogScript = document.createElement('script');
-    catalogScript.src = 'catalog-data.js';
+    catalogScript.src = '/catalog-data.js';
     catalogScript.defer = true;
     catalogScript.onload = () => debugLog('header-loader: catalog-data.js loaded');
     catalogScript.onerror = () => console.error('header-loader: catalog-data.js failed to load');
@@ -469,7 +469,7 @@ function initializeMypageFunctionality() {
   if (!window.miniCart) {
     debugLog('header-loader: loading mini-cart.js');
     const miniCartScript = document.createElement('script');
-    miniCartScript.src = 'mini-cart.js';
+    miniCartScript.src = '/mini-cart.js';
     miniCartScript.defer = true;
     miniCartScript.onload = () => {
       setTimeout(() => {

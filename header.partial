@@ -63,13 +63,13 @@
 
     <div class="header-actions">
       <a href="#" class="action-link" id="search-toggle">
-        <img src="image/돋보기.jpg" alt="검색" class="action-icon" />
+        <img src="/image/돋보기.jpg" alt="검색" class="action-icon" />
       </a>
       
       <!-- 마이페이지 (로그인 상태에 따라 다르게 동작) -->
       <div class="mypage-container">
         <a href="login.html" class="action-link" id="mypage-toggle">
-          <img src="image/mypage.jpg" alt="마이페이지" class="action-icon" id="mypage-icon" />
+          <img src="/image/mypage.jpg" alt="마이페이지" class="action-icon" id="mypage-icon" />
         </a>
         
         <!-- 드롭다운 메뉴 -->
@@ -83,18 +83,18 @@
       </div>
       
       <a href="wishlist.html" class="action-link">
-        <img src="image/wishlist.jpg" alt="위시리스트" class="action-icon" />
+        <img src="/image/wishlist.jpg" alt="위시리스트" class="action-icon" />
       </a>
       <a href="#" class="action-link cart-link" id="cart-toggle">
-        <img src="image/장바구니.jpg" alt="장바구니" class="action-icon" />
+        <img src="/image/장바구니.jpg" alt="장바구니" class="action-icon" />
         <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
       </a>
       <!-- 모바일 햄버거 메뉴 버튼 -->
       <button class="mobile-menu-toggle action-link" id="mobile-menu-toggle" aria-label="메뉴 열기">
-        <img src="image/menu-burger.jpg" alt="메뉴" class="action-icon burger-icon" />
+        <img src="/image/menu-burger.jpg" alt="메뉴" class="action-icon burger-icon" />
       </button>
       <a href="#" class="action-link desktop-only">
-        <img src="image/language.jpg" alt="언어" class="action-icon" />
+        <img src="/image/language.jpg" alt="언어" class="action-icon" />
       </a>
     </div>
   </div>

@@ -3,7 +3,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const footerContainer = document.getElementById('footer-container');
   
   if (footerContainer) {
-    fetch('footer.partial')
+    fetch('/footer.partial')
       .then(res => res.text())
       .then(html => {
         footerContainer.innerHTML = html;
