@@ -269,9 +269,20 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 
                 // 같은 사용자가 이미 발급받은 경우 (중복 요청)
                 // ✅ token은 절대 응답에 포함하지 않음 (보안)
-                const formatDateTimeToISO = (datetimeStr) => {
-                    if (!datetimeStr) return null;
-                    return datetimeStr.replace(' ', 'T') + 'Z';
+                const formatDateTimeToISO = (datetimeValue) => {
+                    if (!datetimeValue) return null;
+                    
+                    // Date 객체인 경우
+                    if (datetimeValue instanceof Date) {
+                        return datetimeValue.toISOString();
+                    }
+                    
+                    // 문자열인 경우 ('YYYY-MM-DD HH:MM:SS' 형식)
+                    if (typeof datetimeValue === 'string') {
+                        return datetimeValue.replace(' ', 'T') + 'Z';
+                    }
+                    
+                    return null;
                 };
                 
                 const utcDateTimeISO = formatDateTimeToISO(warranty.verified_at);
@@ -455,12 +466,23 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
             await connection.end();
             
             // 3. 시간 형식 변환 (DATETIME → ISO 8601)
-            // MySQL DATETIME은 'YYYY-MM-DD HH:MM:SS' 형식 (UTC 기준)
+            // mysql2는 DATETIME을 Date 객체 또는 문자열로 반환할 수 있음
             // ISO 8601로 변환: 'YYYY-MM-DDTHH:MM:SSZ'
-            const formatDateTimeToISO = (datetimeStr) => {
-                if (!datetimeStr) return null;
-                // 'YYYY-MM-DD HH:MM:SS' → 'YYYY-MM-DDTHH:MM:SSZ'
-                return datetimeStr.replace(' ', 'T') + 'Z';
+            const formatDateTimeToISO = (datetimeValue) => {
+                if (!datetimeValue) return null;
+                
+                // Date 객체인 경우
+                if (datetimeValue instanceof Date) {
+                    return datetimeValue.toISOString();
+                }
+                
+                // 문자열인 경우 ('YYYY-MM-DD HH:MM:SS' 형식)
+                if (typeof datetimeValue === 'string') {
+                    return datetimeValue.replace(' ', 'T') + 'Z';
+                }
+                
+                // 기타 타입 (예상치 못한 경우)
+                return null;
             };
             
             const formattedWarranties = warranties.map(w => {
@@ -584,9 +606,21 @@ router.get('/api/warranties/:public_id', authLimiter, authenticateToken, async (
             const warranty = warranties[0];
             
             // 3. 시간 형식 변환 (DATETIME → ISO 8601)
-            const formatDateTimeToISO = (datetimeStr) => {
-                if (!datetimeStr) return null;
-                return datetimeStr.replace(' ', 'T') + 'Z';
+            // mysql2는 DATETIME을 Date 객체 또는 문자열로 반환할 수 있음
+            const formatDateTimeToISO = (datetimeValue) => {
+                if (!datetimeValue) return null;
+                
+                // Date 객체인 경우
+                if (datetimeValue instanceof Date) {
+                    return datetimeValue.toISOString();
+                }
+                
+                // 문자열인 경우 ('YYYY-MM-DD HH:MM:SS' 형식)
+                if (typeof datetimeValue === 'string') {
+                    return datetimeValue.replace(' ', 'T') + 'Z';
+                }
+                
+                return null;
             };
             
             const verifiedAtISO = formatDateTimeToISO(warranty.verified_at);
