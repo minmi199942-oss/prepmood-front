@@ -842,11 +842,16 @@ nav ul li {
   width: 85%;
   max-width: 400px;
   height: 100vh;
+  height: 100dvh; /* 동적 뷰포트 높이 (모바일 브라우저 주소창 고려) */
   background: #fff;
   z-index: 10000;
   transition: right 0.3s ease;
   box-shadow: -2px 0 10px rgba(0,0,0,0.1);
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* iOS 부드러운 스크롤 */
+  display: flex;
+  flex-direction: column;
 }
 
 .mobile-slide-menu.active {
@@ -889,6 +894,7 @@ nav ul li {
 .mobile-menu-nav {
   padding: 20px 0;
   border-bottom: 1px solid #eee;
+  flex-shrink: 0; /* 네비게이션은 고정 */
 }
 
 .mobile-menu-list {
@@ -936,6 +942,7 @@ nav ul li {
   height: 1px;
   background-color: #eee;
   margin: 0;
+  flex-shrink: 0; /* 구분선은 고정 */
 }
 
 .mobile-menu-actions {
@@ -943,6 +950,8 @@ nav ul li {
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex-shrink: 0; /* 액션 버튼들은 고정 */
+  min-height: 0; /* 스크롤 가능하도록 */
 }
 
 .mobile-menu-action {
