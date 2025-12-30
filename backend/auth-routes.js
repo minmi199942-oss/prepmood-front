@@ -13,6 +13,7 @@ const express = require('express');
 const router = express.Router();
 const { rateLimit } = require('express-rate-limit');
 const mysql = require('mysql2/promise');
+const { v4: uuidv4 } = require('uuid');
 const { 
     getProductByToken, 
     updateFirstVerification, 
@@ -237,9 +238,13 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
         const connection = await mysql.createConnection(dbConfig);
         
         try {
-            // 1. 토큰 중복 확인 (이미 발급된 보증서인지)
+            // 1. SQLite에서 제품 정보 조회 (product_name 가져오기)
+            const product = getProductByToken(token);
+            const productName = product ? product.product_name : null;
+            
+            // 2. 토큰 중복 확인 (이미 발급된 보증서인지)
             const [existing] = await connection.execute(
-                'SELECT id, user_id, token, verified_at, created_at FROM warranties WHERE token = ?',
+                'SELECT id, public_id, user_id, product_name, verified_at, created_at FROM warranties WHERE token = ?',
                 [token]
             );
             
@@ -263,47 +268,66 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 }
                 
                 // 같은 사용자가 이미 발급받은 경우 (중복 요청)
+                // ✅ token은 절대 응답에 포함하지 않음 (보안)
+                const formatDateTimeToISO = (datetimeStr) => {
+                    if (!datetimeStr) return null;
+                    return datetimeStr.replace(' ', 'T') + 'Z';
+                };
+                
+                const utcDateTimeISO = formatDateTimeToISO(warranty.verified_at);
+                const createdDateTimeISO = formatDateTimeToISO(warranty.created_at);
+                
                 return res.status(200).json({
                     success: true,
                     message: '이미 발급받은 보증서입니다.',
                     code: 'ALREADY_ISSUED',
                     warranty: {
                         id: warranty.id,
-                        token: warranty.token.substring(0, 4) + '...',
-                        verified_at: warranty.verified_at,
-                        created_at: warranty.created_at
+                        public_id: warranty.public_id,
+                        product_name: warranty.product_name,
+                        verified_at: utcDateTimeISO,
+                        created_at: createdDateTimeISO,
+                        detail_url: `/warranty/${warranty.public_id}`
                     }
                 });
             }
             
-            // 2. UTC 시간 생성 (정책 준수: 'YYYY-MM-DD HH:MM:SS' 형식)
+            // 3. public_id 생성 (UUID v4)
+            const publicId = uuidv4();
+            
+            // 4. UTC 시간 생성 (정책 준수: 'YYYY-MM-DD HH:MM:SS' 형식)
             const now = new Date();
             const utcDateTime = now.toISOString().replace('T', ' ').substring(0, 19); // 'YYYY-MM-DD HH:MM:SS'
             
-            // 3. warranties 테이블에 INSERT
+            // 5. warranties 테이블에 INSERT (public_id, product_name 포함)
             const [result] = await connection.execute(
-                'INSERT INTO warranties (user_id, token, verified_at, created_at) VALUES (?, ?, ?, ?)',
-                [userId, token, utcDateTime, utcDateTime]
+                'INSERT INTO warranties (user_id, token, public_id, product_name, verified_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                [userId, token, publicId, productName, utcDateTime, utcDateTime]
             );
             
             Logger.log('[WARRANTY] 보증서 발급 성공:', {
                 warranty_id: result.insertId,
+                public_id: publicId,
                 token_prefix: token.substring(0, 4) + '...',
                 user_id: userId,
+                product_name: productName,
                 verified_at: utcDateTime
             });
             
             await connection.end();
             
-            // 4. 성공 응답
+            // 6. 성공 응답 (token 제외, public_id 포함)
+            const utcDateTimeISO = now.toISOString(); // 이미 ISO 8601 형식
+            
             return res.status(201).json({
                 success: true,
                 message: '보증서가 발급되었습니다.',
                 warranty: {
                     id: result.insertId,
-                    token: token.substring(0, 4) + '...',
-                    verified_at: utcDateTime,
-                    created_at: utcDateTime
+                    public_id: publicId,
+                    product_name: productName,
+                    verified_at: utcDateTimeISO,
+                    created_at: utcDateTimeISO
                 }
             });
             
@@ -357,6 +381,290 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
             success: false,
             message: '보증서 발급 중 오류가 발생했습니다.',
             code: 'INTERNAL_ERROR'
+        });
+    }
+});
+
+/**
+ * GET /api/warranties/me
+ * 마이페이지 보증서 목록 조회
+ * 
+ * 역할:
+ * - 로그인한 사용자의 보증서 목록 반환
+ * - token은 절대 응답에 포함하지 않음 (보안)
+ * - public_id로 상세 링크 제공
+ * 
+ * 쿼리 파라미터:
+ * - limit: 페이지 크기 (기본 20)
+ * - offset: 오프셋 (기본 0)
+ */
+router.get('/api/warranties/me', authenticateToken, async (req, res) => {
+    const userId = req.user.userId;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+    
+    try {
+        // MySQL 연결
+        const dbConfig = {
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        };
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        try {
+            // 1. 보증서 목록 조회 (token 제외)
+            const [warranties] = await connection.execute(
+                `SELECT id, public_id, product_name, created_at, verified_at 
+                 FROM warranties 
+                 WHERE user_id = ? 
+                 ORDER BY created_at DESC 
+                 LIMIT ? OFFSET ?`,
+                [userId, limit, offset]
+            );
+            
+            // 2. 총 개수 조회 (COUNT)
+            const [countResult] = await connection.execute(
+                'SELECT COUNT(*) as total FROM warranties WHERE user_id = ?',
+                [userId]
+            );
+            const total = countResult[0].total;
+            
+            await connection.end();
+            
+            // 3. 시간 형식 변환 (DATETIME → ISO 8601)
+            // MySQL DATETIME은 'YYYY-MM-DD HH:MM:SS' 형식 (UTC 기준)
+            // ISO 8601로 변환: 'YYYY-MM-DDTHH:MM:SSZ'
+            const formatDateTimeToISO = (datetimeStr) => {
+                if (!datetimeStr) return null;
+                // 'YYYY-MM-DD HH:MM:SS' → 'YYYY-MM-DDTHH:MM:SSZ'
+                return datetimeStr.replace(' ', 'T') + 'Z';
+            };
+            
+            const formattedWarranties = warranties.map(w => {
+                const verifiedAtISO = formatDateTimeToISO(w.verified_at);
+                const createdAtISO = formatDateTimeToISO(w.created_at);
+                
+                return {
+                    id: w.id,
+                    public_id: w.public_id,
+                    product_name: w.product_name,
+                    verified_at: verifiedAtISO,
+                    created_at: createdAtISO,
+                    detail_url: `/warranty/${w.public_id}`
+                };
+            });
+            
+            Logger.log('[WARRANTY] 보증서 목록 조회:', {
+                user_id: userId,
+                count: warranties.length,
+                total: total
+            });
+            
+            // 4. 응답 반환
+            return res.json({
+                success: true,
+                warranties: formattedWarranties,
+                paging: {
+                    limit: limit,
+                    offset: offset,
+                    total: total
+                }
+            });
+            
+        } catch (dbError) {
+            await connection.end();
+            throw dbError;
+        }
+        
+    } catch (error) {
+        Logger.error('[WARRANTY] 보증서 목록 조회 실패:', {
+            message: error.message,
+            code: error.code,
+            route: req.path,
+            method: req.method,
+            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            user_id: userId
+        });
+        
+        return res.status(500).json({
+            success: false,
+            message: '보증서 목록 조회 중 오류가 발생했습니다.',
+            code: 'INTERNAL_ERROR'
+        });
+    }
+});
+
+/**
+ * GET /api/warranties/:public_id
+ * 보증서 상세 조회 (JSON API)
+ * 
+ * 역할:
+ * - public_id로 보증서 조회
+ * - 소유권 확인 (user_id 일치)
+ * - JSON 응답 반환
+ * 
+ * 미들웨어:
+ * - authenticateToken: JWT 인증 (미로그인 시 401 JSON)
+ */
+router.get('/api/warranties/:public_id', authLimiter, authenticateToken, async (req, res) => {
+    const publicId = req.params.public_id;
+    const userId = req.user.userId;
+    
+    try {
+        // public_id 형식 검증 (UUID v4)
+        if (!publicId || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(publicId)) {
+            Logger.warn('[WARRANTY] 잘못된 public_id 형식:', publicId);
+            return res.status(400).json({
+                success: false,
+                message: '잘못된 보증서 ID 형식입니다.',
+                code: 'INVALID_PUBLIC_ID'
+            });
+        }
+        
+        // MySQL 연결
+        const dbConfig = {
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        };
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        try {
+            // 1. public_id로 보증서 조회 (소유권 확인 포함)
+            const [warranties] = await connection.execute(
+                `SELECT id, public_id, product_name, created_at, verified_at 
+                 FROM warranties 
+                 WHERE public_id = ? AND user_id = ?`,
+                [publicId, userId]
+            );
+            
+            await connection.end();
+            
+            // 2. 보증서 없음 또는 소유권 불일치
+            if (warranties.length === 0) {
+                Logger.warn('[WARRANTY] 보증서 없음 또는 소유권 불일치:', {
+                    public_id: publicId,
+                    user_id: userId
+                });
+                
+                return res.status(404).json({
+                    success: false,
+                    message: '보증서를 찾을 수 없습니다.',
+                    code: 'WARRANTY_NOT_FOUND'
+                });
+            }
+            
+            const warranty = warranties[0];
+            
+            // 3. 시간 형식 변환 (DATETIME → ISO 8601)
+            const formatDateTimeToISO = (datetimeStr) => {
+                if (!datetimeStr) return null;
+                return datetimeStr.replace(' ', 'T') + 'Z';
+            };
+            
+            const verifiedAtISO = formatDateTimeToISO(warranty.verified_at);
+            const createdAtISO = formatDateTimeToISO(warranty.created_at);
+            
+            Logger.log('[WARRANTY] 보증서 상세 조회:', {
+                public_id: publicId,
+                user_id: userId
+            });
+            
+            // 4. JSON 응답 (token 절대 포함 안 함)
+            return res.json({
+                success: true,
+                warranty: {
+                    id: warranty.id,
+                    public_id: warranty.public_id,
+                    product_name: warranty.product_name,
+                    verified_at: verifiedAtISO,
+                    created_at: createdAtISO
+                }
+            });
+            
+        } catch (dbError) {
+            await connection.end();
+            throw dbError;
+        }
+        
+    } catch (error) {
+        Logger.error('[WARRANTY] 보증서 상세 조회 실패:', {
+            message: error.message,
+            code: error.code,
+            route: req.path,
+            method: req.method,
+            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            public_id: publicId,
+            user_id: userId
+        });
+        
+        return res.status(500).json({
+            success: false,
+            message: '보증서 조회 중 오류가 발생했습니다.',
+            code: 'INTERNAL_ERROR'
+        });
+    }
+});
+
+/**
+ * GET /warranty/:public_id
+ * 보증서 상세 조회 (HTML 페이지)
+ * 
+ * 역할:
+ * - public_id로 보증서 상세 페이지 렌더링
+ * - 로그인 안 되어 있으면 로그인 페이지로 리다이렉트
+ * - 내부에서 /api/warranties/:public_id 호출하여 데이터 렌더링
+ * 
+ * 미들웨어:
+ * - requireAuthForHTML: 로그인 체크 + HTML 리다이렉트
+ * 
+ * 참고: 실제 HTML 렌더링은 프론트엔드에서 처리하거나,
+ * 여기서 /api/warranties/:public_id를 호출하여 렌더링할 수 있습니다.
+ */
+router.get('/warranty/:public_id', authLimiter, requireAuthForHTML, async (req, res) => {
+    const publicId = req.params.public_id;
+    
+    try {
+        // public_id 형식 검증 (UUID v4)
+        if (!publicId || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(publicId)) {
+            Logger.warn('[WARRANTY] 잘못된 public_id 형식 (HTML):', publicId);
+            return res.status(400).render('error', {
+                title: '오류 발생 - Pre.p Mood',
+                message: '잘못된 보증서 ID 형식입니다.'
+            });
+        }
+        
+        // TODO: HTML 페이지 렌더링
+        // 현재는 JSON API만 구현되어 있으므로, 프론트엔드에서 처리하거나
+        // 여기서 /api/warranties/:public_id를 호출하여 렌더링할 수 있습니다.
+        // 예시: const warranty = await fetchInternalAPI(`/api/warranties/${publicId}`);
+        //       return res.render('warranty-detail', { warranty });
+        
+        // 임시: JSON API로 리다이렉트 (프론트엔드에서 처리)
+        return res.redirect(`/api/warranties/${publicId}`);
+        
+    } catch (error) {
+        Logger.error('[WARRANTY] 보증서 상세 조회 실패 (HTML):', {
+            message: error.message,
+            code: error.code,
+            route: req.path,
+            method: req.method,
+            ip: req.ip || req.headers['x-real-ip'] || 'unknown',
+            public_id: publicId
+        });
+        
+        return res.status(500).render('error', {
+            title: '오류 발생 - Pre.p Mood',
+            message: '보증서 조회 중 오류가 발생했습니다.'
         });
     }
 });
