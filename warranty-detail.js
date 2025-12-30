@@ -118,7 +118,6 @@ function renderWarrantyDetail(warranty) {
     <div class="warranty-detail-card">
       <div class="warranty-detail-header">
         <h2 class="warranty-product-name">${escapeHtml(productName)}</h2>
-        <div class="warranty-id-badge">보증서 ID: ${warranty.public_id.substring(0, 8)}...</div>
       </div>
       
       <div class="warranty-detail-info">
