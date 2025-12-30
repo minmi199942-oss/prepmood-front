@@ -427,7 +427,7 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
         
         try {
             // 1. 보증서 목록 조회 (token 제외)
-            // LIMIT ?, ? 형태로 바인딩 사용 (offset, limit 순서)
+            // LIMIT ? OFFSET ? 형태: 바인딩 순서는 [userId, limit, offset]
             const [warranties] = await connection.execute(
                 `SELECT id, public_id, product_name, created_at, verified_at 
                  FROM warranties 
@@ -437,7 +437,7 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
                 [userId, limit, offset]
             );
             
-            // 2. 총 개수 조회 (COUNT)
+            // 2. 총 개수 조회 (COUNT) - 별도 execute, userId만 바인딩
             const [countResult] = await connection.execute(
                 'SELECT COUNT(*) as total FROM warranties WHERE user_id = ?',
                 [userId]
