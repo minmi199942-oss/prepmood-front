@@ -427,14 +427,15 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
         
         try {
             // 1. 보증서 목록 조회 (token 제외)
-            // LIMIT ? OFFSET ? 형태: 바인딩 순서는 [userId, limit, offset]
+            // 주의: mysql2에서 LIMIT/OFFSET 바인딩이 불안정하므로 검증된 숫자로 문자열 보간 사용
+            // limit, offset은 위에서 Number.isInteger()로 검증 완료
             const [warranties] = await connection.execute(
                 `SELECT id, public_id, product_name, created_at, verified_at 
                  FROM warranties 
                  WHERE user_id = ? 
                  ORDER BY created_at DESC 
-                 LIMIT ? OFFSET ?`,
-                [userId, limit, offset]
+                 LIMIT ${limit} OFFSET ${offset}`,
+                [userId]
             );
             
             // 2. 총 개수 조회 (COUNT) - 별도 execute, userId만 바인딩
