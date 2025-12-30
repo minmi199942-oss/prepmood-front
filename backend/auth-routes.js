@@ -418,13 +418,27 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
         
         try {
             // 1. 보증서 목록 조회 (token 제외)
+            // 주의: MySQL prepared statement에서 LIMIT/OFFSET은 변수 바인딩 불가
+            // 숫자 검증 후 문자열 보간 사용 (SQL injection 방지)
+            const safeLimit = parseInt(limit) || 20;
+            const safeOffset = parseInt(offset) || 0;
+            
+            if (isNaN(safeLimit) || isNaN(safeOffset) || safeLimit < 1 || safeLimit > 100 || safeOffset < 0) {
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: '잘못된 페이지네이션 파라미터입니다.',
+                    code: 'INVALID_PAGING'
+                });
+            }
+            
             const [warranties] = await connection.execute(
                 `SELECT id, public_id, product_name, created_at, verified_at 
                  FROM warranties 
                  WHERE user_id = ? 
                  ORDER BY created_at DESC 
-                 LIMIT ? OFFSET ?`,
-                [userId, limit, offset]
+                 LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+                [userId]
             );
             
             // 2. 총 개수 조회 (COUNT)
