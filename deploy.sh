@@ -66,7 +66,8 @@ LIVE_ROOT="/var/www/html"
 
 # 허용 목록 기반 rsync (의도치 않은 파일 노출 방지)
 # 패턴: login.html, index.html, register.html, my-*.html, complete-profile.html, google-callback.html
-# JS: utils.js, common.js 등 명시적으로 배포해야 하는 것만
+# JS: utils.js, common.js, my-*.js 등 명시적으로 배포해야 하는 것만
+# Partial: header.partial 등 공통 템플릿 파일
 # 주의: --delete 제거 (robots.txt, favicon.ico, images/ 등 기존 파일 보호)
 rsync -av \
   --include="index.html" \
@@ -75,8 +76,13 @@ rsync -av \
   --include="my-*.html" \
   --include="complete-profile.html" \
   --include="google-callback.html" \
+  --include="header.partial" \
   --include="utils.js" \
   --include="common.js" \
+  --include="my-*.js" \
+  --include="header-loader.js" \
+  --include="header-scroll.js" \
+  --include="footer-loader.js" \
   --chmod=644 \
   --exclude="*" \
   "$REPO_DIR/" "$LIVE_ROOT/"
