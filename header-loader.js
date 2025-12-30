@@ -5,13 +5,7 @@ if (window.__HEADER_LOADER_INITIALIZED__) {
   window.__HEADER_LOADER_INITIALIZED__ = true;
 
 const ADMIN_LINK_ID = 'admin-nav-link';
-const HEADER_PARTIAL_URL = (function() {
-  const origin = window.location.origin;
-  if (origin && origin !== 'null') {
-    return origin.replace(/\/$/, '') + '/header.partial';
-  }
-  return 'header.partial';
-})();
+const HEADER_PARTIAL_URL = '/header.partial';
 
 const debugLog = (...args) => {
   if (window.Logger && window.Logger.isDevelopment) {
