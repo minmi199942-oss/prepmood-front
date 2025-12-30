@@ -612,20 +612,7 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                     created_at: utcDateTimeISO
                 }
             });
-        } finally {
-            // connection.end()는 finally에서 한 번만 실행 (방어 코드 포함)
-            if (connection) {
-                try {
-                    await connection.end();
-                } catch (endError) {
-                    Logger.error('[WARRANTY] connection.end() 실패:', {
-                        message: endError.message
-                    });
-                }
-            }
-        }
         } catch (dbError) {
-            
             // UNIQUE 제약 위반 (동시 요청 등)
             if (dbError.code === 'ER_DUP_ENTRY' || dbError.errno === 1062) {
                 Logger.warn('[WARRANTY] 토큰 중복 (동시 요청 가능성):', {
@@ -656,6 +643,17 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
             
             // 기타 DB 오류
             throw dbError;
+        } finally {
+            // connection.end()는 finally에서 한 번만 실행 (방어 코드 포함)
+            if (connection) {
+                try {
+                    await connection.end();
+                } catch (endError) {
+                    Logger.error('[WARRANTY] connection.end() 실패:', {
+                        message: endError.message
+                    });
+                }
+            }
         }
         
     } catch (error) {
