@@ -781,20 +781,48 @@ program
             console.log(`   최초 스캔: ${formatDate(info.token_master.first_scanned_at)}`);
             console.log(`   최종 스캔: ${formatDate(info.token_master.last_scanned_at)}`);
             
+            // 소유주 정보 표시 (token_master 기준)
             if (info.owner) {
-                console.log(`\n👤 소유주 정보:`);
+                console.log(`\n👤 소유주 정보 (token_master 기준):`);
                 console.log(`   user_id: ${info.owner.user_id}`);
                 console.log(`   이메일: ${info.owner.email}`);
                 console.log(`   이름: ${info.owner.first_name || ''} ${info.owner.last_name || ''}`);
             } else {
-                console.log(`\n👤 소유주: 없음`);
+                console.log(`\n👤 소유주 (token_master): 없음`);
             }
             
+            // warranties 정보 표시 (보증서 소유주와 비교)
             if (info.warranty) {
                 console.log(`\n📄 보증서 정보:`);
                 console.log(`   public_id: ${info.warranty.public_id}`);
                 console.log(`   생성일: ${formatDate(info.warranty.created_at)}`);
                 console.log(`   인증일: ${formatDate(info.warranty.verified_at)}`);
+                
+                // warranties의 user_id와 token_master의 owner_user_id 비교
+                if (info.warranty.user_id) {
+                    const warrantyOwnerId = info.warranty.user_id;
+                    const tokenMasterOwnerId = info.token_master.owner_user_id;
+                    
+                    if (warrantyOwnerId !== tokenMasterOwnerId) {
+                        console.log(`\n⚠️  주의: warranties.user_id(${warrantyOwnerId})와 token_master.owner_user_id(${tokenMasterOwnerId})가 일치하지 않습니다!`);
+                        
+                        // warranties의 소유주 정보 조회
+                        const [warrantyOwnerRows] = await connection.execute(
+                            'SELECT user_id, email, first_name, last_name FROM users WHERE user_id = ?',
+                            [warrantyOwnerId]
+                        );
+                        
+                        if (warrantyOwnerRows.length > 0) {
+                            const warrantyOwner = warrantyOwnerRows[0];
+                            console.log(`\n📄 보증서 소유주 (warranties 기준):`);
+                            console.log(`   user_id: ${warrantyOwner.user_id}`);
+                            console.log(`   이메일: ${warrantyOwner.email}`);
+                            console.log(`   이름: ${warrantyOwner.first_name || ''} ${warrantyOwner.last_name || ''}`);
+                        }
+                    } else {
+                        console.log(`\n✅ 소유주 일치: warranties와 token_master의 소유주가 일치합니다.`);
+                    }
+                }
             } else {
                 console.log(`\n📄 보증서: 없음`);
             }
