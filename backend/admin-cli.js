@@ -736,9 +736,6 @@ program
             }
             
             // 단일 토큰 조회 모드
-        let connection = null;
-        try {
-            connection = await mysql.createConnection(dbConfig);
             const info = await lookupToken(connection, options.token);
             
             console.log('\n📋 토큰 정보:');
