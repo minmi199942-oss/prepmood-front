@@ -347,26 +347,61 @@ async function unblockToken(token) {
 }
 
 /**
- * CSV 파일 파싱
+ * CSV 파일 파싱 (간단한 구현, 쉼표 안의 값은 처리하지 않음)
+ * 
+ * 주의사항:
+ * - CSV는 UTF-8 인코딩으로 저장해야 함
+ * - 헤더: token,from,to,reason (순서 고정 권장)
+ * - 쉼표가 포함된 값은 따옴표로 감싸지 않아도 됨 (간단한 파서)
+ * - 복잡한 CSV는 외부 라이브러리(csv-parse) 사용 권장
  */
 function parseCSV(filePath) {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    
-    const results = [];
-    for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        if (values.length !== headers.length) continue;
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const lines = content.trim().split('\n').filter(line => line.trim().length > 0);
         
-        const row = {};
-        headers.forEach((header, index) => {
-            row[header] = values[index];
-        });
-        results.push(row);
+        if (lines.length < 2) {
+            throw new Error('CSV 파일에 헤더와 최소 1개 행의 데이터가 필요합니다.');
+        }
+        
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        
+        // 필수 헤더 확인
+        const requiredHeaders = ['token', 'from', 'to'];
+        const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+        if (missingHeaders.length > 0) {
+            throw new Error(`필수 헤더가 없습니다: ${missingHeaders.join(', ')}`);
+        }
+        
+        const results = [];
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.trim());
+            if (values.length !== headers.length) {
+                console.warn(`⚠️  ${i + 1}번째 행: 컬럼 수 불일치 (헤더: ${headers.length}, 데이터: ${values.length}) - 건너뜀`);
+                continue;
+            }
+            
+            const row = {};
+            headers.forEach((header, index) => {
+                row[header] = values[index] || '';
+            });
+            
+            // 필수 필드 확인
+            if (!row.token || !row.from || !row.to) {
+                console.warn(`⚠️  ${i + 1}번째 행: 필수 필드 누락 (token, from, to) - 건너뜀`);
+                continue;
+            }
+            
+            results.push(row);
+        }
+        
+        return results;
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            throw new Error(`CSV 파일을 찾을 수 없습니다: ${filePath}`);
+        }
+        throw error;
     }
-    
-    return results;
 }
 
 /**
