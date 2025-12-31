@@ -136,12 +136,16 @@ if [ -f package-lock.json ]; then
   if npm ci --omit=dev; then
     echo "✅ npm ci 성공"
   else
-    echo "⚠️ npm ci 실패 - npm install로 폴백"
-    npm install --omit=dev
+    echo "❌ npm ci 실패 - 배포 중단 (메모리 부족 방지)"
+    echo "💡 해결 방법:"
+    echo "   1. package-lock.json 확인 및 수정"
+    echo "   2. 수동으로 npm ci 실행 후 재배포"
+    exit 1
   fi
 else
-  echo "⚠️ package-lock.json 없음 - npm install"
-  npm install --omit=dev
+  echo "❌ package-lock.json 없음 - 배포 중단"
+  echo "💡 해결 방법: 레포에서 package-lock.json 생성 후 커밋"
+  exit 1
 fi
 
 # 5. 서버 재시작
