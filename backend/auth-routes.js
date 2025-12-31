@@ -25,6 +25,34 @@ const geoip = require('geoip-lite');
 const { getCountryName } = require('./utils/country-mapper');
 require('dotenv').config();
 
+/**
+ * 날짜를 한국어 형식으로 포맷팅
+ * @param {string|null} dateString - MySQL DATETIME 형식 문자열 (예: "2025-12-31 06:13:25")
+ * @returns {string} - 한국어 형식 날짜 (예: "2025년 12월 31일 06:13")
+ */
+function formatDateKorean(dateString) {
+    if (!dateString) return '정보 없음';
+    
+    try {
+        // MySQL DATETIME 형식을 Date 객체로 변환
+        const date = new Date(dateString.replace(' ', 'T') + 'Z');
+        
+        // 한국 시간대로 변환 (UTC+9)
+        const koreanDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+        
+        const year = koreanDate.getUTCFullYear();
+        const month = String(koreanDate.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(koreanDate.getUTCDate()).padStart(2, '0');
+        const hours = String(koreanDate.getUTCHours()).padStart(2, '0');
+        const minutes = String(koreanDate.getUTCMinutes()).padStart(2, '0');
+        
+        return `${year}년 ${month}월 ${day}일 ${hours}:${minutes}`;
+    } catch (error) {
+        Logger.error('[AUTH] 날짜 포맷팅 실패:', { dateString, error: error.message });
+        return dateString; // 실패 시 원본 반환
+    }
+}
+
 // 이상 패턴 감지용 (메모리 기반, 운영에서는 Redis 권장)
 const suspiciousPatterns = {
     failedTokens: new Map(), // IP별 가품 시도 횟수
@@ -302,7 +330,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                         product_name: tokenMaster.product_name,
                         internal_code: tokenMaster.internal_code
                     },
-                    verified_at: now,
+                    verified_at: formatDateKorean(now),
                     warranty_public_id: warrantyPublicId
                 });
             } else {
@@ -373,9 +401,10 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                     title: '이미 인증된 제품 - Pre.p Mood',
                     product: {
                         product_name: tokenMaster.product_name,
-                        internal_code: tokenMaster.internal_code
+                        internal_code: tokenMaster.internal_code,
+                        scan_count: tokenMaster.scan_count || 0
                     },
-                    first_verified_at: tokenMaster.first_scanned_at,
+                    first_verified_at: formatDateKorean(tokenMaster.first_scanned_at),
                     warranty_public_id: warrantyPublicId
                 });
             }
