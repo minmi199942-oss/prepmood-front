@@ -579,29 +579,36 @@ async function deleteWarranty(token, reason = null, dryRun = false, skipConfirm 
         
         await connection.beginTransaction();
         
+        // 관리자 user_id 조회
+        const adminUser = await getUserIdByEmail(connection, adminEmails[0]);
+        
         // warranties soft delete
         const [warrantyResult] = await connection.execute(
             `UPDATE warranties 
              SET deleted_at = NOW(), 
                  delete_reason = ?,
-                 deleted_by = (SELECT user_id FROM users WHERE email = ? LIMIT 1)
+                 deleted_by = ?
              WHERE token = ? AND deleted_at IS NULL`,
             [
                 reason || '관리자 수동 삭제',
-                adminEmails.length > 0 ? adminEmails[0] : null,
+                adminUser.user_id,
                 token
             ]
         );
         
         if (warrantyResult.affectedRows === 0) {
-            throw new Error(`보증서를 찾을 수 없거나 이미 삭제되었습니다: ${token}`);
+            throw new Error(`보증서를 찾을 수 없거나 이미 삭제되었습니다: ${token} (affectedRows: 0)`);
         }
         
         // token_master 차단
-        await connection.execute(
+        const [tokenResult] = await connection.execute(
             'UPDATE token_master SET is_blocked = 1, updated_at = NOW() WHERE token = ?',
             [token]
         );
+        
+        console.log(`\n✅ 삭제 완료:`);
+        console.log(`   warranties.affectedRows: ${warrantyResult.affectedRows}`);
+        console.log(`   token_master.affectedRows: ${tokenResult.affectedRows}`);
         
         await connection.commit();
         
