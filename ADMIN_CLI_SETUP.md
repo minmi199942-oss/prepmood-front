@@ -44,13 +44,10 @@ DB_PORT=3306
 ADMIN_EMAILS=dmsals0603@naver.com
 ```
 
-**중요:** `ADMIN_EMAILS`가 비어있으면 `admin_user_id`가 NULL로 들어갑니다.
-- 현재 `transfer_logs.admin_user_id`는 NOT NULL이므로 마이그레이션 필요
-- 마이그레이션 실행:
-  ```bash
-  cd /var/www/html/backend
-  node run-migration.js migrations/008_allow_null_admin_user_id.sql
-  ```
+**중요:** `ADMIN_EMAILS`는 **필수**입니다.
+- CLI는 `ADMIN_EMAILS`가 비어있으면 에러로 중단합니다
+- `transfer_logs.admin_user_id`는 항상 관리자 ID가 기록됩니다 (NULL 불가)
+- 운영 정책: 관리자 이메일을 항상 `.env`에 설정해두세요
 
 ---
 
@@ -105,6 +102,12 @@ node admin-cli.js warranty:transfer \
 ### (1) CSV는 "UTF-8"로 저장
 - 엑셀에서 저장 시 인코딩이 흔들릴 수 있음
 - VSCode에서 UTF-8로 저장하거나, 서버에서 heredoc로 생성 권장
+- **중요**: UTF-8 BOM은 자동으로 제거됩니다
+
+### (1-1) reason 필드에 콤마(,) 사용 금지
+- 간단한 CSV 파서 사용으로 인해 `reason` 필드에 콤마를 사용할 수 없습니다
+- 콤마가 필요하면 외부 라이브러리(csv-parse) 도입 필요
+- **운영 규칙**: reason에는 콤마 사용 금지
 
 **CSV 파일 생성 예시:**
 ```bash
@@ -115,11 +118,15 @@ ABC123,user1@email.com,user2@email.com,양도 요청
 EOF
 ```
 
+**주의**: reason에 "고객 요청, 급함" 같은 콤마 포함 텍스트는 사용할 수 없습니다.
+
 ### (2) 헤더 고정
 ```
 token,from,to,reason
 ```
 이 순서를 고정해두면 실수 줄어듭니다.
+
+**중복 토큰 체크**: 같은 배치에서 같은 토큰을 여러 번 양도할 수 없습니다 (자동 차단).
 
 ### (3) 배치도 dry-run → 실행 2단계로 습관화
 ```bash
@@ -208,8 +215,10 @@ node admin-cli.js warranty:delete --token=TOKEN --reason="삭제 사유" --dry-r
 
 1. **항상 dry-run 먼저**: 위험한 작업은 `--dry-run`으로 미리 확인
 2. **CSV 인코딩**: UTF-8로 저장 (한글 포함 시 중요)
-3. **admin_user_id**: 마이그레이션 실행 필요 (`008_allow_null_admin_user_id.sql`)
-4. **확인 프롬프트**: 자동화가 아닌 이상 `--yes` 사용 금지
+3. **CSV reason 필드**: 콤마(,) 사용 금지 (간단한 파서 제한)
+4. **ADMIN_EMAILS 필수**: `.env`에 반드시 설정 (없으면 CLI 에러)
+5. **확인 프롬프트**: 자동화가 아닌 이상 `--yes` 사용 금지
+6. **중복 토큰**: 같은 배치에서 같은 토큰을 여러 번 양도할 수 없음
 
 ---
 

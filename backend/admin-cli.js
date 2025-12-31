@@ -131,18 +131,21 @@ async function transferWarranty(token, fromEmail, toEmail, reason = null, dryRun
         
         await connection.beginTransaction();
         
-        // 1. 이메일로 user_id 조회
+        // 1. 관리자 이메일 확인 (정책: ADMIN_EMAILS 필수)
+        if (adminEmails.length === 0) {
+            throw new Error('ADMIN_EMAILS가 .env에 설정되지 않았습니다. 관리자 이메일을 설정해주세요.');
+        }
+        
+        // 2. 이메일로 user_id 조회
         const fromUser = await getUserIdByEmail(connection, fromEmail);
         const toUser = await getUserIdByEmail(connection, toEmail);
-        const adminUser = adminEmails.length > 0 
-            ? await getUserIdByEmail(connection, adminEmails[0])
-            : null;
+        const adminUser = await getUserIdByEmail(connection, adminEmails[0]);
         
         console.log(`\n📋 양도 정보:`);
         console.log(`   토큰: ${token}`);
         console.log(`   현재 소유주: ${fromUser.email} (user_id: ${fromUser.user_id})`);
         console.log(`   새 소유주: ${toUser.email} (user_id: ${toUser.user_id})`);
-        console.log(`   관리자: ${adminUser ? adminUser.email : '시스템'}`);
+        console.log(`   관리자: ${adminUser.email} (user_id: ${adminUser.user_id})`);
         
         // 2. 현재 보증서 상태 확인
         const [warrantyRows] = await connection.execute(
@@ -177,10 +180,11 @@ async function transferWarranty(token, fromEmail, toEmail, reason = null, dryRun
         // dry-run 모드: 실제 업데이트 없이 미리보기만
         if (dryRun) {
             console.log(`\n🔍 [DRY-RUN] 다음 작업이 실행될 예정입니다:`);
-            console.log(`   1. warranties.user_id: ${fromUser.user_id} → ${toUser.user_id}`);
-            console.log(`   2. token_master.owner_user_id: ${fromUser.user_id} → ${toUser.user_id}`);
-            console.log(`   3. transfer_logs 기록 추가`);
+            console.log(`   1. warranties.user_id: ${fromUser.user_id} → ${toUser.user_id} (예상 affectedRows: 1)`);
+            console.log(`   2. token_master.owner_user_id: ${fromUser.user_id} → ${toUser.user_id} (예상 affectedRows: 1)`);
+            console.log(`   3. transfer_logs 기록 추가 (예상: 1건)`);
             console.log(`\n⚠️  실제로는 변경되지 않습니다. (--dry-run 모드)`);
+            console.log(`\n💡 참고: affectedRows가 0이면 소유주가 일치하지 않거나 이미 변경되었을 수 있습니다.`);
             return;
         }
         
@@ -200,7 +204,7 @@ async function transferWarranty(token, fromEmail, toEmail, reason = null, dryRun
         );
         
         if (warrantyUpdate.affectedRows === 0) {
-            throw new Error('warranties 업데이트 실패');
+            throw new Error(`warranties 업데이트 실패 (affectedRows: 0). 소유주가 일치하지 않거나 이미 변경되었을 수 있습니다.`);
         }
         
         // 5. token_master 업데이트
@@ -210,8 +214,12 @@ async function transferWarranty(token, fromEmail, toEmail, reason = null, dryRun
         );
         
         if (tokenUpdate.affectedRows === 0) {
-            throw new Error('token_master 업데이트 실패');
+            throw new Error(`token_master 업데이트 실패 (affectedRows: 0). 소유주가 일치하지 않거나 이미 변경되었을 수 있습니다.`);
         }
+        
+        console.log(`\n✅ 업데이트 완료:`);
+        console.log(`   warranties.affectedRows: ${warrantyUpdate.affectedRows}`);
+        console.log(`   token_master.affectedRows: ${tokenUpdate.affectedRows}`);
         
         // 6. transfer_logs 기록
         const transferReason = reason || `관리자 수동 양도: ${fromUser.email} → ${toUser.email}`;
@@ -231,7 +239,7 @@ async function transferWarranty(token, fromEmail, toEmail, reason = null, dryRun
                 token,
                 fromUser.user_id,
                 toUser.user_id,
-                adminUser ? adminUser.user_id : null,
+                adminUser.user_id,  // 항상 관리자 ID 기록 (ADMIN_EMAILS 필수)
                 transferReason
             ]
         );
@@ -347,24 +355,38 @@ async function unblockToken(token) {
 }
 
 /**
- * CSV 파일 파싱 (간단한 구현, 쉼표 안의 값은 처리하지 않음)
+ * CSV 파일 파싱 (간단한 구현)
  * 
  * 주의사항:
  * - CSV는 UTF-8 인코딩으로 저장해야 함
  * - 헤더: token,from,to,reason (순서 고정 권장)
- * - 쉼표가 포함된 값은 따옴표로 감싸지 않아도 됨 (간단한 파서)
- * - 복잡한 CSV는 외부 라이브러리(csv-parse) 사용 권장
+ * - reason 필드에는 콤마(,)를 사용할 수 없습니다 (간단한 파서 제한)
+ * - 복잡한 CSV(따옴표, 콤마 포함)는 외부 라이브러리(csv-parse) 사용 권장
  */
 function parseCSV(filePath) {
     try {
-        const content = fs.readFileSync(filePath, 'utf-8');
+        let content = fs.readFileSync(filePath, 'utf-8');
+        
+        // 1. UTF-8 BOM 제거 (\ufeff)
+        if (content.charCodeAt(0) === 0xFEFF) {
+            content = content.slice(1);
+        }
+        
+        // 2. CRLF → LF 정규화 (Windows 줄바꿈 처리)
+        content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        
         const lines = content.trim().split('\n').filter(line => line.trim().length > 0);
         
         if (lines.length < 2) {
             throw new Error('CSV 파일에 헤더와 최소 1개 행의 데이터가 필요합니다.');
         }
         
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        // 3. 헤더 파싱 (BOM 제거 후 첫 컬럼 확인)
+        let headerLine = lines[0].trim();
+        if (headerLine.charCodeAt(0) === 0xFEFF) {
+            headerLine = headerLine.slice(1);
+        }
+        const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
         
         // 필수 헤더 확인
         const requiredHeaders = ['token', 'from', 'to'];
@@ -374,8 +396,13 @@ function parseCSV(filePath) {
         }
         
         const results = [];
+        const tokenSet = new Set(); // 중복 토큰 체크용
+        
         for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',').map(v => v.trim());
+            const line = lines[i].trim();
+            if (!line) continue; // 빈 행 건너뛰기
+            
+            const values = line.split(',').map(v => v.trim());
             if (values.length !== headers.length) {
                 console.warn(`⚠️  ${i + 1}번째 행: 컬럼 수 불일치 (헤더: ${headers.length}, 데이터: ${values.length}) - 건너뜀`);
                 continue;
@@ -391,6 +418,17 @@ function parseCSV(filePath) {
                 console.warn(`⚠️  ${i + 1}번째 행: 필수 필드 누락 (token, from, to) - 건너뜀`);
                 continue;
             }
+            
+            // reason 필드에 콤마 포함 여부 확인
+            if (row.reason && row.reason.includes(',')) {
+                throw new Error(`${i + 1}번째 행: reason 필드에 콤마(,)가 포함되어 있습니다. 콤마는 사용할 수 없습니다. (값: "${row.reason}")`);
+            }
+            
+            // 중복 토큰 체크
+            if (tokenSet.has(row.token)) {
+                throw new Error(`${i + 1}번째 행: 토큰 "${row.token}"이 중복됩니다. 같은 토큰을 한 배치에서 여러 번 양도할 수 없습니다.`);
+            }
+            tokenSet.add(row.token);
             
             results.push(row);
         }
@@ -421,12 +459,27 @@ async function transferBatch(csvPath, dryRun = false, skipConfirm = false) {
     console.log(`\n📋 일괄 양도 작업:`);
     console.log(`   총 ${rows.length}건의 양도 작업이 예정되어 있습니다.`);
     
+    // 중복 토큰 체크 (배치 전체에서 - parseCSV에서 이미 체크했지만 이중 확인)
+    const tokenSet = new Set();
+    const duplicateTokens = [];
+    rows.forEach((row, index) => {
+        if (tokenSet.has(row.token)) {
+            duplicateTokens.push({ row: index + 1, token: row.token });
+        }
+        tokenSet.add(row.token);
+    });
+    
+    if (duplicateTokens.length > 0) {
+        throw new Error(`중복 토큰이 발견되었습니다:\n${duplicateTokens.map(d => `   - ${d.row}번째 행: ${d.token}`).join('\n')}\n같은 토큰을 한 배치에서 여러 번 양도할 수 없습니다.`);
+    }
+    
     if (dryRun) {
         console.log(`\n🔍 [DRY-RUN] 다음 작업들이 실행될 예정입니다:\n`);
         rows.forEach((row, index) => {
-            console.log(`   ${index + 1}. ${row.token}: ${row.from} → ${row.to}`);
+            console.log(`   ${index + 1}. ${row.token}: ${row.from} → ${row.to} (예상 affectedRows: warranties=1, token_master=1)`);
         });
         console.log(`\n⚠️  실제로는 변경되지 않습니다. (--dry-run 모드)`);
+        console.log(`\n💡 참고: affectedRows가 0이면 소유주가 일치하지 않거나 이미 변경되었을 수 있습니다.`);
         return;
     }
     
