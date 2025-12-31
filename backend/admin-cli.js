@@ -533,6 +533,11 @@ async function transferBatch(csvPath, dryRun = false, skipConfirm = false) {
  * 보증서 삭제 (soft delete)
  */
 async function deleteWarranty(token, reason = null, dryRun = false, skipConfirm = false) {
+    // 관리자 이메일 확인 (정책: ADMIN_EMAILS 필수)
+    if (adminEmails.length === 0) {
+        throw new Error('ADMIN_EMAILS가 .env에 설정되지 않았습니다. 관리자 이메일을 설정해주세요.');
+    }
+    
     let connection = null;
     
     try {
@@ -549,11 +554,17 @@ async function deleteWarranty(token, reason = null, dryRun = false, skipConfirm 
                 throw new Error(`보증서를 찾을 수 없습니다: ${token}`);
             }
             
+            const [tokenRows] = await connection.execute(
+                'SELECT is_blocked FROM token_master WHERE token = ?',
+                [token]
+            );
+            
             console.log(`\n🔍 [DRY-RUN] 다음 작업이 실행될 예정입니다:`);
-            console.log(`   1. warranties.deleted_at: NULL → NOW()`);
+            console.log(`   1. warranties.deleted_at: NULL → NOW() (예상 affectedRows: 1)`);
             console.log(`   2. warranties.delete_reason: "${reason || '관리자 수동 삭제'}"`);
-            console.log(`   3. token_master.is_blocked: 0 → 1`);
+            console.log(`   3. token_master.is_blocked: ${tokenRows.length > 0 ? tokenRows[0].is_blocked : 0} → 1 (예상 affectedRows: 1)`);
             console.log(`\n⚠️  실제로는 변경되지 않습니다. (--dry-run 모드)`);
+            console.log(`\n💡 참고: affectedRows가 0이면 보증서가 이미 삭제되었거나 토큰이 없을 수 있습니다.`);
             return;
         }
         
