@@ -36,6 +36,40 @@ const adminEmails = (process.env.ADMIN_EMAILS || '')
     .filter(email => email.length > 0);
 
 /**
+ * 날짜를 읽기 쉬운 형식으로 포맷팅
+ * @param {Date|string|null} dateValue - Date 객체 또는 MySQL DATETIME 문자열
+ * @returns {string} - 포맷된 날짜 (예: "2025-12-31 15:13 (KST)")
+ */
+function formatDate(dateValue) {
+    if (!dateValue) return '없음';
+    
+    try {
+        let date;
+        if (dateValue instanceof Date) {
+            date = dateValue;
+        } else if (typeof dateValue === 'string') {
+            // MySQL DATETIME 형식 또는 ISO 형식 처리
+            date = new Date(dateValue.replace(' ', 'T') + (dateValue.includes('Z') ? '' : 'Z'));
+        } else {
+            return '없음';
+        }
+        
+        // 한국 시간대로 변환 (UTC+9)
+        const koreanDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+        
+        const year = koreanDate.getUTCFullYear();
+        const month = String(koreanDate.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(koreanDate.getUTCDate()).padStart(2, '0');
+        const hours = String(koreanDate.getUTCHours()).padStart(2, '0');
+        const minutes = String(koreanDate.getUTCMinutes()).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hours}:${minutes} (KST)`;
+    } catch (error) {
+        return String(dateValue);
+    }
+}
+
+/**
  * 이메일로 user_id 조회
  */
 async function getUserIdByEmail(connection, email) {
@@ -725,7 +759,7 @@ program
                     console.log(`   상태: ${row.is_blocked ? '차단됨' : '정상'}`);
                     console.log(`   스캔횟수: ${row.scan_count}회`);
                     console.log(`   소유주: ${row.owner_email || '없음'}`);
-                    console.log(`   최종 스캔: ${row.last_scanned_at || '없음'}`);
+                    console.log(`   최종 스캔: ${formatDate(row.last_scanned_at)}`);
                 });
                 
                 if (results.length === 50) {
@@ -744,8 +778,8 @@ program
             console.log(`   내부코드: ${info.token_master.internal_code}`);
             console.log(`   차단여부: ${info.token_master.is_blocked ? '차단됨' : '정상'}`);
             console.log(`   스캔횟수: ${info.token_master.scan_count}회`);
-            console.log(`   최초 스캔: ${info.token_master.first_scanned_at || '없음'}`);
-            console.log(`   최종 스캔: ${info.token_master.last_scanned_at || '없음'}`);
+            console.log(`   최초 스캔: ${formatDate(info.token_master.first_scanned_at)}`);
+            console.log(`   최종 스캔: ${formatDate(info.token_master.last_scanned_at)}`);
             
             if (info.owner) {
                 console.log(`\n👤 소유주 정보:`);
@@ -759,8 +793,8 @@ program
             if (info.warranty) {
                 console.log(`\n📄 보증서 정보:`);
                 console.log(`   public_id: ${info.warranty.public_id}`);
-                console.log(`   생성일: ${info.warranty.created_at}`);
-                console.log(`   인증일: ${info.warranty.verified_at}`);
+                console.log(`   생성일: ${formatDate(info.warranty.created_at)}`);
+                console.log(`   인증일: ${formatDate(info.warranty.verified_at)}`);
             } else {
                 console.log(`\n📄 보증서: 없음`);
             }
@@ -768,7 +802,7 @@ program
             if (info.scan_logs.length > 0) {
                 console.log(`\n📊 최근 스캔 이력 (최근 ${info.scan_logs.length}개):`);
                 info.scan_logs.forEach((log, index) => {
-                    console.log(`   ${index + 1}. ${log.event_type} - ${log.country_name || 'N/A'} - ${log.created_at}`);
+                    console.log(`   ${index + 1}. ${log.event_type} - ${log.country_name || 'N/A'} - ${formatDate(log.created_at)}`);
                 });
             }
             
