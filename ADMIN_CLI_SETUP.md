@@ -55,40 +55,46 @@ ADMIN_EMAILS=dmsals0603@naver.com
 
 ### (1) 조회 테스트
 ```bash
+cd /var/www/html/backend
+
 # 단일 토큰 조회
-node admin-cli.js token:lookup --token=Wu34wbf5N7GycYkYQp99
+npm run admin -- token:lookup --token=Wu34wbf5N7GycYkYQp99
 
 # 검색 (이메일, 제품명, 내부코드로 검색)
-node admin-cli.js token:search --term=minmi199942@gmail.com
-node admin-cli.js token:search --term=테뉴
+npm run admin -- token:search --term=minmi199942@gmail.com
+npm run admin -- token:search --term=테뉴
 ```
 
 ### (2) 위험 작업은 항상 dry-run 먼저
 ```bash
+cd /var/www/html/backend
+
 # 양도 미리보기
-node admin-cli.js warranty:transfer \
+npm run admin -- warranty:transfer \
   --token=Wu34wbf5N7GycYkYQp99 \
   --from=minmi199942@gmail.com \
   --to=sale_luxury@naver.com \
   --dry-run
 
 # 토큰 차단 미리보기
-node admin-cli.js token:block --token=XXX --dry-run
+npm run admin -- token:block --token=XXX --dry-run
 
 # 보증서 삭제 미리보기
-node admin-cli.js warranty:delete --token=XXX --dry-run
+npm run admin -- warranty:delete --token=XXX --dry-run
 ```
 
 ### (3) 실제 실행은 프롬프트 확인 후
 ```bash
+cd /var/www/html/backend
+
 # 확인 프롬프트 표시 (기본)
-node admin-cli.js warranty:transfer \
+npm run admin -- warranty:transfer \
   --token=Wu34wbf5N7GycYkYQp99 \
   --from=minmi199942@gmail.com \
   --to=sale_luxury@naver.com
 
 # 자동화(무인 실행)일 때만 --yes 사용
-node admin-cli.js warranty:transfer \
+npm run admin -- warranty:transfer \
   --token=Wu34wbf5N7GycYkYQp99 \
   --from=minmi199942@gmail.com \
   --to=sale_luxury@naver.com \
@@ -130,11 +136,13 @@ token,from,to,reason
 
 ### (3) 배치도 dry-run → 실행 2단계로 습관화
 ```bash
+cd /var/www/html/backend
+
 # 1. 미리보기
-node admin-cli.js warranty:transfer-batch --file=transfers.csv --dry-run
+npm run admin -- warranty:transfer-batch --file=transfers.csv --dry-run
 
 # 2. 실제 실행
-node admin-cli.js warranty:transfer-batch --file=transfers.csv
+npm run admin -- warranty:transfer-batch --file=transfers.csv
 ```
 
 ---

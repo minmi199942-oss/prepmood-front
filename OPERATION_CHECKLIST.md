@@ -1,507 +1,188 @@
-# Pre.pMood 운영 점검 리포트
+# 최종 운영 체크리스트
 
-> **현실적인 우선순위 기준**: 1인/소규모 브랜드 웹서비스 운영 관점에서 재정리
+## ✅ 교정 1: transfer_logs.admin_user_id 정책
 
-## 📋 목차
-1. [1순위: 런칭 전 필수 수정](#1순위-런칭-전-필수-수정)
-2. [2순위: 런칭 직후 ~ 한 달 안](#2순위-런칭-직후--한-달-안)
-3. [3순위: 트래픽 증가 후](#3순위-트래픽-증가-후)
-4. [운영 시나리오 체크리스트](#운영-시나리오-체크리스트)
-5. [법적/신뢰 관련 요소](#법적신뢰-관련-요소)
+### 정책 결정: 정책 A (NOT NULL 유지 + ADMIN_EMAILS 필수)
 
----
+**구현 상태:**
+- ✅ `ADMIN_EMAILS`가 비어있으면 CLI가 에러로 중단
+- ✅ `admin_user_id`는 항상 관리자 ID 기록 (NULL 불가)
+- ✅ `transferWarranty`, `deleteWarranty` 함수에 적용
 
-## 🔴 1순위: 런칭 전 필수 수정
+**확인 방법:**
+```bash
+cd /var/www/html/backend
+grep ADMIN_EMAILS .env
+# 출력: ADMIN_EMAILS=dmsals0603@naver.com
 
-> **이 항목들은 런칭 전에 반드시 수정해야 합니다. 결제/주문이 안 되거나 보안 문제가 발생할 수 있습니다.**
-
-### 1. TOSS_CLIENT_KEY 정리 ⚠️ Critical
-
-**문제점**
-- `checkout-payment.html:17`에 테스트 키 하드코딩
-- 프로덕션에서 테스트 키 사용 시 결제 불가능
-
-**⚠️ 보안 주의사항**
-- **TOSS 키는 반드시 "클라이언트 공개용 키(publishable key)"만 사용**
-- Secret Key는 절대 프론트엔드에 노출하면 안 되며, 서버 환경변수에서만 관리
-- TOSS 문서에서 "이 키는 비밀키입니다"라고 명시된 키는 절대 `config.js`에 두지 않음
-
-**해결 방법**
-```javascript
-// config.js (새로 생성)
-// ⚠️ 여기서 사용하는 키는 반드시 publishable key (공개 가능한 키)여야 함
-window.TOSS_CLIENT_KEY = window.location.hostname === 'prepmood.kr'
-  ? 'live_gck_...'  // 라이브 publishable 키
-  : 'test_gck_jExPeJWYVQx2kJAGjDxx349R5gvN';  // 테스트 publishable 키
-
-// checkout-payment.html에서
-<script src="config.js"></script>
-<script>
-  // config.js에서 이미 설정됨
-</script>
+# ADMIN_EMAILS 없으면 에러 테스트
+npm run admin -- warranty:transfer --token=TEST --from=test@test.com --to=test2@test.com
+# 예상 출력: ❌ ADMIN_EMAILS가 .env에 설정되지 않았습니다.
 ```
 
-**체크리스트**
-- [ ] TOSS 문서에서 publishable key 확인
-- [ ] `config.js` 파일 생성
-- [ ] 테스트/라이브 키 구분 로직 추가
-- [ ] `checkout-payment.html`에서 하드코딩 제거
-- [ ] 실제 결제 테스트 (테스트 환경)
-
-**⚠️ 런칭 직전 주의사항: 브라우저 캐싱 문제**
-- 테스트 키에서 라이브 키로 변경 시, 브라우저가 이전 `config.js`를 캐싱할 수 있음
-- 해결: `config.js` 로드 시 버전 쿼리 스트링 추가
-  ```html
-  <!-- 런칭 직전에 버전 업데이트 -->
-  <script src="config.js?v=1.0"></script>
-  ```
-- 또는 `config.js` 파일명을 변경 (예: `config-v1.0.js`)
-
 ---
 
-### 2. API_BASE 통일 ⚠️ Critical
+## ✅ 교정 2: batch CSV 규칙
 
-**문제점**
-- `email-verification.html:420, 456`에 `http://localhost:3000` 하드코딩
-- 프로덕션에서 동작하지 않음
+### 구현 완료 사항:
 
-**현재 구조**
-- 프론트엔드와 백엔드가 같은 도메인(same-origin)으로 운영 중
-- 예: `prepmood.kr` (프론트) → `prepmood.kr/api` (백엔드)
+1. **UTF-8 BOM 제거** ✅
+   - 파일 시작 부분 `\ufeff` 자동 제거
+   - 헤더 첫 컬럼 BOM 제거
 
-**해결 방법**
-```javascript
-// config.js에 추가
-// 현재: same-origin 구조 (프론트와 백엔드가 같은 도메인)
-window.API_BASE = window.API_BASE || 
-  (window.location.origin + '/api');
+2. **CRLF 정규화** ✅
+   - Windows 줄바꿈 (`\r\n`) → LF (`\n`) 변환
+   - Mac 줄바꿈 (`\r`) → LF (`\n`) 변환
 
-// 나중에 프론트와 백엔드를 분리할 경우 (예: api.prepmood.kr)
-// config.js에서만 아래처럼 변경하면 됨:
-// window.API_BASE = 'https://api.prepmood.kr';
+3. **reason 콤마 검증** ✅
+   - reason 필드에 콤마 포함 시 에러 발생
+   - 운영 규칙: reason에는 콤마 사용 금지
 
-// email-verification.html에서
-const response = await fetch(`${window.API_BASE}/verify-code`, {
-  // ...
-});
+4. **중복 토큰 체크** ✅
+   - parseCSV에서 체크
+   - transferBatch에서 이중 확인
+
+**CSV 규칙:**
+```
+헤더: token,from,to,reason
+- token: 필수, 중복 불가
+- from: 필수 (현재 소유주 이메일)
+- to: 필수 (새 소유주 이메일)
+- reason: 선택, 콤마(,) 사용 금지
 ```
 
-**체크리스트**
-- [ ] `config.js`에 `window.API_BASE` 설정
-- [ ] `email-verification.html` 수정
-- [ ] 모든 `fetch` 호출이 `window.API_BASE` 사용하는지 확인
-- [ ] 프로덕션 환경에서 이메일 인증 테스트
+**테스트:**
+```bash
+cd /var/www/html/backend
 
----
+# 올바른 CSV 예시
+cat > test.csv << 'EOF'
+token,from,to,reason
+ABC123,user1@test.com,user2@test.com,고객 요청
+EOF
 
-### 3. 관리자 경로 상수화
-
-**문제점**
-- `header-loader.js:33`에 `/admin-qhf25za8` 하드코딩
-- 나중에 경로 변경 시 여러 곳 수정 필요
-
-**⚠️ 보안 주의사항**
-- **관리자 페이지는 URL 숨기는 것만으로는 보안이 되지 않음**
-- 최소한 쿠키/토큰 기반 인증 + 서버 측 접근제어가 필요
-- `window.ADMIN_PATH`는 경로 관리를 위한 것이지, 보안을 위한 것이 아님
-- 실질적인 보안은 서버 측 인증/권한 체크로 처리 (URL 숨기기로 보안을 대체하지 않음)
-
-**해결 방법**
-```javascript
-// config.js에 추가
-// ⚠️ 이 경로는 관리 편의를 위한 것이며, 보안을 위한 것이 아님
-window.ADMIN_PATH = '/admin-qhf25za8';
-
-// header-loader.js에서
-link.href = `${window.ADMIN_PATH}/orders.html`;
+# BOM 포함 CSV 테스트 (자동 제거됨)
+# CRLF 포함 CSV 테스트 (자동 정규화됨)
+# reason 콤마 포함 CSV 테스트 (에러 발생)
 ```
 
-**현재 상태 확인** ✅
-- 백엔드 API는 이미 `requireAdmin` 미들웨어로 보호됨 (`backend/auth-middleware.js`)
-- 모든 관리자 API 엔드포인트에 `authenticateToken, requireAdmin` 적용됨
-- `ADMIN_EMAILS` 환경변수로 관리자 이메일 관리
-- 접근 로그 기록됨
-
-**체크리스트**
-- [ ] `config.js`에 `window.ADMIN_PATH` 추가
-- [ ] `header-loader.js` 수정
-- [ ] 다른 곳에서 관리자 경로 사용하는지 검색 후 수정
-- [ ] **관리자 API 접근 테스트** (비관리자 계정으로 `/api/admin/orders` 호출 시 403 에러 확인)
-
 ---
 
-### 4. XSS 방지 (innerHTML 점검)
+## ✅ 교정 3: 실행 위치 통일
 
-**문제점**
-- 사용자 입력이 `innerHTML`에 직접 들어가는 경우 XSS 공격 가능
-- 특히 검색 결과, 상품명, 유저 입력이 섞이는 부분
+### 표준 실행 방법:
 
-**점검 대상**
-- `search.html:288` - 검색 결과 표시
-- `order-complete-script.js` - 주문 정보 표시
-- `catalog-script.js:34` - ✅ 이미 `escapeHtml` 사용 중
+**모든 예시는 `/var/www/html/backend` 기준으로 통일:**
 
-**해결 방법**
-```javascript
-// ❌ 나쁜 예
-element.innerHTML = `<div>${userInput}</div>`;
-
-// ✅ 좋은 예 1: textContent 사용
-element.textContent = userInput;
-
-// ✅ 좋은 예 2: escapeHtml 사용
-element.innerHTML = `<div>${escapeHtml(userInput)}</div>`;
+```bash
+cd /var/www/html/backend
+npm run admin -- [명령어]
 ```
 
-**체크리스트**
-- [ ] `search.html` 검색 결과에 `escapeHtml` 적용
-- [ ] `order-complete-script.js` 주문 정보에 `escapeHtml` 적용
-- [ ] 모든 `innerHTML` 사용처 점검
-- [ ] 사용자 입력이 들어가는 곳은 `textContent` 또는 `escapeHtml` 사용 확인
+**문서 업데이트:**
+- ✅ 모든 예시에 `cd /var/www/html/backend` 추가
+- ✅ `node admin-cli.js` → `npm run admin --` 통일
 
 ---
 
-## 🟡 2순위: 런칭 직후 ~ 한 달 안
+## ✅ 실수 방지 안전장치
 
-> **런칭은 가능하지만, 곧바로 정리하면 좋은 항목들**
+### 1. 중복 토큰 체크 ✅
 
-### 6. buy-script.js 디버깅 로그 정리
+**구현 위치:**
+- `parseCSV`: CSV 파싱 시 중복 체크
+- `transferBatch`: 배치 실행 전 이중 확인
 
-**문제점**
-- `buy-script.js:23-38`에 상세 디버깅 로그 남아있음
-- 프로덕션에서 불필요한 콘솔 출력
+**동작:**
+- 같은 배치에서 같은 토큰이 여러 번 등장하면 즉시 중단
+- 에러 메시지에 중복된 행 번호 표시
 
-**해결 방법**
-- `console.log` 제거 또는 `Logger.log` 사용
-- 에러만 남기고 정보성 로그 제거
+### 2. dry-run affectedRows 출력 ✅
 
-**체크리스트**
-- [ ] `buy-script.js` 로그 정리
-- [ ] 다른 파일에도 불필요한 로그 있는지 확인
+**구현 위치:**
+- `transferWarranty`: dry-run 모드에 예상 affectedRows 출력
+- `transferBatch`: 각 행별 예상 affectedRows 출력
+- `deleteWarranty`: dry-run 모드에 예상 affectedRows 출력
 
----
-
-### 7. 이미지 파일명/404 점검
-
-**문제점**
-- 이미지 파일명 오타 가능성 (예: `Shrit` → `Shirt`)
-- 404 오류로 인한 사용자 경험 저하
-
-**해결 방법**
-1. 브라우저 콘솔에서 404 오류 확인
-2. 실제 파일명과 코드의 파일명 대조
-3. 오타 수정 또는 파일명 변경
-
-**체크리스트**
-- [ ] 브라우저 콘솔에서 이미지 404 오류 확인
-- [ ] 오타가 있는 파일명 수정
-- [ ] 모든 상품 이미지가 정상 로드되는지 확인
-
----
-
-### 8. 주문/결제 전체 플로우 시나리오 테스트
-
-**중요도**: ⭐⭐⭐⭐⭐ (실제 운영의 핵심)
-
-**테스트 시나리오 문서화 필요**
-
-#### 시나리오 1: 정상 주문 플로우
-- [ ] 회원가입 → 이메일 인증 → 로그인
-- [ ] 상품 선택 → 옵션(사이즈/색상) 선택
-- [ ] 장바구니 추가 → 장바구니 확인
-- [ ] 결제 페이지 진입 → 배송지 입력
-- [ ] 결제 진행 (테스트 결제)
-- [ ] 결제 성공 후 주문 완료 페이지 표시
-- [ ] DB에 주문 저장 확인
-- [ ] 주문번호 생성 확인
-- [ ] 이메일/알림 발송 확인 (있는 경우)
-
-#### 시나리오 2: 결제 실패/취소
-- [ ] 결제 실패 시 화면 확인
-- [ ] 결제 취소 시 화면 확인
-- [ ] 에러 메시지가 명확한지 확인
-- [ ] 재시도 가능한지 확인
-
-#### 시나리오 3: 비회원 주문 (있는 경우)
-- [ ] 비회원 주문 플로우 테스트
-- [ ] 주문 조회 기능 테스트
-
-**체크리스트**
-- [ ] 위 시나리오를 실제로 여러 번 반복 테스트
-- [ ] 각 단계에서 문제 발생 시 문서화
-- [ ] 테스트 결과를 별도 문서로 정리
-- [ ] 상세 시나리오는 아래 [운영 시나리오 체크리스트](#운영-시나리오-체크리스트) 섹션 참고
-
----
-
-### 9. 모바일 환경 실제 기기 테스트
-
-**참고**
-- 패션 쇼핑몰은 고객의 80% 이상이 모바일로 접속
-- PC 개발자 도구와 실제 스마트폰 화면은 다를 수 있음
-- 모바일 헤더/푸터는 이미 구현 완료 ✅
-
-**체크리스트**
-- [ ] 본인 스마트폰으로 결제 직전까지 전체 플로우 테스트
-- [ ] 아이폰 Safari, 갤럭시 Chrome에서 정상 동작 확인
-
----
-
-## 🟢 3순위: 트래픽 증가 후
-
-> **지금 당장은 아니지만, 사용자가 늘어나면 필요한 항목들**
-
-### 10. 에러 모니터링 도구 (Sentry 등)
-
-**현재 상태**
-- 서버 로그 + 브라우저 콘솔로 수동 체크 가능
-- 소규모 운영에서는 충분함
-
-**언제 도입?**
-- 일일 방문자 수백 명 이상
-- 실제 사용자 에러가 자주 발생할 때
-
-**체크리스트**
-- [ ] 트래픽 증가 후 Sentry 또는 유사 도구 검토
-- [ ] 에러 추적 시스템 구축
-
----
-
-### 11. 이미지 최적화 (WebP 변환, 압축)
-
-**현재 상태**
-- 이미지 lazy loading 구현됨 ✅
-- 기본적인 최적화는 되어 있음
-
-**언제 도입?**
-- 페이지 로딩 속도가 문제가 될 때
-- 모바일 사용자 불만이 있을 때
-
-**체크리스트**
-- [ ] 이미지 WebP 변환
-- [ ] 이미지 압축
-- [ ] 반응형 이미지 (srcset) 적용 검토
-
----
-
-### 12. SEO 최적화 (메타태그, JSON-LD, 사이트맵)
-
-**현재 상태**
-- 기본적인 메타태그는 있음
-- 구조화된 데이터 미구현
-
-**언제 도입?**
-- 검색 엔진 유입이 중요해질 때
-- 브랜드 인지도 향상이 필요할 때
-
-**체크리스트**
-- [ ] 메타 태그 보완
-- [ ] 구조화된 데이터 (JSON-LD) 추가
-- [ ] 사이트맵 생성
-- [ ] robots.txt 최적화
-
----
-
-### 13. 환경 변수 빌드 시스템 (Webpack/Vite)
-
-**현재 상태**
-- `config.js`로 충분히 운영 가능
-- HTML 여러 개 + JS 붙여 쓰는 구조
-
-**언제 도입?**
-- 규모가 커져서 빌드 파이프라인이 필요할 때
-- 코드 분할이 필요할 때
-
-**참고**: 지금은 `config.js` 하나로 충분합니다.
-
----
-
-## 📋 운영 시나리오 체크리스트
-
-### 주문·결제 흐름 시나리오
-
-#### 정상 플로우
-- [ ] 회원가입 → 이메일 인증 → 로그인
-- [ ] 상품 선택 → 옵션 선택 → 장바구니
-- [ ] 결제 페이지 진입 → 배송지 입력
-- [ ] 결제 성공 → 주문 완료 페이지
-- [ ] DB 주문 저장 확인
-- [ ] 주문번호 생성 확인
-- [ ] 이메일/알림 발송 확인
-
-#### 예외 상황
-- [ ] 결제 실패 시 화면/메시지 확인
-- [ ] 결제 취소 시 화면/메시지 확인
-- [ ] 네트워크 오류 시 처리 확인
-- [ ] 타임아웃 시 처리 확인
-
----
-
-### 운영자(관리자) 화면 체크
-
-#### 주문 관리
-- [ ] 주문 목록을 날짜/상태로 필터링 가능한지
-- [ ] 주문 상세에서 다음 정보 확인 가능:
-  - [ ] 고객 정보 (이름, 이메일, 전화번호)
-  - [ ] 주문 상품 리스트 (상품명, 수량, 옵션)
-  - [ ] 결제 금액
-  - [ ] 배송지 정보
-- [ ] 주문 상태 변경 기능:
-  - [ ] 결제완료 → 배송중
-  - [ ] 배송중 → 배송완료
-  - [ ] 취소/환불 처리
-
-#### 상품 관리
-- [ ] 상품 목록 조회
-- [ ] 상품 추가/수정/삭제
-- [ ] 재고 관리
-
-**체크리스트**
-- [ ] 관리자 로그인 테스트
-- [ ] 각 기능이 정상 동작하는지 확인
-- [ ] UI/UX가 직관적인지 확인
-
----
-
-## ⚖️ 법적/신뢰 관련 요소
-
-### 필수 페이지 및 정보
-
-#### 페이지 존재 확인
-- [ ] 개인정보 처리방침 페이지 (`privacy.html`) ✅
-- [ ] 이용약관 페이지 (`legal.html`) ✅
-- [ ] 법적 고지 페이지 ✅
-
-#### 푸터 정보 확인
-- [ ] 회사명: 프레피무드 ✅
-- [ ] 대표자: 최지원 ✅
-- [ ] 사업자등록번호: 827-27-01774 ✅
-- [ ] 통신판매신고번호: 2025-대구중구-0610호 ✅
-- [ ] 주소: 대구광역시 중구 국채보상로 558-1, 2층 D605호 ✅
-- [ ] 고객센터 전화번호: 1555-6035 ✅
-- [ ] 이메일: prepmoodcare@naver.com ✅
-
-**체크리스트**
-- [ ] 모든 법적 정보가 정확한지 확인
-- [ ] 푸터에 모든 필수 정보 표시 확인
-- [ ] 개인정보 처리방침 내용 검토 (법무 검토 권장)
-
----
-
-## 🔒 보안 체크리스트
-
-### 로그에서 개인정보 다루는 방식
-
-**문제점**
-- 로그에 민감정보(카드번호, 비밀번호, 주민번호)가 찍히면 안 됨
-- 이메일/전화번호도 최소한으로만
-
-**체크리스트**
-- [ ] 백엔드 로그에서 비밀번호 해시만 저장하는지 확인
-- [ ] 카드번호, 주민번호 등이 로그에 남지 않는지 확인
-- [ ] 이메일/전화번호는 필요한 경우에만 로그에 남기기
-- [ ] Logger 시스템이 민감정보를 필터링하는지 확인
-
----
-
-## 📊 실제 작업 순서 (To-Do)
-
-### 이번 주 (런칭 전 필수)
-
-1. [ ] `config.js` 파일 생성
-2. [ ] TOSS_CLIENT_KEY를 config.js로 이동 (테스트/라이브 구분)
-3. [ ] `window.API_BASE`를 config.js에 추가
-4. [ ] `email-verification.html`에서 localhost 제거, `window.API_BASE` 사용
-5. [ ] `window.ADMIN_PATH`를 config.js에 추가
-6. [ ] `header-loader.js`에서 하드코딩 제거
-7. [ ] `search.html`에서 `escapeHtml` 적용
-8. [ ] `order-complete-script.js`에서 `escapeHtml` 적용
-9. [ ] 모든 `innerHTML` 사용처 점검
-10. [ ] **관리자 API 접근 테스트** (비관리자 계정으로 `/api/admin/orders` 호출 시 403 에러 확인)
-
-### 이번 달 (런칭 직후)
-
-11. [ ] `buy-script.js` 디버깅 로그 정리
-12. [ ] 브라우저 콘솔에서 이미지 404 오류 확인 및 수정
-13. [ ] 주문/결제 전체 플로우 시나리오 테스트 (여러 번 반복)
-    - 상세 시나리오는 아래 [운영 시나리오 체크리스트](#운영-시나리오-체크리스트) 섹션 참고
-14. [ ] 모바일 환경 실제 기기 테스트 (본인 스마트폰으로 결제 직전까지)
-15. [ ] 관리자 화면 기능 테스트
-16. [ ] 법적 정보 정확성 확인
-
-### 나중에 (트래픽 증가 후)
-
-17. [ ] 에러 모니터링 도구 검토 (Sentry 등)
-18. [ ] 이미지 최적화 (WebP, 압축)
-19. [ ] SEO 최적화 (메타태그, JSON-LD, 사이트맵)
-
----
-
-## 📝 참고 사항
-
-### 현재 잘 구현된 부분 ✅
-- CSRF 보호 구현됨
-- `secureFetch`로 안전한 API 호출
-- Logger 시스템으로 개발/프로덕션 구분
-- 이미지 lazy loading
-- CSS preload
-- 백엔드 환경 변수 사용
-- **관리자 인증/권한 체크 완료** (`backend/auth-middleware.js`의 `requireAdmin` 미들웨어)
-- 모바일 헤더/푸터 구현 완료
-
-### 현실적인 접근
-- **지금 단계**: `config.js` 하나로 충분히 운영 가능
-- **나중에**: 규모 커지면 빌드 도구(Webpack/Vite) 도입 검토
-- **모니터링**: 지금은 서버 로그 + 브라우저 콘솔로 충분
-- **SEO**: 결제/주문 플로우 안정화 후 진행
-
----
-
----
-
-## 📅 문서 메타 정보
-
-**작성일**: 2025-01-XX  
-**점검자**: Pre.pMood 운영팀 (AI Assistant 보조 활용)  
-**다음 점검 예정일**: 
-- 1순위 항목 수정 완료 후 2주 이내
-- 또는 매월 1일 정기 점검 (선택)
-
----
-
-## 💡 이 문서 활용 방법
-
-### Cursor AI와 함께 작업하기
-
-#### Step 1: 체크리스트 파일 참조
-Cursor 채팅창에서 이 문서를 참조하여 작업을 요청하세요:
+**출력 예시:**
 ```
-@OPERATION_CHECKLIST.md 파일을 참고해서, 1순위 항목인 '1. TOSS_CLIENT_KEY 정리' 작업을 시작해줘. 
-config.js 파일을 생성하고 코드를 수정해줘.
+🔍 [DRY-RUN] 다음 작업이 실행될 예정입니다:
+   1. warranties.user_id: 2 → 5 (예상 affectedRows: 1)
+   2. token_master.owner_user_id: 2 → 5 (예상 affectedRows: 1)
+   3. transfer_logs 기록 추가 (예상: 1건)
+
+💡 참고: affectedRows가 0이면 소유주가 일치하지 않거나 이미 변경되었을 수 있습니다.
 ```
 
-#### Step 2: 우선순위별 작업
-- **1순위 항목**: 하나씩 완료하면서 체크
-- **2순위 항목**: 런칭 직후 안정화 기간에 진행
-- **3순위 항목**: 트래픽 증가 후 검토
+### 3. 실제 실행 affectedRows 출력 ✅
 
-#### Step 3: TOSS 키 관리 팁
-- 당장 오픈이 아니라면 `config.js`에는 **테스트 키**를 먼저 세팅
-- 결제가 잘 넘어가는지 확인 후, **오픈 직전에 라이브 키로 변경**
-- TOSS 개발자 센터에서 `test_ck_...` (테스트용)와 `live_ck_...` (실제 결제용) 키 확인
+**구현 위치:**
+- `transferWarranty`: 실행 후 affectedRows 출력
+- `deleteWarranty`: 실행 후 affectedRows 출력
 
-### GitHub 이슈로 관리하기
-- 1순위 항목 각각 → 이슈 하나씩 생성
-- 2순위/3순위는 milestone으로 묶기
+**출력 예시:**
+```
+✅ 업데이트 완료:
+   warranties.affectedRows: 1
+   token_master.affectedRows: 1
+```
 
-### 런칭 준비 시
-- "이번 주 (런칭 전 필수)" 섹션을 중심으로 하나씩 체크
-- 특히 **관리자 보안**, **데이터 백업**, **모바일 테스트**는 반드시 완료
+---
 
-### 배포 후
-- "운영 시나리오 체크리스트" + "법적/신뢰 관련 요소" 섹션을 다시 한 번 점검
-- 실제 스마트폰으로 결제 플로우 테스트 필수
+## 최종 운영 준비 상태
 
-### 정기 점검
-- 매월 1일 또는 주요 업데이트 전에 전체 체크리스트 재검토
-- 데이터 백업 복구 테스트는 분기별로 수행 권장
+### ✅ 완료된 항목
+
+1. **정책 A 선택**: NOT NULL 유지 + ADMIN_EMAILS 필수
+2. **CSV 파서 개선**: BOM/CRLF/reason 콤마 처리
+3. **실행 위치 통일**: `/var/www/html/backend` 기준
+4. **안전장치**: 중복 토큰 체크, affectedRows 출력
+
+### 📋 VPS에서 실행 전 확인
+
+```bash
+# 1. 파일 위치 확인
+cd /var/www/html/backend
+ls -la admin-cli.js
+
+# 2. 의존성 확인
+npm list commander mysql2 dotenv
+
+# 3. .env 확인 (ADMIN_EMAILS 필수)
+grep ADMIN_EMAILS .env
+
+# 4. 테스트 실행
+npm run admin -- token:lookup --token=Wu34wbf5N7GycYkYQp99
+```
+
+---
+
+## 운영 정책 요약
+
+### transfer_logs.admin_user_id
+- **정책**: NOT NULL 유지
+- **요구사항**: `.env`에 `ADMIN_EMAILS` 필수 설정
+- **동작**: `ADMIN_EMAILS` 없으면 CLI 에러로 중단
+
+### CSV 규칙
+- **인코딩**: UTF-8 (BOM 자동 제거)
+- **줄바꿈**: CRLF/LF 자동 정규화
+- **reason 필드**: 콤마(,) 사용 금지
+- **중복 토큰**: 배치 내 중복 불가
+
+### 실행 위치
+- **표준**: `/var/www/html/backend`
+- **명령어**: `npm run admin -- [명령어]`
+
+---
+
+## 결론
+
+**모든 교정 사항이 반영되었습니다.**
+
+- ✅ 정책 A 선택 및 구현
+- ✅ CSV 파서 개선 (BOM/CRLF/reason)
+- ✅ 실행 위치 통일
+- ✅ 실수 방지 안전장치 (중복 체크, affectedRows 출력)
+
+**수천 개 토큰 운영에 사용 가능합니다.**
