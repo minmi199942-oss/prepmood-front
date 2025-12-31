@@ -180,11 +180,13 @@ ppadmin warranty:transfer --token=... --from=... --to=...
 
 ### 토큰 조회/검색
 ```bash
+cd /var/www/html/backend
+
 # 단일 토큰 조회
-node admin-cli.js token:lookup --token=TOKEN
+npm run admin -- token:lookup --token=TOKEN
 
 # 검색 (토큰, 제품명, 내부코드, 이메일)
-node admin-cli.js token:search --term=검색어
+npm run admin -- token:search --term=검색어
 ```
 
 ### 보증서 양도
