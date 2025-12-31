@@ -22,6 +22,7 @@ const Logger = require('./logger');
 const { requireAuthForHTML, authenticateToken } = require('./auth-middleware');
 const { getClientIp } = require('./utils/get-client-ip');
 const geoip = require('geoip-lite');
+const { getCountryName } = require('./utils/country-mapper');
 require('dotenv').config();
 
 // 이상 패턴 감지용 (메모리 기반, 운영에서는 Redis 권장)
@@ -194,32 +195,10 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                         });
                     }
                     
-                    // 2. scan_logs INSERT (GeoIP 포함)
-                    const geo = geoip.lookup(clientIp);
-                    const countryCode = geo ? geo.country : null;
-                    const countryName = geo ? geo.country : null;
-                    
-                    await connection.execute(
-                        `INSERT INTO scan_logs 
-                         (token, user_id, warranty_public_id, ip_address, country_code, country_name, user_agent, event_type, created_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [
-                            token,
-                            userId,
-                            tokenMaster.owner_warranty_public_id || null,
-                            clientIp,
-                            countryCode,
-                            countryName,
-                            req.headers['user-agent'] || null,
-                            'verify_success_first',
-                            now
-                        ]
-                    );
-                    
-                    // 3. product_name 가져오기 (token_master에서)
+                    // 2. product_name 가져오기 (token_master에서)
                     const productName = tokenMaster.product_name;
                     
-                    // 4. 이미 발급된 보증서가 있는지 확인
+                    // 3. 이미 발급된 보증서가 있는지 확인
                     const [existing] = await connection.execute(
                         'SELECT public_id FROM warranties WHERE token = ? AND user_id = ?',
                         [token, userId]
@@ -287,6 +266,28 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                             user_id: userId
                         });
                     }
+                    
+                    // 4. scan_logs INSERT (보증서 생성 후 실행 - warranty_public_id 포함)
+                    const geo = geoip.lookup(clientIp);
+                    const countryCode = geo ? geo.country : null;
+                    const countryName = countryCode ? getCountryName(countryCode) : null;
+                    
+                    await connection.execute(
+                        `INSERT INTO scan_logs 
+                         (token, user_id, warranty_public_id, ip_address, country_code, country_name, user_agent, event_type, created_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            token,
+                            userId,
+                            warrantyPublicId, // ✅ 보증서 생성 후이므로 항상 값이 있음
+                            clientIp,
+                            countryCode,
+                            countryName, // ✅ 국가명 매핑 사용
+                            req.headers['user-agent'] || null,
+                            'verify_success_first',
+                            now
+                        ]
+                    );
                 } catch (dbError) {
                     // 보증서 발급 실패해도 정품 인증은 성공으로 처리
                     Logger.error('[AUTH] 보증서 발급 실패 (인증은 성공):', {
@@ -331,7 +332,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                     const clientIp = getClientIp(req);
                     const geo = geoip.lookup(clientIp);
                     const countryCode = geo ? geo.country : null;
-                    const countryName = geo ? geo.country : null;
+                    const countryName = countryCode ? getCountryName(countryCode) : null;
                     
                     await connection.execute(
                         `INSERT INTO scan_logs 
@@ -340,10 +341,10 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                         [
                             token,
                             userId,
-                            tokenMaster.owner_warranty_public_id || null,
+                            tokenMaster.owner_warranty_public_id || null, // 재인증 시에는 이미 보증서가 있음
                             clientIp,
                             countryCode,
-                            countryName,
+                            countryName, // ✅ 국가명 매핑 사용
                             req.headers['user-agent'] || null,
                             'verify_success_repeat',
                             now
