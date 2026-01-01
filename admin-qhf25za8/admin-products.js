@@ -450,8 +450,7 @@
         }
       }
 
-      // 이미지 업로드 처리
-      const modal = document.querySelector('.modal-overlay');
+      // 이미지 업로드 처리 (modal은 이미 위에서 선언됨)
       const imageInput = modal ? modal.querySelector('#productImage') : document.getElementById('productImage');
       const imageFile = imageInput && imageInput.files && imageInput.files.length > 0 ? imageInput.files[0] : null;
       
