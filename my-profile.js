@@ -1,9 +1,11 @@
 // 마이프로필 페이지 JavaScript
-const API_BASE = (window.API_BASE)
-    ? window.API_BASE
-    : ((window.location && window.location.origin)
+// API_BASE는 이미 window.API_BASE로 설정되어 있을 수 있으므로 확인 후 사용
+if (typeof window.API_BASE === 'undefined') {
+    window.API_BASE = (window.location && window.location.origin)
         ? window.location.origin.replace(/\/$/, '') + '/api'
-        : '/api');
+        : '/api';
+}
+const API_BASE = window.API_BASE;
 
 document.addEventListener('DOMContentLoaded', async function() {
     // 로그인 상태 확인
@@ -726,11 +728,14 @@ function handleNavigation(page) {
         case 'reservations':
             window.location.href = 'my-reservations.html';
             break;
+        case 'warranties':
+            window.location.href = 'my-warranties.html';
+            break;
         case 'profile':
             // 현재 프로필 페이지이므로 이동 없음
             break;
         default:
-            Logger.log('알 수 없는 페이지:', page);
+            console.log('알 수 없는 페이지:', page);
     }
 }
 
