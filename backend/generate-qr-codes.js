@@ -71,27 +71,17 @@ async function generateQRCodes() {
                     Logger.log(`[QR] Token: ${product.token}`);
                 }
 
-                // QR 코드 생성 옵션 (환경 변수로 조정 가능)
-                const qrOptions = {
-                    errorCorrectionLevel: process.env.QR_ERROR_CORRECTION_LEVEL || 'H', // L, M, Q, H (기본: H)
+                // QR 코드 생성 (400x400 이상, ERROR_CORRECT_H)
+                await QRCode.toFile(filepath, url, {
+                    errorCorrectionLevel: 'H',
                     type: 'png',
-                    width: parseInt(process.env.QR_WIDTH) || 400, // 전체 이미지 크기 (픽셀, 기본: 400)
-                    margin: parseInt(process.env.QR_MARGIN) || 4, // 여백 (모듈 단위, 기본: 4)
+                    width: 400,
+                    margin: 4,
                     color: {
-                        dark: process.env.QR_COLOR_DARK || '#000000', // QR 코드 색상 (기본: 검정)
-                        light: process.env.QR_COLOR_LIGHT || '#FFFFFF' // 배경 색상 (기본: 흰색)
+                        dark: '#000000',
+                        light: '#FFFFFF'
                     }
-                };
-                
-                // scale 옵션 (각 모듈의 크기, width와 함께 사용 가능)
-                // scale을 지정하면 width는 무시됨
-                if (process.env.QR_SCALE) {
-                    qrOptions.scale = parseInt(process.env.QR_SCALE);
-                    // scale 사용 시 width 제거 (충돌 방지)
-                    delete qrOptions.width;
-                }
-                
-                await QRCode.toFile(filepath, url, qrOptions);
+                });
                 
                 // 파일 권한 설정 (소유자: 읽기/쓰기, 그룹/기타: 읽기: 644)
                 // Windows에서는 chmod가 동작하지 않으므로 try-catch로 감쌈
