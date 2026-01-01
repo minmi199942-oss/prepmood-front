@@ -289,8 +289,11 @@
       if (categorySelect.value === 'accessories') {
         typeGroup.style.display = 'block';
         typeSelect.required = true;
-        // 기존 상품의 type 값이 있으면 유지
-        if (!product.type && typeSelect.value === '') {
+        // 기존 상품의 type 값이 있으면 유지 (기존 데이터 호환성 처리)
+        const normalizedProductType = product.type ? normalizeTypeValue(product.type) : null;
+        if (normalizedProductType) {
+          typeSelect.value = normalizedProductType;
+        } else if (typeSelect.value === '') {
           // 기존 값이 없으면 첫 번째 옵션 선택 (기본값)
           typeSelect.value = ACCESSORY_TYPE_OPTIONS[0].value;
         }
