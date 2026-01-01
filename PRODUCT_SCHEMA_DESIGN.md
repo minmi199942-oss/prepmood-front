@@ -65,9 +65,11 @@
 - **중요:** DB 컬럼은 `NULL` 허용으로 설정 (`type VARCHAR(100) NULL`)
 
 **정규화 규칙 예시:**
-- `category='tops'`, `type='cap'` 입력 → 서버가 `type`을 `NULL`로 정규화하여 저장
+- `category='tops'`, `type=null` 입력 → 그대로 저장 (`null`)
+- `category='tops'`, `type='cap'` 입력 → 서버가 `type`을 `NULL`로 정규화하여 저장 (non-accessories는 항상 NULL)
 - `category='accessories'`, `type='cap'` 입력 → 그대로 저장 (`cap`은 유효한 액세서리 타입)
 - `category='accessories'`, `type='shirt'` 입력 → 검증 오류 (유효하지 않은 액세서리 타입)
+- `category='accessories'`, `type=null` 입력 → 검증 오류 (accessories는 type 필수)
 
 ---
 
@@ -76,13 +78,14 @@
 ### 요청 필수값 재정의
 
 **필수 필드:**
-- `id`, `name`, `price`, `category`, `collection_year`
+- `id`, `name`, `price`, `category`
 
 **선택 필드:**
-- `image`, `description`, `type`
+- `image`, `description`, `type`, `collection_year`
 
 **조건부 필수:**
 - `category`가 `accessories`이면 `type`은 필수
+- `collection_year`: API 요청에서 생략 가능하며, 생략 시 서버가 2026을 기본값으로 적용 (DB에서는 NOT NULL + DEFAULT 2026)
 
 ### 값 검증 (화이트리스트)
 
@@ -107,19 +110,24 @@ const COLLECTION_YEAR_MAX = 2100; // 최대 연도
 ### API 엔드포인트
 
 #### GET /api/products (공개 API)
+
+**기본 동작:** `collection_year` 미지정 시 `CURRENT_COLLECTION_YEAR`(기본 2026)만 반환
+- 운영 안정성: 2027 컬렉션 추가 시 2026+2027이 섞여 보이는 사고 방지
+- 공개 상품 페이지는 기본적으로 현재 컬렉션만 표시하는 것이 자연스러움
+
 **쿼리 파라미터 (선택):**
 - `collection_year`: 컬렉션 연도 필터 (예: 2026)
-- `category`: 카테고리 필터
-- **기본 동작:** `collection_year` 미지정 시 현재 컬렉션(2026)만 반환
-  - 운영 안정성: 2027 컬렉션 추가 시 2026+2027이 섞여 보이는 사고 방지
-  - 공개 상품 페이지는 기본적으로 현재 컬렉션만 표시하는 것이 자연스러움
+- `category`: 카테고리 필터 (예: `tops`, `bags`)
 
 #### GET /api/admin/products (관리자 API, 미구현 시)
-**쿼리 파라미터:**
-- `collection_year`: 컬렉션 연도 필터 (선택, 미지정 시 전체)
-- `category`: 카테고리 필터 (선택)
-- **기본 동작:** 필터 없으면 전체 컬렉션, 전체 카테고리 반환
-  - 관리자는 모든 연도의 상품을 조회할 수 있어야 함
+
+**기본 동작:** 필터 없으면 전체 컬렉션, 전체 카테고리 반환
+- 관리자는 모든 연도의 상품을 조회할 수 있어야 함
+
+**쿼리 파라미터 (선택):**
+- `collection_year`: 컬렉션 연도 필터 (미지정 시 전체)
+- `category`: 카테고리 필터 (미지정 시 전체)
+- `type`: 타입 필터 (액세서리 타입, 미지정 시 전체)
 
 #### POST /api/admin/products
 **Body:**
@@ -137,9 +145,9 @@ const COLLECTION_YEAR_MAX = 2100; // 최대 연도
 ```
 
 **검증 규칙:**
-- `collection_year`: 숫자, 유효 범위 2000~2100 (기본값 2026)
+- `collection_year`: 숫자, 유효 범위 2000~2100 (생략 시 서버가 2026 기본값 적용)
 - `category`: `['tops', 'bottoms', 'outer', 'bags', 'accessories']` 중 하나
-- `type`: `category`가 `'accessories'`면 필수, 그 외는 NULL로 정규화
+- `type`: `category`가 `'accessories'`면 필수, 그 외는 NULL로 정규화 (입력되어도 무시)
 
 #### PUT /api/admin/products/:id
 동일한 Body 구조
@@ -160,7 +168,7 @@ const COLLECTION_YEAR_MAX = 2100; // 최대 연도
    - 이미지 (`image`)
 
 2. **컬렉션/카테고리**
-   - 컬렉션 연도 (`collection_year`) - 드롭다운 또는 숫자 입력, 기본값 2026
+   - 컬렉션 연도 (`collection_year`) - 드롭다운 또는 숫자 입력, 기본값 2026 자동 채움 (생략 가능하나 UI에서는 기본값 표시)
    - 카테고리 (`category`) - 드롭다운 (5개 옵션)
    - 타입 (`type`) - **조건부 표시**:
      - `category === 'accessories'`일 때만 표시 + 필수
@@ -229,15 +237,16 @@ const ACCESSORY_TYPE_OPTIONS = [
 
 **변경사항:**
 - `gender` 관련 코드 완전 제거
-- `collection_year` 필드 추가 및 검증 (유효 범위: 2000~2100)
+- `collection_year` 필드 추가 및 검증 (유효 범위: 2000~2100, 생략 시 2026 기본값)
 - Category/Type 검증 로직 추가 (`bags` 복수형 사용)
 - 정규화 로직 추가 (non-accessories type → NULL)
 - **GET /api/products 기본 동작:** `collection_year` 미지정 시 현재 컬렉션(2026)만 반환
 
 **검증 로직:**
 ```javascript
-// 필수 필드: id, name, price, category, collection_year
-// category가 'accessories'면 type 필수, 그 외는 NULL
+// 필수 필드: id, name, price, category
+// collection_year: 생략 가능, 생략 시 2026 기본값 적용
+// category가 'accessories'면 type 필수, 그 외는 NULL로 정규화
 ```
 
 ### 3. 프론트엔드 수정
@@ -259,7 +268,7 @@ const ACCESSORY_TYPE_OPTIONS = [
 
 ### 4. 마이그레이션 (필요 시)
 
-**파일:** `backend/migrations/009_add_collection_year_and_modify_type.sql`
+**파일:** `backend/migrations/009_add_collection_year_and_type_nullable.sql`
 
 **내용:**
 ```sql
