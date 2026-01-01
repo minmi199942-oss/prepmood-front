@@ -47,8 +47,21 @@
   }
 
   function getTypeLabel(value) {
+    // 기존 데이터 호환성: 'ties'를 'tie'로 매핑
+    if (value === 'ties') {
+      value = 'tie';
+    }
     const option = ACCESSORY_TYPE_OPTIONS.find(opt => opt.value === value);
     return option ? option.label : value;
+  }
+  
+  // 타입 값을 정규화 (기존 데이터 호환성)
+  function normalizeTypeValue(value) {
+    // 기존 데이터의 'ties'를 'tie'로 변환
+    if (value === 'ties') {
+      return 'tie';
+    }
+    return value;
   }
 
   // 상품 목록 로드
@@ -229,9 +242,11 @@
             <label for="productType">타입 <span style="color: red;">*</span></label>
             <select id="productType" name="type">
               <option value="">선택하세요</option>
-              ${ACCESSORY_TYPE_OPTIONS.map(opt => 
-                `<option value="${opt.value}" ${product.type === opt.value ? 'selected' : ''}>${opt.label}</option>`
-              ).join('')}
+              ${ACCESSORY_TYPE_OPTIONS.map(opt => {
+                // 기존 데이터 호환성: 'ties'를 'tie'로 매핑
+                const normalizedType = normalizeTypeValue(product.type);
+                return `<option value="${opt.value}" ${normalizedType === opt.value ? 'selected' : ''}>${opt.label}</option>`;
+              }).join('')}
             </select>
             <small>액세서리 카테고리일 때만 필수</small>
           </div>
@@ -242,8 +257,8 @@
           <div class="form-group">
             <label for="productImage">이미지</label>
             <div class="image-upload">
-              <input type="file" id="productImage" accept="image/*">
-              <button type="button" id="uploadBtn" class="btn-secondary">이미지 업로드</button>
+              <input type="file" id="productImage" accept="image/*" style="display: none;">
+              <button type="button" id="uploadBtn" class="btn-secondary" onclick="document.getElementById('productImage').click()">이미지 선택</button>
               <div id="imagePreview" class="image-preview">
                 ${product.image ? (() => {
                   const modalImageUrl = product.image.startsWith('/') || product.image.startsWith('http') 
@@ -372,8 +387,11 @@
       const category = formData.get('category');
       const typeValue = formData.get('type');
       
-      // 빈 문자열을 null로 변환
-      const normalizedType = (typeValue && typeValue.trim() !== '') ? typeValue : null;
+      // 빈 문자열을 null로 변환 및 기존 데이터 호환성 처리
+      let normalizedType = (typeValue && typeValue.trim() !== '') ? typeValue : null;
+      if (normalizedType) {
+        normalizedType = normalizeTypeValue(normalizedType);
+      }
       
       const productData = {
         id: formData.get('id'),
@@ -504,6 +522,7 @@
     }
     // 로그아웃은 admin-layout.js에서 처리됨
     
+    // 이미지 파일 선택 이벤트 (모달 내부와 외부 모두 처리)
     document.addEventListener('change', function(e) {
       if (e.target.id === 'productImage' && e.target.files && e.target.files[0]) {
         const file = e.target.files[0];
@@ -515,6 +534,16 @@
             preview.innerHTML = `<img src="${event.target.result}" alt="미리보기">`;
           };
           reader.readAsDataURL(file);
+        }
+      }
+    });
+    
+    // 이미지 업로드 버튼 클릭 이벤트 (모달이 동적으로 생성되므로 이벤트 위임 사용)
+    document.addEventListener('click', function(e) {
+      if (e.target.id === 'uploadBtn' || (e.target.classList && e.target.classList.contains('btn-secondary') && e.target.textContent.includes('이미지'))) {
+        const imageInput = document.getElementById('productImage');
+        if (imageInput) {
+          imageInput.click();
         }
       }
     });
