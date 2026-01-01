@@ -100,3 +100,9 @@ async function loadProducts() {
 
 // 페이지 로드 시 상품 데이터 로드
 loadProducts();
+
+// 주기적으로 상품 데이터 갱신 (관리자 페이지 변경사항 반영)
+// 30초마다 자동으로 상품 데이터를 다시 로드
+setInterval(() => {
+  loadProducts();
+}, 30000); // 30초마다 갱신
