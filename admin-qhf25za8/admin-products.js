@@ -358,15 +358,9 @@
   // 상품 저장
   async function saveProduct() {
     try {
-      console.log('🚀 saveProduct 함수 시작!');
-      console.log('📝 폼 데이터 처리 시작...');
-      
       // 현재 열려있는 모달에서 폼 찾기
       const modal = document.querySelector('.modal-overlay');
       const form = modal ? modal.querySelector('#productForm') : document.getElementById('productForm');
-      
-      console.log('🔍 모달 요소:', modal);
-      console.log('🔍 폼 요소:', form);
       
       if (!form) {
         alert('폼을 찾을 수 없습니다!');
@@ -374,12 +368,6 @@
       }
       
       const formData = new FormData(form);
-      
-      // 폼 데이터 디버깅 추가
-      console.log('📋 폼 필드들:');
-      for (let [key, value] of formData.entries()) {
-        console.log(`- ${key}: "${value}"`);
-      }
       
       const category = formData.get('category');
       const typeValue = formData.get('type');
@@ -407,8 +395,6 @@
           return;
         }
       }
-      
-      console.log('📦 productData:', productData);
 
       // 이미지 업로드 처리
       const imageInput = document.getElementById('productImage');
@@ -425,13 +411,6 @@
         : `${API_BASE_URL}/admin/products`;
       
       const method = isEditing ? 'PUT' : 'POST';
-      
-      // 디버깅: URL과 데이터 확인
-      console.log('🔍 디버깅 정보:');
-      console.log('- isEditing:', isEditing);
-      console.log('- productData.id:', productData.id);
-      console.log('- URL:', url);
-      console.log('- Method:', method);
 
       const response = await fetch(url, {
         method: method,

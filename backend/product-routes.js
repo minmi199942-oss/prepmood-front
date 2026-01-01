@@ -271,6 +271,31 @@ router.put('/admin/products/:id', authenticateToken, requireAdmin, async (req, r
             });
         }
         
+        // 가격 검증 (보안 강화)
+        const priceNum = parseInt(price);
+        if (isNaN(priceNum) || priceNum < 0 || priceNum > 1000000000) {
+            return res.status(400).json({
+                success: false,
+                message: '가격은 0원 이상 10억원 이하여야 합니다.'
+            });
+        }
+        
+        // 상품명 길이 검증
+        if (name.length > 255) {
+            return res.status(400).json({
+                success: false,
+                message: '상품명은 최대 255자입니다.'
+            });
+        }
+        
+        // Description 길이 검증
+        if (description && description.length > 5000) {
+            return res.status(400).json({
+                success: false,
+                message: '상품 설명은 최대 5000자입니다.'
+            });
+        }
+        
         // 카테고리 검증
         const VALID_CATEGORIES = ['tops', 'bottoms', 'outer', 'bags', 'accessories'];
         if (!VALID_CATEGORIES.includes(category)) {
