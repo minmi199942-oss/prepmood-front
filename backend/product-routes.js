@@ -52,15 +52,30 @@ const upload = multer({
 
 // ==================== 상품 조회 API (공개) ====================
 
-// 전체 상품 목록 조회
+// 전체 상품 목록 조회 (공개 API)
 router.get('/products', async (req, res) => {
     let connection;
     try {
+        const { collection_year, category } = req.query;
+        
         connection = await mysql.createConnection(dbConfig);
         
-        const [products] = await connection.execute(
-            'SELECT * FROM admin_products ORDER BY created_at DESC'
-        );
+        // 기본 동작: collection_year 미지정 시 현재 컬렉션(2026)만 반환
+        const CURRENT_COLLECTION_YEAR = 2026;
+        const collectionYear = collection_year ? parseInt(collection_year) : CURRENT_COLLECTION_YEAR;
+        
+        let query = 'SELECT * FROM admin_products WHERE collection_year = ?';
+        const params = [collectionYear];
+        
+        // 카테고리 필터
+        if (category) {
+            query += ' AND category = ?';
+            params.push(category);
+        }
+        
+        query += ' ORDER BY created_at DESC';
+        
+        const [products] = await connection.execute(query, params);
         
         res.json({
             success: true,
@@ -151,14 +166,54 @@ router.post('/admin/upload-image', authenticateToken, requireAdmin, upload.singl
 router.post('/admin/products', authenticateToken, requireAdmin, async (req, res) => {
     let connection;
     try {
-        const { id, name, price, image, gender, category, type, description } = req.body;
+        const { id, name, price, image, collection_year, category, type, description } = req.body;
         
         // 필수 필드 검증
-        if (!id || !name || !price || !gender || !category || !type) {
+        if (!id || !name || !price || !category) {
             return res.status(400).json({
                 success: false,
-                message: '필수 필드가 누락되었습니다.'
+                message: '필수 필드가 누락되었습니다. (id, name, price, category 필수)'
             });
+        }
+        
+        // 카테고리 검증
+        const VALID_CATEGORIES = ['tops', 'bottoms', 'outer', 'bags', 'accessories'];
+        if (!VALID_CATEGORIES.includes(category)) {
+            return res.status(400).json({
+                success: false,
+                message: '유효하지 않은 카테고리입니다.'
+            });
+        }
+        
+        // collection_year 처리 (기본값 2026)
+        const CURRENT_COLLECTION_YEAR = 2026;
+        const COLLECTION_YEAR_MIN = 2000;
+        const COLLECTION_YEAR_MAX = 2100;
+        const collectionYear = collection_year ? parseInt(collection_year) : CURRENT_COLLECTION_YEAR;
+        
+        if (isNaN(collectionYear) || collectionYear < COLLECTION_YEAR_MIN || collectionYear > COLLECTION_YEAR_MAX) {
+            return res.status(400).json({
+                success: false,
+                message: `collection_year는 ${COLLECTION_YEAR_MIN}~${COLLECTION_YEAR_MAX} 사이의 숫자여야 합니다.`
+            });
+        }
+        
+        // type 검증 및 정규화
+        const ACCESSORY_TYPES = ['cap', 'wallet', 'tie', 'scarf', 'belt'];
+        let normalizedType = null;
+        
+        if (category === 'accessories') {
+            // accessories는 type 필수
+            if (!type || !ACCESSORY_TYPES.includes(type)) {
+                return res.status(400).json({
+                    success: false,
+                    message: '액세서리 카테고리는 유효한 타입이 필수입니다. (cap, wallet, tie, scarf, belt)'
+                });
+            }
+            normalizedType = type;
+        } else {
+            // non-accessories는 type을 NULL로 정규화 (입력되어도 무시)
+            normalizedType = null;
         }
         
         connection = await mysql.createConnection(dbConfig);
@@ -178,8 +233,8 @@ router.post('/admin/products', authenticateToken, requireAdmin, async (req, res)
         
         // 상품 추가
         await connection.execute(
-            'INSERT INTO admin_products (id, name, price, image, gender, category, type, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, name, price, image || null, gender, category, type, description || null]
+            'INSERT INTO admin_products (id, name, price, image, collection_year, category, type, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, name, price, image || null, collectionYear, category, normalizedType, description || null]
         );
         
         console.log('✅ 상품 추가 성공:', id, name);
@@ -206,7 +261,55 @@ router.put('/admin/products/:id', authenticateToken, requireAdmin, async (req, r
     let connection;
     try {
         const { id } = req.params;
-        const { name, price, image, gender, category, type, description } = req.body;
+        const { name, price, image, collection_year, category, type, description } = req.body;
+        
+        // 필수 필드 검증
+        if (!name || !price || !category) {
+            return res.status(400).json({
+                success: false,
+                message: '필수 필드가 누락되었습니다. (name, price, category 필수)'
+            });
+        }
+        
+        // 카테고리 검증
+        const VALID_CATEGORIES = ['tops', 'bottoms', 'outer', 'bags', 'accessories'];
+        if (!VALID_CATEGORIES.includes(category)) {
+            return res.status(400).json({
+                success: false,
+                message: '유효하지 않은 카테고리입니다.'
+            });
+        }
+        
+        // collection_year 처리 (기본값 2026)
+        const CURRENT_COLLECTION_YEAR = 2026;
+        const COLLECTION_YEAR_MIN = 2000;
+        const COLLECTION_YEAR_MAX = 2100;
+        const collectionYear = collection_year ? parseInt(collection_year) : CURRENT_COLLECTION_YEAR;
+        
+        if (isNaN(collectionYear) || collectionYear < COLLECTION_YEAR_MIN || collectionYear > COLLECTION_YEAR_MAX) {
+            return res.status(400).json({
+                success: false,
+                message: `collection_year는 ${COLLECTION_YEAR_MIN}~${COLLECTION_YEAR_MAX} 사이의 숫자여야 합니다.`
+            });
+        }
+        
+        // type 검증 및 정규화
+        const ACCESSORY_TYPES = ['cap', 'wallet', 'tie', 'scarf', 'belt'];
+        let normalizedType = null;
+        
+        if (category === 'accessories') {
+            // accessories는 type 필수
+            if (!type || !ACCESSORY_TYPES.includes(type)) {
+                return res.status(400).json({
+                    success: false,
+                    message: '액세서리 카테고리는 유효한 타입이 필수입니다. (cap, wallet, tie, scarf, belt)'
+                });
+            }
+            normalizedType = type;
+        } else {
+            // non-accessories는 type을 NULL로 정규화 (입력되어도 무시)
+            normalizedType = null;
+        }
         
         connection = await mysql.createConnection(dbConfig);
         
@@ -225,8 +328,8 @@ router.put('/admin/products/:id', authenticateToken, requireAdmin, async (req, r
         
         // 상품 수정
         await connection.execute(
-            'UPDATE admin_products SET name = ?, price = ?, image = ?, gender = ?, category = ?, type = ?, description = ?, updated_at = NOW() WHERE id = ?',
-            [name, price, image || null, gender, category, type, description || null, id]
+            'UPDATE admin_products SET name = ?, price = ?, image = ?, collection_year = ?, category = ?, type = ?, description = ?, updated_at = NOW() WHERE id = ?',
+            [name, price, image || null, collectionYear, category, normalizedType, description || null, id]
         );
         
         console.log('✅ 상품 수정 성공:', id, name);

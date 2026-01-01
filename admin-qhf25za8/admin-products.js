@@ -96,7 +96,7 @@
         <div class="product-card-name">${escapeHtml(product.name)}</div>
         <div class="product-card-price">${formatKRW(product.price)}</div>
         <div class="product-card-meta">
-          ${escapeHtml(product.gender)} • ${escapeHtml(product.category)} • ${escapeHtml(product.type)}
+          Collection ${product.collection_year || 2026} • ${getCategoryLabel(product.category)}${product.type ? ' • ' + getTypeLabel(product.type) : ''}
         </div>
         <div class="product-card-actions">
           <button onclick="openEditProductModal('${product.id}')" class="btn-secondary">수정</button>
@@ -153,6 +153,33 @@
     modal.style.display = 'flex';
   }
 
+  // 카테고리 라벨 매핑
+  const CATEGORY_OPTIONS = [
+    { value: 'tops', label: '상의' },
+    { value: 'bottoms', label: '하의' },
+    { value: 'outer', label: '아우터' },
+    { value: 'bags', label: '가방' },
+    { value: 'accessories', label: '액세서리' }
+  ];
+
+  const ACCESSORY_TYPE_OPTIONS = [
+    { value: 'cap', label: '모자' },
+    { value: 'wallet', label: '지갑' },
+    { value: 'tie', label: '넥타이' },
+    { value: 'scarf', label: '목도리' },
+    { value: 'belt', label: '벨트' }
+  ];
+
+  function getCategoryLabel(value) {
+    const option = CATEGORY_OPTIONS.find(opt => opt.value === value);
+    return option ? option.label : value;
+  }
+
+  function getTypeLabel(value) {
+    const option = ACCESSORY_TYPE_OPTIONS.find(opt => opt.value === value);
+    return option ? option.label : value;
+  }
+
   // 상품 모달 생성
   function createProductModal() {
     const isEditing = currentEditingProduct !== null;
@@ -181,29 +208,29 @@
             <input type="number" id="productPrice" name="price" value="${product.price || ''}" required>
           </div>
           <div class="form-group">
-            <label for="productGender">성별</label>
-            <select id="productGender" name="gender" required>
-              <option value="">선택하세요</option>
-              <option value="남성" ${product.gender === '남성' ? 'selected' : ''}>남성</option>
-              <option value="여성" ${product.gender === '여성' ? 'selected' : ''}>여성</option>
-            </select>
+            <label for="productCollectionYear">컬렉션 연도</label>
+            <input type="number" id="productCollectionYear" name="collection_year" 
+                   value="${product.collection_year || 2026}" min="2000" max="2100" required>
+            <small>기본값: 2026</small>
           </div>
           <div class="form-group">
             <label for="productCategory">카테고리</label>
-            <select id="productCategory" name="category" required>
+            <select id="productCategory" name="category" required onchange="handleCategoryChange()">
               <option value="">선택하세요</option>
-              <option value="상의" ${product.category === '상의' ? 'selected' : ''}>상의</option>
-              <option value="하의" ${product.category === '하의' ? 'selected' : ''}>하의</option>
-              <option value="신발" ${product.category === '신발' ? 'selected' : ''}>신발</option>
-              <option value="가방" ${product.category === '가방' ? 'selected' : ''}>가방</option>
-              <option value="모자" ${product.category === '모자' ? 'selected' : ''}>모자</option>
-              <option value="스카프" ${product.category === '스카프' ? 'selected' : ''}>스카프</option>
-              <option value="액세서리" ${product.category === '액세서리' ? 'selected' : ''}>액세서리</option>
+              ${CATEGORY_OPTIONS.map(opt => 
+                `<option value="${opt.value}" ${product.category === opt.value ? 'selected' : ''}>${opt.label}</option>`
+              ).join('')}
             </select>
           </div>
-          <div class="form-group">
-            <label for="productType">타입</label>
-            <input type="text" id="productType" name="type" value="${product.type || ''}" required>
+          <div class="form-group" id="productTypeGroup" style="display: none;">
+            <label for="productType">타입 <span style="color: red;">*</span></label>
+            <select id="productType" name="type">
+              <option value="">선택하세요</option>
+              ${ACCESSORY_TYPE_OPTIONS.map(opt => 
+                `<option value="${opt.value}" ${product.type === opt.value ? 'selected' : ''}>${opt.label}</option>`
+              ).join('')}
+            </select>
+            <small>액세서리 카테고리일 때만 필수</small>
           </div>
           <div class="form-group">
             <label for="productDescription">설명</label>
@@ -227,13 +254,56 @@
         </form>
         <div class="modal-footer">
           <button type="button" onclick="closeModal()" class="btn-secondary">취소</button>
-          <button type="submit" class="btn-primary">저장</button>
+          <button type="submit" class="btn-primary" onclick="saveProduct()">저장</button>
         </div>
       </div>
     `;
 
+    // 모달이 DOM에 추가된 후 이벤트 리스너 등록
+    setTimeout(() => {
+      const categorySelect = modal.querySelector('#productCategory');
+      const typeGroup = modal.querySelector('#productTypeGroup');
+      const typeSelect = modal.querySelector('#productType');
+      
+      // 초기 상태 설정
+      if (categorySelect.value === 'accessories') {
+        typeGroup.style.display = 'block';
+        typeSelect.required = true;
+      }
+      
+      // 카테고리 변경 이벤트
+      categorySelect.addEventListener('change', function() {
+        if (this.value === 'accessories') {
+          typeGroup.style.display = 'block';
+          typeSelect.required = true;
+        } else {
+          typeGroup.style.display = 'none';
+          typeSelect.required = false;
+          typeSelect.value = '';
+        }
+      });
+    }, 0);
+
     return modal;
   }
+
+  // 카테고리 변경 핸들러 (전역 함수로 등록)
+  window.handleCategoryChange = function() {
+    const categorySelect = document.getElementById('productCategory');
+    const typeGroup = document.getElementById('productTypeGroup');
+    const typeSelect = document.getElementById('productType');
+    
+    if (categorySelect && typeGroup && typeSelect) {
+      if (categorySelect.value === 'accessories') {
+        typeGroup.style.display = 'block';
+        typeSelect.required = true;
+      } else {
+        typeGroup.style.display = 'none';
+        typeSelect.required = false;
+        typeSelect.value = '';
+      }
+    }
+  };
 
   // 모달 닫기
   function closeModal() {
@@ -303,11 +373,16 @@
         id: formData.get('id'),
         name: formData.get('name'),
         price: parseInt(formData.get('price')),
-        gender: formData.get('gender'),
+        collection_year: parseInt(formData.get('collection_year')) || 2026,
         category: formData.get('category'),
-        type: formData.get('type'),
+        type: formData.get('type') || null,
         description: formData.get('description')
       };
+      
+      // non-accessories는 type을 null로 설정
+      if (productData.category !== 'accessories') {
+        productData.type = null;
+      }
       
       console.log('📦 productData:', productData);
 

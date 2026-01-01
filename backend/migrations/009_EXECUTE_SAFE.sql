@@ -1,12 +1,15 @@
 -- 안전한 마이그레이션 실행 스크립트
 -- 실행 전: 데이터 백업 필수!
 -- CREATE TABLE admin_products_backup AS SELECT * FROM admin_products;
+-- (백업 테이블이 이미 있으면: DROP TABLE IF EXISTS admin_products_backup; 후 재생성)
 
 USE prepmood;
 
 -- ============================================================
 -- 1. 데이터 백업 (실행 전에 수동으로 실행 권장)
 -- ============================================================
+-- 백업 테이블이 이미 있으면:
+-- DROP TABLE IF EXISTS admin_products_backup;
 -- CREATE TABLE admin_products_backup AS SELECT * FROM admin_products;
 
 -- ============================================================
@@ -37,4 +40,3 @@ CREATE INDEX idx_collection_category_type ON admin_products(collection_year, cat
 DESCRIBE admin_products;
 SELECT COUNT(*) AS total_products FROM admin_products;
 SELECT 'Migration completed successfully!' AS status;
-

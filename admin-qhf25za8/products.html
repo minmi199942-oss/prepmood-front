@@ -62,8 +62,8 @@
         <!-- 상품 ID -->
         <div class="form-group">
           <label for="productId">상품 ID *</label>
-          <input type="text" id="productId" name="id" placeholder="예: m-sh-010" required>
-          <small>형식: {gender}-{category}-{number} (예: m-sh-001, w-pn-002)</small>
+          <input type="text" id="productId" name="id" placeholder="예: PM-26-SH-001" required>
+          <small>형식: PM-{year}-{category}-{number} (예: PM-26-SH-001)</small>
         </div>
 
         <!-- 상품명 -->
@@ -95,14 +95,12 @@
           </div>
         </div>
 
-        <!-- 성별 -->
+        <!-- 컬렉션 연도 -->
         <div class="form-group">
-          <label for="productGender">성별 *</label>
-          <select id="productGender" name="gender" required>
-            <option value="">선택하세요</option>
-            <option value="men">남성</option>
-            <option value="women">여성</option>
-          </select>
+          <label for="productCollectionYear">컬렉션 연도 *</label>
+          <input type="number" id="productCollectionYear" name="collection_year" 
+                 value="2026" min="2000" max="2100" required>
+          <small>기본값: 2026</small>
         </div>
 
         <!-- 카테고리 -->
@@ -118,13 +116,18 @@
           </select>
         </div>
 
-        <!-- 타입 -->
-        <div class="form-group">
-          <label for="productType">타입 *</label>
-          <select id="productType" name="type" required>
+        <!-- 타입 (액세서리일 때만 표시) -->
+        <div class="form-group" id="productTypeGroup" style="display: none;">
+          <label for="productType">타입 <span style="color: red;">*</span></label>
+          <select id="productType" name="type">
             <option value="">선택하세요</option>
-            <!-- 동적으로 변경됨 -->
+            <option value="cap">모자</option>
+            <option value="wallet">지갑</option>
+            <option value="tie">넥타이</option>
+            <option value="scarf">목도리</option>
+            <option value="belt">벨트</option>
           </select>
+          <small>액세서리 카테고리일 때만 필수</small>
         </div>
 
         <!-- 설명 -->

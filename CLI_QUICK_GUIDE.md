@@ -321,3 +321,4 @@ npm run admin -- warranty:transfer \
 - [ ] 새 소유주 이메일이 시스템에 등록되어 있는지 확인
 - [ ] 양도 사유 기록
 
+
