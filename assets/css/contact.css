@@ -174,7 +174,8 @@
 .privacy-details {
   margin-top: 12px;
   padding: 16px;
-  background: #f8f9fa;
+  background: #fff;
+  border: 1px solid #e0e0e0;
   border-radius: 6px;
   font-size: clamp(0.8125rem, 1.4vw, 0.9375rem);
   color: #666;
