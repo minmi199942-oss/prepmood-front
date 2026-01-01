@@ -8,6 +8,10 @@
 - gender 같은 추가 축은 없다.
 - **Collection Year로 연도 관리 (2026, 2027... 확장 가능)**
 
+**테이블 역할:**
+- `admin_products`는 공개 상품 목록(`/api/products`)과 관리자 관리(`/api/admin/products`)가 공통으로 사용하는 단일 상품 마스터 테이블이다.
+- 테이블명에 `admin_` 접두사가 있지만, 실제로는 공개/관리자 모두가 사용하는 메인 상품 테이블이다.
+
 ---
 
 ## 🗄️ 데이터베이스 설계
@@ -39,8 +43,12 @@
 - `tops` (상의)
 - `bottoms` (하의)
 - `outer` (아우터)
-- `bag` (가방)
+- `bags` (가방) - **복수형 사용 (기존 코드베이스와 일치)**
 - `accessories` (액세서리)
+
+**전역 표준:**
+- category 값은 전역 표준으로 `bags`(복수형)를 사용한다.
+- 기존 코드베이스(`header.partial`, `search.html`, `catalog-data.js` 등)가 이미 `bags`를 사용 중이므로 일관성 유지.
 
 **Type (소분류):**
 - `category`가 `accessories`일 때만 사용:
@@ -54,6 +62,12 @@
 **정책:**
 - Non-accessories 카테고리는 `type`을 NULL로 저장
 - 의미 명확화, 빈 문자열 혼동 방지
+- **중요:** DB 컬럼은 `NULL` 허용으로 설정 (`type VARCHAR(100) NULL`)
+
+**정규화 규칙 예시:**
+- `category='tops'`, `type='cap'` 입력 → 서버가 `type`을 `NULL`로 정규화하여 저장
+- `category='accessories'`, `type='cap'` 입력 → 그대로 저장 (`cap`은 유효한 액세서리 타입)
+- `category='accessories'`, `type='shirt'` 입력 → 검증 오류 (유효하지 않은 액세서리 타입)
 
 ---
 
@@ -73,15 +87,17 @@
 ### 값 검증 (화이트리스트)
 
 ```javascript
-const VALID_CATEGORIES = ['tops', 'bottoms', 'outer', 'bag', 'accessories'];
+const VALID_CATEGORIES = ['tops', 'bottoms', 'outer', 'bags', 'accessories'];
 const ACCESSORY_TYPES = ['cap', 'wallet', 'tie', 'scarf', 'belt'];
 const CURRENT_COLLECTION_YEAR = 2026; // 기본값
+const COLLECTION_YEAR_MIN = 2000; // 최소 연도
+const COLLECTION_YEAR_MAX = 2100; // 최대 연도
 
 // 검증 규칙:
 // 1. category는 VALID_CATEGORIES 안에 있어야 함
 // 2. category가 'accessories'면 type은 ACCESSORY_TYPES 안에 있어야 함 (필수)
 // 3. category가 'accessories'가 아니면 type은 NULL로 저장 (입력되어도 NULL로 정규화)
-// 4. collection_year는 숫자, 기본값 2026
+// 4. collection_year는 숫자, 기본값 2026, 유효 범위: 2000~2100
 ```
 
 **정규화 정책 (관대한 방식):**
@@ -90,11 +106,20 @@ const CURRENT_COLLECTION_YEAR = 2026; // 기본값
 
 ### API 엔드포인트
 
-#### GET /api/products
+#### GET /api/products (공개 API)
 **쿼리 파라미터 (선택):**
 - `collection_year`: 컬렉션 연도 필터 (예: 2026)
 - `category`: 카테고리 필터
-- 기본: 모든 컬렉션, 모든 카테고리
+- **기본 동작:** `collection_year` 미지정 시 현재 컬렉션(2026)만 반환
+  - 운영 안정성: 2027 컬렉션 추가 시 2026+2027이 섞여 보이는 사고 방지
+  - 공개 상품 페이지는 기본적으로 현재 컬렉션만 표시하는 것이 자연스러움
+
+#### GET /api/admin/products (관리자 API, 미구현 시)
+**쿼리 파라미터:**
+- `collection_year`: 컬렉션 연도 필터 (선택, 미지정 시 전체)
+- `category`: 카테고리 필터 (선택)
+- **기본 동작:** 필터 없으면 전체 컬렉션, 전체 카테고리 반환
+  - 관리자는 모든 연도의 상품을 조회할 수 있어야 함
 
 #### POST /api/admin/products
 **Body:**
@@ -110,6 +135,11 @@ const CURRENT_COLLECTION_YEAR = 2026; // 기본값
   "description": "설명"
 }
 ```
+
+**검증 규칙:**
+- `collection_year`: 숫자, 유효 범위 2000~2100 (기본값 2026)
+- `category`: `['tops', 'bottoms', 'outer', 'bags', 'accessories']` 중 하나
+- `type`: `category`가 `'accessories'`면 필수, 그 외는 NULL로 정규화
 
 #### PUT /api/admin/products/:id
 동일한 Body 구조
@@ -146,7 +176,7 @@ const CATEGORY_OPTIONS = [
   { value: 'tops', label: '상의' },
   { value: 'bottoms', label: '하의' },
   { value: 'outer', label: '아우터' },
-  { value: 'bag', label: '가방' },
+  { value: 'bags', label: '가방' },  // 복수형
   { value: 'accessories', label: '액세서리' }
 ];
 
@@ -189,8 +219,9 @@ const ACCESSORY_TYPE_OPTIONS = [
 **변경사항:**
 - `gender` 컬럼 제거 (이미 없음, 확인만)
 - `collection_year INT NOT NULL DEFAULT 2026` 추가
+- `type` 컬럼 NULL 허용 변경: `MODIFY COLUMN type VARCHAR(100) NULL`
 - 인덱스 추가: `idx_collection_year`, `idx_collection_category`
-- 카테고리 주석 업데이트 (소문자 값 명시)
+- 카테고리 주석 업데이트 (소문자 값 명시, `bags` 복수형)
 
 ### 2. 백엔드 API 수정
 
@@ -198,9 +229,10 @@ const ACCESSORY_TYPE_OPTIONS = [
 
 **변경사항:**
 - `gender` 관련 코드 완전 제거
-- `collection_year` 필드 추가
-- Category/Type 검증 로직 추가
+- `collection_year` 필드 추가 및 검증 (유효 범위: 2000~2100)
+- Category/Type 검증 로직 추가 (`bags` 복수형 사용)
 - 정규화 로직 추가 (non-accessories type → NULL)
+- **GET /api/products 기본 동작:** `collection_year` 미지정 시 현재 컬렉션(2026)만 반환
 
 **검증 로직:**
 ```javascript
@@ -214,8 +246,8 @@ const ACCESSORY_TYPE_OPTIONS = [
 
 **변경사항:**
 - `gender` 필드 제거
-- `collection_year` 필드 추가
-- 카테고리 옵션: 한글 값 → 소문자 값 + 한글 라벨
+- `collection_year` 필드 추가 (기본값 2026)
+- 카테고리 옵션: 한글 값 → 소문자 값 + 한글 라벨 (`bags` 복수형)
 - Type 필드 조건부 표시/처리
 - 카테고리 변경 시 type 필드 동적 처리
 
@@ -227,19 +259,30 @@ const ACCESSORY_TYPE_OPTIONS = [
 
 ### 4. 마이그레이션 (필요 시)
 
-**파일:** `backend/migrations/009_add_collection_year.sql`
+**파일:** `backend/migrations/009_add_collection_year_and_modify_type.sql`
 
 **내용:**
 ```sql
+-- 1. collection_year 컬럼 추가
 ALTER TABLE admin_products
 ADD COLUMN collection_year INT NOT NULL DEFAULT 2026 AFTER image;
 
+-- 2. type 컬럼 NULL 허용 변경 (non-accessories는 NULL 저장 정책)
+ALTER TABLE admin_products
+MODIFY COLUMN type VARCHAR(100) NULL;
+
+-- 3. 인덱스 추가
 CREATE INDEX idx_collection_year ON admin_products(collection_year);
 CREATE INDEX idx_collection_category ON admin_products(collection_year, category);
+
+-- 4. 기존 데이터 처리
+-- collection_year는 기본값으로 자동 설정됨
+-- type은 이미 데이터가 있으면 그대로 유지 (추후 정규화 필요 시 별도 작업)
 ```
 
 **기존 데이터 처리:**
-- 기존 데이터는 모두 `collection_year = 2026`으로 설정
+- 기존 데이터는 모두 `collection_year = 2026`으로 자동 설정 (DEFAULT 값)
+- `type` 컬럼은 NULL 허용으로 변경 (기존 NOT NULL 제약 해제)
 
 ### 5. 문서 업데이트
 
@@ -266,8 +309,8 @@ CREATE INDEX idx_collection_category ON admin_products(collection_year, category
 ## 📌 핵심 원칙
 
 1. **값과 라벨 분리**
-   - DB/API: 소문자 코드값 (`tops`, `accessories`)
-   - 프론트 표시: 한글 라벨 (`상의`, `액세서리`)
+   - DB/API: 소문자 코드값 (`tops`, `bags`, `accessories`) - **`bags`는 복수형**
+   - 프론트 표시: 한글 라벨 (`상의`, `가방`, `액세서리`)
 
 2. **정규화 우선**
    - 서버가 잘못된 데이터를 정규화 (관대한 방식)
