@@ -284,6 +284,15 @@
       const categorySelect = modal.querySelector('#productCategory');
       const typeGroup = modal.querySelector('#productTypeGroup');
       const typeSelect = modal.querySelector('#productType');
+      const uploadBtn = modal.querySelector('#uploadBtn');
+      const imageInput = modal.querySelector('#productImage');
+      
+      // 이미지 업로드 버튼 이벤트 리스너 연결
+      if (uploadBtn && imageInput) {
+        uploadBtn.addEventListener('click', function() {
+          imageInput.click();
+        });
+      }
       
       // 초기 상태 설정 (기존 상품이 accessories인 경우)
       if (categorySelect.value === 'accessories') {

@@ -56,15 +56,74 @@ async function loadProducts() {
         'belt': 'belts'
       };
       
+      // 카테고리별 기본 타입 매핑 (non-accessories용)
+      const defaultTypeMapping = {
+        'tops': 'shirts',      // 상의는 기본적으로 shirts에 분류
+        'bottoms': 'pants',    // 하의는 기본적으로 pants에 분류
+        'outer': 'jackets',    // 아우터는 기본적으로 jackets에 분류
+        'bags': 'briefcases'   // 가방은 기본적으로 briefcases에 분류
+      };
+      
+      // 기존 DB 타입 -> catalogData 타입 매핑 (단수형 -> 복수형 또는 그대로)
+      const dbTypeToCatalogType = {
+        // tops
+        'shirt': 'shirts',
+        'shirts': 'shirts',
+        'knit': 'knits',
+        'knits': 'knits',
+        't-shirt': 't-shirts',
+        't-shirts': 't-shirts',
+        // bottoms
+        'pant': 'pants',
+        'pants': 'pants',
+        'skirt': 'skirts',
+        'skirts': 'skirts',
+        // outer
+        'jacket': 'jackets',
+        'jackets': 'jackets',
+        'suit': 'suits',
+        'suits': 'suits',
+        // bags
+        'briefcase': 'briefcases',
+        'briefcases': 'briefcases',
+        'backpack': 'backpacks',
+        'backpacks': 'backpacks',
+        'crossbody': 'crossbody',
+        'handbag': 'handbags',
+        'handbags': 'handbags',
+        'tote': 'totes',
+        'totes': 'totes',
+        'clutch': 'clutches',
+        'clutches': 'clutches'
+      };
+      
       data.products.forEach(product => {
-        // 타입 정규화: DB의 단수형을 URL 파라미터의 복수형으로 변환
         let mappedType = product.type;
+        
+        // accessories: 단수형 -> 복수형 매핑
         if (product.category === 'accessories' && product.type && typeMapping[product.type]) {
           mappedType = typeMapping[product.type];
         }
+        // non-accessories: DB 타입을 catalogData 타입으로 변환
+        else if (product.category !== 'accessories' && product.type && dbTypeToCatalogType[product.type]) {
+          mappedType = dbTypeToCatalogType[product.type];
+        }
+        // non-accessories이고 type이 NULL이거나 매핑되지 않은 경우: 기본 타입 사용
+        else if (product.category !== 'accessories' && (!product.type || !dbTypeToCatalogType[product.type])) {
+          mappedType = defaultTypeMapping[product.category] || null;
+        }
         
-        if (catalogData[product.category] && catalogData[product.category][mappedType]) {
+        // 분류
+        if (catalogData[product.category] && mappedType && catalogData[product.category][mappedType]) {
           catalogData[product.category][mappedType].push(product);
+        } else if (catalogData[product.category] && !mappedType) {
+          // type이 없지만 카테고리는 있는 경우: 기본 타입으로 분류
+          const defaultType = defaultTypeMapping[product.category];
+          if (defaultType && catalogData[product.category][defaultType]) {
+            catalogData[product.category][defaultType].push(product);
+          } else {
+            logger.warn('⚠️ 분류되지 않은 제품 (기본 타입 없음):', product.id, product.category, product.type);
+          }
         } else {
           logger.warn('⚠️ 분류되지 않은 제품:', product.id, product.category, product.type, '-> mapped:', mappedType);
         }
