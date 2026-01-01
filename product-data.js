@@ -38,19 +38,35 @@ async function loadProducts() {
     
     if (data.success && data.products) {
       // 제품을 카테고리별로 분류
+      // 주의: URL 파라미터는 복수형(ties, caps 등)을 사용하지만, DB는 단수형(tie, cap 등)을 사용
       const catalogData = {
         tops: { shirts: [], knits: [], 't-shirts': [] },
         bottoms: { pants: [], skirts: [] },
         outer: { jackets: [], suits: [] },
         bags: { briefcases: [], backpacks: [], crossbody: [], handbags: [], totes: [], clutches: [] },
-        accessories: { caps: [], wallets: [], belts: [], ties: [] }
+        accessories: { caps: [], wallets: [], belts: [], ties: [], scarves: [] }
+      };
+      
+      // 타입 매핑: DB 값(단수형) -> URL 파라미터 값(복수형)
+      const typeMapping = {
+        'cap': 'caps',
+        'wallet': 'wallets',
+        'tie': 'ties',
+        'scarf': 'scarves',
+        'belt': 'belts'
       };
       
       data.products.forEach(product => {
-        if (catalogData[product.category] && catalogData[product.category][product.type]) {
-          catalogData[product.category][product.type].push(product);
+        // 타입 정규화: DB의 단수형을 URL 파라미터의 복수형으로 변환
+        let mappedType = product.type;
+        if (product.category === 'accessories' && product.type && typeMapping[product.type]) {
+          mappedType = typeMapping[product.type];
+        }
+        
+        if (catalogData[product.category] && catalogData[product.category][mappedType]) {
+          catalogData[product.category][mappedType].push(product);
         } else {
-          logger.warn('⚠️ 분류되지 않은 제품:', product.id, product.category, product.type);
+          logger.warn('⚠️ 분류되지 않은 제품:', product.id, product.category, product.type, '-> mapped:', mappedType);
         }
       });
       
