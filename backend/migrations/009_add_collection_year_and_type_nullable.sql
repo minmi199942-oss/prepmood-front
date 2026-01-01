@@ -23,21 +23,18 @@ ALTER TABLE admin_products
 MODIFY COLUMN type VARCHAR(100) NULL;
 
 -- ============================================================
--- 3. gender 컬럼 제거 (있는 경우에만)
+-- 3. gender 컬럼 제거 (확인 결과: 이미 없음, 건너뜀)
 -- ============================================================
--- 주의: 먼저 DESCRIBE admin_products로 확인 후 실행
--- gender 컬럼이 없으면 이 구문은 에러 발생하므로 조건부 실행 필요
--- 실제 실행 시 수동으로 확인 후 실행하거나, 아래 주석 처리 후 실행
--- ALTER TABLE admin_products DROP COLUMN gender;
+-- 확인 결과 gender 컬럼이 이미 없으므로 이 단계는 불필요
+-- ALTER TABLE admin_products DROP COLUMN gender; -- 이미 없음
 
 -- ============================================================
--- 4. 기존 인덱스 제거 (gender 관련)
+-- 4. 기존 인덱스 제거 (gender 관련 인덱스는 이미 없음)
 -- ============================================================
--- 인덱스가 없으면 에러가 발생하므로 조건부 제거
--- 실제 실행 시 에러가 나면 해당 인덱스가 없는 것이므로 무시
-DROP INDEX IF EXISTS idx_gender ON admin_products;
-DROP INDEX IF EXISTS idx_gender_category ON admin_products;
-DROP INDEX IF EXISTS idx_gender_category_type ON admin_products;
+-- 확인 결과 gender 관련 인덱스가 이미 없으므로 이 단계는 불필요
+-- DROP INDEX IF EXISTS idx_gender ON admin_products; -- 이미 없음
+-- DROP INDEX IF EXISTS idx_gender_category ON admin_products; -- 이미 없음
+-- DROP INDEX IF EXISTS idx_gender_category_type ON admin_products; -- 이미 없음
 
 -- ============================================================
 -- 5. 새로운 인덱스 추가
