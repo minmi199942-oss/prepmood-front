@@ -115,7 +115,10 @@ rsync -av \
   --include="config.js" \
   --include="product-data.js" \
   --include="qrcode.min.js" \
+  --include="assets/" \
+  --include="assets/js/" \
   --include="assets/js/contact.js" \
+  --include="assets/css/" \
   --include="assets/css/contact.css" \
   --chmod=644 \
   --exclude="*" \
