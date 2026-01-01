@@ -320,9 +320,31 @@ DELETE /api/admin/products/:id
 
 ---
 
+## ⚠️ 중요: 현재 작동하지 않는 문제
+
+### 1. admin_products 테이블이 존재하지 않음 (치명적)
+
+**문제:**
+- 코드는 `admin_products` 테이블을 사용
+- 하지만 `admin_products` 테이블 생성 스크립트가 없음
+- `setup_products_table.sql`은 `products` 테이블만 생성
+
+**영향:**
+- 상품 목록 조회 실패 (테이블 없음)
+- 상품 추가/수정/삭제 실패 (테이블 없음)
+- **현재 모든 상품 관리 기능이 작동하지 않음**
+
+**해결 방법:**
+```sql
+-- backend/setup_admin_products_table.sql 실행 필요
+mysql -u prepmood_user -p prepmood < backend/setup_admin_products_table.sql
+```
+
+---
+
 ## 🚨 알려진 이슈 및 개선 필요 사항
 
-### 1. HTML과 JavaScript 불일치
+### 2. HTML과 JavaScript 불일치
 
 **문제:**
 - `products.html`에 모달 HTML이 정의되어 있지만 사용되지 않음
@@ -332,7 +354,7 @@ DELETE /api/admin/products/:id
 - JavaScript에서 동적 생성 방식 사용 중
 - HTML의 모달 구조는 미사용
 
-### 2. 카테고리/타입 옵션 불일치
+### 3. 카테고리/타입 옵션 불일치
 
 **문제:**
 - HTML에서 정의된 카테고리 옵션 (`tops`, `bottoms`, `outer`, `bags`, `accessories`)
@@ -342,7 +364,7 @@ DELETE /api/admin/products/:id
 - 데이터베이스에는 영어 값 저장 (예: `tops`)
 - 프론트엔드에서 한글 값으로 표시 시도할 수 있음
 
-### 3. 성별 값 불일치
+### 4. 성별 값 불일치
 
 **문제:**
 - JavaScript 모달: `남성`, `여성` (한글)
@@ -351,7 +373,7 @@ DELETE /api/admin/products/:id
 **영향:**
 - 저장 시 값 불일치 가능성
 
-### 4. 타입 필드
+### 5. 타입 필드
 
 **문제:**
 - 현재 `type` 필드는 텍스트 입력
@@ -360,7 +382,7 @@ DELETE /api/admin/products/:id
 **개선 필요:**
 - 카테고리 선택에 따라 타입 옵션 동적 변경
 
-### 5. 이미지 미리보기
+### 6. 이미지 미리보기
 
 **현재 상태:**
 - 파일 선택 시 미리보기 기능 있음
