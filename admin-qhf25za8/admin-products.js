@@ -116,6 +116,8 @@
         }
       }
       
+      const typeLabel = product.type ? (' • ' + getTypeLabel(product.type)) : '';
+      
       return `
       <div class="product-card" data-id="${product.id}">
         <img class="product-card-image" src="${imageUrl}" alt="${escapeHtml(product.name)}" 
@@ -123,14 +125,15 @@
         <div class="product-card-name">${escapeHtml(product.name)}</div>
         <div class="product-card-price">${formatKRW(product.price)}</div>
         <div class="product-card-meta">
-          Collection ${product.collection_year || 2026} • ${getCategoryLabel(product.category)}${product.type ? ' • ' + getTypeLabel(product.type) : ''}
+          Collection ${product.collection_year || 2026} • ${getCategoryLabel(product.category)}${typeLabel}
         </div>
         <div class="product-card-actions">
           <button onclick="openEditProductModal('${product.id}')" class="btn-secondary">수정</button>
           <button onclick="deleteProduct('${product.id}')" class="btn-danger">삭제</button>
         </div>
       </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   // 검색 및 필터링
