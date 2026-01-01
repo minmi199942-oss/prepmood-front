@@ -179,7 +179,116 @@ const testConnection = async () => {
     }
 };
 
+/**
+ * 문의 답변 이메일 발송
+ * @param {String} to - 수신자 이메일
+ * @param {Object} data - { customerName, inquiryNumber, replyMessage }
+ * @returns {Promise<Object>} { success: boolean, error?: string }
+ */
+const sendInquiryReplyEmail = async (to, { customerName, inquiryNumber, replyMessage }) => {
+    try {
+        console.log('📧 문의 답변 이메일 전송 시작...');
+        console.log(`📬 수신자: ${to}`);
+        console.log(`📋 접수번호: ${inquiryNumber}`);
+
+        if (!process.env.MAILERSEND_API_KEY) {
+            console.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            return { 
+                success: false, 
+                error: 'MAILERSEND_API_KEY가 설정되지 않았습니다.',
+                service: 'mailersend'
+            };
+        }
+
+        const sentFrom = new Sender(process.env.MAILERSEND_FROM_EMAIL, "Pre.p Mood");
+        const recipients = [new Recipient(to, customerName || to)];
+
+        const emailParams = new EmailParams()
+            .setFrom(sentFrom)
+            .setTo(recipients)
+            .setReplyTo(sentFrom)
+            .setSubject(`[Pre.p Mood] 문의 답변 - ${inquiryNumber}`)
+            .setHtml(`
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #333; margin: 0;">Pre.p Mood</h1>
+                        <p style="color: #666; margin: 5px 0;">Timeless lines, Refined Vibes</p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 30px; border-radius: 10px;">
+                        <h2 style="color: #333; margin-bottom: 20px;">문의 답변</h2>
+                        <p style="color: #666; margin-bottom: 10px;">
+                            ${customerName || '고객'}님, 문의해주신 내용에 대한 답변을 드립니다.
+                        </p>
+                        <p style="color: #999; font-size: 14px; margin-bottom: 30px;">
+                            접수번호: ${inquiryNumber}
+                        </p>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff;">
+                            <div style="white-space: pre-wrap; color: #333; line-height: 1.6;">
+                                ${replyMessage.replace(/\n/g, '<br>')}
+                            </div>
+                        </div>
+                        
+                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                            <p style="color: #856404; margin: 0; font-size: 14px;">
+                                <strong>안내:</strong> 추가 문의사항이 있으시면 고객센터로 연락해주세요.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
+                        <p>본 메일은 발신전용입니다. 문의사항은 고객센터를 이용해주세요.</p>
+                        <p>&copy; 2025 Pre.p Mood. All rights reserved.</p>
+                    </div>
+                </div>
+            `)
+            .setText(`
+Pre.p Mood - 문의 답변
+
+${customerName || '고객'}님, 문의해주신 내용에 대한 답변을 드립니다.
+
+접수번호: ${inquiryNumber}
+
+답변 내용:
+${replyMessage}
+
+추가 문의사항이 있으시면 고객센터로 연락해주세요.
+
+Pre.p Mood
+Timeless lines, Refined Vibes
+            `);
+
+        console.log('📤 MailerSend API 호출 중...');
+        const response = await mailerSend.email.send(emailParams);
+
+        if (response.statusCode !== 202) {
+            const errorMessage = `MailerSend API 오류: Status Code ${response.statusCode}`;
+            console.error('❌ MailerSend API 오류 발생:', errorMessage);
+            return { 
+                success: false, 
+                error: errorMessage,
+                service: 'mailersend'
+            };
+        }
+
+        console.log('✅ 문의 답변 이메일 전송 성공!');
+        return { 
+            success: true,
+            service: 'mailersend'
+        };
+    } catch (error) {
+        console.error('❌ 문의 답변 이메일 전송 실패:', error);
+        return { 
+            success: false, 
+            error: error.message || '이메일 전송 중 오류가 발생했습니다.',
+            service: 'mailersend'
+        };
+    }
+};
+
 module.exports = {
     sendVerificationEmail,
+    sendInquiryReplyEmail,
     testConnection
 };

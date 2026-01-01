@@ -1176,7 +1176,9 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
             user: {
                 userId: user.user_id,
                 email: user.email,
-                name: `${user.last_name} ${user.first_name}`.trim(),
+                name: `${user.last_name} ${user.first_name}`.trim(), // 기존 유지 (하위호환)
+                last_name: user.last_name,  // ✅ 추가
+                first_name: user.first_name, // ✅ 추가
                 phone: user.phone || null,
                 birthdate: user.birth || null
             }
@@ -1215,12 +1217,14 @@ const googleAuthRoutes = require('./google-auth-routes');
 const productRoutes = require('./product-routes');
 const orderRoutes = require('./order-routes');
 const paymentsRoutes = require('./payments-routes');
+const inquiryRoutes = require('./inquiry-routes');
 const deployWebhook = require('./deploy-webhook');
 
 app.use('/api', googleAuthRoutes);
 app.use('/api', productRoutes);
 app.use('/api', deployWebhook);
 app.use('/api', orderRoutes);
+app.use('/api', inquiryRoutes);
 
 // 장바구니 라우트
 const cartRoutes = require('./cart-routes');
