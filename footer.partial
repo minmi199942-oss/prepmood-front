@@ -59,6 +59,7 @@
         <div class="footer-content">
           <p class="footer-text">고객센터 전화번호: <a href="tel:1555-6035" class="footer-link">1555-6035</a></p>
           <p class="footer-text">이메일: <a href="mailto:prepmoodcare@naver.com" class="footer-link">prepmoodcare@naver.com</a></p>
+          <p class="footer-text"><a href="contact.html" class="footer-link">문의하기</a></p>
         </div>
       </div>
 
