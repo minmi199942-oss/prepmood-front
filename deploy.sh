@@ -73,6 +73,7 @@ rsync -av \
   --include="index.html" \
   --include="login.html" \
   --include="register.html" \
+  --include="contact.html" \
   --include="my-*.html" \
   --include="warranty-detail.html" \
   --include="complete-profile.html" \
@@ -114,6 +115,8 @@ rsync -av \
   --include="config.js" \
   --include="product-data.js" \
   --include="qrcode.min.js" \
+  --include="assets/js/contact.js" \
+  --include="assets/css/contact.css" \
   --chmod=644 \
   --exclude="*" \
   "$REPO_DIR/" "$LIVE_ROOT/"
