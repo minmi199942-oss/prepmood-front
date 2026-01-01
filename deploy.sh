@@ -115,18 +115,22 @@ rsync -av \
   --include="config.js" \
   --include="product-data.js" \
   --include="qrcode.min.js" \
-  --include="assets/" \
-  --include="assets/js/" \
-  --include="assets/js/contact.js" \
-  --include="assets/css/" \
-  --include="assets/css/contact.css" \
   --chmod=644 \
   --exclude="*" \
   "$REPO_DIR/" "$LIVE_ROOT/"
 
 echo "  ✅ 루트 파일 동기화 완료 (허용 목록 기반, 기존 파일 보호)"
 
-# 3-3. 관리자 페이지 디렉토리 동기화 (별도 처리)
+# 3-3. assets 디렉토리 동기화 (별도 처리)
+echo "📦 assets 디렉토리 동기화 중..."
+if [ -d "$REPO_DIR/assets" ]; then
+  rsync -av --chmod=644 "$REPO_DIR/assets/" "$LIVE_ROOT/assets/"
+  echo "  ✅ assets 디렉토리 동기화 완료"
+else
+  echo "  ⚠️  assets 디렉토리가 없습니다"
+fi
+
+# 3-4. 관리자 페이지 디렉토리 동기화 (별도 처리)
 echo "📦 관리자 페이지 디렉토리 동기화 중..."
 if [ -d "$REPO_DIR/admin-qhf25za8" ]; then
   rsync -av --chmod=644 "$REPO_DIR/admin-qhf25za8/" "$LIVE_ROOT/admin-qhf25za8/"
