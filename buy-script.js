@@ -173,10 +173,26 @@
     const imagesWrapper = document.getElementById('product-images');
     imagesWrapper.innerHTML = '';
 
+    // 이미지 경로 처리: /uploads/products/로 시작하면 그대로 사용, 아니면 /image/ 추가
+    let imageSrc = product.image || '';
+    if (imageSrc.startsWith('/uploads/')) {
+      // 업로드된 이미지 (새로 추가/수정된 이미지)
+      imageSrc = imageSrc;
+    } else if (imageSrc.startsWith('/image/')) {
+      // 기존 이미지 경로
+      imageSrc = imageSrc;
+    } else if (imageSrc) {
+      // 상대 경로인 경우 (기존 이미지 파일명만 있는 경우)
+      imageSrc = imageSrc.startsWith('image/') ? '/' + imageSrc : '/image/' + imageSrc;
+    } else {
+      // 이미지가 없는 경우 기본 이미지
+      imageSrc = '/image/shirt.jpg';
+    }
+
     // 3개의 이미지 생성 (실제로는 같은 이미지)
     for (let i = 0; i < 3; i++) {
       const imgElement = document.createElement('img');
-      imgElement.src = `image/${product.image}`;
+      imgElement.src = imageSrc;
       imgElement.alt = `${product.name} - 이미지 ${i + 1}`;
       imgElement.className = 'product-image';
       imagesWrapper.appendChild(imgElement);
