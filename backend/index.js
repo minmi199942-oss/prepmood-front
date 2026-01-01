@@ -89,8 +89,9 @@ app.use(cookieParser()); // 쿠키 파서 추가 (JWT 토큰용) - CSRF 미들�
 app.use(issueCSRFToken); // GET 요청에서 CSRF 토큰 발급
 
 // 정적 파일 서빙 (이미지 업로드)
+// 주의: 이미지는 /var/www/html/uploads/products/에 저장되므로 상위 디렉토리에서 서빙
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // QR 코드 이미지 서빙 (정품 인증용)
 // 운영 환경에서는 보안상 공개하지 않음 (ZIP 다운로드로만 제공)
