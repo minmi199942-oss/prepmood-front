@@ -13,7 +13,7 @@ USE prepmood;
 CREATE TABLE IF NOT EXISTS inquiries (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   inquiry_number VARCHAR(20) UNIQUE NULL, -- INQ-YYYYMMDD-000123 형식, NULL 허용 (fallback: id)
-  user_id BIGINT NULL, -- 로그인 사용자 (NULL 허용)
+  user_id INT NULL, -- 로그인 사용자 (NULL 허용)
 
   -- 고객 정보
   salutation VARCHAR(10) NOT NULL,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS inquiries (
 CREATE TABLE IF NOT EXISTS inquiry_replies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   inquiry_id BIGINT NOT NULL,
-  admin_user_id BIGINT NOT NULL,
+  admin_user_id INT NOT NULL,
   message TEXT NOT NULL,
   email_status ENUM('pending', 'sent', 'failed') DEFAULT 'pending',
   email_error TEXT NULL,
