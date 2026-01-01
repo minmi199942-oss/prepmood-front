@@ -100,9 +100,56 @@
   };
 
   // ============================================
+  // 전화번호 자동 포맷팅
+  // ============================================
+  function formatPhoneNumber(value) {
+    // 숫자만 추출
+    const numbers = value.replace(/[^0-9]/g, '');
+    
+    // 길이에 따라 하이픈 추가
+    if (numbers.length <= 3) {
+      return numbers;
+    } else if (numbers.length <= 7) {
+      return numbers.slice(0, 3) + '-' + numbers.slice(3);
+    } else {
+      return numbers.slice(0, 3) + '-' + numbers.slice(3, 7) + '-' + numbers.slice(7, 11);
+    }
+  }
+
+  function setupPhoneFormatting() {
+    if (!elements.phone) return;
+    
+    elements.phone.addEventListener('input', function(e) {
+      const cursorPosition = e.target.selectionStart;
+      const oldValue = e.target.value;
+      const newValue = formatPhoneNumber(oldValue);
+      
+      // 값이 변경된 경우에만 업데이트
+      if (oldValue !== newValue) {
+        e.target.value = newValue;
+        
+        // 커서 위치 조정 (하이픈 추가로 인한 위치 변화 보정)
+        const addedHyphens = (newValue.match(/-/g) || []).length - (oldValue.match(/-/g) || []).length;
+        const newCursorPosition = Math.min(cursorPosition + addedHyphens, newValue.length);
+        e.target.setSelectionRange(newCursorPosition, newCursorPosition);
+      }
+    });
+    
+    // 붙여넣기 시에도 포맷팅
+    elements.phone.addEventListener('paste', function(e) {
+      setTimeout(() => {
+        e.target.value = formatPhoneNumber(e.target.value);
+      }, 0);
+    });
+  }
+
+  // ============================================
   // 초기화
   // ============================================
   async function init() {
+    // 전화번호 자동 포맷팅 설정
+    setupPhoneFormatting();
+    
     // 관심분야/주제 연동 설정
     setupCategoryTopicLink();
 
