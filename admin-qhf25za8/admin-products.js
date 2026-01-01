@@ -268,10 +268,15 @@
       const typeGroup = modal.querySelector('#productTypeGroup');
       const typeSelect = modal.querySelector('#productType');
       
-      // 초기 상태 설정
+      // 초기 상태 설정 (기존 상품이 accessories인 경우)
       if (categorySelect.value === 'accessories') {
         typeGroup.style.display = 'block';
         typeSelect.required = true;
+        // 기존 상품의 type 값이 있으면 유지
+        if (!product.type && typeSelect.value === '') {
+          // 기존 값이 없으면 첫 번째 옵션 선택 (기본값)
+          typeSelect.value = ACCESSORY_TYPE_OPTIONS[0].value;
+        }
       }
       
       // 카테고리 변경 이벤트
@@ -279,6 +284,10 @@
         if (this.value === 'accessories') {
           typeGroup.style.display = 'block';
           typeSelect.required = true;
+          // 값이 없으면 첫 번째 옵션 선택
+          if (!typeSelect.value || typeSelect.value === '') {
+            typeSelect.value = ACCESSORY_TYPE_OPTIONS[0].value;
+          }
         } else {
           typeGroup.style.display = 'none';
           typeSelect.required = false;
@@ -372,19 +381,31 @@
         console.log(`- ${key}: "${value}"`);
       }
       
+      const category = formData.get('category');
+      const typeValue = formData.get('type');
+      
+      // 빈 문자열을 null로 변환
+      const normalizedType = (typeValue && typeValue.trim() !== '') ? typeValue : null;
+      
       const productData = {
         id: formData.get('id'),
         name: formData.get('name'),
         price: parseInt(formData.get('price')),
         collection_year: parseInt(formData.get('collection_year')) || 2026,
-        category: formData.get('category'),
-        type: formData.get('type') || null,
+        category: category,
+        type: normalizedType,
         description: formData.get('description')
       };
       
       // non-accessories는 type을 null로 설정
       if (productData.category !== 'accessories') {
         productData.type = null;
+      } else {
+        // accessories는 type이 필수
+        if (!productData.type) {
+          alert('액세서리 카테고리는 타입을 선택해야 합니다.');
+          return;
+        }
       }
       
       console.log('📦 productData:', productData);
