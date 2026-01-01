@@ -7,11 +7,11 @@
 }
 
 .contact-container {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 0 clamp(40px, 6vw, 80px);
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 300px 1fr 300px;
   gap: clamp(60px, 8vw, 100px);
   align-items: start;
   position: relative;
@@ -20,9 +20,10 @@
 /* 좌측: 안내 문구 섹션 */
 .contact-info-section {
   position: sticky;
-  top: 100px;
+  top: 120px;
+  width: 100%;
   max-width: 300px;
-  margin-left: 0;
+  margin-left: clamp(-40px, -4vw, -20px);
 }
 
 .contact-title {
@@ -46,14 +47,17 @@
   margin: 0;
 }
 
-/* 우측: 폼 섹션 */
+/* 중앙: 폼 섹션 */
 .contact-form-section {
   background: #fff;
   border-radius: 12px;
   padding: clamp(32px, 5vw, 48px);
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  max-width: 800px;
+  max-width: 1000px;
+  width: 100%;
   margin: 0 auto;
+  position: relative;
+  grid-column: 2;
 }
 
 .inquiry-form {
@@ -256,10 +260,35 @@
   .contact-container {
     grid-template-columns: 1fr;
     gap: clamp(32px, 5vw, 40px);
+    padding: 0 clamp(20px, 4vw, 40px);
   }
 
   .contact-info-section {
     position: static;
+    margin-left: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .contact-title {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    margin-bottom: clamp(16px, 3vw, 24px);
+  }
+
+  .contact-description {
+    font-size: clamp(0.9rem, 3.5vw, 1rem);
+    line-height: 1.6;
+    margin-bottom: clamp(12px, 2vw, 20px);
+  }
+
+  .contact-required-note {
+    font-size: clamp(0.8rem, 3vw, 0.9rem);
+  }
+
+  .contact-form-section {
+    grid-column: 1;
+    max-width: 100%;
+    padding: clamp(24px, 4vw, 32px);
   }
 
   .form-row {
