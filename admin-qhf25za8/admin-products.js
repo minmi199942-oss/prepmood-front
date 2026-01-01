@@ -286,11 +286,33 @@
       const typeSelect = modal.querySelector('#productType');
       const uploadBtn = modal.querySelector('#uploadBtn');
       const imageInput = modal.querySelector('#productImage');
+      const imagePreview = modal.querySelector('#imagePreview');
       
       // 이미지 업로드 버튼 이벤트 리스너 연결
       if (uploadBtn && imageInput) {
-        uploadBtn.addEventListener('click', function() {
+        uploadBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
           imageInput.click();
+        });
+      }
+      
+      // 이미지 파일 선택 이벤트 리스너 (모달 내부에 직접 연결)
+      if (imageInput) {
+        imageInput.addEventListener('change', function(e) {
+          if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (imagePreview) {
+              const reader = new FileReader();
+              reader.onload = function(event) {
+                imagePreview.innerHTML = `<img src="${event.target.result}" alt="미리보기">`;
+              };
+              reader.onerror = function() {
+                console.error('이미지 읽기 오류');
+              };
+              reader.readAsDataURL(file);
+            }
+          }
         });
       }
       
@@ -429,11 +451,20 @@
       }
 
       // 이미지 업로드 처리
-      const imageInput = document.getElementById('productImage');
+      const modal = document.querySelector('.modal-overlay');
+      const imageInput = modal ? modal.querySelector('#productImage') : document.getElementById('productImage');
       const imageFile = imageInput && imageInput.files && imageInput.files.length > 0 ? imageInput.files[0] : null;
+      
       if (imageFile) {
-        productData.image = await uploadImage(imageFile);
+        try {
+          productData.image = await uploadImage(imageFile);
+        } catch (error) {
+          console.error('이미지 업로드 오류:', error.message);
+          alert('이미지 업로드에 실패했습니다: ' + error.message);
+          return;
+        }
       } else if (currentEditingProduct && currentEditingProduct.image) {
+        // 기존 이미지 유지
         productData.image = currentEditingProduct.image;
       }
 
