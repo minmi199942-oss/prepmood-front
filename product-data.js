@@ -8,7 +8,7 @@ window.CATALOG_DATA = {
   bottoms: { pants: [], skirts: [] },
   outer: { jackets: [], suits: [] },
   bags: { briefcases: [], backpacks: [], crossbody: [], handbags: [], totes: [], clutches: [] },
-  accessories: { caps: [], wallets: [], belts: [], ties: [] }
+  accessories: { caps: [], wallets: [], belts: [], ties: [], scarves: [] }
 };
 
 // Logger가 없으면 console 사용 (utils.js에서 이미 Logger가 선언되어 있음)
