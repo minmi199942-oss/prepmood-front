@@ -3,7 +3,7 @@
 .contact-main {
   min-height: calc(100vh - 200px);
   padding: clamp(40px, 6vw, 60px) 0;
-  background: #f8f9fa;
+  background: #fff;
 }
 
 .contact-container {
@@ -184,7 +184,8 @@
 /* 안내 문구 */
 .form-notice {
   padding: 16px;
-  background: #f8f9fa;
+  background: #fff;
+  border: 1px solid #e0e0e0;
   border-left: 4px solid #111;
   border-radius: 4px;
   font-size: clamp(0.875rem, 1.5vw, 1rem);
