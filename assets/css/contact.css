@@ -7,19 +7,21 @@
 }
 
 .contact-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 clamp(20px, 4vw, 40px);
+  padding: 0 clamp(20px, 4vw, 80px);
   display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: clamp(40px, 6vw, 60px);
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: clamp(40px, 6vw, 80px);
   align-items: start;
+  justify-content: center;
 }
 
 /* 좌측: 안내 문구 섹션 */
 .contact-info-section {
   position: sticky;
   top: 100px;
+  max-width: 320px;
 }
 
 .contact-title {
