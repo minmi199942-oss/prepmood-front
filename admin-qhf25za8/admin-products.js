@@ -24,6 +24,33 @@
     // logoutBtn과 checkAdminAccess는 admin-layout.js에서 처리됨
   };
 
+  // 카테고리 라벨 매핑 (renderProducts보다 먼저 정의)
+  const CATEGORY_OPTIONS = [
+    { value: 'tops', label: '상의' },
+    { value: 'bottoms', label: '하의' },
+    { value: 'outer', label: '아우터' },
+    { value: 'bags', label: '가방' },
+    { value: 'accessories', label: '액세서리' }
+  ];
+
+  const ACCESSORY_TYPE_OPTIONS = [
+    { value: 'cap', label: '모자' },
+    { value: 'wallet', label: '지갑' },
+    { value: 'tie', label: '넥타이' },
+    { value: 'scarf', label: '목도리' },
+    { value: 'belt', label: '벨트' }
+  ];
+
+  function getCategoryLabel(value) {
+    const option = CATEGORY_OPTIONS.find(opt => opt.value === value);
+    return option ? option.label : value;
+  }
+
+  function getTypeLabel(value) {
+    const option = ACCESSORY_TYPE_OPTIONS.find(opt => opt.value === value);
+    return option ? option.label : value;
+  }
+
   // 상품 목록 로드
   async function loadProducts() {
     try {
@@ -151,33 +178,6 @@
     const modal = createProductModal();
     document.body.appendChild(modal);
     modal.style.display = 'flex';
-  }
-
-  // 카테고리 라벨 매핑
-  const CATEGORY_OPTIONS = [
-    { value: 'tops', label: '상의' },
-    { value: 'bottoms', label: '하의' },
-    { value: 'outer', label: '아우터' },
-    { value: 'bags', label: '가방' },
-    { value: 'accessories', label: '액세서리' }
-  ];
-
-  const ACCESSORY_TYPE_OPTIONS = [
-    { value: 'cap', label: '모자' },
-    { value: 'wallet', label: '지갑' },
-    { value: 'tie', label: '넥타이' },
-    { value: 'scarf', label: '목도리' },
-    { value: 'belt', label: '벨트' }
-  ];
-
-  function getCategoryLabel(value) {
-    const option = CATEGORY_OPTIONS.find(opt => opt.value === value);
-    return option ? option.label : value;
-  }
-
-  function getTypeLabel(value) {
-    const option = ACCESSORY_TYPE_OPTIONS.find(opt => opt.value === value);
-    return option ? option.label : value;
   }
 
   // 상품 모달 생성
