@@ -129,7 +129,9 @@
         }
       }
       
-      const typeLabel = product.type ? (' • ' + getTypeLabel(product.type)) : '';
+      // 기존 데이터 호환성: 'ties'를 'tie'로 처리
+      const normalizedProductType = product.type ? normalizeTypeValue(product.type) : null;
+      const typeLabel = normalizedProductType ? (' • ' + getTypeLabel(normalizedProductType)) : '';
       
       return `
       <div class="product-card" data-id="${product.id}">
