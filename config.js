@@ -59,13 +59,11 @@ window.RECAPTCHA_SITE_KEY = (function() {
   
   // 프로덕션 환경 (prepmood.kr)
   if (hostname === 'prepmood.kr' || hostname === 'www.prepmood.kr') {
-    // TODO: 실제 라이브 Site Key로 변경 필요
-    // return '6Lc...';  // 라이브 Site Key
-    return '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';  // 임시: 테스트 키 (항상 통과)
+    return '6Ldx0T0sAAAAAMdYaL1ZlEoy6jRfbF0m9yJmvx86';  // 프로덕션 Site Key
   }
   
   // 개발/테스트 환경
-  return '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';  // 테스트 키
+  return '6Ldx0T0sAAAAAMdYaL1ZlEoy6jRfbF0m9yJmvx86';  // 개발 환경 (같은 키 사용)
 })();
 
 // ============================================

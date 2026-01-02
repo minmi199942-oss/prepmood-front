@@ -8,6 +8,7 @@ const { verifyCSRF } = require('./csrf-middleware');
 const { body, validationResult } = require('express-validator');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { sendInquiryReplyEmail } = require('./mailer');
+const https = require('https');
 require('dotenv').config();
 
 // MySQL 연결 설정
@@ -100,6 +101,108 @@ function validateMessage(message) {
     return { valid: true };
 }
 
+// ==================== reCAPTCHA 검증 ====================
+
+/**
+ * reCAPTCHA 토큰 검증
+ * @param {string} token - reCAPTCHA 토큰
+ * @returns {Promise<{success: boolean, hostname?: string, error?: string}>}
+ */
+async function verifyRecaptcha(token) {
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    
+    if (!secretKey) {
+        console.warn('⚠️ RECAPTCHA_SECRET_KEY가 설정되지 않았습니다.');
+        return { success: false, error: 'reCAPTCHA 설정 오류' };
+    }
+
+    if (!token) {
+        return { success: false, error: 'reCAPTCHA 토큰이 없습니다.' };
+    }
+
+    return new Promise((resolve) => {
+        const postData = `secret=${encodeURIComponent(secretKey)}&response=${encodeURIComponent(token)}`;
+        
+        const options = {
+            hostname: 'www.google.com',
+            path: '/recaptcha/api/siteverify',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            res.on('end', () => {
+                try {
+                    const result = JSON.parse(data);
+                    
+                    // success 확인
+                    if (!result.success) {
+                        return resolve({
+                            success: false,
+                            error: result['error-codes']?.join(', ') || 'reCAPTCHA 검증 실패'
+                        });
+                    }
+
+                    // hostname 확인 (프로덕션 환경)
+                    const expectedHostname = 'prepmood.kr';
+                    if (result.hostname && result.hostname !== expectedHostname && result.hostname !== `www.${expectedHostname}`) {
+                        // 개발 환경에서는 localhost 허용
+                        if (result.hostname !== 'localhost' && !result.hostname.includes('127.0.0.1')) {
+                            console.warn(`⚠️ reCAPTCHA hostname 불일치: ${result.hostname} (예상: ${expectedHostname})`);
+                            // 개발 환경에서는 경고만 하고 통과
+                            if (process.env.NODE_ENV === 'production') {
+                                return resolve({
+                                    success: false,
+                                    error: 'reCAPTCHA hostname 검증 실패'
+                                });
+                            }
+                        }
+                    }
+
+                    resolve({
+                        success: true,
+                        hostname: result.hostname
+                    });
+                } catch (error) {
+                    console.error('❌ reCAPTCHA 응답 파싱 오류:', error);
+                    resolve({
+                        success: false,
+                        error: 'reCAPTCHA 검증 응답 오류'
+                    });
+                }
+            });
+        });
+
+        req.on('error', (error) => {
+            console.error('❌ reCAPTCHA 검증 요청 오류:', error);
+            resolve({
+                success: false,
+                error: 'reCAPTCHA 검증 서버 오류'
+            });
+        });
+
+        req.setTimeout(5000, () => {
+            req.destroy();
+            resolve({
+                success: false,
+                error: 'reCAPTCHA 검증 시간 초과'
+            });
+        });
+
+        req.write(postData);
+        req.end();
+    });
+}
+
 // ==================== 공개 API ====================
 
 /**
@@ -124,6 +227,7 @@ router.post('/inquiries',
         body('message').notEmpty().withMessage('메시지를 입력해주세요.'),
         body('privacy_consent').equals('true').withMessage('개인정보 수집·이용에 동의해주세요.'),
         body('age_consent').equals('true').withMessage('만 14세 이상임을 확인해주세요.'),
+        body('recaptcha_token').notEmpty().withMessage('reCAPTCHA 검증이 필요합니다.'),
         body('honeypot').optional().equals('').withMessage('스팸 방지 검증에 실패했습니다.')
     ],
     async (req, res) => {
@@ -143,6 +247,15 @@ router.post('/inquiries',
                 return res.status(400).json({
                     success: false,
                     message: '스팸 방지 검증에 실패했습니다.'
+                });
+            }
+
+            // reCAPTCHA 검증
+            const recaptchaResult = await verifyRecaptcha(req.body.recaptcha_token);
+            if (!recaptchaResult.success) {
+                return res.status(400).json({
+                    success: false,
+                    message: recaptchaResult.error || 'reCAPTCHA 검증에 실패했습니다.'
                 });
             }
 
