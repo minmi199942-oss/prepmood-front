@@ -39,7 +39,7 @@ html {
 }
 
 .admin-header-content {
-  max-width: 1400px;
+  max-width: 2000px;
   margin: 0 auto;
   padding: 0 2rem;
   display: flex;
@@ -222,7 +222,7 @@ html {
 
 /* 메인 컨텐츠 */
 .admin-main {
-  max-width: 1400px;
+  max-width: 2000px;
   margin: 2rem auto;
   padding: 0 2rem;
 }
