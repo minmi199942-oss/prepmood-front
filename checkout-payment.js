@@ -25,8 +25,6 @@ const TOSS_ERROR_MESSAGES = {
 };
 
 document.addEventListener('DOMContentLoaded', async function() {
-  console.log('💳 3단계: 결제 방법 선택 페이지 로드됨');
-  
   // CSRF 토큰 받기 (GET 요청으로 토큰 발급)
   try {
     const statusRes = await fetch(`${API_BASE}/auth/status`, {
@@ -34,17 +32,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       credentials: 'include'
     });
     
-    // 쿠키 확인 (디버깅용)
+    // 쿠키 확인
     const cookies = document.cookie;
     const hasCSRFToken = cookies.includes('xsrf-token=');
-    
-    if (hasCSRFToken) {
-      console.log('✅ CSRF 토큰 발급 완료 (쿠키 확인됨)');
-    } else {
-      console.warn('⚠️ CSRF 토큰 쿠키가 없습니다. 쿠키:', cookies);
-    }
   } catch (error) {
-    console.error('❌ CSRF 토큰 발급 실패:', error);
+    // CSRF 토큰 발급 실패 (조용히 처리)
   }
   
   // URL 파라미터 확인 (토스페이먼츠 fail URL 처리)
@@ -55,7 +47,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   
   // 결제 실패 URL에서 온 경우
   if (failStatus === 'fail' || failCode) {
-    console.warn('⚠️ 결제 실패 URL 감지:', { failStatus, failCode, failMessage });
     showPaymentFailureMessage(failCode, failMessage);
     // URL에서 실패 파라미터 제거 (뒤로가기 시 재표시 방지)
     window.history.replaceState({}, '', window.location.pathname);
@@ -71,7 +62,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
   
   const data = JSON.parse(shippingDataStr);
-  console.log('📋 저장된 배송 데이터:', data);
   
   // 주문 요약 업데이트
   renderOrderItems(data.items);
@@ -86,7 +76,6 @@ function renderOrderItems(items) {
   const container = document.getElementById('order-items');
   
   if (!container) {
-    console.error('❌ order-items 컨테이너를 찾을 수 없습니다');
     return;
   }
   
@@ -140,7 +129,6 @@ function renderShippingSummary(shipping) {
   const container = document.getElementById('shipping-details');
   
   if (!container) {
-    console.error('❌ shipping-details 컨테이너를 찾을 수 없습니다');
     return;
   }
   
@@ -183,8 +171,6 @@ function bindEventListeners(data) {
   updateSelectionState();
 
   const handlePayment = async function() {
-    console.log('💳 결제 진행 시작');
-    
     // 에러 영역 리셋 (새로운 결제 시도 시 이전 에러 제거)
     const errorDesktop = document.getElementById('payment-error');
     const errorMobile = document.getElementById('payment-error-mobile');
@@ -205,7 +191,6 @@ function bindEventListeners(data) {
     }
     
     const selectedPayment = checkedRadio.value;
-    console.log('💳 선택된 결제 방법:', selectedPayment);
     
     if (selectedPayment === 'toss') {
       // 토스페이먼츠 결제 진행
@@ -232,8 +217,6 @@ async function proceedWithTossPayment(data) {
   const originalMobileText = proceedBtnMobile?.textContent || '확인 및 진행';
   
   try {
-    console.log('💳 토스페이먼츠 결제 진행...');
-    
     // 버튼 비활성화 (데스크톱 + 모바일 모두)
     if (proceedBtnDesktop) {
       proceedBtnDesktop.disabled = true;
@@ -247,7 +230,6 @@ async function proceedWithTossPayment(data) {
     
     // 1. 주문 생성 (Idempotency 키 포함)
     const idemKey = uuidv4();
-    console.log('🔑 Idempotency Key 생성:', idemKey);
     
     const requestPayload = {
       items: data.items.map(item => ({
@@ -257,7 +239,6 @@ async function proceedWithTossPayment(data) {
       shipping: data.shipping
     };
     
-    console.log('📤 주문 생성 API 호출...');
     const createRes = await window.secureFetch(`${API_BASE}/orders`, {
       method: 'POST',
       headers: {
@@ -274,21 +255,16 @@ async function proceedWithTossPayment(data) {
     }
     
     const created = await createRes.json();
-    console.log('✅ 주문 생성 성공:', created);
     
     const orderNumber = created.data.order_number;
     const amount = created.data.amount;
     
     // 2. 토스페이먼츠 결제 위젯 실행
-    console.log('💳 토스페이먼츠 위젯 실행...');
-    
     // MOCK 모드 체크 (환경변수 또는 설정으로 제어 가능)
     const useMockPayment = false; // 테스트 키 사용 시 false로 설정
     
     if (useMockPayment) {
       // MOCK 결제 처리 (개발/테스트용)
-      console.log('🔄 MOCK 결제 처리...');
-      
       const confirmRes = await window.secureFetch(`${API_BASE}/payments/confirm`, {
         method: 'POST',
         headers: {
@@ -308,7 +284,6 @@ async function proceedWithTossPayment(data) {
       }
       
       const confirmed = await confirmRes.json();
-      console.log('✅ 결제 확인 완료:', confirmed);
       
       // MOCK 모드에서는 바로 완료 페이지로 이동
       window.location.href = `order-complete.html?orderId=${orderNumber}`;
@@ -326,20 +301,11 @@ async function proceedWithTossPayment(data) {
       throw new Error('토스페이먼츠 스크립트가 로드되지 않았습니다.');
     }
     
-    console.log('💳 TossPayments 초기화 중...', { clientKey: clientKey.substring(0, 10) + '...' });
     const toss = TossPayments(clientKey);
     
     // successUrl/failUrl은 절대 URL만 필요 (토스페이먼츠가 자동으로 파라미터 추가)
     const successUrl = `${window.location.origin}/order-complete.html?orderId=${orderNumber}&amount=${amount}`;
     const failUrl = `${window.location.origin}/checkout-payment.html?status=fail`;
-    
-    console.log('💳 결제 위젯 호출...', {
-      amount,
-      orderId: orderNumber,
-      customerName: `${data.shipping.recipient_first_name} ${data.shipping.recipient_last_name}`,
-      successUrl,
-      failUrl
-    });
     
     try {
       // 위젯 실행 전에 페이지 제목 영역을 오버레이 아래로 보내기
@@ -370,12 +336,7 @@ async function proceedWithTossPayment(data) {
         failUrl: failUrl
       });
       
-      // requestPayment는 위젯이 열리기 전에 Promise를 반환하지만,
-      // 실제 결제 완료는 successUrl로 리다이렉트되므로 여기서는 로깅만
-      console.log('💳 결제 위젯 열림:', result);
-      
     } catch (error) {
-      console.error('❌ 토스페이먼츠 위젯 오류:', error);
       // 오류 발생 시 제목 영역 스타일 원복
       const paymentHeader = document.querySelector('.checkout-payment-header');
       if (paymentHeader) {
@@ -393,8 +354,6 @@ async function proceedWithTossPayment(data) {
     // 결제 확인 및 장바구니 정리는 order-complete-script.js에서 처리됨
     
   } catch (error) {
-    console.error('❌ 결제 처리 실패:', error);
-    
     let errorMessage = '결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
     if (error.message) {
       errorMessage = error.message;

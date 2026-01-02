@@ -123,6 +123,10 @@ async function initializeCheckoutPage() {
     if (phoneInput) {
       phoneInput.placeholder = currentCountryRule.phoneHint;
       phoneInput.title = currentCountryRule.phoneHint;
+      // 한국 전화번호 자동 하이픈 포맷팅
+      if (selectedCountry === 'KR') {
+        setupPhoneAutoFormat(phoneInput);
+      }
     }
   }
   
@@ -161,6 +165,13 @@ function setupCountryChangeListener() {
         phoneInput.title = currentCountryRule.phoneHint;
         // 기존 값 초기화
         phoneInput.value = '';
+        // 한국 전화번호 자동 하이픈 포맷팅
+        if (selectedCountry === 'KR') {
+          setupPhoneAutoFormat(phoneInput);
+        } else {
+          // 다른 국가일 경우 이벤트 리스너 제거
+          phoneInput.removeEventListener('input', formatKoreanPhone);
+        }
       }
       
       // 가격 표시 업데이트
@@ -747,6 +758,48 @@ function formatPrice(price) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(price);
+}
+
+// 한국 전화번호 자동 하이픈 포맷팅 함수
+function formatKoreanPhone(event) {
+  const input = event.target;
+  let value = input.value.replace(/[^\d]/g, ''); // 숫자만 추출
+  
+  // 한국 전화번호 형식에 맞춰 하이픈 추가
+  if (value.length <= 3) {
+    value = value;
+  } else if (value.length <= 7) {
+    // 010-1234 또는 02-1234
+    value = value.slice(0, 3) + '-' + value.slice(3);
+  } else if (value.length <= 10) {
+    // 010-1234-5678 또는 02-1234-5678
+    if (value.startsWith('02')) {
+      // 서울 지역번호 (02)
+      value = value.slice(0, 2) + '-' + value.slice(2, 6) + '-' + value.slice(6);
+    } else {
+      // 일반 지역번호 (031, 032 등) 또는 휴대폰 (010, 011 등)
+      value = value.slice(0, 3) + '-' + value.slice(3, 7) + '-' + value.slice(7);
+    }
+  } else {
+    // 11자리 이상 (010-1234-5678)
+    if (value.startsWith('02')) {
+      // 서울 지역번호는 10자리까지만
+      value = value.slice(0, 2) + '-' + value.slice(2, 6) + '-' + value.slice(6, 10);
+    } else {
+      // 일반 지역번호 또는 휴대폰
+      value = value.slice(0, 3) + '-' + value.slice(3, 7) + '-' + value.slice(7, 11);
+    }
+  }
+  
+  input.value = value;
+}
+
+// 전화번호 자동 포맷팅 설정
+function setupPhoneAutoFormat(phoneInput) {
+  // 기존 이벤트 리스너 제거 (중복 방지)
+  phoneInput.removeEventListener('input', formatKoreanPhone);
+  // 새로운 이벤트 리스너 추가
+  phoneInput.addEventListener('input', formatKoreanPhone);
 }
 
 function escapeHtml(text) {
