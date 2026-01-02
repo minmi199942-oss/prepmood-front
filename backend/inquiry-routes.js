@@ -424,9 +424,9 @@ router.get('/admin/inquiries', authenticateToken, requireAdmin, async (req, res)
         const [countResult] = await connection.execute(countQuery, params);
         const total = countResult[0].total;
 
-        // 목록 조회
-        query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-        params.push(limitNum, offsetNum);
+        // 목록 조회 (LIMIT/OFFSET은 숫자로 검증 후 직접 삽입)
+        // MySQL2에서 LIMIT/OFFSET을 prepared statement 파라미터로 사용하면 오류 발생 가능
+        query += ` ORDER BY created_at DESC LIMIT ${limitNum} OFFSET ${offsetNum}`;
 
         const [inquiries] = await connection.execute(query, params);
 
