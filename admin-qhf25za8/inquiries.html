@@ -23,13 +23,13 @@
     }
 
     .stat-label {
-      font-size: 0.875rem;
+      font-size: 1.125rem;
       color: #6c757d;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.75rem;
     }
 
     .stat-value {
-      font-size: 1.75rem;
+      font-size: 2.5rem;
       font-weight: 600;
       color: #212529;
     }
@@ -49,7 +49,7 @@
 
     /* 하단 패널 열림 시 body에 padding 추가 */
     body.panel-open {
-      padding-bottom: 75vh;
+      padding-bottom: 50vh;
     }
 
     .inquiries-table {
@@ -63,17 +63,17 @@
     }
 
     .inquiries-table th {
-      padding: 1rem;
+      padding: 1.25rem 1.5rem;
       text-align: left;
       font-weight: 600;
-      font-size: 0.875rem;
+      font-size: 1rem;
       color: #495057;
     }
 
     .inquiries-table td {
-      padding: 1rem;
+      padding: 1.25rem 1.5rem;
       border-bottom: 1px solid #dee2e6;
-      font-size: 0.875rem;
+      font-size: 1rem;
     }
 
     .inquiries-table .category-cell,
@@ -99,8 +99,8 @@
 
     .badge {
       display: inline-block;
-      padding: 0.25rem 0.75rem;
-      font-size: 0.75rem;
+      padding: 0.375rem 0.875rem;
+      font-size: 0.875rem;
       font-weight: 600;
       border-radius: 12px;
       white-space: nowrap;
@@ -114,17 +114,17 @@
     .badge-danger { background: #f8d7da; color: #721c24; }
 
     .filter-input {
-      padding: 0.5rem 0.75rem;
+      padding: 0.75rem 1rem;
       border: 1px solid #ced4da;
       border-radius: 4px;
-      font-size: 0.875rem;
+      font-size: 1rem;
     }
 
     .filter-select {
-      padding: 0.5rem 0.75rem;
+      padding: 0.75rem 1rem;
       border: 1px solid #ced4da;
       border-radius: 4px;
-      font-size: 0.875rem;
+      font-size: 1rem;
       background: white;
     }
 
@@ -165,14 +165,14 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 75vh;
+      height: 50vh;
       background: white;
       border-top: 2px solid #dee2e6;
       box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 2.5rem;
-      padding: 2.5rem;
+      gap: 2rem;
+      padding: 2rem;
       overflow-y: auto;
       z-index: 100;
       transform: translateY(100%);
@@ -348,10 +348,10 @@
     }
 
     .date-range-inputs input[type="date"] {
-      padding: 0.5rem 0.75rem;
+      padding: 0.75rem 1rem;
       border: 1px solid #ced4da;
       border-radius: 4px;
-      font-size: 0.875rem;
+      font-size: 1rem;
     }
 
     .quick-date-buttons {
@@ -361,11 +361,11 @@
     }
 
     .quick-date-btn {
-      padding: 0.375rem 0.75rem;
+      padding: 0.5rem 1rem;
       border: 1px solid #ced4da;
       background: white;
       border-radius: 4px;
-      font-size: 0.75rem;
+      font-size: 0.875rem;
       cursor: pointer;
       transition: all 0.2s;
     }
@@ -378,6 +378,28 @@
       background: #212529;
       color: white;
       border-color: #212529;
+    }
+
+    /* 상단 영역 크기 확대 */
+    .admin-toolbar h2 {
+      font-size: 2.25rem !important;
+      font-weight: 700;
+    }
+
+    .search-input {
+      padding: 0.75rem 1rem !important;
+      font-size: 1rem !important;
+    }
+
+    .admin-toolbar .btn-primary,
+    .admin-toolbar .btn-secondary {
+      padding: 0.875rem 1.75rem !important;
+      font-size: 1rem !important;
+    }
+
+    .pagination button {
+      padding: 0.75rem 1.25rem !important;
+      font-size: 1rem !important;
     }
   </style>
 </head>
