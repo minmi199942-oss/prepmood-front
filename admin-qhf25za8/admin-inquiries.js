@@ -342,12 +342,23 @@
   // ============================================
   async function loadStats() {
     try {
-      const response = await fetch(`${API}/admin/inquiries/stats`, {
+      const safeFetch = window.secureFetch || fetch;
+      
+      const response = await safeFetch(`${API}/admin/inquiries/stats`, {
         credentials: 'include'
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        // 에러 응답 본문 확인
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+          console.error('[통계 API] 에러 응답:', errorData);
+        } catch (e) {
+          // JSON 파싱 실패 시 무시
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -356,6 +367,11 @@
         elements.newInquiries.textContent = data.stats.new_count || 0;
         elements.inProgressInquiries.textContent = data.stats.in_progress_count || 0;
         elements.todayInquiries.textContent = data.stats.today_count || 0;
+      } else {
+        console.warn('[통계 API] 응답 형식 오류:', data);
+        elements.newInquiries.textContent = '-';
+        elements.inProgressInquiries.textContent = '-';
+        elements.todayInquiries.textContent = '-';
       }
 
     } catch (error) {
