@@ -264,6 +264,8 @@ html {
   display: flex;
   gap: 1rem;
   align-items: center;
+  flex-wrap: wrap;
+  min-width: 0; /* flex-wrap이 제대로 작동하도록 */
 }
 
 .search-input {
@@ -271,7 +273,9 @@ html {
   border: 1px solid #ddd;
   border-radius: 4px;
   width: 250px;
+  min-width: 200px;
   font-size: 0.9rem;
+  flex-shrink: 0;
 }
 
 .filter-select {
@@ -280,6 +284,8 @@ html {
   border-radius: 4px;
   background: #fff;
   font-size: 0.9rem;
+  min-width: 150px;
+  flex-shrink: 0;
 }
 
 /* 버튼 */
@@ -292,6 +298,8 @@ html {
   font-size: 0.9rem;
   cursor: pointer;
   transition: background 0.3s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-primary:hover {
@@ -307,6 +315,8 @@ html {
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.3s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-secondary:hover {

@@ -453,6 +453,43 @@ router.get('/admin/inquiries', authenticateToken, requireAdmin, async (req, res)
 });
 
 /**
+ * GET /api/admin/inquiries/stats
+ * 통계 조회
+ * 주의: /admin/inquiries/:id 보다 먼저 정의해야 함 (라우팅 순서)
+ */
+router.get('/admin/inquiries/stats', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+
+        const [stats] = await connection.execute(
+            `SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) as new_count,
+                SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress_count,
+                SUM(CASE WHEN status = 'answered' THEN 1 ELSE 0 END) as answered_count,
+                SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_count,
+                SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as today_count
+            FROM inquiries`
+        );
+
+        res.json({
+            success: true,
+            stats: stats[0]
+        });
+
+    } catch (error) {
+        console.error('❌ 통계 조회 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '통계를 불러오는데 실패했습니다.'
+        });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+/**
  * GET /api/admin/inquiries/:id
  * 문의 상세 조회
  */
@@ -799,42 +836,6 @@ router.put('/admin/inquiries/:id/memo',
         }
     }
 );
-
-/**
- * GET /api/admin/inquiries/stats
- * 통계 조회
- */
-router.get('/admin/inquiries/stats', authenticateToken, requireAdmin, async (req, res) => {
-    let connection;
-    try {
-        connection = await mysql.createConnection(dbConfig);
-
-        const [stats] = await connection.execute(
-            `SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) as new_count,
-                SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress_count,
-                SUM(CASE WHEN status = 'answered' THEN 1 ELSE 0 END) as answered_count,
-                SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_count,
-                SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as today_count
-            FROM inquiries`
-        );
-
-        res.json({
-            success: true,
-            stats: stats[0]
-        });
-
-    } catch (error) {
-        console.error('❌ 통계 조회 오류:', error);
-        res.status(500).json({
-            success: false,
-            message: '통계를 불러오는데 실패했습니다.'
-        });
-    } finally {
-        if (connection) await connection.end();
-    }
-});
 
 module.exports = router;
 
