@@ -139,6 +139,9 @@ async function verifyRecaptcha(token) {
         const req = https.request(options, (res) => {
             let data = '';
 
+            // HTTP 상태 코드 로그
+            console.log(`[reCAPTCHA] Google siteverify HTTP status: ${res.statusCode}`);
+
             res.on('data', (chunk) => {
                 data += chunk;
             });
@@ -147,8 +150,17 @@ async function verifyRecaptcha(token) {
                 try {
                     const result = JSON.parse(data);
                     
+                    // Google 응답 상세 로그
+                    console.log('[reCAPTCHA] Google 응답:', {
+                        success: result.success,
+                        hostname: result.hostname || '(없음)',
+                        'error-codes': result['error-codes'] || [],
+                        challenge_ts: result.challenge_ts || '(없음)'
+                    });
+                    
                     // success 확인
                     if (!result.success) {
+                        console.error('[reCAPTCHA] ❌ 검증 실패:', result['error-codes']?.join(', ') || '알 수 없는 오류');
                         return resolve({
                             success: false,
                             error: result['error-codes']?.join(', ') || 'reCAPTCHA 검증 실패'
@@ -163,6 +175,7 @@ async function verifyRecaptcha(token) {
                             console.warn(`⚠️ reCAPTCHA hostname 불일치: ${result.hostname} (예상: ${expectedHostname})`);
                             // 개발 환경에서는 경고만 하고 통과
                             if (process.env.NODE_ENV === 'production') {
+                                console.error('[reCAPTCHA] ❌ hostname 검증 실패 (프로덕션)');
                                 return resolve({
                                     success: false,
                                     error: 'reCAPTCHA hostname 검증 실패'
@@ -171,12 +184,14 @@ async function verifyRecaptcha(token) {
                         }
                     }
 
+                    console.log('[reCAPTCHA] ✅ 검증 성공, hostname:', result.hostname);
                     resolve({
                         success: true,
                         hostname: result.hostname
                     });
                 } catch (error) {
-                    console.error('❌ reCAPTCHA 응답 파싱 오류:', error);
+                    console.error('[reCAPTCHA] ❌ 응답 파싱 오류:', error.message);
+                    console.error('[reCAPTCHA] 원본 응답 데이터:', data.substring(0, 200));
                     resolve({
                         success: false,
                         error: 'reCAPTCHA 검증 응답 오류'
@@ -186,7 +201,7 @@ async function verifyRecaptcha(token) {
         });
 
         req.on('error', (error) => {
-            console.error('❌ reCAPTCHA 검증 요청 오류:', error);
+            console.error('[reCAPTCHA] ❌ Google 서버 요청 오류:', error.message);
             resolve({
                 success: false,
                 error: 'reCAPTCHA 검증 서버 오류'
@@ -194,6 +209,7 @@ async function verifyRecaptcha(token) {
         });
 
         req.setTimeout(5000, () => {
+            console.error('[reCAPTCHA] ❌ 검증 시간 초과 (5초)');
             req.destroy();
             resolve({
                 success: false,
