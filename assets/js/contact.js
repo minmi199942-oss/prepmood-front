@@ -144,6 +144,51 @@
   }
 
   // ============================================
+  // reCAPTCHA 초기화
+  // ============================================
+  let recaptchaWidgetId = null;
+
+  function initRecaptcha() {
+    const container = document.getElementById('recaptcha-container');
+    if (!container) return;
+
+    // config.js에서 Site Key 가져오기
+    const siteKey = window.RECAPTCHA_SITE_KEY;
+    if (!siteKey) {
+      console.warn('reCAPTCHA Site Key가 설정되지 않았습니다. config.js를 확인하세요.');
+      return;
+    }
+
+    // 이미 렌더된 경우 방지
+    if (recaptchaWidgetId !== null) return;
+
+    // reCAPTCHA API가 로드될 때까지 대기
+    function waitForRecaptcha() {
+      if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
+        recaptchaWidgetId = grecaptcha.render(container, {
+          'sitekey': siteKey
+        });
+      } else {
+        setTimeout(waitForRecaptcha, 100);
+      }
+    }
+
+    waitForRecaptcha();
+  }
+
+  function getRecaptchaToken() {
+    if (typeof grecaptcha === 'undefined') return '';
+    if (recaptchaWidgetId === null) return '';
+    return grecaptcha.getResponse(recaptchaWidgetId);
+  }
+
+  function resetRecaptcha() {
+    if (typeof grecaptcha === 'undefined') return;
+    if (recaptchaWidgetId === null) return;
+    grecaptcha.reset(recaptchaWidgetId);
+  }
+
+  // ============================================
   // 초기화
   // ============================================
   async function init() {
@@ -158,6 +203,9 @@
 
     // 자동 채움 시도
     await tryAutofillFromLogin();
+
+    // reCAPTCHA 초기화
+    initRecaptcha();
 
     // 폼 제출 이벤트
     elements.form.addEventListener('submit', handleSubmit);
@@ -311,6 +359,13 @@
       return;
     }
 
+    // reCAPTCHA 검증
+    const recaptchaToken = getRecaptchaToken();
+    if (!recaptchaToken) {
+      alert('로봇이 아님을 확인해주세요.');
+      return;
+    }
+
     // 메시지 검증 (클라이언트 측)
     const messageText = elements.message.value.trim();
     const lines = messageText.split('\n');
@@ -353,6 +408,7 @@
         message: messageText,
         privacy_consent: elements.form.privacy_consent.checked ? 'true' : 'false',
         age_consent: elements.form.age_consent.checked ? 'true' : 'false',
+        recaptcha_token: recaptchaToken, // reCAPTCHA 토큰
         honeypot: elements.honeypot.value // 허니팟 필드
       };
 
@@ -382,6 +438,9 @@
         elements.topic.innerHTML = '<option value="">관심 분야를 먼저 선택해주세요</option>';
         elements.lineCounter.textContent = '0';
         elements.charCounter.textContent = '0';
+        
+        // reCAPTCHA 리셋
+        resetRecaptcha();
       } else {
         throw new Error(data.message || '문의 접수에 실패했습니다.');
       }

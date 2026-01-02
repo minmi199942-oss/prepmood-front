@@ -406,3 +406,25 @@ main.contact-main .contact-container,
     justify-self: start !important;
   }
 }
+
+/* reCAPTCHA 스타일 */
+.recaptcha-slot {
+  min-height: 78px; /* v2 체크박스 기본 높이 근처 - 레이아웃 점프 방지 */
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.recaptcha-slot .g-recaptcha {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .recaptcha-slot {
+    min-height: 70px; /* 모바일에서 약간 줄임 */
+  }
+  
+  .recaptcha-slot .g-recaptcha {
+    transform: scale(0.85);
+    transform-origin: 0 0;
+  }
+}

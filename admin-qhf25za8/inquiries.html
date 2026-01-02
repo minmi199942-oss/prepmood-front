@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>고객 문의 관리 | Pre.pMood Admin</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    /* 문의 관리 전용 스타일 */
+    .stats-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .stat-value.warning {
+      color: #fd7e14;
+    }
+
+    .inquiries-table-container {
+      overflow-x: auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 0;
+      transition: margin-bottom 0.3s ease;
+    }
+
+    /* 하단 패널 열림 시 body에 padding 추가 */
+    body.panel-open {
+      padding-bottom: 50vh;
+    }
+
+    .inquiries-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .inquiries-table thead {
+      background: #f8f9fa;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .inquiries-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #495057;
+    }
+
+    .inquiries-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #dee2e6;
+      font-size: 0.875rem;
+    }
+
+    .inquiries-table .category-cell,
+    .inquiries-table .topic-cell {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .inquiries-table tbody tr {
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .inquiries-table tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    .inquiries-table tbody tr.selected {
+      background: #e7f3ff;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-info { background: #d1ecf1; color: #0c5460; }
+    .badge-primary { background: #cfe2ff; color: #084298; }
+    .badge-secondary { background: #e2e3e5; color: #383d41; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+
+    .filter-input {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+
+    .filter-select {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background: white;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .pagination button {
+      padding: 0.5rem 1rem;
+      border: 1px solid #dee2e6;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pagination button:hover:not(:disabled) {
+      background: #f8f9fa;
+    }
+
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pagination button.active {
+      background: #212529;
+      color: white;
+      border-color: #212529;
+    }
+
+    /* 하단 고정 패널 */
+    .inquiry-detail-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 50vh;
+      background: white;
+      border-top: 2px solid #dee2e6;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      overflow-y: auto;
+      z-index: 100;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+
+    .inquiry-detail-panel.show {
+      transform: translateY(0);
+    }
+
+    .panel-close-btn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #6c757d;
+      z-index: 101;
+    }
+
+    .panel-close-btn:hover {
+      color: #212529;
+    }
+
+    .panel-section {
+      overflow-y: auto;
+    }
+
+    .panel-section h3 {
+      margin: 0 0 1rem 0;
+      font-size: 1.25rem;
+      color: #212529;
+      border-bottom: 2px solid #dee2e6;
+      padding-bottom: 0.5rem;
+    }
+
+    .panel-section h4 {
+      margin: 1.5rem 0 0.75rem 0;
+      font-size: 1rem;
+      color: #495057;
+    }
+
+    .panel-section p {
+      margin: 0.5rem 0;
+      font-size: 0.875rem;
+      color: #6c757d;
+      line-height: 1.6;
+    }
+
+    .panel-section .detail-item {
+      margin-bottom: 1rem;
+    }
+
+    .panel-section .detail-label {
+      font-size: 0.75rem;
+      color: #6c757d;
+      margin-bottom: 0.25rem;
+    }
+
+    .panel-section .detail-value {
+      font-size: 0.875rem;
+      color: #212529;
+      font-weight: 500;
+    }
+
+    .panel-section textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    .panel-section select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background: white;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      background: #212529;
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #343a40;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .reply-history {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .reply-item {
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+      margin-bottom: 0.75rem;
+    }
+
+    .reply-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .reply-item-author {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .reply-item-date {
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+
+    .reply-item-message {
+      font-size: 0.875rem;
+      color: #495057;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .reply-item-status {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .date-range-inputs {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .date-range-inputs input[type="date"] {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+
+    .quick-date-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-left: 1rem;
+    }
+
+    .quick-date-btn {
+      padding: 0.375rem 0.75rem;
+      border: 1px solid #ced4da;
+      background: white;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .quick-date-btn:hover {
+      background: #f8f9fa;
+    }
+
+    .quick-date-btn.active {
+      background: #212529;
+      color: white;
+      border-color: #212529;
+    }
+  </style>
+</head>
+<body>
+  <!-- 관리자 헤더는 admin-layout.js에서 동적 생성됨 -->
+
+  <!-- 메인 컨텐츠 -->
+  <main class="admin-main">
+    <div class="admin-container">
+      
+      <!-- 상단 툴바 -->
+      <div class="admin-toolbar">
+        <h2>고객 문의 관리</h2>
+        <div class="toolbar-actions">
+          <!-- 필터: 상태 -->
+          <select id="statusFilter" class="filter-select">
+            <option value="">전체 상태</option>
+            <option value="new">신규</option>
+            <option value="in_progress">처리중</option>
+            <option value="answered">답변 완료</option>
+            <option value="closed">종료</option>
+          </select>
+          
+          <!-- 필터: 관심분야 -->
+          <select id="categoryFilter" class="filter-select">
+            <option value="">전체 카테고리</option>
+            <option value="제품 관련 안내">제품 관련 안내</option>
+            <option value="구매 및 제공 가능 여부">구매 및 제공 가능 여부</option>
+            <option value="비스포크 · 커스텀 서비스">비스포크 · 커스텀 서비스</option>
+            <option value="프라이빗 클라이언트 서비스">프라이빗 클라이언트 서비스</option>
+            <option value="정품 인증 및 이력 확인">정품 인증 및 이력 확인</option>
+            <option value="배송 및 프리미엄 딜리버리">배송 및 프리미엄 딜리버리</option>
+            <option value="애프터케어 · 사후 관리">애프터케어 · 사후 관리</option>
+            <option value="기밀 · 특별 문의">기밀 · 특별 문의</option>
+          </select>
+          
+          <!-- 조회 기간 -->
+          <div class="date-range-inputs">
+            <input type="date" id="dateFrom" class="filter-input">
+            <span>~</span>
+            <input type="date" id="dateTo" class="filter-input">
+            <div class="quick-date-buttons">
+              <button class="quick-date-btn" data-days="0">오늘</button>
+              <button class="quick-date-btn" data-days="7">1주일</button>
+              <button class="quick-date-btn" data-days="30">1개월</button>
+              <button class="quick-date-btn" data-days="90">3개월</button>
+            </div>
+          </div>
+          
+          <!-- 검색 -->
+          <input type="text" id="searchInput" placeholder="이메일/접수번호/이름" class="search-input">
+          
+          <button id="searchBtn" class="btn-primary">검색</button>
+          <button id="resetBtn" class="btn-secondary">초기화</button>
+          <button id="refreshBtn" class="btn-secondary">🔄 새로고침</button>
+        </div>
+      </div>
+
+      <!-- 통계 카드 -->
+      <div class="stats-cards">
+        <div class="stat-card">
+          <div class="stat-label">신규 문의</div>
+          <div class="stat-value warning" id="newInquiries">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">처리중</div>
+          <div class="stat-value" id="inProgressInquiries">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">오늘 접수</div>
+          <div class="stat-value" id="todayInquiries">-</div>
+        </div>
+      </div>
+
+      <!-- 로딩 상태 -->
+      <div class="loading-state" id="loadingState">
+        <p>문의 목록을 불러오는 중...</p>
+      </div>
+
+      <!-- 문의 테이블 -->
+      <div class="inquiries-table-container" id="inquiriesTableContainer" style="display: none;">
+        <table class="inquiries-table">
+          <thead>
+            <tr>
+              <th>접수일시</th>
+              <th>처리상태</th>
+              <th>문의유형</th>
+              <th>문의제목</th>
+              <th>고객명</th>
+              <th>이메일</th>
+              <th>접수번호</th>
+            </tr>
+          </thead>
+          <tbody id="inquiriesTableBody">
+            <!-- JavaScript로 동적 생성 -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 빈 상태 -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">📧</div>
+        <h3>문의가 없습니다</h3>
+        <p>조건에 맞는 문의가 없습니다.</p>
+      </div>
+
+      <!-- 페이지네이션 -->
+      <div class="pagination" id="pagination" style="display: none;">
+        <!-- JavaScript로 동적 생성 -->
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 하단 고정 패널 (문의 상세 + 처리) -->
+  <div class="inquiry-detail-panel" id="inquiryDetailPanel">
+    <button class="panel-close-btn" id="closePanelBtn">&times;</button>
+    
+    <!-- 왼쪽: 문의 상세 -->
+    <div class="panel-section" id="inquiryDetailSection">
+      <h3>문의 상세</h3>
+      <div id="inquiryDetailContent">
+        <!-- JavaScript로 동적 생성 -->
+      </div>
+    </div>
+    
+    <!-- 오른쪽: 처리 패널 -->
+    <div class="panel-section" id="inquiryActionSection">
+      <h3>처리</h3>
+      
+      <!-- 답변 입력 -->
+      <div>
+        <h4>답변 작성</h4>
+        <textarea id="replyMessage" placeholder="고객에게 전송할 답변을 입력하세요..."></textarea>
+        <button id="sendReplyBtn" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%;">답변 전송</button>
+      </div>
+      
+      <!-- 상태 변경 -->
+      <div style="margin-top: 1.5rem;">
+        <h4>처리 상태</h4>
+        <select id="statusSelect">
+          <option value="new">신규</option>
+          <option value="in_progress">처리중</option>
+          <option value="answered">답변 완료</option>
+          <option value="closed">종료</option>
+        </select>
+        <button id="updateStatusBtn" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;">상태 변경</button>
+      </div>
+      
+      <!-- 관리자 메모 -->
+      <div style="margin-top: 1.5rem;">
+        <h4>관리자 메모</h4>
+        <textarea id="adminMemo" placeholder="내부 메모를 입력하세요..."></textarea>
+        <button id="saveMemoBtn" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;">메모 저장</button>
+      </div>
+      
+      <!-- 답변 이력 -->
+      <div class="reply-history" id="replyHistory">
+        <h4>답변 이력</h4>
+        <div id="replyHistoryContent">
+          <!-- JavaScript로 동적 생성 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 공통 레이아웃 스크립트 (헤더/네비게이션) -->
+  <script src="admin-layout.js" defer></script>
+  <!-- 페이지별 스크립트 -->
+  <script src="admin-inquiries.js" defer></script>
+  <script defer>
+    // 공통 레이아웃 초기화 (권한 체크 + 헤더 렌더링)
+    document.addEventListener('DOMContentLoaded', async () => {
+      const ok = await initAdminLayout('inquiries');
+      if (!ok) return;
+      
+      // 페이지별 초기화
+      if (typeof window.initInquiriesPage === 'function') {
+        window.initInquiriesPage();
+      }
+    });
+  </script>
+</body>
+</html>
+

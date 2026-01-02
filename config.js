@@ -47,13 +47,36 @@ if (!window.API_BASE) {
 window.ADMIN_PATH = '/admin-qhf25za8';
 
 // ============================================
+// 4. Google reCAPTCHA Site Key 설정
+// ============================================
+// ⚠️ Site Key는 공개되어도 되는 키입니다 (Public Key).
+// 하지만 환경별로 다른 키를 사용하거나, 나중에 변경할 수 있도록
+// 여기서 중앙 관리합니다.
+// Secret Key는 절대 여기에 두지 마세요. 서버 환경변수에서만 관리합니다.
+
+window.RECAPTCHA_SITE_KEY = (function() {
+  const hostname = window.location.hostname;
+  
+  // 프로덕션 환경 (prepmood.kr)
+  if (hostname === 'prepmood.kr' || hostname === 'www.prepmood.kr') {
+    // TODO: 실제 라이브 Site Key로 변경 필요
+    // return '6Lc...';  // 라이브 Site Key
+    return '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';  // 임시: 테스트 키 (항상 통과)
+  }
+  
+  // 개발/테스트 환경
+  return '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';  // 테스트 키
+})();
+
+// ============================================
 // 로드 확인 (개발 환경에서만)
 // ============================================
 if (window.Logger && window.Logger.isDevelopment) {
   window.Logger.log('✅ config.js 로드 완료', {
     TOSS_CLIENT_KEY: window.TOSS_CLIENT_KEY ? '설정됨' : '미설정',
     API_BASE: window.API_BASE,
-    ADMIN_PATH: window.ADMIN_PATH
+    ADMIN_PATH: window.ADMIN_PATH,
+    RECAPTCHA_SITE_KEY: window.RECAPTCHA_SITE_KEY ? '설정됨' : '미설정'
   });
 }
 
