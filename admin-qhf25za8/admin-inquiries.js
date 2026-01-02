@@ -15,6 +15,21 @@
   let isActionBusy = false; // 액션 중복 실행 방지
   let refreshSeq = 0; // refreshCurrentInquiry 경합 방지
 
+  // CSRF 토큰 가져오기 헬퍼
+  function getCsrfToken() {
+    // utils.js의 getCookie 사용 (없으면 직접 구현)
+    if (typeof getCookie === 'function') {
+      return getCookie('xsrf-token');
+    }
+    // 직접 구현
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; xsrf-token=`);
+    if (parts.length === 2) {
+      return parts.pop().split(';').shift();
+    }
+    return null;
+  }
+
   // DOM 요소
   const elements = {
     loadingState: document.getElementById('loadingState'),
@@ -643,12 +658,19 @@
       // secureFetch 폴백
       const safeFetch = window.secureFetch || fetch;
       
+      // CSRF 토큰 가져오기
+      const csrfToken = getCsrfToken();
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (csrfToken) {
+        headers['X-XSRF-TOKEN'] = csrfToken;
+      }
+      
       const response = await safeFetch(`${API}/admin/inquiries/${currentInquiryId}/reply`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: headers,
         body: JSON.stringify({ message })
       });
 
@@ -714,12 +736,19 @@
       // secureFetch 폴백
       const safeFetch = window.secureFetch || fetch;
       
+      // CSRF 토큰 가져오기
+      const csrfToken = getCsrfToken();
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (csrfToken) {
+        headers['X-XSRF-TOKEN'] = csrfToken;
+      }
+      
       const response = await safeFetch(`${API}/admin/inquiries/${currentInquiryId}/status`, {
         method: 'PUT',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: headers,
         body: JSON.stringify({ status })
       });
 
@@ -780,12 +809,19 @@
       // secureFetch 폴백
       const safeFetch = window.secureFetch || fetch;
       
+      // CSRF 토큰 가져오기
+      const csrfToken = getCsrfToken();
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (csrfToken) {
+        headers['X-XSRF-TOKEN'] = csrfToken;
+      }
+      
       const response = await safeFetch(`${API}/admin/inquiries/${currentInquiryId}/memo`, {
         method: 'PUT',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: headers,
         body: JSON.stringify({ memo })
       });
 
