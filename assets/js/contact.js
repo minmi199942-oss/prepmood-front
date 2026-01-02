@@ -146,7 +146,7 @@
   // ============================================
   // reCAPTCHA 초기화
   // ============================================
-  let recaptchaWidgetId = null;
+  let recaptchaRendered = false;
 
   function initRecaptcha() {
     const container = document.getElementById('recaptcha-container');
@@ -160,14 +160,15 @@
     }
 
     // 이미 렌더된 경우 방지
-    if (recaptchaWidgetId !== null) return;
+    if (recaptchaRendered) return;
 
     // reCAPTCHA API가 로드될 때까지 대기
     function waitForRecaptcha() {
       if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
-        recaptchaWidgetId = grecaptcha.render(container, {
+        grecaptcha.render(container, {
           'sitekey': siteKey
         });
+        recaptchaRendered = true;
       } else {
         setTimeout(waitForRecaptcha, 100);
       }
@@ -178,14 +179,14 @@
 
   function getRecaptchaToken() {
     if (typeof grecaptcha === 'undefined') return '';
-    if (recaptchaWidgetId === null) return '';
-    return grecaptcha.getResponse(recaptchaWidgetId);
+    // v2 Checkbox는 위젯이 1개면 widgetId 없이도 동작
+    return grecaptcha.getResponse() || '';
   }
 
   function resetRecaptcha() {
     if (typeof grecaptcha === 'undefined') return;
-    if (recaptchaWidgetId === null) return;
-    grecaptcha.reset(recaptchaWidgetId);
+    // v2 Checkbox는 위젯이 1개면 widgetId 없이도 동작
+    grecaptcha.reset();
   }
 
   // ============================================
@@ -360,11 +361,20 @@
     }
 
     // reCAPTCHA 검증
-    const recaptchaToken = getRecaptchaToken();
+    if (typeof grecaptcha === 'undefined') {
+      alert('reCAPTCHA가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+      return;
+    }
+
+    // v2 Checkbox는 위젯이 1개면 widgetId 없이도 동작
+    const recaptchaToken = grecaptcha.getResponse() || '';
     if (!recaptchaToken) {
       alert('로봇이 아님을 확인해주세요.');
       return;
     }
+
+    // 디버그 로그 (운영 시 제거 가능)
+    console.log('[reCAPTCHA] Token length:', recaptchaToken.length);
 
     // 메시지 검증 (클라이언트 측)
     const messageText = elements.message.value.trim();

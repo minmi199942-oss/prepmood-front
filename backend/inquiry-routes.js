@@ -109,6 +109,8 @@ function validateMessage(message) {
  * @returns {Promise<{success: boolean, hostname?: string, error?: string}>}
  */
 async function verifyRecaptcha(token) {
+    console.log('[reCAPTCHA] verifyRecaptcha called, token length:', (token || '').length);
+    
     const secretKey = process.env.RECAPTCHA_SECRET_KEY;
     
     if (!secretKey) {
@@ -117,6 +119,7 @@ async function verifyRecaptcha(token) {
     }
 
     if (!token) {
+        console.log('[reCAPTCHA] token missing');
         return { success: false, error: 'reCAPTCHA 토큰이 없습니다.' };
     }
 
@@ -241,6 +244,9 @@ router.post('/inquiries',
                     message: errors.array()[0].msg
                 });
             }
+
+            // 디버그 로그: recaptcha_token 수신 확인
+            console.log('[INQUIRY] recaptcha_token received, length:', (req.body.recaptcha_token || '').length);
 
             // 허니팟 필드 체크
             if (req.body.honeypot && req.body.honeypot !== '') {
