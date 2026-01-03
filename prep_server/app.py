@@ -156,10 +156,22 @@ def verify_product(token):
     
     # Case A: 토큰이 DB에 없음
     if not product:
+        print(f"[AUTH] 토큰 없음: {token}")
         return render_template('fake.html'), 200
     
+    # status 값 확인 및 디버깅
+    status = product.get('status', None)
+    # status를 정수로 변환 (None이거나 문자열일 경우 대비)
+    try:
+        status = int(status) if status is not None else 0
+    except (ValueError, TypeError):
+        status = 0
+    
+    print(f"[AUTH] 토큰: {token}, 현재 status: {status} (원본: {product.get('status')})")
+    
     # Case B: 첫 인증 (status = 0)
-    if product['status'] == 0:
+    if status == 0:
+        print(f"[AUTH] 첫 인증 처리: {token}")
         update_first_verification(token)
         # 업데이트된 정보 다시 가져오기
         product = get_product_by_token(token)
@@ -168,6 +180,7 @@ def verify_product(token):
                              verified_at=product['first_verified_at']), 200
     
     # Case C: 재인증 (status >= 1)
+    print(f"[AUTH] 재인증 처리: {token}, status: {status}")
     update_re_verification(token)
     # 업데이트된 정보 다시 가져오기
     product = get_product_by_token(token)
