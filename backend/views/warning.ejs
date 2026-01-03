@@ -4,32 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title || '이미 인증된 제품 - Pre.p Mood' %></title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
+        @font-face {
+            font-family: 'Paperlogy';
+            src: url('/static/fonts/Paperlogy-Regular.ttf') format('truetype'),
+                 url('/static/fonts/Paperlogy-Regular.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+        
+        @font-face {
+            font-family: 'Paperlogy';
+            src: url('/static/fonts/Paperlogy-Bold.ttf') format('truetype'),
+                 url('/static/fonts/Paperlogy-Bold.otf') format('opentype');
+            font-weight: bold;
+            font-style: normal;
+            font-display: swap;
+        }
+        
+        @font-face {
+            font-family: 'NanumBarunGothic';
+            src: url('/static/fonts/NanumBarunGothic.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
         
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
-            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+        html, body {
+            font-family: 'Paperlogy', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: #d9d9d9;
             min-height: 100vh;
+        }
+        
+        body {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 60px 24px;
+        }
+        
+        /* 중간 패널(소배경) - 카드 전체를 동일한 간격으로 감싸기 */
+        .stage-panel {
+            background: #eeeeee;
+            padding: 48px;
+            border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 616px;
+            animation: fadeIn 0.5s ease-in;
         }
         
         .container {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
+            max-width: 520px;
             width: 100%;
-            padding: 40px 30px;
-            text-align: center;
-            animation: fadeIn 0.5s ease-in;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: visible;
         }
         
         @keyframes fadeIn {
@@ -43,273 +82,418 @@
             }
         }
         
-        .warning-icon {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 30px;
-            background: #ff9800;
-            border-radius: 50%;
+        /* 헤더 바 */
+        .header-bar {
+            background: #3a1418;
+            color: white;
+            padding: 50px 24px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            animation: pulse 2s infinite;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.35);
         }
         
-        @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-        }
-        
-        .warning-icon svg {
-            width: 60px;
-            height: 60px;
-            stroke: white;
-            stroke-width: 3;
-            fill: none;
-        }
-        
-        h1 {
-            font-size: 28px;
-            color: #1a1a1a;
-            margin-bottom: 15px;
+        .brand-name {
+            font-family: 'Times New Roman', serif;
+            font-size: 36px;
             font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-left: 30px;
         }
         
-        .subtitle {
-            font-size: 16px;
-            color: #666;
-            margin-bottom: 30px;
-            line-height: 1.6;
+        .header-date {
+            font-size: 14px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.9);
+            margin-right: 30px;
         }
         
-        .product-info {
-            background: #fff9e6;
-            border-radius: 12px;
-            padding: 25px;
-            margin: 30px 0;
-            text-align: left;
-            border: 2px solid #ffc107;
+        /* 카드 내부 컨텐츠 - 흰색 영역 (바코드까지) */
+        .card-content {
+            padding: 30px 24px;
+            background: white;
+            position: relative;
+        }
+        
+        /* PRODUCT NAME 위 구분선 */
+        .card-content::before {
+            content: '';
+            display: block;
+            height: 1px;
+            background: #d8d8d8;
+            margin: 36px 0 24px 0;
+            width: 100%;
+        }
+        
+        /* 카드 내부 컨텐츠 - 회색 영역 (정품 인증 완료부터) */
+        .card-content-bottom {
+            padding: 24px 0px 32px 0px;
+            margin: 0;
+            background: #eeeeee;
+        }
+        
+        /* 정보 테이블 */
+        .info-table {
+            width: 100%;
+            margin-bottom: 24px;
         }
         
         .info-row {
             display: flex;
             justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid #ffe082;
+            align-items: flex-start;
+            padding: 14px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
         
-        .info-row:last-child {
+        .info-row:last-of-type {
             border-bottom: none;
         }
         
         .info-label {
-            font-size: 14px;
+            font-size: 12px;
             color: #666;
             font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 100px;
         }
         
         .info-value {
-            font-size: 15px;
+            font-size: 14px;
             color: #1a1a1a;
-            font-weight: 600;
+            font-weight: 500;
             text-align: right;
+            flex: 1;
+            word-break: break-word;
         }
         
-        .first-verified {
-            background: #e8f5e9;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            border-left: 4px solid #4CAF50;
+        /* 점선 컷팅 라인 래퍼 */
+        .ticket-divider-wrap {
+            position: relative;
+            margin: 22px 0 18px 0;
+            height: 0;
+            border-top: 3px dashed #d0d0d0;
+            overflow: visible;
         }
         
-        .first-verified-label {
-            font-size: 12px;
+        /* 좌측 노치 설정 */
+        .ticket-divider-wrap::before {
+            content: '';
+            position: absolute;
+            left: -35px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #eeeeee;
+            z-index: 10;
+        }
+        
+        /* 우측 노치 설정 */
+        .ticket-divider-wrap::after {
+            content: '';
+            position: absolute;
+            right: -37px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #eeeeee;
+            z-index: 10;
+        }
+        
+        .card-content {
+            overflow: hidden;
+        }
+        
+        /* 바코드 영역 */
+        .barcode-section {
+            text-align: center;
+            margin: 32px 0;
+        }
+        
+        .barcode-container {
+            margin-bottom: 12px;
+        }
+        
+        .barcode-container svg {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .barcode-text {
+            font-size: 14px;
             color: #666;
-            margin-bottom: 5px;
+            letter-spacing: 1px;
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+            margin-top: 8px;
+            margin-bottom: -30px;
         }
         
-        .first-verified-date {
-            font-size: 18px;
-            color: #2e7d32;
+        /* 정품 인증 완료 pill */
+        .verified-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #3a1418;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 500;
+            margin: 24px auto;
+            text-align: center;
+            margin-top: -30px;
+            margin-bottom: -30px;
+        }
+        
+        .verified-pill .check-icon {
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .verified-pill .check-icon svg {
+            width: 12px;
+            height: 12px;
+            stroke: #3a1418;
+            stroke-width: 2.5;
+        }
+        
+        /* 안내 문구 */
+        .info-text {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 24px 0;
+            text-align: left;
+            font-family: 'NanumBarunGothic', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+        }
+        
+        .info-text p {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.8;
+            margin-bottom: 8px;
+            font-family: 'NanumBarunGothic', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+        }
+        
+        .info-text p:first-child {
             font-weight: 700;
         }
         
-        .warning-badge {
-            display: inline-block;
-            background: #fff3cd;
-            color: #856404;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: 20px;
+        .info-text p:last-child {
+            margin-bottom: 0;
         }
         
-        .footer-text {
-            margin-top: 30px;
-            font-size: 13px;
-            color: #999;
-            line-height: 1.6;
+        /* 버튼 영역 */
+        .button-section {
+            margin-top: 32px;
         }
         
-        .brand {
-            margin-top: 20px;
-            font-size: 18px;
-            font-weight: 600;
-            color: #1a1a1a;
-            letter-spacing: 0.5px;
-        }
-        
-        /* 버튼 컨테이너 */
-        .button-container {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 30px;
-        }
-        
-        .primary-button {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 14px 28px;
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
             border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s ease;
-            text-decoration: none;
-            display: inline-block;
-        }
-        
-        .primary-button:hover {
-            background: #45a049;
-        }
-        
-        .secondary-button {
-            background: transparent;
-            color: #666;
-            border: 1px solid #ddd;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            text-align: center;
             text-decoration: none;
-            display: inline-block;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+            border: none;
+            font-family: inherit;
         }
         
-        .secondary-button:hover {
-            background: #f5f5f5;
-            border-color: #999;
+        .btn:last-child {
+            margin-bottom: 0;
         }
         
-        .warranty-notice {
-            background: #e8f5e9;
-            border-left: 4px solid #4CAF50;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            text-align: left;
-            font-size: 14px;
-            color: #2e7d32;
-            line-height: 1.6;
+        .btn-primary {
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #333;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #1a1a1a;
+            border: 1px solid #ddd;
+        }
+        
+        .btn-secondary:hover {
+            background: #f9f9f9;
         }
         
         @media (max-width: 480px) {
+            body {
+                padding: 40px 16px;
+            }
+            
+            .stage-panel {
+                padding: 32px 20px;
+            }
+            
             .container {
-                padding: 30px 20px;
+                max-width: 100%;
+                margin: 0;
             }
             
-            h1 {
-                font-size: 24px;
+            .card-content {
+                padding: 24px 20px;
             }
             
-            .warning-icon {
-                width: 80px;
-                height: 80px;
+            .header-bar {
+                padding: 40px 20px;
             }
             
-            .warning-icon svg {
-                width: 50px;
-                height: 50px;
+            .brand-name {
+                font-size: 28px;
             }
             
-            .product-info {
-                padding: 20px;
+            .card-content-bottom {
+                padding: 20px 20px 24px 20px;
+                margin: 0;
+            }
+            
+            .info-label {
+                font-size: 11px;
+                min-width: 80px;
+            }
+            
+            .info-value {
+                font-size: 13px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="warning-icon">
-            <svg viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-            </svg>
+    <div class="stage-panel">
+        <div class="container">
+        <!-- 헤더 바 -->
+        <div class="header-bar">
+            <div class="brand-name">Pre.pMood</div>
+            <div class="header-date" id="header-date"></div>
         </div>
         
-        <h1>이미 인증된 제품</h1>
-        <p class="subtitle">이 제품은 이전에 이미 정품 인증이 완료되었습니다.</p>
-        
-        <div class="product-info">
-            <div class="info-row">
-                <span class="info-label">제품명</span>
-                <span class="info-value"><%= product.product_name %></span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">제품 코드</span>
-                <span class="info-value"><%= product.internal_code %></span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">스캔 횟수</span>
-                <span class="info-value"><%= product.scan_count %>회</span>
+        <!-- 카드 내부 컨텐츠 -->
+        <div class="card-content">
+            <!-- 정보 테이블 -->
+            <div class="info-table">
+                <div class="info-row">
+                    <span class="info-label">PRODUCT NAME</span>
+                    <span class="info-value"><%= product.product_name %></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">CODE</span>
+                    <span class="info-value"><%= product.internal_code %></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">DATE</span>
+                    <span class="info-value"><%= first_verified_at %></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">SERIAL NUMBER</span>
+                    <span class="info-value">—</span>
+                </div>
             </div>
             
-            <div class="first-verified">
-                <div class="first-verified-label">최초 인증일</div>
-                <div class="first-verified-date"><%= first_verified_at %></div>
+            <!-- 점선 컷팅 라인 -->
+            <div class="ticket-divider-wrap"></div>
+            
+            <!-- 바코드 영역 -->
+            <div class="barcode-section">
+                <div class="barcode-container">
+                    <svg id="barcode"></svg>
+                </div>
+                <div class="barcode-text" id="barcode-text"></div>
             </div>
         </div>
         
-        <div class="warning-badge">⚠ 이미 인증됨</div>
-        
-        <!-- ✅ 보증서 확인 버튼 추가 (있는 경우에만) -->
-        <% if (warranty_public_id) { %>
-            <div class="warranty-notice">
-                <strong>이 제품의 디지털 보증서가 있습니다.</strong><br>
-                마이페이지에서 확인할 수 있습니다.
+        <!-- 하단 영역 (정품 인증 완료부터 버튼까지) -->
+        <div class="card-content-bottom">
+            <!-- 정품 인증 완료 pill -->
+            <div style="text-align: center;">
+                <div class="verified-pill">
+                    <div class="check-icon">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L2 22h20L12 2z" fill="#3a1418"/>
+                            <path d="M12 8v4M12 16h.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <span>등록 불가 안내</span>
+                </div>
             </div>
             
-            <div class="button-container">
-                <a href="/my-warranties.html" class="primary-button">
-                    보증서 확인하기
-                </a>
-                <a href="/index.html" class="secondary-button">
-                    홈으로 돌아가기
-                </a>
+            <!-- 안내 문구 -->
+            <div class="info-text">
+                <p>이미 등록된 시리얼넘버</p>
+                <p>해당 제품은 이미 정품 인증 및 등록이 완료되어 중복 등록이 불가능합니다.</p>
+                <p>등록 정보 확인, 재등록 등 도움이 필요하신 경우 고객센터로 문의해 주시기 바랍니다.</p>
             </div>
-        <% } else { %>
-            <div class="button-container">
-                <a href="/index.html" class="primary-button">
-                    홈으로 돌아가기
-                </a>
+            
+            <!-- 버튼 영역 -->
+            <div class="button-section">
+                <a href="/contact.html" class="btn btn-primary">고객센터 문의하기</a>
+                <a href="/index.html" class="btn btn-secondary">홈으로 돌아가기</a>
             </div>
-        <% } %>
-        
-        <div class="brand">Pre.p Mood</div>
-        
-        <p class="footer-text">
-            이 제품은 <%= first_verified_at %>에 최초로 정품 인증이 완료되었습니다.<br>
-            안심하고 사용하셔도 됩니다.
-        </p>
+        </div>
     </div>
+    </div>
+    
+    <script>
+        // 헤더 날짜 설정
+        function setHeaderDate() {
+            const dateElement = document.getElementById('header-date');
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            dateElement.textContent = `${year}-${month}-${day}`;
+        }
+        
+        // 바코드 생성
+        function generateBarcode() {
+            const code = '<%= product.internal_code %>';
+            if (code && typeof JsBarcode !== 'undefined') {
+                try {
+                    JsBarcode("#barcode", code, {
+                        format: "CODE128",
+                        width: 2,
+                        height: 60,
+                        displayValue: false,
+                        margin: 10
+                    });
+                    
+                    // 바코드 텍스트 표시
+                    const barcodeText = document.getElementById('barcode-text');
+                    barcodeText.textContent = `PREPMOOD_${code.replace(/\s/g, '_').toUpperCase()}`;
+                } catch (error) {
+                    console.error('바코드 생성 실패:', error);
+                }
+            }
+        }
+        
+        // 페이지 로드 시 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            setHeaderDate();
+            generateBarcode();
+        });
+    </script>
 </body>
 </html>
 
