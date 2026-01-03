@@ -50,6 +50,26 @@
       },
       "description": "초대형 (800x800, 매우 넓은 여백)"
     },
+    "huge": {
+      "width": 1000,
+      "margin": 10,
+      "errorCorrectionLevel": "H",
+      "color": {
+        "dark": "#000000",
+        "light": "#FFFFFF"
+      },
+      "description": "거대형 (1000x1000, 매우 넓은 여백)"
+    },
+    "giant": {
+      "width": 1200,
+      "margin": 12,
+      "errorCorrectionLevel": "H",
+      "color": {
+        "dark": "#000000",
+        "light": "#FFFFFF"
+      },
+      "description": "거대형 (1200x1200, 매우 넓은 여백)"
+    },
     "bold": {
       "width": 500,
       "margin": 4,
