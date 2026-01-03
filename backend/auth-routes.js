@@ -45,11 +45,53 @@ function formatDateKorean(dateString) {
         const day = String(koreanDate.getUTCDate()).padStart(2, '0');
         const hours = String(koreanDate.getUTCHours()).padStart(2, '0');
         const minutes = String(koreanDate.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(koreanDate.getUTCSeconds()).padStart(2, '0');
         
         return `${year}년 ${month}월 ${day}일 ${hours}:${minutes}`;
     } catch (error) {
         Logger.error('[AUTH] 날짜 포맷팅 실패:', { dateString, error: error.message });
         return dateString; // 실패 시 원본 반환
+    }
+}
+
+/**
+ * 날짜를 YYYY-MM-DD HH:MM:SS 형식으로 포맷팅 (템플릿용)
+ * @param {string|Date|null} dateValue - MySQL DATETIME 문자열 또는 Date 객체
+ * @returns {string} - YYYY-MM-DD HH:MM:SS 형식 문자열
+ */
+function formatDateForTemplate(dateValue) {
+    if (!dateValue) return '—';
+    
+    try {
+        let date;
+        if (dateValue instanceof Date) {
+            date = dateValue;
+        } else if (typeof dateValue === 'string') {
+            // MySQL DATETIME 형식을 Date 객체로 변환
+            date = new Date(dateValue.replace(' ', 'T') + 'Z');
+        } else {
+            return String(dateValue);
+        }
+        
+        // 유효한 날짜인지 확인
+        if (isNaN(date.getTime())) {
+            return String(dateValue);
+        }
+        
+        // 한국 시간대로 변환 (UTC+9)
+        const koreanDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+        
+        const year = koreanDate.getUTCFullYear();
+        const month = String(koreanDate.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(koreanDate.getUTCDate()).padStart(2, '0');
+        const hours = String(koreanDate.getUTCHours()).padStart(2, '0');
+        const minutes = String(koreanDate.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(koreanDate.getUTCSeconds()).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+        Logger.error('[AUTH] 날짜 포맷팅 실패:', { dateValue, error: error.message });
+        return String(dateValue); // 실패 시 원본 반환
     }
 }
 
@@ -330,7 +372,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                         product_name: tokenMaster.product_name,
                         internal_code: tokenMaster.internal_code
                     },
-                    verified_at: formatDateKorean(now),
+                    verified_at: formatDateForTemplate(now),
                     warranty_public_id: warrantyPublicId
                 });
             } else {
@@ -404,7 +446,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                         internal_code: tokenMaster.internal_code,
                         scan_count: tokenMaster.scan_count || 0
                     },
-                    first_verified_at: formatDateKorean(tokenMaster.first_scanned_at),
+                    first_verified_at: formatDateForTemplate(tokenMaster.first_scanned_at),
                     warranty_public_id: warrantyPublicId
                 });
             }
