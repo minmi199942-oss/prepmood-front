@@ -99,6 +99,9 @@ if (process.env.NODE_ENV !== 'production') {
     app.use('/qrcodes', express.static(path.join(__dirname, '..', 'output_qrcodes')));
 }
 
+// 정적 파일 서빙 (폰트 등)
+app.use('/static', express.static(path.join(__dirname, '..', 'prep_server', 'static')));
+
 // Nginx를 우회한 직접 접근 차단 (관리자 HTML 파일)
 // 루트의 admin*.html만 차단, 서브디렉토리는 허용
 app.all(/^\/admin(-[^/]+)?\.html$/, (req, res) => {
