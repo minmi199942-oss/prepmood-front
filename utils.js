@@ -60,13 +60,8 @@ const Logger = {
                  window.location.hostname.includes('dev'),
   
   log: function(...args) {
-    // 중요한 로그는 프로덕션에서도 출력
-    if (this.isDevelopment || 
-        args[0]?.includes('🔄') || 
-        args[0]?.includes('✅') || 
-        args[0]?.includes('📦') || 
-        args[0]?.includes('📋') ||  // returnTo 디버깅용
-        args[0]?.includes('🚀')) {  // 리다이렉트 디버깅용
+    // 개발 환경에서만 로그 출력
+    if (this.isDevelopment) {
       console.log(...args);
     }
   },
