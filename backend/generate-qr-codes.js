@@ -22,14 +22,65 @@ const DB_PATH = path.join(__dirname, 'prep.db');
 const OUTPUT_DIR = path.join(__dirname, '..', 'output_qrcodes');
 const BASE_URL = process.env.AUTH_BASE_URL || 'https://prepmood.kr/a/';
 
+// QR 설정 파일 경로
+const QR_CONFIG_PATH = path.join(__dirname, 'qr-config.json');
+
+/**
+ * QR 설정 로드
+ * @param {string} preset - 사용할 프리셋 이름 ('default' 또는 'samples' 내의 키)
+ * @returns {object} QR 코드 생성 옵션
+ */
+function loadQRConfig(preset = 'default') {
+    try {
+        if (!fs.existsSync(QR_CONFIG_PATH)) {
+            Logger.warn('[QR] 설정 파일이 없습니다. 기본 설정을 사용합니다.');
+            return {
+                width: 400,
+                margin: 4,
+                errorCorrectionLevel: 'H',
+                color: { dark: '#000000', light: '#FFFFFF' }
+            };
+        }
+
+        const configData = JSON.parse(fs.readFileSync(QR_CONFIG_PATH, 'utf8'));
+        
+        // 'default' 프리셋 사용
+        if (preset === 'default') {
+            return configData.default || configData.samples.medium;
+        }
+        
+        // 'samples' 내의 프리셋 사용
+        if (configData.samples && configData.samples[preset]) {
+            return configData.samples[preset];
+        }
+        
+        Logger.warn(`[QR] 프리셋 '${preset}'을 찾을 수 없습니다. 기본 설정을 사용합니다.`);
+        return configData.default || configData.samples.medium;
+    } catch (error) {
+        Logger.error('[QR] 설정 파일 로드 실패:', error.message);
+        return {
+            width: 400,
+            margin: 4,
+            errorCorrectionLevel: 'H',
+            color: { dark: '#000000', light: '#FFFFFF' }
+        };
+    }
+}
+
 /**
  * QR 코드 생성
+ * @param {string} preset - 사용할 프리셋 이름 (기본값: 'default')
  */
-async function generateQRCodes() {
+async function generateQRCodes(preset = 'default') {
     try {
         Logger.log('='.repeat(50));
         Logger.log('QR 코드 생성 시작');
         Logger.log('='.repeat(50));
+        
+        // QR 설정 로드
+        const qrOptions = loadQRConfig(preset);
+        Logger.log(`[QR] 프리셋: ${preset}`);
+        Logger.log(`[QR] 설정: ${JSON.stringify(qrOptions, null, 2)}`);
 
         // 출력 폴더 생성
         if (!fs.existsSync(OUTPUT_DIR)) {
@@ -71,13 +122,13 @@ async function generateQRCodes() {
                     Logger.log(`[QR] Token: ${product.token}`);
                 }
 
-                // QR 코드 생성 (400x400 이상, ERROR_CORRECT_H)
+                // QR 코드 생성 (설정 파일에서 옵션 로드)
                 await QRCode.toFile(filepath, url, {
-                    errorCorrectionLevel: 'H',
+                    errorCorrectionLevel: qrOptions.errorCorrectionLevel || 'H',
                     type: 'png',
-                    width: 400,
-                    margin: 4,
-                    color: {
+                    width: qrOptions.width || 400,
+                    margin: qrOptions.margin || 4,
+                    color: qrOptions.color || {
                         dark: '#000000',
                         light: '#FFFFFF'
                     }
@@ -137,7 +188,11 @@ async function generateQRCodes() {
 
 // 스크립트 직접 실행 시
 if (require.main === module) {
-    generateQRCodes()
+    // 명령줄 인자로 프리셋 지정 가능
+    // 예: node generate-qr-codes.js large
+    const preset = process.argv[2] || 'default';
+    
+    generateQRCodes(preset)
         .then(() => {
             process.exit(0);
         })

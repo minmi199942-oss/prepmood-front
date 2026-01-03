@@ -1,0 +1,75 @@
+{
+  "default": {
+    "width": 400,
+    "margin": 4,
+    "errorCorrectionLevel": "H",
+    "color": {
+      "dark": "#000000",
+      "light": "#FFFFFF"
+    },
+    "description": "기본 설정 (400x400, 얇은 여백)"
+  },
+  "samples": {
+    "small": {
+      "width": 200,
+      "margin": 2,
+      "errorCorrectionLevel": "M",
+      "color": {
+        "dark": "#000000",
+        "light": "#FFFFFF"
+      },
+      "description": "작은 크기 (200x200, 얇은 여백)"
+    },
+    "medium": {
+      "width": 400,
+      "margin": 4,
+      "errorCorrectionLevel": "H",
+      "color": {
+        "dark": "#000000",
+        "light": "#FFFFFF"
+      },
+      "description": "중간 크기 (400x400, 기본)"
+    },
+    "large": {
+      "width": 600,
+      "margin": 6,
+      "errorCorrectionLevel": "H",
+      "color": {
+        "dark": "#000000",
+        "light": "#FFFFFF"
+      },
+      "description": "큰 크기 (600x600, 넓은 여백)"
+    },
+    "extra_large": {
+      "width": 800,
+      "margin": 8,
+      "errorCorrectionLevel": "H",
+      "color": {
+        "dark": "#000000",
+        "light": "#FFFFFF"
+      },
+      "description": "초대형 (800x800, 매우 넓은 여백)"
+    },
+    "bold": {
+      "width": 500,
+      "margin": 4,
+      "errorCorrectionLevel": "H",
+      "color": {
+        "dark": "#000000",
+        "light": "#FFFFFF"
+      },
+      "description": "굵은 스타일 (500x500, 기본 여백)"
+    },
+    "custom_color": {
+      "width": 400,
+      "margin": 4,
+      "errorCorrectionLevel": "H",
+      "color": {
+        "dark": "#1a1a1a",
+        "light": "#f5f5f5"
+      },
+      "description": "커스텀 색상 (400x400, 연한 회색)"
+    }
+  }
+}
+
