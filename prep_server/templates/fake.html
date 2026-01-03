@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>가품 경고 - Pre.p Mood</title>
     <style>
+        @font-face {
+            font-family: 'Paperlogy';
+            src: url('/static/fonts/Paperlogy-Regular.ttf') format('truetype'),
+                 url('/static/fonts/Paperlogy-Regular.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+        
+        @font-face {
+            font-family: 'Paperlogy';
+            src: url('/static/fonts/Paperlogy-Bold.ttf') format('truetype'),
+                 url('/static/fonts/Paperlogy-Bold.otf') format('opentype');
+            font-weight: bold;
+            font-style: normal;
+            font-display: swap;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -12,7 +30,7 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            font-family: 'Paperlogy', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
             background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
             min-height: 100vh;
             display: flex;
