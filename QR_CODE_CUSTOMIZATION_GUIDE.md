@@ -150,6 +150,7 @@ node generate-qr-codes.js [프리셋이름]
 - `large`: 600x600px, 넓은 여백
 - `extra_large`: 800x800px, 매우 넓은 여백
 - `bold`: 500x500px, 기본 여백
+- `bold_lines`: 500x500px, 굵은 선 (원래 크기 대비 선 굵게)
 - `custom_color`: 400x400px, 커스텀 색상
 
 **예시:**

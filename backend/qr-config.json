@@ -69,6 +69,16 @@
         "light": "#f5f5f5"
       },
       "description": "커스텀 색상 (400x400, 연한 회색)"
+    },
+    "bold_lines": {
+      "width": 500,
+      "margin": 3,
+      "errorCorrectionLevel": "H",
+      "color": {
+        "dark": "#000000",
+        "light": "#FFFFFF"
+      },
+      "description": "굵은 선 (500x500, 원래 크기 대비 선 굵게)"
     }
   }
 }
