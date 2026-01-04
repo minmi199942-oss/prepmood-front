@@ -292,6 +292,8 @@ function validateReturnTo(returnTo) {
         returnTo === '/index.html' ||
         returnTo === '/my-profile.html' ||
         returnTo === '/my-warranties.html' ||
+        returnTo === '/digital-warranty.html' ||
+        returnTo === '/digital-invoice.html' ||
         returnTo === '/my-orders.html' ||
         returnTo === '/my-reservations.html' ||
         returnTo.startsWith('/a/');  // /a/:token 형식 (쿼리 포함 가능)
