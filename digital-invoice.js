@@ -167,11 +167,24 @@ function createEnvelopeCard(invoice) {
   envelope.innerHTML = `
     <div class="pm-envelope-wrapper">
       <div class="pm-envelope-body">
-        <div class="pm-envelope-flap"></div>
+        <!-- 닫힌 상태: 봉투 외부 (덮개) -->
+        <div class="pm-envelope-flap">
+          <!-- 상단 노치 디자인 -->
+          <div class="pm-envelope-notch">
+            <div class="pm-notch-circle pm-notch-top"></div>
+            <div class="pm-notch-bar"></div>
+            <div class="pm-notch-circle pm-notch-bottom"></div>
+          </div>
+        </div>
+        
+        <!-- 닫힌 상태에서 보이는 하단 브랜딩 -->
         <div class="pm-envelope-exterior">
           <div class="pm-footer-brand">Pre.pMood</div>
           <p class="pm-footer-tagline">The Art of Modern Heritage</p>
+          <div class="pm-footer-emblem"></div>
         </div>
+        
+        <!-- 열린 상태: 편지 내용 -->
         <div class="pm-envelope-letter">
           <div class="pm-letter-header">
             <h2 class="pm-letter-title">INVOICE</h2>
