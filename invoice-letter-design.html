@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>편지 디자인 - Pre.p Mood</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        /* 디자인 확인용 - 최소한의 스타일만 */
+
+        .invoice-card-container {
+            position: relative;
+            cursor: pointer;
+            width: 500px;
+        }
+
+        .card-wrapper {
+            position: relative;
+            height: 600px;
+        }
+
+        /* 하단 고정 - 회색 봉투 본체 */
+        .envelope-body {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 320px;
+            background-color: #E6E6E6;
+            box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            z-index: 10;
+        }
+
+        .envelope-brand {
+            position: absolute;
+            top: 80px;
+            left: 0;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 32px;
+        }
+
+        .envelope-brand h3 {
+            font-size: 2.25rem;
+            color: #374151;
+            margin-bottom: 12px;
+            font-family: 'Georgia', serif;
+        }
+
+        .envelope-brand p {
+            font-size: 1rem;
+            color: #6b7280;
+        }
+
+        .envelope-crest {
+            margin-top: 48px;
+            width: 56px;
+            height: 56px;
+            opacity: 0.3;
+        }
+
+        .envelope-crest svg {
+            width: 100%;
+            height: 100%;
+            color: #4b5563;
+        }
+
+        /* 중간 - 인보이스 내용 영역 */
+        .letter-content {
+            position: absolute;
+            left: 0;
+            right: 0;
+            background: white;
+            transition: all 700ms ease-out;
+            bottom: 320px;
+            height: 0px;
+            opacity: 0;
+            border-left: 1px solid rgba(224, 224, 224, 0.5);
+            border-right: 1px solid rgba(224, 224, 224, 0.5);
+            z-index: 15;
+            overflow: hidden;
+        }
+
+        .invoice-card-container:hover .letter-content {
+            height: 180px;
+            opacity: 1;
+        }
+
+        .letter-content-inner {
+            padding: 40px 64px;
+            transition: all 700ms;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .invoice-card-container:hover .letter-content-inner {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .letter-content-grid {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .letter-content-left {
+            flex: 1;
+        }
+
+        .letter-content-left .invoice-title {
+            font-weight: bold;
+            font-size: 0.875rem;
+            color: #111827;
+            margin-bottom: 16px;
+            letter-spacing: 0.1em;
+        }
+
+        .letter-content-left .invoice-meta {
+            font-size: 0.75rem;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .letter-content-right {
+            text-align: right;
+        }
+
+        .letter-content-right .brand-name {
+            font-size: 1.875rem;
+            color: #1f2937;
+            font-family: 'Georgia', serif;
+        }
+
+        /* 하단 씰 - 고정 */
+        .seal-bottom {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 270px;
+            z-index: 35;
+        }
+
+        .seal-circle {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: #C5C9CD;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .seal-circle-inner {
+            width: 38px;
+            height: 38px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .seal-circle-core {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #9EA3A8;
+        }
+
+        /* 하단 연결부 */
+        .connector-bottom {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 289px;
+            height: 72px;
+            z-index: 20;
+            transition: all 700ms ease-out;
+            opacity: 1;
+        }
+
+        .invoice-card-container:hover .connector-bottom {
+            bottom: 270px;
+            opacity: 0;
+            height: 0px;
+        }
+
+        .connector-outer {
+            width: 46px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .connector-outer-gray {
+            width: 46px;
+            height: 100%;
+            background: #C5C9CD;
+            border-radius: 0 0 23px 23px;
+        }
+
+        .connector-white {
+            position: absolute;
+            width: 38px;
+            height: 100%;
+            background: #FFFFFF;
+            border-radius: 0 0 19px 19px;
+            top: 0;
+        }
+
+        .connector-inner {
+            width: 34px;
+            height: 100%;
+            background: #C5C9CD;
+            border-radius: 0 0 17px 17px;
+            margin: 0 auto;
+        }
+
+        /* 상단 씰 + 상단 연결부 그룹 */
+        .seal-top-group {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 361px;
+            opacity: 1;
+            z-index: 30;
+            transition: all 700ms ease-out;
+        }
+
+        .invoice-card-container:hover .seal-top-group {
+            bottom: 650px;
+            opacity: 0;
+        }
+
+        .seal-top {
+            position: relative;
+            width: 46px;
+            z-index: 2;
+            margin: 0 auto;
+        }
+
+        .connector-top {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 19px;
+            height: 72px;
+            z-index: 1;
+        }
+
+        .connector-top-gray {
+            width: 46px;
+            height: 100%;
+            background: #C5C9CD;
+            border-radius: 23px 23px 0 0;
+        }
+
+        .connector-top-white {
+            position: absolute;
+            width: 38px;
+            height: 100%;
+            background: #FFFFFF;
+            border-radius: 19px 19px 0 0;
+            top: 0;
+        }
+
+        .connector-top-inner {
+            width: 34px;
+            height: 100%;
+            background: #C5C9CD;
+            border-radius: 17px 17px 0 0;
+            margin: 0 auto;
+        }
+
+        /* 상단 뚜껑 */
+        .envelope-flap {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 320px;
+            height: 200px;
+            background-color: #E6E6E6;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-bottom: 2px solid #E0E0E0;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            z-index: 20;
+            transition: all 700ms ease-out;
+        }
+
+        .invoice-card-container:hover .envelope-flap {
+            bottom: 500px;
+            box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-card-container">
+        <div class="card-wrapper">
+            
+            <!-- 하단 고정 - 회색 봉투 본체 -->
+            <div class="envelope-body">
+                <div class="envelope-brand">
+                    <h3>Pre.pMood</h3>
+                    <p>The Art of Modern Heritage</p>
+                    
+                    <div class="envelope-crest">
+                        <svg viewBox="0 0 100 100" fill="currentColor">
+                            <circle cx="50" cy="30" r="15"/>
+                            <path d="M30 60 L50 50 L70 60 M35 70 Q50 75 65 70"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 중간 - 인보이스 내용 영역 -->
+            <div class="letter-content">
+                <div class="letter-content-inner">
+                    <div class="letter-content-grid">
+                        <div class="letter-content-left">
+                            <p class="invoice-title">INVOICE</p>
+                            <p class="invoice-meta">INVOICE NO. PM-2026-000128</p>
+                            <p class="invoice-meta">ISSU DATE: 2026-03-12</p>
+                        </div>
+                        
+                        <div class="letter-content-right">
+                            <p class="brand-name">Pre.pMood</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 하단 씰 - 고정 -->
+            <div class="seal-bottom">
+                <div class="seal-circle">
+                    <div class="seal-circle-inner">
+                        <div class="seal-circle-core"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 하단 연결부 -->
+            <div class="connector-bottom">
+                <div class="connector-outer">
+                    <div class="connector-outer-gray"></div>
+                    <div class="connector-white">
+                        <div class="connector-inner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 상단 씰 + 상단 연결부 그룹 -->
+            <div class="seal-top-group">
+                <!-- 상단 씰 -->
+                <div class="seal-top">
+                    <div class="seal-circle">
+                        <div class="seal-circle-inner">
+                            <div class="seal-circle-core"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 상단 연결부 -->
+                <div class="connector-top">
+                    <div class="connector-outer">
+                        <div class="connector-top-gray"></div>
+                        <div class="connector-top-white">
+                            <div class="connector-top-inner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 상단 뚜껑 -->
+            <div class="envelope-flap"></div>
+        </div>
+    </div>
+</body>
+</html>
+
