@@ -469,7 +469,7 @@
 
       const isEditing = currentEditingProduct !== null;
       const url = isEditing 
-        ? `${API_BASE_URL}/admin/products/${productData.id}`
+        ? `${API_BASE_URL}/admin/products/${encodeURIComponent(productData.id)}`
         : `${API_BASE_URL}/admin/products`;
       
       const method = isEditing ? 'PUT' : 'POST';
@@ -510,7 +510,7 @@
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/products/${productId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/products/${encodeURIComponent(productId)}`, {
         method: 'DELETE',
         credentials: 'include'
       });

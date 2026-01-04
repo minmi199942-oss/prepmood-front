@@ -868,7 +868,7 @@
 
 .main-layout {
   display: flex;
-  max-width: 1200px;
+  max-width: var(--main-layout-max-width, 1400px);
   margin: 0 auto;
   padding: 0 clamp(16px, 3vw, 20px);
   gap: clamp(30px, 5vw, 40px);
@@ -1784,7 +1784,7 @@
 
 .main-layout {
   display: flex;
-  max-width: 1200px;
+  max-width: var(--main-layout-max-width, 1400px);
   margin: 0 auto;
   padding: 0 clamp(16px, 3vw, 20px);
   gap: clamp(30px, 5vw, 40px);
@@ -3428,9 +3428,10 @@
 /* ===== 디지털 인보이스 편지(봉투) 카드 UI ===== */
 .invoice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: clamp(24px, 4vw, 32px);
+  grid-template-columns: repeat(auto-fill, minmax(720px, 1fr));
+  gap: clamp(32px, 5vw, 48px);
   margin-top: clamp(24px, 4vw, 32px);
+  justify-items: center;
 }
 
 /* CSS 변수 정의 */

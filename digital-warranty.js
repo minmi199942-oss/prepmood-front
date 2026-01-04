@@ -13,11 +13,28 @@ let hasMore = true;
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('디지털 보증서 목록 페이지 로드됨');
   
-  // 로그인 상태 확인
-  const userInfo = await checkLoginStatus();
-  if (!userInfo) {
-    window.location.href = 'login.html';
-    return;
+  // 개발 모드: URL 파라미터에 ?dev=true가 있으면 로그인 체크 우회
+  const urlParams = new URLSearchParams(window.location.search);
+  const isDevMode = urlParams.get('dev') === 'true' || 
+                    window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1';
+  
+  let userInfo = null;
+  
+  if (!isDevMode) {
+    // 프로덕션 모드: 로그인 상태 확인
+    userInfo = await checkLoginStatus();
+    if (!userInfo) {
+      window.location.href = 'login.html';
+      return;
+    }
+  } else {
+    // 개발 모드: 더미 사용자 정보
+    userInfo = {
+      name: '개발자',
+      email: 'dev@example.com'
+    };
+    console.log('개발 모드: 로그인 체크 우회됨');
   }
 
   // 사용자 환영 메시지 표시
