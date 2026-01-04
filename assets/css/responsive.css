@@ -895,160 +895,50 @@
     display: block;
   }
   
-  .footer-main {
-    grid-template-columns: repeat(2, 1fr);
-    gap: clamp(16px, 2.5vw, 24px);
-    padding: clamp(20px, 3vw, 30px) 0;
-  }
-  
-  .footer-container {
-    padding: 0 clamp(16px, 3vw, 24px);
-  }
 }
 
-/* 모바일 (≤767px) - 1열 세로 정렬 */
+/* 모바일 (≤767px) - Hermes 스타일 유지 */
 @media (max-width: 767px) {
   .global-footer {
     padding: clamp(20px, 4vw, 30px) 0 clamp(15px, 3vw, 20px);
   }
   
   .footer-container {
-    padding: 0 clamp(16px, 4vw, 20px);
+    padding: clamp(16px, 4vw, 20px);
   }
   
-  /* 모바일 전용 아코디언 섹션 컨테이너 (위쪽) */
-  .footer-accordions.mobile-only {
-    display: block;
-    padding: 0;
-    border-bottom: 1px solid #eee;
-    margin-bottom: clamp(20px, 4vw, 28px);
-  }
-  
-  /* PC 전용 섹션 숨김 */
-  .desktop-only {
-    display: none !important;
-  }
-  
-  /* 아코디언 스타일 (모바일) */
-  .footer-accordions .footer-accordion {
-    border-bottom: 1px solid #eee;
-    padding-bottom: 0;
-  }
-  
-  .footer-accordions .footer-accordion:last-of-type {
-    border-bottom: none;
-  }
-  
-  /* 메인 푸터 콘텐츠 (아래쪽 - 모바일: 통합 정보) */
-  .footer-main {
-    display: block;
-    padding: 0;
-    border-bottom: 1px solid #eee;
-  }
-  
-  /* PC용 섹션들 숨기기 */
-  .footer-main .footer-section {
-    display: none;
-  }
-  
-  /* 모바일 전용 통합 콘텐츠 표시 */
-  .footer-content-unified.mobile-only {
-    display: flex;
+  /* 상단 바 모바일 스타일 */
+  .footer-top-bar {
     flex-direction: column;
-    gap: clamp(6px, 1.5vw, 8px);
+    align-items: flex-start;
+    gap: clamp(12px, 2vw, 16px);
+    padding-bottom: clamp(8px, 1.5vw, 16px);
+    margin-bottom: clamp(8px, 1.5vw, 16px);
   }
   
-  .footer-accordion-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .footer-top-right {
     width: 100%;
-    padding: clamp(14px, 3vw, 18px) 0;
-    background: none;
-    border: none;
-    cursor: pointer;
-    text-align: left;
+    justify-content: flex-end;
   }
   
-  .footer-accordion-toggle .footer-title {
-    font-size: clamp(0.85rem, 2vw, 0.95rem);
-    font-weight: 600;
-    margin-bottom: 0;
-    color: #111;
-    letter-spacing: -0.2px;
-    flex: 1;
+  /* 정보 블록 모바일: 우측 정렬 유지, 너비 100% */
+  .footer-info-block {
+    width: 100%;
+    align-items: flex-end;
+    text-align: right;
+    gap: clamp(4px, 1vw, 6px);
   }
   
-  .footer-accordion-icon {
-    display: block;
-    font-size: clamp(0.7rem, 1.5vw, 0.8rem);
-    color: #666;
-    transition: transform 0.3s ease;
-    margin-left: 12px;
+  .footer-info-line {
+    font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+    line-height: 1.5;
+    word-break: keep-all;
   }
   
-  .footer-accordion-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-    padding: 0;
+  .footer-top-link {
+    font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+    line-height: 1.5;
   }
-  
-  .footer-accordion-toggle[aria-expanded="true"] + .footer-accordion-content {
-    padding-bottom: clamp(14px, 3vw, 18px);
-  }
-  
-  
-  .footer-section {
-    padding-bottom: 0;
-    border-bottom: none;
-  }
-  
-  .footer-title {
-    font-size: clamp(0.85rem, 2vw, 0.95rem);
-    font-weight: 600;
-    margin-bottom: clamp(10px, 2vw, 14px);
-    color: #111;
-    letter-spacing: -0.2px;
-  }
-  
-  /* 아코디언이 아닌 섹션의 제목 */
-  .footer-main .footer-section:not(.footer-accordion) .footer-title {
-    margin-bottom: clamp(10px, 2vw, 14px);
-  }
-  
-  .footer-content {
-    gap: clamp(6px, 1.5vw, 8px);
-  }
-  
-  .footer-text {
-    font-size: clamp(0.7rem, 1.8vw, 0.8rem);
-    line-height: 1.6;
-    color: #666;
-    margin: 0;
-  }
-  
-  .footer-link {
-    color: #666;
-    font-weight: 400;
-  }
-  
-  .footer-link:hover {
-    color: #111;
-  }
-  
-  .footer-bottom {
-    padding: clamp(16px, 3vw, 20px) 0 0;
-    margin-top: clamp(16px, 3vw, 20px);
-    border-top: 1px solid #eee;
-  }
-  
-  .footer-copyright {
-    font-size: clamp(0.65rem, 1.5vw, 0.75rem);
-    color: #999;
-    letter-spacing: 0.1px;
-  }
-  
 }
 
 /* 초소형 모바일 (≤480px) */
@@ -1057,36 +947,27 @@
     padding: clamp(18px, 3.5vw, 25px) 0 clamp(12px, 2.5vw, 18px);
   }
   
-  .footer-main {
-    gap: clamp(18px, 3.5vw, 24px);
-    padding: 0;
-  }
-  
   .footer-container {
-    padding: 0 clamp(14px, 3.5vw, 18px);
+    padding: clamp(14px, 3.5vw, 18px);
   }
   
-  .footer-section {
-    padding-bottom: clamp(14px, 2.5vw, 18px);
+  .footer-top-bar {
+    padding-bottom: clamp(6px, 1.2vw, 12px);
+    margin-bottom: clamp(6px, 1.2vw, 12px);
   }
   
-  .footer-title {
-    font-size: clamp(0.8rem, 1.8vw, 0.9rem);
-    margin-bottom: clamp(8px, 1.8vw, 12px);
+  .footer-info-block {
+    gap: clamp(3px, 0.8vw, 5px);
   }
   
-  .footer-content {
-    gap: clamp(5px, 1.2vw, 7px);
-  }
-  
-  .footer-text {
-    font-size: clamp(0.65rem, 1.6vw, 0.75rem);
+  .footer-info-line {
+    font-size: clamp(0.55rem, 1.3vw, 0.65rem);
     line-height: 1.5;
   }
   
-  .footer-bottom {
-    padding: clamp(14px, 2.5vw, 18px) 0 0;
-    margin-top: clamp(14px, 2.5vw, 18px);
+  .footer-top-link {
+    font-size: clamp(0.55rem, 1.3vw, 0.65rem);
+    line-height: 1.5;
   }
   
   .footer-copyright {

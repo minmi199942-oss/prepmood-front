@@ -1,89 +1,27 @@
-<!-- 글로벌 푸터 -->
+<!-- 글로벌 푸터 (Hermes 스타일) -->
 <footer class="global-footer">
   <div class="footer-container">
-    <!-- 아코디언 섹션들 (모바일 전용) -->
-    <div class="footer-accordions mobile-only">
-      <!-- 정책 및 약관 섹션 (아코디언 - 이용약관, 개인정보 처리방침, 법적 고지 포함) -->
-      <div class="footer-section footer-accordion">
-        <button class="footer-accordion-toggle" aria-expanded="false">
-          <h3 class="footer-title">정책 및 약관</h3>
-          <span class="footer-accordion-icon">▼</span>
-        </button>
-        <div class="footer-content footer-accordion-content">
-          <p class="footer-text">
-            <a href="legal.html" class="footer-link">이용약관</a>
-          </p>
-          <p class="footer-text">
-            <a href="privacy.html" class="footer-link">개인정보 처리방침</a>
-          </p>
-          <p class="footer-text">
-            <a href="legal.html" class="footer-link">법적 고지</a>
-          </p>
+    <!-- 상단 바: 좌측(배송지 선택사항), 우측(개인정보 링크) -->
+    <div class="footer-top-bar">
+      <div class="footer-top-left">
+        <!-- 배송지 정보는 현재 사이트에 없으므로 생략 -->
+      </div>
+      <div class="footer-top-right">
+        <div class="footer-links-group">
+          <a href="legal.html" class="footer-top-link">이용약관 및 법적고지</a>
+          <a href="privacy.html" class="footer-top-link">개인정보 처리방침</a>
+          <a href="counterfeit-prevention.html" class="footer-top-link">위조품 근절</a>
         </div>
       </div>
     </div>
 
-    <!-- 메인 푸터 콘텐츠 (PC: 4개 섹션 그리드, 모바일: 통합) -->
-    <div class="footer-main">
-      <!-- 정책 및 약관 섹션 (PC 전용 - 이용약관, 개인정보 처리방침, 법적 고지 포함) -->
-      <div class="footer-section desktop-only">
-        <h3 class="footer-title">정책 및 약관</h3>
-        <div class="footer-content">
-          <p class="footer-text">
-            <a href="legal.html" class="footer-link">이용약관</a>
-          </p>
-          <p class="footer-text">
-            <a href="privacy.html" class="footer-link">개인정보 처리방침</a>
-          </p>
-          <p class="footer-text">
-            <a href="legal.html" class="footer-link">법적 고지</a>
-          </p>
-        </div>
-      </div>
-
-      <!-- 회사 정보 섹션 -->
-      <div class="footer-section">
-        <h3 class="footer-title">회사 정보</h3>
-        <div class="footer-content">
-          <p class="footer-text">회사명: 프레피무드</p>
-          <p class="footer-text">대표자: 최지원</p>
-          <p class="footer-text">사업자등록번호: 827-27-01774</p>
-          <p class="footer-text">통신판매신고번호: 2025-대구중구-0610호</p>
-          <p class="footer-text">주소: 대구광역시 중구 국채보상로 558-1, 2층 D605호(종로1가)</p>
-        </div>
-      </div>
-
-      <!-- 고객센터 섹션 -->
-      <div class="footer-section">
-        <h3 class="footer-title">고객센터</h3>
-        <div class="footer-content">
-          <p class="footer-text">고객센터 전화번호: <a href="tel:1555-6035" class="footer-link">1555-6035</a></p>
-          <p class="footer-text">이메일: <a href="mailto:prepmoodcare@naver.com" class="footer-link">prepmoodcare@naver.com</a></p>
-          <p class="footer-text"><a href="contact.html" class="footer-link">문의하기</a></p>
-        </div>
-      </div>
-
-      <!-- 결제 서비스 섹션 -->
-      <div class="footer-section">
-        <h3 class="footer-title">결제 서비스</h3>
-        <div class="footer-content">
-          <p class="footer-text">PG: NHN KCP, KG이니시스</p>
-          <p class="footer-text">국제 결제 서비스: PayPal, WeChat 등 예정</p>
-        </div>
-      </div>
-      
-      <!-- 모바일 전용 통합 콘텐츠 -->
-      <div class="footer-content-unified mobile-only">
-        <p class="footer-text">프레피무드 | 대표: 최지원 | 사업자등록번호: 827-27-01774 | 통신판매신고번호: 2025-대구중구-0610호</p>
-        <p class="footer-text">대구광역시 중구 국채보상로 558-1, 2층 D605호</p>
-        <p class="footer-text">고객센터: <a href="tel:1555-6035" class="footer-link">1555-6035</a> | <a href="mailto:prepmoodcare@naver.com" class="footer-link">prepmoodcare@naver.com</a></p>
-        <p class="footer-text">PG: NHN KCP, KG이니시스 | 국제 결제: PayPal, WeChat 등 예정</p>
-      </div>
-    </div>
-
-    <!-- 푸터 하단 -->
-    <div class="footer-bottom">
-      <p class="footer-copyright">© Pre.pMood 2025. All rights reserved.</p>
+    <!-- 하단 우측 정보 블록 -->
+    <div class="footer-info-block">
+      <p class="footer-info-line">© Pre.pMood 2026. 무단 전재와 무단 복제를 금함.</p>
+      <p class="footer-info-line">프레피무드 | 주소 및 연락처 : 대구광역시 중구 국채보상로 558-1, 2층 D605호(동로1가) | 1555-6035</p>
+      <p class="footer-info-line">대표자 : 최지원 | 사업자등록번호 : 827-27-01774</p>
+      <p class="footer-info-line">메일문의 : <a href="mailto:prepmoodcare@naver.com" class="footer-link">prepmoodcare@naver.com</a> | 호스팅 서비스 : 프레피무드</p>
+      <p class="footer-info-line">통신판매업 신고번호 : 2025-대구중구-0610호 <a href="#" class="footer-link business-info-link">(사업자 정보 확인)</a></p>
     </div>
   </div>
 </footer>

@@ -94,6 +94,7 @@ rsync -av \
   --include="authenticity.html" \
   --include="legal.html" \
   --include="privacy.html" \
+  --include="counterfeit-prevention.html" \
   --include="header.partial" \
   --include="footer.partial" \
   --include="utils.js" \
