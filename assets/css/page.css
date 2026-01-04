@@ -3433,6 +3433,296 @@
   margin-top: clamp(24px, 4vw, 32px);
 }
 
+/* 인보이스 카드 - 상태 기반 레이아웃 */
+.invoice-card {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  min-height: 400px;
+  perspective: 1200px;
+}
+
+/* 봉투 컨테이너 */
+.envelope {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
+
+/* 봉투 본체 */
+.env-body {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #f2f2f2;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  z-index: 2;
+  transition: box-shadow 400ms ease-in-out;
+}
+
+/* 봉투 덮개 (Flap) */
+.env-flap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: #ffffff;
+  border-radius: 8px 8px 0 0;
+  transform-origin: top center;
+  transform: rotateX(0deg);
+  transition: transform 500ms ease-in-out;
+  z-index: 4;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+  backface-visibility: hidden;
+}
+
+/* 봉투 브랜딩 (닫힌 상태에서 보임) */
+.env-brand {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #eeeeee;
+  padding: 40px 28px;
+  text-align: center;
+  border-top: 1px solid #e5e5e5;
+  z-index: 3;
+  transition: opacity 400ms ease-in-out, visibility 400ms ease-in-out;
+}
+
+.brand-text {
+  font-family: 'Paperlogy', 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: 400;
+  color: #333333;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
+}
+
+.brand-tagline {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: #666666;
+  letter-spacing: 0.3px;
+  margin: 0 0 16px 0;
+}
+
+.brand-crest {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+  background: #d0d0d0;
+  border-radius: 50%;
+  opacity: 0.5;
+  position: relative;
+}
+
+.brand-crest::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  background: #e0e0e0;
+  border-radius: 50%;
+}
+
+/* 편지 */
+.letter {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-height: 400px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  transform: translateY(0);
+  transition: transform 500ms ease-in-out, opacity 400ms ease-in-out;
+  z-index: 1;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 편지 상단 (노치 영역) */
+.letter-top {
+  height: 140px;
+  background: #ffffff;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.letter-top::before {
+  content: '';
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #f2f2f2;
+  border: 2px solid #e5e5e5;
+  position: relative;
+}
+
+.letter-top::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #d5d5d5;
+}
+
+/* 편지 중간 (인보이스 정보) */
+.letter-mid {
+  padding: 32px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.letter-content-left {
+  flex: 1;
+}
+
+.letter-content-left strong {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.invoice-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #000000;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
+}
+
+.letter-content-right .brand {
+  font-family: 'Paperlogy', 'Times New Roman', serif;
+  font-size: 18px;
+  font-weight: 400;
+  color: #000000;
+  letter-spacing: 0.3px;
+}
+
+/* 편지 하단 (브랜딩) */
+.letter-bottom {
+  background: #eeeeee;
+  padding: 40px 28px;
+  text-align: center;
+  border-radius: 0 0 8px 8px;
+}
+
+/* 닫힌 상태 (is-closed) - 기본 */
+.invoice-card.is-closed .env-flap {
+  transform: rotateX(0deg);
+  z-index: 4;
+}
+
+.invoice-card.is-closed .env-body {
+  z-index: 2;
+}
+
+.invoice-card.is-closed .env-brand {
+  opacity: 1;
+  visibility: visible;
+  z-index: 3;
+}
+
+.invoice-card.is-closed .letter {
+  transform: translateY(0);
+  opacity: 0;
+  visibility: hidden;
+  z-index: 1;
+}
+
+/* 열린 상태 (is-open) */
+.invoice-card.is-open .env-flap {
+  transform: rotateX(-160deg);
+  z-index: 4;
+}
+
+.invoice-card.is-open .env-body {
+  z-index: 2;
+}
+
+.invoice-card.is-open .env-brand {
+  opacity: 0;
+  visibility: hidden;
+  z-index: 1;
+}
+
+.invoice-card.is-open .letter {
+  transform: translateY(-40px);
+  opacity: 1;
+  visibility: visible;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+/* 데스크탑 hover (pointer: fine) */
+@media (hover: hover) and (pointer: fine) {
+  .invoice-card:hover .env-flap {
+    transform: rotateX(-160deg);
+  }
+  
+  .invoice-card:hover .env-brand {
+    opacity: 0;
+    visibility: hidden;
+  }
+  
+  .invoice-card:hover .letter {
+    transform: translateY(-40px);
+    opacity: 1;
+    visibility: visible;
+    z-index: 3;
+  }
+}
+
+/* 모바일 대응 */
+@media (max-width: 768px) {
+  .invoice-card {
+    max-width: 100%;
+  }
+  
+  .letter-mid {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .letter-content-right {
+    align-self: flex-start;
+  }
+}
+
 .invoices-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

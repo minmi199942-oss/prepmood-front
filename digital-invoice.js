@@ -4,7 +4,7 @@ const API_BASE = window.API_BASE ||
     ? window.location.origin.replace(/\/$/, '') + '/api'
     : '/api');
 
-// 모바일 감지 (pointer: coarse)
+// 모바일 감지
 const isMobile = window.matchMedia('(pointer: coarse)').matches;
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -20,35 +20,11 @@ document.addEventListener('DOMContentLoaded', async function() {
   // 사용자 환영 메시지 표시
   displayUserWelcome(userInfo);
 
-  // 강제 테스트 코드 (기본 구조 확인용)
-  const grid = document.getElementById('invoiceGrid');
-  if (grid) {
-    // 테스트: 기본 구조 확인
-    grid.innerHTML = `
-      <div class="invoice-card">
-        <div class="envelope">
-          <div class="env-body"></div>
-          <div class="env-flap"></div>
-          <div class="letter">
-            <div class="letter-mid">
-              <div>
-                <strong>INVOICE</strong><br>
-                INVOICE NO. PM-INV-260103-2305<br>
-                ISSUE DATE : 12 Mar 2026
-              </div>
-              <div class="brand">Pre.pMood</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    // 편지(봉투) 카드 인터랙션 초기화
-    initEnvelopeInteractions();
-    
-    // 나중에 실제 데이터로 교체
-    // renderInvoices();
-  }
+  // 인보이스 렌더링 (최소 1개 더미 카드 보장)
+  renderInvoices();
+  
+  // 모바일 클릭 토글 초기화
+  initMobileToggle();
 });
 
 // 로그인 상태 확인
@@ -78,7 +54,7 @@ function displayUserWelcome(user) {
   }
 }
 
-// invoiceNo 생성 함수 (PM-INV-YYMMDD-HHMM)
+// invoiceNo 생성 함수 (PM-INV-YYMMDD-HHmm)
 function generateInvoiceNo(date = new Date()) {
   const year = date.getFullYear().toString().slice(-2);
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -100,26 +76,122 @@ function formatIssueDate(date = new Date()) {
   return `${day} ${month} ${year}`;
 }
 
-// 편지(봉투) 카드 인터랙션 초기화
-function initEnvelopeInteractions() {
-  const envelopes = document.querySelectorAll('.envelope');
+// 인보이스 렌더링
+function renderInvoices() {
+  const grid = document.getElementById('invoiceGrid');
+  const noInvoices = document.getElementById('no-invoices');
   
-  envelopes.forEach(envelope => {
-    // 모바일: 클릭 토글
-    if (isMobile) {
-      envelope.addEventListener('click', function(e) {
-        e.preventDefault();
-        this.classList.toggle('opened');
+  if (!grid) {
+    console.error('invoiceGrid를 찾을 수 없습니다.');
+    return;
+  }
+
+  // 더미 데이터 (나중에 서버에서 가져올 데이터)
+  const invoices = [
+    {
+      invoiceNo: generateInvoiceNo(new Date()),
+      issueDate: formatIssueDate(new Date())
+    },
+    {
+      invoiceNo: generateInvoiceNo(new Date(Date.now() - 86400000)), // 어제
+      issueDate: formatIssueDate(new Date(Date.now() - 86400000))
+    }
+  ];
+
+  // 최소 1개는 항상 보장
+  if (invoices.length === 0) {
+    invoices.push({
+      invoiceNo: generateInvoiceNo(),
+      issueDate: formatIssueDate()
+    });
+  }
+
+  // 그리드 초기화
+  grid.innerHTML = '';
+  
+  // 카드 렌더링
+  invoices.forEach((invoice, index) => {
+    const card = createInvoiceCard(invoice, index);
+    grid.appendChild(card);
+  });
+
+  // no-invoices 숨김
+  if (noInvoices) {
+    noInvoices.style.display = 'none';
+  }
+}
+
+// 인보이스 카드 생성
+function createInvoiceCard(invoice, index) {
+  const article = document.createElement('article');
+  article.className = 'invoice-card is-closed';
+  article.setAttribute('data-invoice-no', escapeHtml(invoice.invoiceNo));
+  
+  article.innerHTML = `
+    <div class="envelope">
+      <div class="env-flap"></div>
+      <div class="env-body">
+        <div class="env-brand">
+          <div class="brand-text">Pre.pMood</div>
+          <div class="brand-tagline">The Art of Modern Heritage</div>
+          <div class="brand-crest"></div>
+        </div>
+      </div>
+    </div>
+    <div class="letter">
+      <div class="letter-top"></div>
+      <div class="letter-mid">
+        <div class="letter-content-left">
+          <strong>INVOICE</strong>
+          <div class="invoice-info">
+            <span>INVOICE NO. ${escapeHtml(invoice.invoiceNo)}</span>
+            <span>ISSUE DATE : ${escapeHtml(invoice.issueDate)}</span>
+          </div>
+        </div>
+        <div class="letter-content-right">
+          <div class="brand">Pre.pMood</div>
+        </div>
+      </div>
+      <div class="letter-bottom">
+        <div class="brand-text">Pre.pMood</div>
+        <div class="brand-tagline">The Art of Modern Heritage</div>
+      </div>
+    </div>
+  `;
+  
+  return article;
+}
+
+// 모바일 클릭 토글 초기화
+function initMobileToggle() {
+  if (!isMobile) return;
+  
+  document.addEventListener('click', function(e) {
+    const card = e.target.closest('.invoice-card');
+    if (!card) {
+      // 외부 클릭 시 모든 카드 닫기
+      document.querySelectorAll('.invoice-card.is-open').forEach(c => {
+        c.classList.remove('is-open');
+        c.classList.add('is-closed');
       });
+      return;
     }
     
-    // 키보드 접근성: Enter/Space로 토글
-    envelope.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        this.classList.toggle('opened');
-      }
-    });
+    // 카드 클릭 시 토글
+    if (card.classList.contains('is-closed')) {
+      // 다른 열린 카드 닫기
+      document.querySelectorAll('.invoice-card.is-open').forEach(c => {
+        c.classList.remove('is-open');
+        c.classList.add('is-closed');
+      });
+      // 현재 카드 열기
+      card.classList.remove('is-closed');
+      card.classList.add('is-open');
+    } else {
+      // 현재 카드 닫기
+      card.classList.remove('is-open');
+      card.classList.add('is-closed');
+    }
   });
 }
 
