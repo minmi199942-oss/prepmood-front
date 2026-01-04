@@ -168,6 +168,10 @@ function createEnvelopeCard(invoice) {
     <div class="pm-envelope-wrapper">
       <div class="pm-envelope-body">
         <div class="pm-envelope-flap"></div>
+        <div class="pm-envelope-exterior">
+          <div class="pm-footer-brand">Pre.pMood</div>
+          <p class="pm-footer-tagline">The Art of Modern Heritage</p>
+        </div>
         <div class="pm-envelope-letter">
           <div class="pm-letter-header">
             <h2 class="pm-letter-title">INVOICE</h2>

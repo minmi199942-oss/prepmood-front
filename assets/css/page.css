@@ -3469,6 +3469,7 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 400px;
 }
 
 .pm-envelope:focus .pm-envelope-body,
@@ -3476,29 +3477,54 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-/* 봉투 덮개 (Flap) */
+/* 닫힌 상태에서 보이는 봉투 외부 브랜딩 */
+.pm-envelope-exterior {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #eeeeee;
+  padding: 40px 28px;
+  text-align: center;
+  border-radius: 0 0 8px 8px;
+  z-index: 2;
+  transition: opacity 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  visibility: visible;
+}
+
+.pm-envelope:focus .pm-envelope-exterior,
+.pm-envelope:hover .pm-envelope-exterior,
+.pm-envelope.opened .pm-envelope-exterior {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* 봉투 덮개 (Flap) - 닫힌 상태가 기본 */
 .pm-envelope-flap {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 120px;
+  height: calc(100% - 140px);
   background: #ffffff;
   border-radius: 8px 8px 0 0;
   transform-origin: top center;
   transform: rotateX(0deg);
   transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 2;
+  z-index: 3;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
 }
 
 .pm-envelope:focus .pm-envelope-flap,
 .pm-envelope:hover .pm-envelope-flap,
 .pm-envelope.opened .pm-envelope-flap {
   transform: rotateX(-160deg);
+  pointer-events: none;
 }
 
-/* 편지 내용 (봉투 내부) */
+/* 편지 내용 (봉투 내부) - 기본 상태에서는 덮개 뒤에 숨어있음 */
 .pm-envelope-letter {
   position: relative;
   width: 100%;
@@ -3506,14 +3532,18 @@
   background: #ffffff;
   padding: 32px 28px;
   transform: translateY(0);
-  transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
+  opacity: 0;
+  visibility: hidden;
 }
 
 .pm-envelope:focus .pm-envelope-letter,
 .pm-envelope:hover .pm-envelope-letter,
 .pm-envelope.opened .pm-envelope-letter {
   transform: translateY(-40px);
+  opacity: 1;
+  visibility: visible;
 }
 
 /* 편지 상단 영역 (인보이스 정보) */
@@ -3583,6 +3613,25 @@
 }
 
 .pm-footer-tagline {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: #666666;
+  letter-spacing: 0.3px;
+  margin: 0;
+}
+
+/* 봉투 외부 브랜딩 스타일 (닫힌 상태) */
+.pm-envelope-exterior .pm-footer-brand {
+  font-family: 'Paperlogy', 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: 400;
+  color: #333333;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
+}
+
+.pm-envelope-exterior .pm-footer-tagline {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
