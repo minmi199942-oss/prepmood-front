@@ -76,7 +76,8 @@
         <div class="mypage-dropdown" id="mypage-dropdown">
           <a href="/my-orders.html" class="dropdown-item">내 주문</a>
           <a href="/my-reservations.html" class="dropdown-item">내 예약</a>
-          <a href="/my-warranties.html" class="dropdown-item">내 보증서</a>
+          <a href="/digital-invoice.html" class="dropdown-item">디지털 인보이스</a>
+          <a href="/digital-warranty.html" class="dropdown-item">디지털 보증서</a>
           <a href="/my-profile.html" class="dropdown-item">내 프로필</a>
           <a href="#" class="dropdown-item" id="logout-btn">로그아웃</a>
         </div>
