@@ -3433,13 +3433,22 @@
   margin-top: clamp(24px, 4vw, 32px);
 }
 
+/* CSS 변수 정의 */
+.invoice-card {
+  --env-h: 260px;
+  --letter-rise: 280px;
+  --overlap: 40px;
+  --open-h: calc(var(--env-h) + var(--letter-rise) + 20px);
+  --letter-hide: calc(var(--env-h) + 20px);
+}
+
 /* 인보이스 카드 - 상태 기반 레이아웃 */
 .invoice-card {
   position: relative;
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
-  height: 400px;
+  height: var(--env-h);
   transition: height 500ms ease-in-out;
   perspective: 1200px;
   overflow: visible;
@@ -3447,10 +3456,13 @@
 
 /* 봉투 컨테이너 */
 .envelope {
-  position: relative;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
-  height: 400px;
-  transition: height 500ms ease-in-out;
+  height: var(--env-h);
+  z-index: 2;
 }
 
 /* 봉투 본체 - 항상 카드 하단에 고정 */
@@ -3459,8 +3471,8 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 400px;
-  background: #f2f2f2;
+  height: var(--env-h);
+  background: #ECECEC;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   overflow: hidden;
@@ -3474,7 +3486,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 200px;
+  height: calc(var(--env-h) / 2);
   background: #ffffff;
   border-radius: 8px 8px 0 0;
   transform-origin: top center;
@@ -3484,6 +3496,34 @@
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
   pointer-events: none;
   backface-visibility: hidden;
+}
+
+/* 봉투 중앙 핀 (세로 원 2개) */
+.env-pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 120px;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.env-pin::before,
+.env-pin::after {
+  content: '';
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #F2F2F2;
+  border: 2px solid #E5E5E5;
+  position: relative;
+  box-shadow: inset 0 0 0 14px #ffffff, inset 0 0 0 15px #D9D9D9;
 }
 
 /* 봉투 브랜딩 (닫힌 상태에서 보임) - env-body 하단 */
@@ -3540,25 +3580,25 @@
   border-radius: 50%;
 }
 
-/* 편지 - 봉투 위로 올라옴 */
+/* 편지 - bottom 기준 앵커, 위로 올라옴 */
 .letter {
   position: absolute;
-  top: 0;
   left: 0;
   right: 0;
+  bottom: calc(var(--env-h) - var(--overlap));
   width: 100%;
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-  transform: translateY(400px);
-  transition: transform 500ms ease-in-out, opacity 400ms ease-in-out;
-  z-index: 1;
+  transform: translateY(var(--letter-hide));
+  transition: transform 520ms ease-in-out 60ms, opacity 400ms ease-in-out;
+  z-index: 3;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
 }
 
-/* 편지 상단 (노치 영역) */
+/* 편지 상단 (노치/핀 영역) */
 .letter-top {
   height: 140px;
   background: #ffffff;
@@ -3573,8 +3613,8 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #f2f2f2;
-  border: 2px solid #e5e5e5;
+  background: #F2F2F2;
+  border: 2px solid #E5E5E5;
   position: relative;
 }
 
@@ -3588,7 +3628,7 @@
   height: 28px;
   border-radius: 50%;
   background: #ffffff;
-  border: 1px solid #d5d5d5;
+  border: 1px solid #D9D9D9;
 }
 
 /* 편지 중간 (인보이스 정보) */
@@ -3597,14 +3637,14 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid #E5E5E5;
 }
 
-.letter-content-left {
+.letter-left {
   flex: 1;
 }
 
-.letter-content-left strong {
+.letter-left .tt {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   font-size: 24px;
   font-weight: 700;
@@ -3614,19 +3654,17 @@
   margin-bottom: 16px;
 }
 
-.invoice-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.letter-left .meta {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
   font-weight: 400;
   color: #000000;
   line-height: 1.6;
   letter-spacing: 0.2px;
+  margin-bottom: 8px;
 }
 
-.letter-content-right .brand {
+.letter-right {
   font-family: 'Paperlogy', 'Times New Roman', serif;
   font-size: 18px;
   font-weight: 400;
@@ -3636,19 +3674,33 @@
 
 /* 편지 하단 (브랜딩) */
 .letter-bottom {
-  background: #eeeeee;
+  background: #ECECEC;
   padding: 40px 28px;
   text-align: center;
   border-radius: 0 0 8px 8px;
 }
 
-/* 닫힌 상태 (is-closed) - 기본 */
-.invoice-card.is-closed {
-  height: 400px;
+.letter-bottom .brand-text {
+  font-family: 'Paperlogy', 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: 400;
+  color: #333333;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px 0;
 }
 
-.invoice-card.is-closed .envelope {
-  height: 400px;
+.letter-bottom .brand-tagline {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: #666666;
+  letter-spacing: 0.3px;
+  margin: 0;
+}
+
+/* 닫힌 상태 (is-closed) - 기본 */
+.invoice-card.is-closed {
+  height: var(--env-h);
 }
 
 .invoice-card.is-closed .env-flap {
@@ -3667,19 +3719,16 @@
 }
 
 .invoice-card.is-closed .letter {
-  transform: translateY(400px);
+  transform: translateY(var(--letter-hide));
   opacity: 0;
   visibility: hidden;
   z-index: 1;
+  pointer-events: none;
 }
 
 /* 열린 상태 (is-open) - 카드 높이 증가 */
 .invoice-card.is-open {
-  height: 750px; /* 봉투(400px) + 편지(350px) */
-}
-
-.invoice-card.is-open .envelope {
-  height: 400px;
+  height: var(--open-h);
 }
 
 .invoice-card.is-open .env-flap {
@@ -3698,7 +3747,7 @@
 }
 
 .invoice-card.is-open .letter {
-  transform: translateY(0);
+  transform: translateY(calc(-1 * var(--letter-rise)));
   opacity: 1;
   visibility: visible;
   z-index: 3;
@@ -3708,7 +3757,7 @@
 /* 데스크탑 hover (pointer: fine) - hover 해제 시 자동으로 닫힘 */
 @media (hover: hover) and (pointer: fine) {
   .invoice-card:hover {
-    height: 750px;
+    height: var(--open-h);
   }
   
   .invoice-card:hover .env-flap {
@@ -3721,7 +3770,7 @@
   }
   
   .invoice-card:hover .letter {
-    transform: translateY(0);
+    transform: translateY(calc(-1 * var(--letter-rise)));
     opacity: 1;
     visibility: visible;
     z-index: 3;

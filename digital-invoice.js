@@ -125,6 +125,7 @@ function renderInvoices() {
 function createInvoiceCard(invoice, index) {
   const article = document.createElement('article');
   article.className = 'invoice-card is-closed';
+  article.setAttribute('data-open', 'false');
   article.setAttribute('data-invoice-no', escapeHtml(invoice.invoiceNo));
   
   article.innerHTML = `
@@ -137,25 +138,19 @@ function createInvoiceCard(invoice, index) {
           <div class="brand-crest"></div>
         </div>
       </div>
+      <div class="env-pin"></div>
     </div>
     <div class="letter">
       <div class="letter-top"></div>
       <div class="letter-mid">
-        <div class="letter-content-left">
-          <strong>INVOICE</strong>
-          <div class="invoice-info">
-            <span>INVOICE NO. ${escapeHtml(invoice.invoiceNo)}</span>
-            <span>ISSUE DATE : ${escapeHtml(invoice.issueDate)}</span>
-          </div>
+        <div class="letter-left">
+          <div class="tt">INVOICE</div>
+          <div class="meta">INVOICE NO. <span class="inv-no">${escapeHtml(invoice.invoiceNo)}</span></div>
+          <div class="meta">ISSUE DATE : <span class="issue-date">${escapeHtml(invoice.issueDate)}</span></div>
         </div>
-        <div class="letter-content-right">
-          <div class="brand">Pre.pMood</div>
-        </div>
+        <div class="letter-right">Pre.pMood</div>
       </div>
-      <div class="letter-bottom">
-        <div class="brand-text">Pre.pMood</div>
-        <div class="brand-tagline">The Art of Modern Heritage</div>
-      </div>
+      <div class="letter-bottom"></div>
     </div>
   `;
   
@@ -170,27 +165,32 @@ function initMobileToggle() {
     const card = e.target.closest('.invoice-card');
     if (!card) {
       // 외부 클릭 시 모든 카드 닫기
-      document.querySelectorAll('.invoice-card.is-open').forEach(c => {
+      document.querySelectorAll('.invoice-card[data-open="true"]').forEach(c => {
         c.classList.remove('is-open');
         c.classList.add('is-closed');
+        c.setAttribute('data-open', 'false');
       });
       return;
     }
     
     // 카드 클릭 시 토글
-    if (card.classList.contains('is-closed')) {
+    const isOpen = card.getAttribute('data-open') === 'true';
+    if (!isOpen) {
       // 다른 열린 카드 닫기
-      document.querySelectorAll('.invoice-card.is-open').forEach(c => {
+      document.querySelectorAll('.invoice-card[data-open="true"]').forEach(c => {
         c.classList.remove('is-open');
         c.classList.add('is-closed');
+        c.setAttribute('data-open', 'false');
       });
       // 현재 카드 열기
       card.classList.remove('is-closed');
       card.classList.add('is-open');
+      card.setAttribute('data-open', 'true');
     } else {
       // 현재 카드 닫기
       card.classList.remove('is-open');
       card.classList.add('is-closed');
+      card.setAttribute('data-open', 'false');
     }
   });
 }
