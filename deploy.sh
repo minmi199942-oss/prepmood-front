@@ -70,6 +70,7 @@ LIVE_ROOT="/var/www/html"
 # Partial: header.partial, footer.partial 등 공통 템플릿 파일
 # 주의: --delete 제거 (robots.txt, favicon.ico, images/ 등 기존 파일 보호)
 rsync -av \
+  --include="*/" \
   --include="index.html" \
   --include="login.html" \
   --include="register.html" \
