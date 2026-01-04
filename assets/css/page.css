@@ -3439,25 +3439,27 @@
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
-  min-height: 400px;
+  height: 400px;
+  transition: height 500ms ease-in-out;
   perspective: 1200px;
+  overflow: visible;
 }
 
 /* 봉투 컨테이너 */
 .envelope {
   position: relative;
   width: 100%;
-  height: 100%;
-  min-height: 400px;
+  height: 400px;
+  transition: height 500ms ease-in-out;
 }
 
-/* 봉투 본체 */
+/* 봉투 본체 - 항상 카드 하단에 고정 */
 .env-body {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
-  bottom: 0;
+  height: 400px;
   background: #f2f2f2;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -3466,13 +3468,13 @@
   transition: box-shadow 400ms ease-in-out;
 }
 
-/* 봉투 덮개 (Flap) */
+/* 봉투 덮개 (Flap) - 상단 절반 */
 .env-flap {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 50%;
+  height: 200px;
   background: #ffffff;
   border-radius: 8px 8px 0 0;
   transform-origin: top center;
@@ -3484,7 +3486,7 @@
   backface-visibility: hidden;
 }
 
-/* 봉투 브랜딩 (닫힌 상태에서 보임) */
+/* 봉투 브랜딩 (닫힌 상태에서 보임) - env-body 하단 */
 .env-brand {
   position: absolute;
   bottom: 0;
@@ -3538,18 +3540,17 @@
   border-radius: 50%;
 }
 
-/* 편지 */
+/* 편지 - 봉투 위로 올라옴 */
 .letter {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   width: 100%;
-  min-height: 400px;
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-  transform: translateY(0);
+  transform: translateY(400px);
   transition: transform 500ms ease-in-out, opacity 400ms ease-in-out;
   z-index: 1;
   opacity: 0;
@@ -3642,6 +3643,14 @@
 }
 
 /* 닫힌 상태 (is-closed) - 기본 */
+.invoice-card.is-closed {
+  height: 400px;
+}
+
+.invoice-card.is-closed .envelope {
+  height: 400px;
+}
+
 .invoice-card.is-closed .env-flap {
   transform: rotateX(0deg);
   z-index: 4;
@@ -3658,13 +3667,21 @@
 }
 
 .invoice-card.is-closed .letter {
-  transform: translateY(0);
+  transform: translateY(400px);
   opacity: 0;
   visibility: hidden;
   z-index: 1;
 }
 
-/* 열린 상태 (is-open) */
+/* 열린 상태 (is-open) - 카드 높이 증가 */
+.invoice-card.is-open {
+  height: 750px; /* 봉투(400px) + 편지(350px) */
+}
+
+.invoice-card.is-open .envelope {
+  height: 400px;
+}
+
 .invoice-card.is-open .env-flap {
   transform: rotateX(-160deg);
   z-index: 4;
@@ -3681,15 +3698,19 @@
 }
 
 .invoice-card.is-open .letter {
-  transform: translateY(-40px);
+  transform: translateY(0);
   opacity: 1;
   visibility: visible;
   z-index: 3;
   pointer-events: auto;
 }
 
-/* 데스크탑 hover (pointer: fine) */
+/* 데스크탑 hover (pointer: fine) - hover 해제 시 자동으로 닫힘 */
 @media (hover: hover) and (pointer: fine) {
+  .invoice-card:hover {
+    height: 750px;
+  }
+  
   .invoice-card:hover .env-flap {
     transform: rotateX(-160deg);
   }
@@ -3700,7 +3721,7 @@
   }
   
   .invoice-card:hover .letter {
-    transform: translateY(-40px);
+    transform: translateY(0);
     opacity: 1;
     visibility: visible;
     z-index: 3;
