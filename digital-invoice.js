@@ -76,6 +76,18 @@ function formatIssueDate(date = new Date()) {
   return `${day} ${month} ${year}`;
 }
 
+// DATE 포맷 함수 (YYYY-MM-DD HH:MM:SS)
+function formatDateTime(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 // 인보이스 렌더링
 function renderInvoices() {
   const grid = document.getElementById('invoiceGrid');
@@ -90,11 +102,17 @@ function renderInvoices() {
   const invoices = [
     {
       invoiceNo: generateInvoiceNo(new Date()),
-      issueDate: formatIssueDate(new Date())
+      issueDate: formatIssueDate(new Date()),
+      productName: '제품명',
+      issueDateTime: formatDateTime(new Date()),
+      isVerified: true
     },
     {
       invoiceNo: generateInvoiceNo(new Date(Date.now() - 86400000)), // 어제
-      issueDate: formatIssueDate(new Date(Date.now() - 86400000))
+      issueDate: formatIssueDate(new Date(Date.now() - 86400000)),
+      productName: '제품명',
+      issueDateTime: formatDateTime(new Date(Date.now() - 86400000)),
+      isVerified: false
     }
   ];
 
@@ -102,7 +120,10 @@ function renderInvoices() {
   if (invoices.length === 0) {
     invoices.push({
       invoiceNo: generateInvoiceNo(),
-      issueDate: formatIssueDate()
+      issueDate: formatIssueDate(),
+      productName: '제품명',
+      issueDateTime: formatDateTime(),
+      isVerified: true
     });
   }
 
@@ -121,40 +142,130 @@ function renderInvoices() {
   }
 }
 
-// 인보이스 카드 생성
+// 인보이스 카드 생성 (편지 디자인)
 function createInvoiceCard(invoice, index) {
-  const article = document.createElement('article');
-  article.className = 'invoice-card is-closed';
-  article.setAttribute('data-open', 'false');
-  article.setAttribute('data-invoice-no', escapeHtml(invoice.invoiceNo));
+  const wrapper = document.createElement('div');
+  wrapper.className = 'invoice-letter-card';
   
-  article.innerHTML = `
-    <div class="envelope">
-      <div class="env-flap"></div>
-      <div class="env-body">
-        <div class="env-brand">
-          <div class="brand-text">Pre.pMood</div>
-          <div class="brand-tagline">The Art of Modern Heritage</div>
-          <div class="brand-crest"></div>
+  // 인보이스 데이터에서 정보 추출 (데모 데이터)
+  const productName = invoice.productName || '제품명';
+  const issueDateTime = invoice.issueDateTime || formatDateTime(new Date(invoice.issueDate || new Date()));
+  const isVerified = invoice.isVerified !== undefined ? invoice.isVerified : true;
+  
+  wrapper.innerHTML = `
+    <div class="invoice-letter-card-wrapper">
+      <!-- 하단 고정 - 회색 봉투 본체 -->
+      <div class="invoice-envelope-body">
+        <div class="invoice-envelope-brand">
+          <h3>Pre.pMood</h3>
+          <p>The Art of Modern Heritage</p>
+          <div class="invoice-envelope-crest">
+            <svg viewBox="0 0 100 100" fill="currentColor">
+              <circle cx="50" cy="30" r="15"/>
+              <path d="M30 60 L50 50 L70 60 M35 70 Q50 75 65 70"/>
+            </svg>
+          </div>
         </div>
       </div>
-      <div class="env-pin"></div>
+
+      <!-- 중간 - 인보이스 내용 영역 -->
+      <div class="invoice-letter-content">
+        <div class="invoice-letter-content-inner">
+          <div class="invoice-letter-content-grid">
+            <div class="invoice-letter-content-left">
+              <p class="invoice-title">INVOICE</p>
+              <p class="invoice-meta">
+                <span class="invoice-no-label">IN</span><span class="invoice-no-value">VOICE NO. </span><span class="invoice-no-value">${escapeHtml(invoice.invoiceNo)}</span>
+              </p>
+              <p class="invoice-meta">
+                <span class="issue-date-label">ISSU</span><span class="issue-date-value">E DATE : </span><span class="issue-date-value">${escapeHtml(invoice.issueDate)}</span>
+              </p>
+            </div>
+            <div class="invoice-letter-content-right">
+              <p class="brand-name">Pre.pMood</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 전체 흰색 레이어 - 상단 씰, 스트립, 하단 씰을 모두 감싸는 -->
+      <div class="invoice-seal-complete-white-wrapper">
+        <div class="invoice-seal-complete-white-layer"></div>
+      </div>
+
+      <!-- 하단 씰 - 고정 -->
+      <div class="invoice-seal-bottom">
+        <div class="invoice-seal-bottom-wrapper">
+          <div class="invoice-seal-bottom-white-band"></div>
+          <div class="invoice-seal-circle">
+            <div class="invoice-seal-circle-inner">
+              <div class="invoice-seal-circle-core"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 연결부 -->
+      <div class="invoice-connector-bottom">
+        <div class="invoice-connector-outer">
+          <div class="invoice-connector-outer-white"></div>
+          <div class="invoice-connector-inner"></div>
+        </div>
+      </div>
+
+      <!-- 상단 씰 + 상단 연결부 그룹 -->
+      <div class="invoice-seal-top-group">
+        <div class="invoice-seal-top-wrapper">
+          <div class="invoice-seal-top-white-band"></div>
+          <!-- 상단 씰 -->
+          <div class="invoice-seal-top">
+            <div class="invoice-seal-circle">
+              <div class="invoice-seal-circle-inner">
+                <div class="invoice-seal-circle-core"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 상단 연결부 -->
+          <div class="invoice-connector-top">
+            <div class="invoice-connector-outer">
+              <div class="invoice-connector-top-white"></div>
+              <div class="invoice-connector-top-inner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 상단 뚜껑 -->
+      <div class="invoice-envelope-flap"></div>
     </div>
-    <div class="letter">
-      <div class="letter-top"></div>
-      <div class="letter-mid">
-        <div class="letter-left">
-          <div class="tt">INVOICE</div>
-          <div class="meta">INVOICE NO. <span class="inv-no">${escapeHtml(invoice.invoiceNo)}</span></div>
-          <div class="meta">ISSUE DATE : <span class="issue-date">${escapeHtml(invoice.issueDate)}</span></div>
-        </div>
-        <div class="letter-right">Pre.pMood</div>
-      </div>
-      <div class="letter-bottom"></div>
+
+    <!-- 카드 밑 정보 영역 -->
+    <div class="invoice-card-info-footer">
+      <p class="product-info">
+        <span class="info-label">PRODUCT NAME:</span> 
+        <span class="info-value">${escapeHtml(productName)}</span>
+      </p>
+      <p class="product-info">
+        <span class="info-label">DATE:</span> 
+        <span class="info-value">${escapeHtml(issueDateTime)}</span>
+      </p>
+      <p class="status ${isVerified ? 'verified' : 'invalid'}">
+        <span class="status-label">STATUS:</span>
+        <svg class="invoice-check-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="#0c3008" stroke-width="2" fill="none"/>
+          <path d="M8 12l2 2 4-4" stroke="#0c3008" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <svg class="invoice-warning-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 22H22L12 2Z" fill="#310809"/>
+          <path d="M12 8V14M12 18H12.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span class="status-value">${isVerified ? 'VERIFIED' : 'INVALID'}</span>
+      </p>
     </div>
   `;
   
-  return article;
+  return wrapper;
 }
 
 // 모바일 클릭 토글 초기화
