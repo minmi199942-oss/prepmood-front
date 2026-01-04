@@ -71,25 +71,22 @@
                         <p class="page-english">Digital Invoice</p>
                     </div>
 
-                    <!-- 인보이스 목록 영역 -->
-                    <div class="warranties-section">
-                        <!-- 인보이스 목록이 있는 경우 -->
-                        <div id="invoices-list" class="invoices-list" style="display: none;">
-                            <!-- JavaScript로 동적 생성 -->
-                        </div>
+                    <!-- 인보이스 그리드 영역 -->
+                    <section class="invoice-grid" id="invoiceGrid">
+                        <!-- JavaScript로 동적 생성 -->
+                    </section>
 
-                        <!-- 인보이스 목록이 없는 경우 -->
-                        <div id="no-invoices" class="no-warranties">
-                            <div class="no-warranties-content">
-                                <h2 class="no-warranties-title">발급받은 인보이스가 없습니다.</h2>
-                                <p class="no-warranties-subtitle">구매 내역에서 인보이스를 확인하세요.</p>
-                            </div>
+                    <!-- 인보이스 목록이 없는 경우 -->
+                    <div id="no-invoices" class="no-warranties" style="display: none;">
+                        <div class="no-warranties-content">
+                            <h2 class="no-warranties-title">발급받은 인보이스가 없습니다.</h2>
+                            <p class="no-warranties-subtitle">구매 내역에서 인보이스를 확인하세요.</p>
                         </div>
+                    </div>
 
-                        <!-- 로딩 상태 -->
-                        <div id="loading-invoices" class="loading-warranties" style="display: none;">
-                            <p>인보이스 목록을 불러오는 중...</p>
-                        </div>
+                    <!-- 로딩 상태 -->
+                    <div id="loading-invoices" class="loading-warranties" style="display: none;">
+                        <p>인보이스 목록을 불러오는 중...</p>
                     </div>
                 </div>
             </section>

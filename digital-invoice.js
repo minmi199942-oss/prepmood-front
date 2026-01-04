@@ -4,12 +4,6 @@ const API_BASE = window.API_BASE ||
     ? window.location.origin.replace(/\/$/, '') + '/api'
     : '/api');
 
-// 페이지네이션 설정
-const DEFAULT_LIMIT = 20;
-let currentOffset = 0;
-let isLoading = false;
-let hasMore = true;
-
 // 모바일 감지 (pointer: coarse)
 const isMobile = window.matchMedia('(pointer: coarse)').matches;
 
@@ -26,11 +20,35 @@ document.addEventListener('DOMContentLoaded', async function() {
   // 사용자 환영 메시지 표시
   displayUserWelcome(userInfo);
 
-  // 편지(봉투) 카드 인터랙션 초기화
-  initEnvelopeInteractions();
-
-  // 데모 인보이스 렌더링 (나중에 서버 데이터로 교체)
-  renderDemoInvoices();
+  // 강제 테스트 코드 (기본 구조 확인용)
+  const grid = document.getElementById('invoiceGrid');
+  if (grid) {
+    // 테스트: 기본 구조 확인
+    grid.innerHTML = `
+      <div class="invoice-card">
+        <div class="envelope">
+          <div class="env-body"></div>
+          <div class="env-flap"></div>
+          <div class="letter">
+            <div class="letter-mid">
+              <div>
+                <strong>INVOICE</strong><br>
+                INVOICE NO. PM-INV-260103-2305<br>
+                ISSUE DATE : 12 Mar 2026
+              </div>
+              <div class="brand">Pre.pMood</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // 편지(봉투) 카드 인터랙션 초기화
+    initEnvelopeInteractions();
+    
+    // 나중에 실제 데이터로 교체
+    // renderInvoices();
+  }
 });
 
 // 로그인 상태 확인
@@ -60,16 +78,6 @@ function displayUserWelcome(user) {
   }
 }
 
-// HTML 이스케이프 (XSS 방지)
-function escapeHtml(text) {
-  if (text == null || text === undefined) {
-    return '';
-  }
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 // invoiceNo 생성 함수 (PM-INV-YYMMDD-HHMM)
 function generateInvoiceNo(date = new Date()) {
   const year = date.getFullYear().toString().slice(-2);
@@ -94,7 +102,7 @@ function formatIssueDate(date = new Date()) {
 
 // 편지(봉투) 카드 인터랙션 초기화
 function initEnvelopeInteractions() {
-  const envelopes = document.querySelectorAll('.pm-envelope');
+  const envelopes = document.querySelectorAll('.envelope');
   
   envelopes.forEach(envelope => {
     // 모바일: 클릭 토글
@@ -115,100 +123,12 @@ function initEnvelopeInteractions() {
   });
 }
 
-// 데모 인보이스 렌더링
-function renderDemoInvoices() {
-  const invoicesList = document.getElementById('invoices-list');
-  const noInvoices = document.getElementById('no-invoices');
-  
-  if (!invoicesList || !noInvoices) {
-    console.error('인보이스 목록 컨테이너를 찾을 수 없습니다.');
-    return;
+// HTML 이스케이프 (XSS 방지)
+function escapeHtml(text) {
+  if (text == null || text === undefined) {
+    return '';
   }
-
-  // 데모 데이터 (나중에 서버에서 가져올 데이터)
-  const demoInvoices = [
-    {
-      invoiceNo: generateInvoiceNo(new Date()),
-      issueDate: formatIssueDate(new Date())
-    },
-    {
-      invoiceNo: generateInvoiceNo(new Date(Date.now() - 86400000)), // 어제
-      issueDate: formatIssueDate(new Date(Date.now() - 86400000))
-    }
-  ];
-
-  if (demoInvoices.length === 0) {
-    invoicesList.style.display = 'none';
-    noInvoices.style.display = 'block';
-    return;
-  }
-
-  invoicesList.style.display = 'grid';
-  noInvoices.style.display = 'none';
-  invoicesList.innerHTML = '';
-
-  demoInvoices.forEach(invoice => {
-    const envelopeCard = createEnvelopeCard(invoice);
-    invoicesList.appendChild(envelopeCard);
-  });
-
-  // 인터랙션 재초기화
-  initEnvelopeInteractions();
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
-
-// 편지(봉투) 카드 생성
-function createEnvelopeCard(invoice) {
-  const envelope = document.createElement('div');
-  envelope.className = 'pm-envelope';
-  envelope.setAttribute('tabindex', '0');
-  envelope.setAttribute('role', 'button');
-  envelope.setAttribute('aria-label', `인보이스 ${invoice.invoiceNo} 열기`);
-  
-  envelope.innerHTML = `
-    <div class="pm-envelope-wrapper">
-      <div class="pm-envelope-body">
-        <!-- 닫힌 상태: 봉투 외부 (덮개) -->
-        <div class="pm-envelope-flap">
-          <!-- 상단 노치 디자인 -->
-          <div class="pm-envelope-notch">
-            <div class="pm-notch-circle pm-notch-top"></div>
-            <div class="pm-notch-bar"></div>
-            <div class="pm-notch-circle pm-notch-bottom"></div>
-          </div>
-        </div>
-        
-        <!-- 닫힌 상태에서 보이는 하단 브랜딩 -->
-        <div class="pm-envelope-exterior">
-          <div class="pm-footer-brand">Pre.pMood</div>
-          <p class="pm-footer-tagline">The Art of Modern Heritage</p>
-          <div class="pm-footer-emblem"></div>
-        </div>
-        
-        <!-- 열린 상태: 편지 내용 -->
-        <div class="pm-envelope-letter">
-          <div class="pm-letter-header">
-            <h2 class="pm-letter-title">INVOICE</h2>
-            <div class="pm-letter-brand">Pre.pMood</div>
-          </div>
-          <div class="pm-letter-content">
-            <p class="pm-invoice-info">
-              <span class="pm-invoice-info-label">INVOICE NO.</span>
-              <span id="invoice-no-${invoice.invoiceNo.replace(/[^a-zA-Z0-9]/g, '-')}" data-invoice-no="${escapeHtml(invoice.invoiceNo)}">${escapeHtml(invoice.invoiceNo)}</span>
-            </p>
-            <p class="pm-invoice-info">
-              <span class="pm-invoice-info-label">ISSUE DATE :</span>
-              <span id="issue-date-${invoice.invoiceNo.replace(/[^a-zA-Z0-9]/g, '-')}" data-issue-date="${escapeHtml(invoice.issueDate)}">${escapeHtml(invoice.issueDate)}</span>
-            </p>
-          </div>
-          <div class="pm-letter-footer">
-            <div class="pm-footer-brand">Pre.pMood</div>
-            <p class="pm-footer-tagline">The Art of Modern Heritage</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  return envelope;
-}
-
