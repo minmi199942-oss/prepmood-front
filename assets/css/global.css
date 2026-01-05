@@ -40,6 +40,13 @@
 /* ===== CSS Variables ===== */
 :root { 
   --header-height: 60px; /* 데스크톱 기본값 */
+  
+  /* Footer 위치 조정 변수 */
+  --footer-container-max-width: 3000px; /* Footer 컨테이너 최대 너비 */
+  --footer-align: flex-end; /* Footer 정렬: flex-start (좌측), center (중앙), flex-end (우측) */
+  --footer-info-max-width: 800px; /* Footer 정보 블록 최대 너비 */
+  --footer-padding-right: clamp(16px, 3vw, 24px); /* Footer 우측 패딩 */
+  --footer-padding-left: clamp(16px, 3vw, 24px); /* Footer 좌측 패딩 */
 }
 
 /* 태블릿 (768px 이하) */
@@ -665,18 +672,22 @@ nav ul li {
 }
 
 .footer-container {
-  max-width: 1400px;
+  max-width: var(--footer-container-max-width);
   margin: 0 auto;
-  padding: clamp(24px, 4vw, 40px) clamp(16px, 3vw, 24px) clamp(20px, 3vw, 32px);
+  padding: clamp(24px, 4vw, 40px) var(--footer-padding-left) clamp(20px, 3vw, 32px) var(--footer-padding-right);
+  display: flex;
+  flex-direction: column;
+  align-items: var(--footer-align);
 }
 
 /* 상단 바: 좌측(배송지 선택사항), 우측(개인정보 링크) */
 .footer-top-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: var(--footer-align);
   align-items: center;
   padding-bottom: clamp(12px, 2vw, 20px);
   margin-bottom: clamp(8px, 1.5vw, 16px);
+  width: 100%;
 }
 
 .footer-top-left {
@@ -692,16 +703,16 @@ nav ul li {
 .footer-links-group {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: var(--footer-align);
   gap: clamp(4px, 0.8vw, 6px);
 }
 
 .footer-top-link {
-  color: #333;
+  color: #111;
   text-decoration: none;
-  font-size: clamp(0.65rem, 1.1vw, 0.75rem);
-  font-weight: 300;
-  letter-spacing: 0.05px;
+  font-size: clamp(0.7rem, 1.2vw, 0.8rem);
+  font-weight: 400;
+  letter-spacing: 0.1px;
   line-height: 1.5;
   transition: color 0.2s ease;
 }
@@ -716,27 +727,42 @@ nav ul li {
 .footer-info-block {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-  max-width: 100%;
-  margin-left: auto;
+  align-items: var(--footer-align);
+  text-align: right; /* CSS 변수로 조정하려면 아래 주석 참고 */
+  max-width: var(--footer-info-max-width);
   gap: clamp(4px, 0.8vw, 6px);
+}
+
+/* Footer 정렬에 따른 text-align 자동 조정 */
+.footer-container[style*="--footer-align: flex-start"] .footer-info-block,
+.footer-container[style*="--footer-align: flex-start"] .footer-links-group {
+  text-align: left;
+}
+
+.footer-container[style*="--footer-align: center"] .footer-info-block,
+.footer-container[style*="--footer-align: center"] .footer-links-group {
+  text-align: center;
+}
+
+.footer-container[style*="--footer-align: flex-end"] .footer-info-block,
+.footer-container[style*="--footer-align: flex-end"] .footer-links-group {
+  text-align: right;
 }
 
 .footer-info-line {
   margin: 0;
-  color: #333;
-  font-size: clamp(0.65rem, 1.1vw, 0.75rem);
+  color: #111;
+  font-size: clamp(0.7rem, 1.2vw, 0.8rem);
   line-height: 1.5;
-  letter-spacing: 0.05px;
-  font-weight: 300;
+  letter-spacing: 0.1px;
+  font-weight: 400;
 }
 
 .footer-link {
-  color: #333;
+  color: #111;
   text-decoration: none;
   transition: color 0.2s ease;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .footer-link:hover {
@@ -746,9 +772,10 @@ nav ul li {
 }
 
 .business-info-link {
-  color: #333;
+  color: #111;
   text-decoration: none;
   transition: color 0.2s ease;
+  font-weight: 500;
 }
 
 .business-info-link:hover {

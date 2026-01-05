@@ -29,15 +29,22 @@ pm2 describe prepmood-backend 2>/dev/null | grep -E "script|cwd|exec" || echo "�
 echo ""
 
 # 1. Git 업데이트
-cd "$REPO_DIR"
+cd "$REPO_DIR" || { echo "❌ $REPO_DIR 디렉토리 접근 실패"; exit 1; }
 echo "📥 Git pull 중..."
-git pull origin main
+if ! git pull origin main; then
+  echo "❌ Git pull 실패 - 배포 중단"
+  exit 1
+fi
 
 # 2. 백업 생성 (tar 압축)
 echo "💾 백업 생성 중..."
 mkdir -p "$BACKUP_DIR"
-tar -C /var/www/html -czf "$BACKUP_DIR/backend_backup_$TIMESTAMP.tgz" backend/
-echo "✅ 백업 완료: $BACKUP_DIR/backend_backup_$TIMESTAMP.tgz"
+if tar -C /var/www/html -czf "$BACKUP_DIR/backend_backup_$TIMESTAMP.tgz" backend/ 2>/dev/null; then
+  echo "✅ 백업 완료: $BACKUP_DIR/backend_backup_$TIMESTAMP.tgz"
+else
+  echo "⚠️  백업 생성 실패 (계속 진행하지만 롤백 불가능)"
+  echo "💡 수동 백업 권장: tar -C /var/www/html -czf $BACKUP_DIR/manual_backup_$TIMESTAMP.tgz backend/"
+fi
 
 # 3. backend 동기화 (운영 전용 폴더/파일 제외)
 echo "📦 파일 동기화 중..."
@@ -55,10 +62,13 @@ EXCLUDE_ARGS=(
 )
 
 # 동적 추가: 특정 파일이 존재하면 추가 보호
-cd "$LIVE_BACKEND"
+cd "$LIVE_BACKEND" || { echo "❌ $LIVE_BACKEND 디렉토리 접근 실패"; exit 1; }
 [ -f "prep.db" ] && EXCLUDE_ARGS+=("--exclude=prep.db")
 
-rsync -av --delete "${EXCLUDE_ARGS[@]}" "$REPO_DIR/backend/" "$LIVE_BACKEND/"
+if ! rsync -av --delete "${EXCLUDE_ARGS[@]}" "$REPO_DIR/backend/" "$LIVE_BACKEND/"; then
+  echo "❌ backend 동기화 실패 - 배포 중단"
+  exit 1
+fi
 
 # 3-2. 루트 HTML/JS 파일 동기화 (허용 목록 기반 - 보안 강화)
 echo "📦 루트 HTML/JS 파일 동기화 중..."
@@ -121,7 +131,7 @@ rsync -av \
   --include="config.js" \
   --include="product-data.js" \
   --include="qrcode.min.js" \
-  --chmod=644 \
+  --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
   --exclude="*" \
   "$REPO_DIR/" "$LIVE_ROOT/"
 
@@ -130,7 +140,9 @@ echo "  ✅ 루트 파일 동기화 완료 (허용 목록 기반, 기존 파일 
 # 3-3. assets 디렉토리 동기화 (별도 처리)
 echo "📦 assets 디렉토리 동기화 중..."
 if [ -d "$REPO_DIR/assets" ]; then
-  rsync -av --chmod=644 "$REPO_DIR/assets/" "$LIVE_ROOT/assets/"
+  rsync -av \
+    --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+    "$REPO_DIR/assets/" "$LIVE_ROOT/assets/"
   echo "  ✅ assets 디렉토리 동기화 완료"
 else
   echo "  ⚠️  assets 디렉토리가 없습니다"
@@ -139,7 +151,9 @@ fi
 # 3-4. 관리자 페이지 디렉토리 동기화 (별도 처리)
 echo "📦 관리자 페이지 디렉토리 동기화 중..."
 if [ -d "$REPO_DIR/admin-qhf25za8" ]; then
-  rsync -av --chmod=644 "$REPO_DIR/admin-qhf25za8/" "$LIVE_ROOT/admin-qhf25za8/"
+  rsync -av \
+    --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+    "$REPO_DIR/admin-qhf25za8/" "$LIVE_ROOT/admin-qhf25za8/"
   echo "  ✅ admin-qhf25za8 디렉토리 동기화 완료"
 else
   echo "  ⚠️  admin-qhf25za8 디렉토리가 없습니다"
@@ -172,7 +186,16 @@ pm2 restart prepmood-backend
 PM2_RESTART_EXIT=$?
 set -e
 echo "📋 PM2_RESTART_EXIT=$PM2_RESTART_EXIT"
-echo "✅ AFTER_PM2_RESTART_REACHED"
+
+if [ $PM2_RESTART_EXIT -ne 0 ]; then
+  echo "❌ PM2 재시작 실패 - 배포 중단"
+  echo "💡 해결 방법:"
+  echo "   1. pm2 status 확인"
+  echo "   2. pm2 logs prepmood-backend 확인"
+  echo "   3. 수동으로 pm2 restart prepmood-backend 실행 후 재배포"
+  exit 1
+fi
+echo "✅ PM2 재시작 성공"
 
 # 6. 상태 확인
 sleep 2
@@ -252,17 +275,72 @@ else
 fi
 
 # --- permissions fix (prevent nginx 403) ---
-echo "🔧 디렉토리/파일 권한 보정 중 (Nginx 접근 보장)..."
-chmod 755 /var/www/html
-find /var/www/html -type d -exec chmod 755 {} \;
-find /var/www/html -type f -exec chmod 644 {} \;
-# 소유자 설정 (Nginx가 읽을 수 있도록)
+echo "🔧 디렉토리/파일 권한 보정 중 (Nginx 접근 보장 + 보안 강화)..."
+# 루트 디렉토리 권한 확인 및 수정
+if [ -d "/var/www/html" ]; then
+  chmod 755 /var/www/html
+  echo "  ✅ /var/www/html 디렉토리 권한 설정 (755)"
+else
+  echo "  ⚠️  /var/www/html 디렉토리가 없습니다"
+fi
+
+# 1. 먼저 민감한 파일 보호 (600: 소유자만 읽기/쓰기)
+echo "  🔒 민감한 파일 보호 중..."
+if [ -f "$LIVE_BACKEND/.env" ]; then
+  chmod 600 "$LIVE_BACKEND/.env" 2>/dev/null || true
+  echo "    ✅ .env 파일 보호 (600)"
+fi
+if [ -f "$LIVE_BACKEND/prep.db" ]; then
+  chmod 600 "$LIVE_BACKEND/prep.db" 2>/dev/null || true
+  echo "    ✅ prep.db 파일 보호 (600)"
+fi
+# 기타 민감한 파일 패턴 보호
+find "$LIVE_BACKEND" -type f \( -name "*.key" -o -name "*.pem" -o -name "*secret*" -o -name "*password*" \) -exec chmod 600 {} \; 2>/dev/null || true
+
+# 2. 모든 하위 디렉토리 권한 설정 (755: rwxr-xr-x)
+find /var/www/html -type d -exec chmod 755 {} \; 2>/dev/null || true
+echo "  ✅ 모든 디렉토리 권한 설정 완료 (755)"
+
+# 3. 모든 파일 권한 설정 (644: rw-r--r--)
+find /var/www/html -type f -exec chmod 644 {} \; 2>/dev/null || true
+echo "  ✅ 모든 파일 권한 설정 완료 (644)"
+
+# 4. 민감한 파일 다시 보호 (3번에서 덮어씌워졌을 수 있으므로)
+if [ -f "$LIVE_BACKEND/.env" ]; then
+  chmod 600 "$LIVE_BACKEND/.env" 2>/dev/null || true
+fi
+if [ -f "$LIVE_BACKEND/prep.db" ]; then
+  chmod 600 "$LIVE_BACKEND/prep.db" 2>/dev/null || true
+fi
+find "$LIVE_BACKEND" -type f \( -name "*.key" -o -name "*.pem" -o -name "*secret*" -o -name "*password*" \) -exec chmod 600 {} \; 2>/dev/null || true
+
+# 5. 소유자 설정 (Nginx가 읽을 수 있도록)
 if id "www-data" &>/dev/null; then
-  chown -R www-data:www-data /var/www/html
+  chown -R www-data:www-data /var/www/html 2>/dev/null || true
   echo "  ✅ 소유자 설정 완료 (www-data:www-data)"
 else
   echo "  ⚠️  www-data 사용자를 찾을 수 없습니다. 수동 확인 필요"
 fi
+
+# 6. 최종 확인
+if [ -d "/var/www/html" ]; then
+  HTML_PERMS=$(stat -c "%a" /var/www/html 2>/dev/null || echo "unknown")
+  echo "  📋 /var/www/html 최종 권한: $HTML_PERMS"
+  if [ "$HTML_PERMS" != "755" ]; then
+    echo "  ⚠️  경고: /var/www/html 권한이 755가 아닙니다. 수동 확인 필요"
+  fi
+fi
+
+# 7. 민감한 파일 최종 확인
+if [ -f "$LIVE_BACKEND/.env" ]; then
+  ENV_PERMS=$(stat -c "%a" "$LIVE_BACKEND/.env" 2>/dev/null || echo "unknown")
+  if [ "$ENV_PERMS" != "600" ]; then
+    echo "  ⚠️  경고: .env 파일 권한이 600이 아닙니다 ($ENV_PERMS). 수동 확인 필요"
+  else
+    echo "  ✅ .env 파일 보안 확인 완료 (600)"
+  fi
+fi
+
 echo "  ✅ 권한 보정 완료"
 # ------------------------------------------
 

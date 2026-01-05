@@ -13,8 +13,61 @@
     
     /* 회색 스트립(내부) 너비 조정 가능 */
     /* 이 값을 변경하면 내부 회색 스트립의 너비가 변경됩니다 */
-    /* 예: 32px, 36px, 40px 등 */
-    --connector-inner-width: 36px;
+    /* 예: 28px, 30px, 32px, 36px, 40px 등 */
+    --connector-inner-width: 39px;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 위치 조정 가능 */
+    /* 이 값을 변경하면 이미지의 위치가 변경됩니다 */
+    /* 예: flex-start (왼쪽), center (중앙), flex-end (오른쪽) */
+    --brand-logo-align: flex-end;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 크기 조정 가능 */
+    /* 이 값을 변경하면 이미지의 최대 너비가 변경됩니다 */
+    /* 예: 100px, 120px, 150px 등 */
+    --brand-logo-max-width: 160px;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 높이 조정 가능 */
+    /* 이 값을 변경하면 이미지의 최대 높이가 변경됩니다 */
+    /* 예: 50px, 60px, 80px 등 */
+    --brand-logo-max-height: 120px;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 실제 너비 조정 가능 */
+    /* max-width와 함께 사용하여 정확한 크기 조정 */
+    /* 예: 100px, 120px, 150px 등 (auto로 설정하면 max-width만 적용) */
+    --brand-logo-width: auto;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 실제 높이 조정 가능 */
+    /* max-height와 함께 사용하여 정확한 크기 조정 */
+    /* 예: 50px, 60px, 80px 등 (auto로 설정하면 max-height만 적용) */
+    --brand-logo-height: auto;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 상단 여백 조정 가능 */
+    /* 이미지를 위/아래로 이동 */
+    /* 예: 0px, 10px, -10px 등 */
+    --brand-logo-margin-top: 0px;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 우측 여백 조정 가능 */
+    /* 이미지를 좌/우로 이동 */
+    /* 예: 0px, 10px, -10px 등 */
+    --brand-logo-margin-right: 0px;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 하단 여백 조정 가능 */
+    /* 예: 0px, 10px, -10px 등 */
+    --brand-logo-margin-bottom: 32px;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 좌측 여백 조정 가능 */
+    /* 예: 0px, 10px, -10px 등 */
+    --brand-logo-margin-left: 120px;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 수평 이동 조정 가능 */
+    /* transform을 사용한 미세 조정 */
+    /* 예: 0px (기본), 10px (오른쪽), -10px (왼쪽) */
+    --brand-logo-translate-x: 0px;
+    
+    /* 카드 내부 브랜드 로고(prep3.png) 수직 이동 조정 가능 */
+    /* transform을 사용한 미세 조정 */
+    /* 예: 0px (기본), 10px (아래), -10px (위) */
+    --brand-logo-translate-y: 0px;
 }
 
 @font-face {
@@ -65,32 +118,25 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     padding: 0 28px;
 }
 
-.invoice-envelope-brand h3 {
-    font-size: 2rem;
-    color: #374151;
-    margin-bottom: 12px;
-    font-family: 'Georgia', serif;
+.invoice-envelope-logo {
+    max-width: 200px;
+    max-height: 120px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    margin-bottom: 16px;
 }
 
-.invoice-envelope-brand p {
-    font-size: 0.9rem;
-    color: #6b7280;
-}
-
-.invoice-envelope-crest {
-    margin-top: 42px;
-    width: 50px;
-    height: 50px;
-    opacity: 0.3;
-}
-
-.invoice-envelope-crest svg {
-    width: 100%;
-    height: 100%;
-    color: #4b5563;
+.invoice-envelope-logo-secondary {
+    max-width: 150px;
+    max-height: 80px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
 }
 
 /* 중간 - 인보이스 내용 영역 */
@@ -116,10 +162,13 @@
 }
 
 .invoice-letter-content-inner {
-    padding: 35px 56px;
+    padding: 50px 56px;
     transition: all 700ms;
     opacity: 0;
     transform: translateY(20px);
+    display: flex;
+    align-items: center;
+    height: 100%;
 }
 
 .invoice-letter-card:hover .invoice-letter-content-inner {
@@ -130,7 +179,7 @@
 .invoice-letter-content-grid {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
 }
 
 .invoice-letter-content-left {
@@ -183,12 +232,22 @@
 
 .invoice-letter-content-right {
     text-align: right;
+    display: flex;
+    justify-content: var(--brand-logo-align, flex-end);
+    align-items: center;
 }
 
-.invoice-letter-content-right .brand-name {
-    font-size: 1.65rem;
-    color: #1f2937;
-    font-family: 'Paperlogy', 'Georgia', serif;
+.invoice-content-brand-logo {
+    max-width: var(--brand-logo-max-width, 120px);
+    max-height: var(--brand-logo-max-height, 60px);
+    width: var(--brand-logo-width, auto);
+    height: var(--brand-logo-height, auto);
+    margin-top: var(--brand-logo-margin-top, 0px);
+    margin-right: var(--brand-logo-margin-right, 0px);
+    margin-bottom: var(--brand-logo-margin-bottom, 0px);
+    margin-left: var(--brand-logo-margin-left, 0px);
+    transform: translate(var(--brand-logo-translate-x, 0px), var(--brand-logo-translate-y, 0px));
+    object-fit: contain;
 }
 
 /* 하단 씰 - 고정 */
@@ -217,7 +276,7 @@
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: #C5C9CD; /* 외각 회색원 - 대부분의 원을 차지 */
+    background: rgba(204, 204, 204, 1); /* 외각 회색원 - 통일된 색상 */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -228,8 +287,8 @@
 }
 
 .invoice-seal-circle-inner {
-    width: 12px; /* 얇은 흰색 원 - 더 작게 */
-    height: 12px;
+    width: 14px; /* 중간 흰색 원 - 살짝 늘림 */
+    height: 14px;
     background: white; /* 얇은 흰색 원 */
     border-radius: 50%;
     display: flex;
@@ -243,7 +302,7 @@
     width: 8px; /* 매우 작은 내부 회색원 */
     height: 8px;
     border-radius: 50%;
-    background: #9EA3A8; /* 내부 회색 */
+    background: rgba(204, 204, 204, 1); /* 내부 회색 - 통일된 색상 */
 }
 
 
@@ -295,7 +354,7 @@
     position: absolute;
     width: var(--connector-inner-width, 36px); /* 내부 회색 - CSS 변수로 조절 가능 */
     height: 100%;
-    background: rgba(204, 204, 204, 1);
+    background: rgba(230, 230, 230, 1); /* 더 연한 회색 */
     border-radius: 0 0 18px 18px;
     left: 50%;
     transform: translateX(-50%);
@@ -368,7 +427,7 @@
     position: absolute;
     width: var(--connector-inner-width, 36px); /* 내부 회색 - CSS 변수로 조절 가능 */
     height: 100%;
-    background: rgba(204, 204, 204, 1);
+    background: rgba(230, 230, 230, 1); /* 더 연한 회색 */
     border-radius: 18px 18px 0 0;
     left: 50%;
     transform: translateX(-50%);
@@ -383,7 +442,7 @@
     bottom: 280px;
     height: 175px;
     background-color: #E6E6E6;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.6);
     border-bottom: 2px solid #E0E0E0;
     border: 1px solid rgba(255, 255, 255, 0.5);
     z-index: 20;

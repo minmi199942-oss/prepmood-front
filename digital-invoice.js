@@ -10,11 +10,11 @@ const isMobile = window.matchMedia('(pointer: coarse)').matches;
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('디지털 인보이스 목록 페이지 로드됨');
   
-  // 개발 모드: URL 파라미터에 ?dev=true가 있으면 로그인 체크 우회
-  const urlParams = new URLSearchParams(window.location.search);
-  const isDevMode = urlParams.get('dev') === 'true' || 
-                    window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1';
+  // 개발 모드: localhost/127.0.0.1에서만 로그인 체크 우회
+  // 운영 환경에서는 ?dev=true 파라미터를 무시 (보안)
+  const isLocalhost = window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1';
+  const isDevMode = isLocalhost; // localhost에서만 개발 모드 활성화
   
   let userInfo = null;
   
@@ -174,14 +174,8 @@ function createInvoiceCard(invoice, index) {
       <!-- 하단 고정 - 회색 봉투 본체 -->
       <div class="invoice-envelope-body">
         <div class="invoice-envelope-brand">
-          <h3>Pre.pMood</h3>
-          <p>The Art of Modern Heritage</p>
-          <div class="invoice-envelope-crest">
-            <svg viewBox="0 0 100 100" fill="currentColor">
-              <circle cx="50" cy="30" r="15"/>
-              <path d="M30 60 L50 50 L70 60 M35 70 Q50 75 65 70"/>
-            </svg>
-          </div>
+          <img src="image/prep2.png" alt="Pre.pMood" class="invoice-envelope-logo">
+          <img src="image/logo2.png" alt="Pre.pMood Logo" class="invoice-envelope-logo-secondary">
         </div>
       </div>
 
@@ -199,7 +193,7 @@ function createInvoiceCard(invoice, index) {
               </p>
             </div>
             <div class="invoice-letter-content-right">
-              <p class="brand-name">Pre.pMood</p>
+              <img src="image/prep3.png" alt="Pre.pMood" class="invoice-content-brand-logo">
             </div>
           </div>
         </div>
