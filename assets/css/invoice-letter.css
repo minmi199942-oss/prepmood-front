@@ -101,7 +101,7 @@
     --seal-bottom: 46.15%;          /* 240/520 */
     --flap-bottom: 53.85%;          /* 280/520 */
     --flap-h: 33.65%;               /* 175/520 */
-    --seal-top-bottom: 61.54%;      /* 320/520 */
+    --seal-top-bottom: 69.42%;      /* 361/520 - 원본 기준 */
     --connector-bottom-bottom: 49.04%; /* 255/520 */
     --connector-top-top: 4.81%;     /* 25/520 */
     
@@ -259,7 +259,7 @@
 }
 
 .invoice-letter-card.is-open .invoice-seal-top-group {
-    bottom: calc(var(--flap-bottom) + var(--flap-h));
+    bottom: calc(var(--flap-bottom) + var(--flap-h) + var(--content-open-h));
     opacity: 0;
 }
 
@@ -555,7 +555,7 @@
     }
     
     .invoice-letter-card:hover .invoice-seal-top-group {
-        bottom: calc(var(--flap-bottom) + var(--flap-h));
+        bottom: calc(var(--flap-bottom) + var(--flap-h) + var(--content-open-h));
         opacity: 0;
     }
     
