@@ -259,6 +259,35 @@ for file in "${REQUIRED_FILES[@]}"; do
   fi
 done
 
+# 필수 이미지 파일 확인
+REQUIRED_IMAGES=("prep2.png" "prep3.png" "logo2.png")
+for image in "${REQUIRED_IMAGES[@]}"; do
+  if [ -f "$LIVE_ROOT/image/$image" ]; then
+    IMAGE_SIZE=$(stat -c %s "$LIVE_ROOT/image/$image" 2>/dev/null || echo "0")
+    if [ "$IMAGE_SIZE" -gt 0 ]; then
+      echo "  ✅ image/$image 존재 및 크기 확인 (${IMAGE_SIZE} bytes)"
+    else
+      echo "  ❌ image/$image 크기가 0입니다"
+      VERIFICATION_FAILED=1
+    fi
+  else
+    echo "  ⚠️  image/$image 존재하지 않음 (경고만, 배포 계속)"
+  fi
+done
+
+# 필수 폰트 파일 확인
+if [ -f "$LIVE_ROOT/prep_server/static/fonts/Paperlogy-4Regular.ttf" ]; then
+  FONT_SIZE=$(stat -c %s "$LIVE_ROOT/prep_server/static/fonts/Paperlogy-4Regular.ttf" 2>/dev/null || echo "0")
+  if [ "$FONT_SIZE" -gt 0 ]; then
+    echo "  ✅ prep_server/static/fonts/Paperlogy-4Regular.ttf 존재 및 크기 확인 (${FONT_SIZE} bytes)"
+  else
+    echo "  ❌ 폰트 파일 크기가 0입니다"
+    VERIFICATION_FAILED=1
+  fi
+else
+  echo "  ⚠️  prep_server/static/fonts/Paperlogy-4Regular.ttf 존재하지 않음 (경고만, 배포 계속)"
+fi
+
 # 파일 타임스탬프 확인 (최근 5분 이내 수정된 파일인지)
 LOGIN_MTIME=$(stat -c %Y "$LIVE_ROOT/login.html" 2>/dev/null || echo "0")
 CURRENT_TIME=$(date +%s)
