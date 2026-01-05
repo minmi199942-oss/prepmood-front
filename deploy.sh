@@ -148,7 +148,31 @@ else
   echo "  ⚠️  assets 디렉토리가 없습니다"
 fi
 
-# 3-4. 관리자 페이지 디렉토리 동기화 (별도 처리)
+# 3-4. 이미지 디렉토리 동기화 (별도 처리)
+echo "📦 이미지 디렉토리 동기화 중..."
+if [ -d "$REPO_DIR/image" ]; then
+  rsync -av \
+    --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+    "$REPO_DIR/image/" "$LIVE_ROOT/image/"
+  echo "  ✅ image 디렉토리 동기화 완료"
+else
+  echo "  ⚠️  image 디렉토리가 없습니다"
+fi
+
+# 3-5. prep_server/static 디렉토리 동기화 (폰트 파일 등)
+echo "📦 prep_server/static 디렉토리 동기화 중..."
+if [ -d "$REPO_DIR/prep_server/static" ]; then
+  # prep_server 디렉토리가 없으면 생성
+  mkdir -p "$LIVE_ROOT/prep_server"
+  rsync -av \
+    --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+    "$REPO_DIR/prep_server/static/" "$LIVE_ROOT/prep_server/static/"
+  echo "  ✅ prep_server/static 디렉토리 동기화 완료"
+else
+  echo "  ⚠️  prep_server/static 디렉토리가 없습니다"
+fi
+
+# 3-6. 관리자 페이지 디렉토리 동기화 (별도 처리)
 echo "📦 관리자 페이지 디렉토리 동기화 중..."
 if [ -d "$REPO_DIR/admin-qhf25za8" ]; then
   rsync -av \
