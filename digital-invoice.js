@@ -284,10 +284,15 @@ function initMobileToggle() {
   if (!isMobile) return;
   
   document.addEventListener('click', function(e) {
-    const card = e.target.closest('.invoice-card');
+    // 내부 요소 클릭 무시 (링크, 버튼 등)
+    if (e.target.closest('a, button, input, textarea, select, [data-no-toggle]')) {
+      return;
+    }
+    
+    const card = e.target.closest('.invoice-letter-card');
     if (!card) {
       // 외부 클릭 시 모든 카드 닫기
-      document.querySelectorAll('.invoice-card[data-open="true"]').forEach(c => {
+      document.querySelectorAll('.invoice-letter-card[data-open="true"]').forEach(c => {
         c.classList.remove('is-open');
         c.classList.add('is-closed');
         c.setAttribute('data-open', 'false');
@@ -299,7 +304,7 @@ function initMobileToggle() {
     const isOpen = card.getAttribute('data-open') === 'true';
     if (!isOpen) {
       // 다른 열린 카드 닫기
-      document.querySelectorAll('.invoice-card[data-open="true"]').forEach(c => {
+      document.querySelectorAll('.invoice-letter-card[data-open="true"]').forEach(c => {
         c.classList.remove('is-open');
         c.classList.add('is-closed');
         c.setAttribute('data-open', 'false');

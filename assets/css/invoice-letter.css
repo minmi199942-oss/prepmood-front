@@ -89,11 +89,78 @@
     width: 100%;
     max-width: 580px;
     margin: 0 auto;
+    
+    /* 스케일 변수 (breakpoint 기반) */
+    --scale: 1;
+    
+    /* 비율 변수 (위치/크기) - 580×520 기준 */
+    --envelope-body-h: 53.85%;      /* 280/520 */
+    --content-bottom: 53.85%;       /* 280/520 */
+    --content-open-h: 30.77%;       /* 160/520 */
+    --brand-top: 13.46%;            /* 70/520 */
+    --seal-bottom: 46.15%;          /* 240/520 */
+    --flap-bottom: 53.85%;          /* 280/520 */
+    --flap-h: 33.65%;               /* 175/520 */
+    --seal-top-bottom: 61.54%;      /* 320/520 */
+    --connector-bottom-bottom: 49.04%; /* 255/520 */
+    --connector-top-top: 4.81%;     /* 25/520 */
+    
+    /* 스케일링 변수 (감성 요소) - 완전한 값 */
+    --shadow-main: calc(4px * var(--scale)) calc(4px * var(--scale)) calc(10px * var(--scale)) rgba(0, 0, 0, 0.6);
+    --shadow-seal: calc(0px * var(--scale)) calc(1px * var(--scale)) calc(3px * var(--scale)) rgba(0, 0, 0, 0.1);
+    --shadow-flap: calc(0px * var(--scale)) calc(-8px * var(--scale)) calc(20px * var(--scale)) rgba(0, 0, 0, 0.25);
+    --shadow-footer: calc(0px * var(--scale)) calc(2px * var(--scale)) calc(8px * var(--scale)) rgba(0, 0, 0, 0.1);
+    
+    --radius-main: calc(8px * var(--scale));
+    --radius-strip-bottom: calc(27px * var(--scale));
+    --radius-strip-top: calc(28px * var(--scale));
+    --radius-strip-inner: calc(18px * var(--scale));
+    --radius-footer: calc(8px * var(--scale));
+    
+    --border-width: 1px;
+    --border-bottom-width: 2px;
+    
+    --font-title: calc(10.891px * var(--scale));
+    --font-meta: calc(10.821px * var(--scale));
+    --font-footer: calc(10.066px * var(--scale));
+    
+    --letter-title: calc(1.0891px * var(--scale));
+    --letter-meta: calc(1.0821px * var(--scale));
+    --letter-footer: calc(1.0066px * var(--scale));
+    
+    --padding-content-y: calc(50px * var(--scale));
+    --padding-content-x: calc(56px * var(--scale));
+    --padding-brand-x: calc(28px * var(--scale));
+    --padding-footer-y: calc(20px * var(--scale));
+    --padding-footer-x: calc(28px * var(--scale));
+    
+    --margin-logo-bottom: calc(16px * var(--scale));
+    --margin-footer-top: calc(24px * var(--scale));
+    
+    --translate-content-y: calc(20px * var(--scale));
+    
+    /* 기존 변수들 (로고 관련) */
+    --brand-logo-align: flex-end;
+    --brand-logo-max-width: 160px;
+    --brand-logo-max-height: 120px;
+    --brand-logo-width: auto;
+    --brand-logo-height: auto;
+    --brand-logo-margin-top: 0px;
+    --brand-logo-margin-right: 0px;
+    --brand-logo-margin-bottom: 32px;
+    --brand-logo-margin-left: 120px;
+    --brand-logo-translate-x: 0px;
+    --brand-logo-translate-y: 0px;
+    
+    /* 스트립 관련 (기존 변수 유지) */
+    --connector-white-width: 54px;
+    --connector-inner-width: 39px;
 }
 
 .invoice-letter-card-wrapper {
     position: relative;
-    height: 520px;
+    aspect-ratio: 580 / 520;
+    width: 100%;
 }
 
 /* 하단 고정 - 회색 봉투 본체 */
@@ -102,24 +169,24 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 280px;
+    height: var(--envelope-body-h);
     background-color: #E6E6E6;
-    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: var(--shadow-main);
+    border: var(--border-width) solid rgba(255, 255, 255, 0.5);
     z-index: 10;
-    border-radius: 8px 8px 0 0;
+    border-radius: var(--radius-main) var(--radius-main) 0 0;
 }
 
 .invoice-envelope-brand {
     position: absolute;
-    top: 70px;
+    top: var(--brand-top);
     left: 0;
     right: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0 28px;
+    padding: 0 var(--padding-brand-x);
 }
 
 .invoice-envelope-logo {
@@ -145,35 +212,60 @@
     left: 0;
     right: 0;
     background: white;
-    transition: all 700ms ease-out;
-    bottom: 280px;
+    transition: opacity 700ms ease-out, pointer-events 0s 700ms, height 700ms ease-out;
+    bottom: var(--content-bottom);
     height: 0px;
     opacity: 0;
-    border-left: 1px solid rgba(224, 224, 224, 0.5);
-    border-right: 1px solid rgba(224, 224, 224, 0.5);
+    pointer-events: none;
+    border-left: var(--border-width) solid rgba(224, 224, 224, 0.5);
+    border-right: var(--border-width) solid rgba(224, 224, 224, 0.5);
     z-index: 15;
     overflow: hidden;
-    border-radius: 8px 8px 0 0;
-}
-
-.invoice-letter-card:hover .invoice-letter-content {
-    height: 160px;
-    opacity: 1;
+    border-radius: var(--radius-main) var(--radius-main) 0 0;
 }
 
 .invoice-letter-content-inner {
-    padding: 50px 56px;
-    transition: all 700ms;
+    padding: var(--padding-content-y) var(--padding-content-x);
+    transition: opacity 700ms, transform 700ms;
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(var(--translate-content-y));
     display: flex;
     align-items: center;
     height: 100%;
 }
 
-.invoice-letter-card:hover .invoice-letter-content-inner {
+/* 모바일: .is-open 클래스로 열림 제어 */
+.invoice-letter-card.is-open .invoice-letter-content {
+    height: var(--content-open-h);
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 700ms ease-out, pointer-events 0s, height 700ms ease-out;
+}
+
+.invoice-letter-card.is-open .invoice-letter-content-inner {
     opacity: 1;
     transform: translateY(0);
+}
+
+.invoice-letter-card.is-open .invoice-connector-bottom {
+    bottom: var(--seal-bottom);
+    opacity: 0;
+    height: 0px;
+}
+
+.invoice-letter-card.is-open .invoice-seal-bottom {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.invoice-letter-card.is-open .invoice-seal-top-group {
+    bottom: calc(var(--flap-bottom) + var(--flap-h));
+    opacity: 0;
+}
+
+.invoice-letter-card.is-open .invoice-envelope-flap {
+    bottom: calc(var(--flap-bottom) + var(--content-open-h));
+    box-shadow: var(--shadow-flap);
 }
 
 .invoice-letter-content-grid {
@@ -189,10 +281,10 @@
 .invoice-letter-content-left .invoice-title {
     font-family: 'Paperlogy', 'Georgia', serif;
     font-weight: 500; /* Paperlogy:5_Medium */
-    font-size: 10.891px;
+    font-size: var(--font-title);
     color: #000000;
-    margin-bottom: 16px;
-    letter-spacing: 1.0891px;
+    margin-bottom: var(--margin-logo-bottom);
+    letter-spacing: var(--letter-title);
     line-height: normal;
     white-space: nowrap;
 }
@@ -200,34 +292,34 @@
 .invoice-letter-content-left .invoice-meta {
     font-family: 'Paperlogy', 'Georgia', serif;
     font-weight: 500; /* Paperlogy:5_Medium */
-    font-size: 10.821px;
+    font-size: var(--font-meta);
     color: #000000;
-    margin-bottom: 8px;
-    letter-spacing: 1.0821px;
+    margin-bottom: calc(var(--margin-logo-bottom) * 0.5);
+    letter-spacing: var(--letter-meta);
     line-height: normal;
     white-space: nowrap;
 }
 
 /* INVOICE NO의 "IN" 부분만 다른 크기 */
 .invoice-letter-content-left .invoice-meta .invoice-no-label {
-    font-size: 10.891px;
-    letter-spacing: 1.0891px;
+    font-size: var(--font-title);
+    letter-spacing: var(--letter-title);
 }
 
 .invoice-letter-content-left .invoice-meta .invoice-no-value {
-    font-size: 10.821px;
-    letter-spacing: 1.0821px;
+    font-size: var(--font-meta);
+    letter-spacing: var(--letter-meta);
 }
 
 /* ISSUE DATE의 "ISSU" 부분만 다른 크기 */
 .invoice-letter-content-left .invoice-meta .issue-date-label {
-    font-size: 10.891px;
-    letter-spacing: 1.0891px;
+    font-size: var(--font-title);
+    letter-spacing: var(--letter-title);
 }
 
 .invoice-letter-content-left .invoice-meta .issue-date-value {
-    font-size: 10.821px;
-    letter-spacing: 1.0821px;
+    font-size: var(--font-meta);
+    letter-spacing: var(--letter-meta);
 }
 
 .invoice-letter-content-right {
@@ -255,7 +347,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 240px;
+    bottom: var(--seal-bottom);
     z-index: 35;
     opacity: 1;
     transition: opacity 400ms ease-in-out, visibility 400ms ease-in-out;
@@ -273,8 +365,8 @@
 }
 
 .invoice-seal-circle {
-    width: 50px;
-    height: 50px;
+    width: calc(50px * var(--scale));
+    height: calc(50px * var(--scale));
     border-radius: 50%;
     background: rgba(204, 204, 204, 1); /* 외각 회색원 - 통일된 색상 */
     display: flex;
@@ -283,24 +375,24 @@
     position: relative;
     z-index: 3;
     margin: 0 auto;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-seal);
 }
 
 .invoice-seal-circle-inner {
-    width: 14px; /* 중간 흰색 원 - 살짝 늘림 */
-    height: 14px;
+    width: calc(14px * var(--scale)); /* 중간 흰색 원 - 살짝 늘림 */
+    height: calc(14px * var(--scale));
     background: white; /* 얇은 흰색 원 */
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.9);
+    border: var(--border-width) solid rgba(255, 255, 255, 0.9);
 }
 
 .invoice-seal-circle-core {
-    width: 8px; /* 매우 작은 내부 회색원 */
-    height: 8px;
+    width: calc(8px * var(--scale)); /* 매우 작은 내부 회색원 */
+    height: calc(8px * var(--scale));
     border-radius: 50%;
     background: rgba(204, 204, 204, 1); /* 내부 회색 - 통일된 색상 */
 }
@@ -311,24 +403,14 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 255px;
-    height: 72px;
+    bottom: var(--connector-bottom-bottom);
+    height: calc(72px * var(--scale));
     z-index: 20;
     transition: all 700ms ease-out;
     opacity: 1;
 }
 
-.invoice-letter-card:hover .invoice-connector-bottom {
-    bottom: 240px;
-    opacity: 0;
-    height: 0px;
-}
-
-/* 카드가 열릴 때 하단 씰도 페이드아웃으로 자연스럽게 사라짐 */
-.invoice-letter-card:hover .invoice-seal-bottom {
-    opacity: 0;
-    visibility: hidden;
-}
+/* hover 규칙은 PC 전용 미디어 쿼리로 이동 */
 
 .invoice-connector-outer {
     width: 54px; /* 씰(50px)보다 약간 넓게 - 씰을 감싸는 느낌 */
@@ -366,7 +448,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 320px;
+    bottom: var(--seal-top-bottom);
     opacity: 1;
     z-index: 30;
     transition: all 700ms ease-out;
@@ -383,24 +465,21 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    top: -3px; /* 상단 스트립(top: 25px)의 상단과 정확히 연결되도록 위치 고정 (25px - 28px = -3px) */
+    top: calc(var(--connector-top-top) - calc(28px * var(--scale))); /* 상단 스트립과 정확히 연결 */
     width: var(--connector-white-width, 54px); /* 상단 스트립과 동일한 너비 */
-    height: 28px; /* 높이 */
+    height: calc(28px * var(--scale)); /* 높이 */
     background: #FFFFFF; /* 상단 스트립과 동일한 배경색 */
     border: none; /* border 제거하여 자연스러운 연결 */
-    border-radius: 28px 28px 0 0; /* 상단만 둥근 형태 */
+    border-radius: var(--radius-strip-top) var(--radius-strip-top) 0 0; /* 상단만 둥근 형태 */
     z-index: 2; /* 상단 스트립보다 위에 표시 */
     box-sizing: border-box;
 }
 
-.invoice-letter-card:hover .invoice-seal-top-group {
-    bottom: 570px;
-    opacity: 0;
-}
+/* hover 규칙은 PC 전용 미디어 쿼리로 이동 */
 
 .invoice-seal-top {
     position: relative;
-    width: 50px;
+    width: calc(50px * var(--scale));
     z-index: 2;
     margin: 0 auto;
 }
@@ -409,8 +488,8 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    top: 25px;
-    height: 72px;
+    top: var(--connector-top-top);
+    height: calc(72px * var(--scale));
     z-index: 1;
 }
 
@@ -428,7 +507,7 @@
     width: var(--connector-inner-width, 36px); /* 내부 회색 - CSS 변수로 조절 가능 */
     height: 100%;
     background: rgba(230, 230, 230, 1); /* 더 연한 회색 */
-    border-radius: 18px 18px 0 0;
+    border-radius: var(--radius-strip-inner) var(--radius-strip-inner) 0 0;
     left: 50%;
     transform: translateX(-50%);
     z-index: 2;
@@ -439,20 +518,51 @@
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 280px;
-    height: 175px;
+    bottom: var(--flap-bottom);
+    height: var(--flap-h);
     background-color: #E6E6E6;
-    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.6);
-    border-bottom: 2px solid #E0E0E0;
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: var(--shadow-main);
+    border-bottom: var(--border-bottom-width) solid #E0E0E0;
+    border: var(--border-width) solid rgba(255, 255, 255, 0.5);
     z-index: 20;
     transition: all 700ms ease-out;
-    border-radius: 8px 8px 0 0;
+    border-radius: var(--radius-main) var(--radius-main) 0 0;
 }
 
-.invoice-letter-card:hover .invoice-envelope-flap {
-    bottom: 440px;
-    box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.25);
+/* PC 전용: hover로 열림 (데스크탑) */
+@media (hover: hover) and (pointer: fine) {
+    .invoice-letter-card:hover .invoice-letter-content {
+        height: var(--content-open-h);
+        opacity: 1;
+        pointer-events: auto;
+        transition: opacity 700ms ease-out, pointer-events 0s, height 700ms ease-out;
+    }
+    
+    .invoice-letter-card:hover .invoice-letter-content-inner {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    .invoice-letter-card:hover .invoice-connector-bottom {
+        bottom: var(--seal-bottom);
+        opacity: 0;
+        height: 0px;
+    }
+    
+    .invoice-letter-card:hover .invoice-seal-bottom {
+        opacity: 0;
+        visibility: hidden;
+    }
+    
+    .invoice-letter-card:hover .invoice-seal-top-group {
+        bottom: calc(var(--flap-bottom) + var(--flap-h));
+        opacity: 0;
+    }
+    
+    .invoice-letter-card:hover .invoice-envelope-flap {
+        bottom: calc(var(--flap-bottom) + var(--content-open-h));
+        box-shadow: var(--shadow-flap);
+    }
 }
 
 /* 카드 밑 정보 영역 */
@@ -586,77 +696,17 @@ div.invoice-card-info-footer > p.status > span.status-label {
     .invoice-letter-card {
         max-width: calc(100% - 32px);
         margin: 0 16px;
+        --scale: 0.55;
+        --border-width: 1px;
+        --border-bottom-width: 2px;
     }
     
-    .invoice-letter-card-wrapper {
-        height: auto;
-        min-height: 400px;
-        aspect-ratio: 580 / 520; /* 원본 비율 유지 */
-    }
-    
-    /* 봉투 본체 높이 조정 */
-    .invoice-envelope-body {
-        height: 200px;
-    }
-    
-    /* 브랜드 로고 영역 조정 */
-    .invoice-envelope-brand {
-        top: 50px;
-        padding: 0 20px;
-    }
-    
-    .invoice-envelope-logo {
-        max-width: 140px;
-        max-height: 80px;
-        margin-bottom: 12px;
-    }
-    
-    .invoice-envelope-logo-secondary {
-        max-width: 100px;
-        max-height: 60px;
-    }
-    
-    /* 인보이스 내용 영역 조정 */
-    .invoice-letter-content {
-        bottom: 200px;
-    }
-    
-    .invoice-letter-card:hover .invoice-letter-content {
-        height: 120px;
-    }
-    
-    .invoice-letter-content-inner {
-        padding: 30px 24px;
-    }
+    /* wrapper 구조는 데스크탑과 동일 (aspect-ratio만 사용) */
     
     .invoice-letter-content-grid {
         flex-direction: column;
-        gap: 12px;
+        gap: calc(12px * var(--scale));
         align-items: flex-start;
-    }
-    
-    .invoice-letter-content-left .invoice-title {
-        font-size: 9px;
-        letter-spacing: 0.9px;
-        margin-bottom: 12px;
-    }
-    
-    .invoice-letter-content-left .invoice-meta {
-        font-size: 8.5px;
-        letter-spacing: 0.85px;
-        margin-bottom: 6px;
-    }
-    
-    .invoice-letter-content-left .invoice-meta .invoice-no-label,
-    .invoice-letter-content-left .invoice-meta .issue-date-label {
-        font-size: 9px;
-        letter-spacing: 0.9px;
-    }
-    
-    .invoice-letter-content-left .invoice-meta .invoice-no-value,
-    .invoice-letter-content-left .invoice-meta .issue-date-value {
-        font-size: 8.5px;
-        letter-spacing: 0.85px;
     }
     
     .invoice-letter-content-right {
@@ -666,78 +716,10 @@ div.invoice-card-info-footer > p.status > span.status-label {
     }
     
     .invoice-content-brand-logo {
-        max-width: 100px;
-        max-height: 70px;
+        max-width: calc(100px * var(--scale));
+        max-height: calc(70px * var(--scale));
         margin-left: 0;
         margin-bottom: 0;
-    }
-    
-    /* 씰 위치 조정 */
-    .invoice-seal-bottom {
-        bottom: 170px;
-    }
-    
-    .invoice-seal-bottom-wrapper {
-        width: 45px;
-    }
-    
-    .invoice-seal-circle {
-        width: 38px;
-        height: 38px;
-    }
-    
-    .invoice-seal-circle-core {
-        width: 32px;
-        height: 32px;
-    }
-    
-    .invoice-seal-circle-inner {
-        width: 10px;
-        height: 10px;
-    }
-    
-    /* 상단 씰 조정 */
-    .invoice-seal-top {
-        top: 20px;
-    }
-    
-    .invoice-seal-top-wrapper {
-        width: 45px;
-    }
-    
-    /* 스트립 너비 조정 */
-    .invoice-connector-inner {
-        width: 28px;
-    }
-    
-    .invoice-connector-top-inner {
-        width: 28px;
-    }
-    
-    /* 정보 푸터 조정 */
-    .invoice-card-info-footer {
-        padding: 16px 20px;
-        margin-top: 16px;
-    }
-    
-    .invoice-card-info-footer .info-row {
-        font-size: 11px;
-        margin-bottom: 8px;
-    }
-    
-    .invoice-card-info-footer .info-label {
-        min-width: 80px;
-        font-size: 11px;
-    }
-    
-    .invoice-card-info-footer .status-value {
-        font-size: 11px;
-    }
-    
-    .invoice-check-icon,
-    .invoice-warning-icon {
-        width: 12px;
-        height: 12px;
     }
 }
 
@@ -748,9 +730,7 @@ div.invoice-card-info-footer > p.status > span.status-label {
         margin: 0 12px;
     }
     
-    .invoice-letter-card-wrapper {
-        min-height: 350px;
-    }
+    /* wrapper 구조는 데스크탑과 동일 */
     
     .invoice-envelope-body {
         height: 180px;
