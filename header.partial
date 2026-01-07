@@ -87,9 +87,6 @@
       <a href="/wishlist.html" class="action-link">
         <img src="/image/wishlist.jpg" alt="위시리스트" class="action-icon" />
       </a>
-      <a href="/contact.html" class="action-link" title="문의하기">
-        <span style="font-size: clamp(0.8rem, 2vw, 0.9rem); font-weight: 400; color: #111;">문의하기</span>
-      </a>
       <a href="#" class="action-link cart-link" id="cart-toggle">
         <img src="/image/장바구니.jpg" alt="장바구니" class="action-icon" />
         <span class="cart-badge" id="cart-badge" style="display: none;">0</span>
