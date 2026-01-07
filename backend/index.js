@@ -496,7 +496,7 @@ app.post('/api/login', [
         // 사용자 정보 조회
         console.log('🔍 사용자 정보 조회 중...');
         const [users] = await connection.execute(
-            'SELECT user_id, email, password_hash, last_name, first_name, phone, birth, verified FROM users WHERE email = ?',
+            'SELECT user_id, membership_id, email, password_hash, name, phone, verified FROM users WHERE email = ?',
             [email]
         );
         console.log('📧 조회된 사용자 수:', users.length);
@@ -541,7 +541,7 @@ app.post('/api/login', [
         const token = generateToken({
             id: user.user_id,
             email: user.email,
-            name: `${user.last_name} ${user.first_name}`.trim()
+            name: user.name || ''
         });
 
         // httpOnly 쿠키로 토큰 설정
@@ -562,10 +562,10 @@ app.post('/api/login', [
             redirectTo: redirectTo,  // 프론트에서 사용
             user: {
                 id: user.user_id,
+                membership_id: user.membership_id || null,
                 email: user.email,
-                name: `${user.last_name} ${user.first_name}`.trim(),
-                phone: user.phone || null,
-                birthdate: user.birth || null
+                name: user.name || '',
+                phone: user.phone || null
             }
             // ✅ token은 httpOnly 쿠키로 전송되므로 응답 본문에 포함하지 않음
         });
@@ -1161,7 +1161,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         // 사용자 상세 정보 조회
         const connection = await mysql.createConnection(dbConfig);
         const [users] = await connection.execute(
-            'SELECT user_id, email, last_name, first_name, phone, birth FROM users WHERE user_id = ?',
+            'SELECT user_id, membership_id, email, name, phone FROM users WHERE user_id = ?',
             [req.user.userId]
         );
         connection.end();
@@ -1178,12 +1178,10 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
             success: true,
             user: {
                 userId: user.user_id,
+                membership_id: user.membership_id || null,
                 email: user.email,
-                name: `${user.last_name} ${user.first_name}`.trim(), // 기존 유지 (하위호환)
-                last_name: user.last_name,  // ✅ 추가
-                first_name: user.first_name, // ✅ 추가
-                phone: user.phone || null,
-                birthdate: user.birth || null
+                name: user.name || '',
+                phone: user.phone || null
             }
         });
     } catch (error) {
