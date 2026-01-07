@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>결제 방법 | Pre.p Mood</title>
   <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/layout-system.css">
+  <link rel="stylesheet" href="assets/css/header.css">
   <link rel="stylesheet" href="assets/css/page.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
   <link rel="stylesheet" href="assets/css/checkout.css">
@@ -12,6 +14,8 @@
   <script src="config.js"></script>
   <!-- 토스페이먼츠 위젯 스크립트 -->
   <script src="https://js.tosspayments.com/v1/payment"></script>
+  <!-- 이니시스 결제 스크립트 -->
+  <script src="https://stdpay.inicis.com/stdjs/INIStdPay.js"></script>
   <script defer src="utils.js"></script>
   <script defer src="catalog-data.js"></script>
   <script defer src="mini-cart.js"></script>
@@ -54,6 +58,19 @@
                 </span>
                 <span class="payment-logo">
                   <img src="image/Toss_Logo_Primary.png" alt="토스페이먼츠" width="36" height="36">
+                </span>
+              </span>
+            </label>
+            <label class="payment-option-card" tabindex="0" title="이니시스 결제는 심사용으로 준비 중입니다">
+              <input type="radio" name="payment" value="inicis" aria-checked="false">
+              <span class="payment-card-content">
+                <span class="payment-radio" aria-hidden="true"></span>
+                <span class="payment-name">
+                  <strong>KG이니시스</strong>
+                  <span>신용카드 · 계좌이체 · 가상계좌 <span style="color: #999; font-size: 11px;">(준비 중)</span></span>
+                </span>
+                <span class="payment-logo">
+                  <span style="font-size: 14px; color: #333; font-weight: 600;">KG이니시스</span>
                 </span>
               </span>
             </label>

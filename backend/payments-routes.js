@@ -386,6 +386,393 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
 });
 
 /**
+ * POST /api/payments/inicis/request
+ * 
+ * 이니시스 결제창 요청 (결제 정보 생성)
+ * 
+ * 요청 바디:
+ * {
+ *   "orderNumber": "ORD-2025-...",
+ *   "amount": 129000,
+ *   "orderName": "상품명",
+ *   "buyerName": "홍길동",
+ *   "buyerEmail": "buyer@example.com",
+ *   "buyerTel": "010-1234-5678"
+ * }
+ * 
+ * 응답:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "formData": { ... }  // INIStdPay.pay()에 전달할 폼 데이터
+ *   }
+ * }
+ */
+router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (req, res) => {
+    let connection;
+    try {
+        const { orderNumber, amount, orderName, buyerName, buyerEmail, buyerTel } = req.body;
+        const userId = req.user?.userId;
+
+        // 입력 검증
+        if (!orderNumber || !amount || !orderName || !buyerName) {
+            return res.status(400).json({
+                code: 'VALIDATION_ERROR',
+                details: {
+                    message: '필수 정보가 누락되었습니다.'
+                }
+            });
+        }
+
+        connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+
+        // 주문 확인
+        const [orders] = await connection.execute(
+            `SELECT order_id, order_number, user_id, total_price, status
+             FROM orders 
+             WHERE order_number = ? AND user_id = ? 
+             LIMIT 1`,
+            [orderNumber, userId]
+        );
+
+        if (orders.length === 0) {
+            await connection.rollback();
+            await connection.end();
+            return res.status(404).json({
+                code: 'ORDER_NOT_FOUND',
+                details: {
+                    message: '주문을 찾을 수 없습니다.'
+                }
+            });
+        }
+
+        const order = orders[0];
+
+        // 금액 검증
+        const serverAmount = parseFloat(order.total_price);
+        const clientAmount = parseFloat(amount);
+        
+        if (Math.abs(serverAmount - clientAmount) > 0.01) {
+            await connection.rollback();
+            await connection.end();
+            return res.status(400).json({
+                code: 'VALIDATION_ERROR',
+                details: {
+                    message: '주문 금액과 결제 금액이 일치하지 않습니다.'
+                }
+            });
+        }
+
+        // 이니시스 설정
+        const inicisMid = process.env.INICIS_MID;
+        const inicisSignKey = process.env.INICIS_SIGN_KEY;
+        const inicisReturnUrl = process.env.INICIS_RETURN_URL || `${req.protocol}://${req.get('host')}/api/payments/inicis/return`;
+
+        if (!inicisMid || !inicisSignKey) {
+            await connection.rollback();
+            await connection.end();
+            Logger.log('[payments][inicis] 이니시스 설정 미완료', {
+                hasMid: !!inicisMid,
+                hasSignKey: !!inicisSignKey
+            });
+            return res.status(503).json({
+                code: 'SERVICE_UNAVAILABLE',
+                details: {
+                    message: '이니시스 결제 서비스가 아직 설정되지 않았습니다. 관리자에게 문의해주세요.',
+                    reason: 'INICIS_MID 또는 INICIS_SIGN_KEY가 설정되지 않았습니다.'
+                }
+            });
+        }
+
+        // 타임스탬프 생성
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        
+        // 이니시스 결제 요청 데이터 생성 (표준결제창 필수 파라미터만)
+        const formData = {
+            version: '1.0',
+            mid: inicisMid,
+            goodname: orderName,
+            oid: orderNumber,
+            price: amount.toString(),
+            currency: 'WON',
+            buyername: buyerName,
+            buyertel: buyerTel || '',
+            buyeremail: buyerEmail || '',
+            timestamp: timestamp,
+            returnUrl: inicisReturnUrl,
+            closeUrl: `${req.protocol}://${req.get('host')}/checkout-payment.html?status=fail`,
+            gopaymethod: 'Card',  // 신용카드 필수
+            acceptmethod: 'HPP(1):no_receipt:va_receipt:below1000',  // 신용카드 + 가상계좌 + 계좌이체
+            language: 'ko',
+            charset: 'UTF-8',
+            payViewType: 'overlay'  // 오버레이 방식
+        };
+
+        // 서명 생성 (이니시스 표준 방식: version + mid + goodname + oid + price + timestamp + signKey)
+        const signString = [
+            formData.version,
+            formData.mid,
+            formData.goodname,
+            formData.oid,
+            formData.price,
+            formData.timestamp
+        ].join('');
+        
+        const signHash = crypto.createHash('sha256').update(signString + inicisSignKey).digest('hex');
+        formData.signature = signHash;
+
+        await connection.commit();
+        await connection.end();
+
+        Logger.log('[payments][inicis] 결제 요청 생성', {
+            orderNumber,
+            amount
+        });
+
+        res.json({
+            success: true,
+            data: {
+                formData: formData
+            }
+        });
+
+    } catch (error) {
+        if (connection) {
+            await connection.rollback();
+            await connection.end();
+        }
+        Logger.log('[payments][inicis] 결제 요청 오류', {
+            error: error.message,
+            stack: error.stack
+        });
+        return res.status(500).json({
+            code: 'INTERNAL_ERROR',
+            details: {
+                message: '결제 요청 처리 중 오류가 발생했습니다.'
+            }
+        });
+    }
+});
+
+/**
+ * POST /api/payments/inicis/return
+ * 
+ * 이니시스 결제 완료 후 리턴 URL
+ * 결제 결과를 받아서 승인 처리
+ */
+router.post('/payments/inicis/return', async (req, res) => {
+    let connection;
+    try {
+        const resultCode = req.body.resultCode;
+        const resultMsg = req.body.resultMsg;
+        const tid = req.body.TID;
+        const orderNumber = req.body.oid;
+        const amount = req.body.amount;
+        const payMethod = req.body.payMethod;
+        const applTime = req.body.applTime;
+        const applNum = req.body.applNum;
+        const cardCode = req.body.cardCode;
+        const cardName = req.body.cardName;
+        const cardQuota = req.body.cardQuota;
+        const cardNum = req.body.cardNum;
+        const vactNum = req.body.vactNum;
+        const vactBankCode = req.body.vactBankCode;
+        const vactBankName = req.body.vactBankName;
+        const vactInputName = req.body.vactInputName;
+        const vactDate = req.body.vactDate;
+        const vactTime = req.body.vactTime;
+        const vactName = req.body.vactName;
+        const vactAccount = req.body.vactAccount;
+        const vactDepositor = req.body.vactDepositor;
+        const vactBank = req.body.vactBank;
+        const vactBankAccount = req.body.vactBankAccount;
+        const vactBankAccountName = req.body.vactBankAccountName;
+        const vactBankAccountDate = req.body.vactBankAccountDate;
+        const vactBankAccountTime = req.body.vactBankAccountTime;
+        const vactBankAccountNum = req.body.vactBankAccountNum;
+        const vactBankAccountDepositor = req.body.vactBankAccountDepositor;
+        const vactBankAccountBank = req.body.vactBankAccountBank;
+        const vactBankAccountBankName = req.body.vactBankAccountBankName;
+        const vactBankAccountBankCode = req.body.vactBankAccountBankCode;
+        const vactBankAccountBankAccount = req.body.vactBankAccountBankAccount;
+        const vactBankAccountBankAccountName = req.body.vactBankAccountBankAccountName;
+        const vactBankAccountBankAccountDate = req.body.vactBankAccountBankAccountDate;
+        const vactBankAccountBankAccountTime = req.body.vactBankAccountBankAccountTime;
+        const vactBankAccountBankAccountNum = req.body.vactBankAccountBankAccountNum;
+        const vactBankAccountBankAccountDepositor = req.body.vactBankAccountBankAccountDepositor;
+        const vactBankAccountBankAccountBank = req.body.vactBankAccountBankAccountBank;
+        const vactBankAccountBankAccountBankName = req.body.vactBankAccountBankAccountBankName;
+        const vactBankAccountBankAccountBankCode = req.body.vactBankAccountBankAccountBankCode;
+        const vactBankAccountBankAccountBankAccount = req.body.vactBankAccountBankAccountBankAccount;
+        const vactBankAccountBankAccountBankAccountName = req.body.vactBankAccountBankAccountBankAccountName;
+        const vactBankAccountBankAccountBankAccountDate = req.body.vactBankAccountBankAccountBankAccountDate;
+        const vactBankAccountBankAccountBankAccountTime = req.body.vactBankAccountBankAccountBankAccountTime;
+        const vactBankAccountBankAccountBankAccountNum = req.body.vactBankAccountBankAccountBankAccountNum;
+        const vactBankAccountBankAccountBankAccountDepositor = req.body.vactBankAccountBankAccountBankAccountDepositor;
+        const vactBankAccountBankAccountBankAccountBank = req.body.vactBankAccountBankAccountBankAccountBank;
+        const vactBankAccountBankAccountBankAccountBankName = req.body.vactBankAccountBankAccountBankAccountBankName;
+        const vactBankAccountBankAccountBankAccountBankCode = req.body.vactBankAccountBankAccountBankAccountBankCode;
+        const vactBankAccountBankAccountBankAccountBankAccount = req.body.vactBankAccountBankAccountBankAccountBankAccount;
+        const vactBankAccountBankAccountBankAccountBankAccountName = req.body.vactBankAccountBankAccountBankAccountBankAccountName;
+        const vactBankAccountBankAccountBankAccountBankAccountDate = req.body.vactBankAccountBankAccountBankAccountBankAccountDate;
+        const vactBankAccountBankAccountBankAccountBankAccountTime = req.body.vactBankAccountBankAccountBankAccountBankAccountTime;
+        const vactBankAccountBankAccountBankAccountBankAccountNum = req.body.vactBankAccountBankAccountBankAccountBankAccountNum;
+        const vactBankAccountBankAccountBankAccountBankAccountDepositor = req.body.vactBankAccountBankAccountBankAccountBankAccountDepositor;
+        const vactBankAccountBankAccountBankAccountBankAccountBank = req.body.vactBankAccountBankAccountBankAccountBankAccountBank;
+        const vactBankAccountBankAccountBankAccountBankAccountBankName = req.body.vactBankAccountBankAccountBankAccountBankAccountBankName;
+        const vactBankAccountBankAccountBankAccountBankAccountBankCode = req.body.vactBankAccountBankAccountBankAccountBankAccountBankCode;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccount = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccount;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountName = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountName;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountDate = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountDate;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountTime = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountTime;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountNum = req.body.vactBankAccountBankAccountBankAccountBankAccountNum;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountDepositor = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountDepositor;
+        const vactBankAccountBankAccountBankAccountBankAccountBankBank = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBank;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankName = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankName;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankCode = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankCode;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccount = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccount;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountName = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountName;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountDate = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountDate;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountTime = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountTime;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountNum = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountNum;
+        const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountDepositor = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountDepositor;
+
+        // 결제 실패 처리
+        if (resultCode !== '00') {
+            Logger.log('[payments][inicis] 결제 실패', {
+                orderNumber,
+                resultCode,
+                resultMsg
+            });
+            
+            // 실패 페이지로 리다이렉트
+            return res.redirect(`/checkout-payment.html?status=fail&code=${resultCode}&message=${encodeURIComponent(resultMsg)}`);
+        }
+
+        connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+
+        // 주문 확인
+        const [orders] = await connection.execute(
+            `SELECT order_id, order_number, user_id, total_price, status
+             FROM orders 
+             WHERE order_number = ? 
+             LIMIT 1`,
+            [orderNumber]
+        );
+
+        if (orders.length === 0) {
+            await connection.rollback();
+            await connection.end();
+            Logger.log('[payments][inicis] 주문을 찾을 수 없음', { orderNumber });
+            return res.redirect(`/checkout-payment.html?status=fail&code=ORDER_NOT_FOUND&message=${encodeURIComponent('주문을 찾을 수 없습니다.')}`);
+        }
+
+        const order = orders[0];
+
+        // 금액 검증
+        const serverAmount = parseFloat(order.total_price);
+        const clientAmount = parseFloat(amount);
+        
+        if (Math.abs(serverAmount - clientAmount) > 0.01) {
+            await connection.rollback();
+            await connection.end();
+            Logger.log('[payments][inicis] 금액 불일치', {
+                orderNumber,
+                serverAmount,
+                clientAmount
+            });
+            return res.redirect(`/checkout-payment.html?status=fail&code=AMOUNT_MISMATCH&message=${encodeURIComponent('결제 금액이 일치하지 않습니다.')}`);
+        }
+
+        // 이미 처리된 결제인지 확인 (멱등성)
+        const [existingPayments] = await connection.execute(
+            'SELECT payment_id FROM payments WHERE payment_key = ? LIMIT 1',
+            [tid]
+        );
+
+        if (existingPayments.length > 0) {
+            // 이미 처리된 결제
+            await connection.commit();
+            await connection.end();
+            Logger.log('[payments][inicis] 이미 처리된 결제', { orderNumber, tid });
+            return res.redirect(`/order-complete.html?orderId=${orderNumber}&amount=${amount}`);
+        }
+
+        // payments 테이블에 저장
+        const paymentStatus = (payMethod === 'Card' && resultCode === '00') ? 'captured' : 
+                             (payMethod === 'VBank' && resultCode === '00') ? 'authorized' : 'failed';
+        
+        const orderStatus = paymentStatus === 'captured' ? 'processing' : 
+                           paymentStatus === 'authorized' ? 'confirmed' : 'failed';
+
+        await connection.execute(
+            `INSERT INTO payments 
+             (order_number, gateway, payment_key, status, amount, currency, payload_json)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+                orderNumber,
+                'inicis',
+                tid,
+                paymentStatus,
+                serverAmount,
+                'KRW',
+                JSON.stringify(req.body)
+            ]
+        );
+
+        // 주문 상태 업데이트
+        await connection.execute(
+            'UPDATE orders SET status = ? WHERE order_number = ?',
+            [orderStatus, orderNumber]
+        );
+
+        // 장바구니 정리
+        if (order.user_id) {
+            try {
+                await connection.execute(
+                    `DELETE ci FROM cart_items ci
+                     INNER JOIN carts c ON ci.cart_id = c.cart_id
+                     WHERE c.user_id = ?`,
+                    [order.user_id]
+                );
+            } catch (cartError) {
+                Logger.log('[payments][inicis] 장바구니 정리 중 오류', {
+                    userId: order.user_id,
+                    error: cartError.message
+                });
+            }
+        }
+
+        await connection.commit();
+        await connection.end();
+
+        Logger.log('[payments][inicis] 결제 완료', {
+            orderNumber,
+            tid,
+            amount: serverAmount,
+            payMethod,
+            status: paymentStatus
+        });
+
+        // 성공 페이지로 리다이렉트
+        return res.redirect(`/order-complete.html?orderId=${orderNumber}&amount=${amount}`);
+
+    } catch (error) {
+        if (connection) {
+            await connection.rollback();
+            await connection.end();
+        }
+        Logger.log('[payments][inicis] 결제 처리 오류', {
+            error: error.message,
+            stack: error.stack
+        });
+        return res.redirect(`/checkout-payment.html?status=fail&code=INTERNAL_ERROR&message=${encodeURIComponent('결제 처리 중 오류가 발생했습니다.')}`);
+    }
+});
+
+/**
  * 웹훅 HMAC 서명 검증 함수
  * 
  * 토스페이먼츠 웹훅 서명 검증 방식:

@@ -195,6 +195,9 @@ function bindEventListeners(data) {
     if (selectedPayment === 'toss') {
       // 토스페이먼츠 결제 진행
       await proceedWithTossPayment(data);
+    } else if (selectedPayment === 'inicis') {
+      // 이니시스 결제 진행
+      await proceedWithInicisPayment(data);
     } else {
       alert('현재 지원되는 결제 방법이 아닙니다.');
     }
