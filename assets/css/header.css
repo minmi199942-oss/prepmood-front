@@ -1,0 +1,751 @@
+/*
+  ⚠️ 헤더 단일 소유 규칙 (Single Source of Truth)
+  ============================================
+  
+  [헤더 전환점 X]
+  - 모바일 전환 기준점은 이 파일의 @media에서만 정의
+  - 다른 파일에서 header 관련 breakpoint 금지
+  - 전환점 변수명: --header-bp (기본값: 1024px)
+  
+  [헤더 z-index 범위]
+  - header.main-header: 1000
+  - .mobile-menu-toggle: 1001
+  - .mobile-menu-overlay: 9999
+  - .mobile-slide-menu: 10000
+  - .mega-menu: 10050
+  - .submenu: 1000
+  - .has-mega::before: 1200
+  - 범위: 1000~10050 (헤더 전용)
+  
+  [금지 사항]
+  - global.css / responsive.css / page.css에서 header 관련 선택자 추가 금지
+  - 헤더 z-index를 다른 파일에서 변경 금지
+  - 헤더 모드 전환은 X 하나로만 통일 (1199/1200/1500 같은 값 금지)
+  
+  [헤더 컨테이너 max-width]
+  - 헤더 컨테이너의 max-width는 "스케일(비율)" 전용입니다
+  - 모바일 전환점(X)과는 별개로 관리됩니다
+  ============================================
+*/
+
+/* ===== 헤더 전환점 변수 ===== */
+:root {
+  --header-bp: 1050px; /* 헤더 전환점 X (기본값, 조정 가능) */
+}
+
+/* ===== Header Base ===== */
+header.main-header {
+  padding: 0;
+  border-bottom: 1px solid #eee;
+  background-color: #fff;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--header-height); /* CSS 변수는 global.css에서 상속 */
+  z-index: 1000;
+  transition: transform 0.25s ease;
+  display: flex;
+  align-items: center; /* 세로 중앙 정렬 */
+}
+
+/* 헤더 숨김 상태 */
+header.main-header.header--hidden {
+  transform: translateY(-100%);
+}
+
+/* 장바구니 열렸을 때 헤더 강제 표시 */
+body.mini-cart-open header.main-header {
+  transform: translateY(0) !important;
+  z-index: 1000;
+}
+
+/* ===== Header Container (스케일 전용) ===== */
+/* ⚠️ 위 max-width는 "스케일(비율)" 전용입니다.
+   모바일 전환점(X)은 아래 @media에서만 정의합니다. */
+
+/* 모바일 스타일 (기본) */
+header.main-header .header-container {
+  width: 100%;
+  max-width: 100%; /* 모바일: 전체 폭 사용 */
+  margin: 0 auto;
+  padding: clamp(8px, 1.2vw, 14px) 20px;
+  box-sizing: border-box;
+  height: 100%; /* 부모 높이에 맞춤 */
+  display: flex;
+  align-items: center; /* 세로 중앙 정렬 */
+}
+
+/* 태블릿 스타일 - 768px 이상부터 적용 */
+@media (min-width: 768px) {
+  header.main-header .header-container {
+    max-width: 100%; /* 태블릿: 전체 폭 사용 */
+    padding: clamp(8px, 1.2vw, 14px) 32px;
+  }
+}
+
+/* 데스크탑 스타일 - 1024px 이상부터 적용 */
+@media (min-width: 1024px) {
+  header.main-header .header-container {
+    max-width: 1280px; /* 데스크탑: 넓은 기준 */
+    padding: clamp(8px, 1.2vw, 14px) clamp(40px, 4vw, 56px);
+  }
+}
+
+/* 큰 화면 스타일 - 1600px 이상부터 적용 (스케일 확장, 예외 허용) */
+@media (min-width: 1600px) {
+  header.main-header .header-container {
+    max-width: 2400px; /* 큰 화면: 더 넓게 */
+    padding: clamp(8px, 1.2vw, 14px) clamp(48px, 4vw, 64px);
+  }
+}
+
+/* ===== Header Components ===== */
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3vw, 40px);
+  flex: 1;
+  justify-content: flex-start;
+  min-width: 0; /* flex 아이템이 잘리지 않도록 */
+}
+
+.logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.logo-img {
+  height: clamp(25px, 4vw, 30px);
+  margin-right: clamp(8px, 1.5vw, 10px);
+}
+
+.brand-name {
+  font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+  font-weight: 600;
+  color: #111;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.slogan {
+  font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+  color: #444;
+  font-weight: 300;
+  margin-top: 1px;
+  letter-spacing: 0.5px;
+}
+
+/* 로고 영역 고정 */
+header.main-header .logo {
+  flex-shrink: 0; /* 로고가 줄어들지 않도록 */
+  margin-right: clamp(16px, 2.5vw, 24px);
+}
+
+/* 네비게이션 영역 (중앙) */
+header.main-header .main-nav {
+  flex: 1;
+  min-width: 0; /* 텍스트가 잘릴 수 있도록 허용 */
+}
+
+/* 우측 액션 메뉴 */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.2vw, 14px);
+  margin-left: auto;
+  flex-shrink: 0; /* 아이콘 영역이 줄어들지 않도록 */
+}
+
+.action-link {
+  text-decoration: none;
+  color: #111;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
+  font-weight: 400;
+  transition: color 0.2s ease;
+}
+
+.action-link:hover {
+  color: #666;
+}
+
+.action-icon {
+  width: clamp(18px, 3vw, 24px);
+  height: clamp(18px, 3vw, 24px);
+  object-fit: contain;
+  transition: opacity 0.2s ease;
+}
+
+.action-link:hover .action-icon {
+  opacity: 0.7;
+}
+
+/* 장바구니 배지 */
+.cart-link {
+  position: relative;
+}
+
+.cart-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: #e74c3c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* ===== Navigation ===== */
+/* 헤더 네비게이션만 타겟팅 (전역 nav 오염 방지) */
+header.main-header nav ul,
+.main-nav ul {
+  display: flex;
+  gap: clamp(15px, 3vw, 30px);
+  list-style: none;
+  align-items: center;
+  margin-top: clamp(-15px, -2vw, -20px);
+}
+
+header.main-header nav ul li a,
+.main-nav ul li a {
+  text-decoration: none;
+  color: #333;
+  font-weight: 500;
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+}
+
+header.main-header nav ul li a:hover,
+.main-nav ul li a:hover {
+  color: #111;
+}
+
+/* ===== GNB 드롭다운 ===== */
+/* 헤더 네비게이션만 타겟팅 (전역 nav 오염 방지) */
+header.main-header nav ul li,
+.main-nav ul li {
+  position: relative;
+}
+
+/* 드롭다운 메뉴 (헤더 스코프로 제한) */
+header.main-header .has-sub .submenu,
+.main-nav .has-sub .submenu {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  padding: clamp(12px, 2vw, 16px) clamp(16px, 2.5vw, 20px);
+  min-width: clamp(160px, 25vw, 180px);
+  z-index: 1000;
+}
+
+header.main-header .has-sub:hover .submenu,
+.main-nav .has-sub:hover .submenu {
+  display: block;
+}
+
+header.main-header .submenu ul,
+.main-nav .submenu ul {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.5vw, 10px);
+  list-style: none;
+}
+
+header.main-header .submenu a,
+.main-nav .submenu a {
+  color: #111;
+  text-decoration: none;
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  white-space: nowrap;
+}
+
+header.main-header .submenu a:hover,
+.main-nav .submenu a:hover {
+  color: #0071e3;
+}
+
+/* ===== 메가 네비 (Men/Women) ===== */
+/* 헤더 네비게이션만 타겟팅 (전역 nav 오염 방지) */
+header.main-header .mega-nav,
+.main-nav .mega-nav {
+  padding: 0 clamp(16px, 3vw, 24px);
+  margin-top: clamp(8px, 1.5vw, 10px);
+}
+
+header.main-header .mega-root,
+.main-nav .mega-root {
+  display: flex;
+  gap: clamp(24px, 4vw, 36px);
+  list-style: none;
+}
+
+header.main-header .mega-root > li,
+.main-nav .mega-root > li {
+  position: static;
+}
+
+header.main-header .mega-root > li > a,
+.main-nav .mega-root > li > a {
+  text-decoration: none;
+  color: #111;
+  font-weight: 700;
+}
+
+header.main-header .mega-root > li:hover > a,
+.main-nav .mega-root > li:hover > a {
+  color: #0071e3;
+}
+
+/* 메가 메뉴 hover bridge */
+header.main-header .has-mega::before,
+.main-nav .has-mega::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: clamp(30px, 5vw, 40px);
+  display: none;
+  z-index: 1200;
+}
+
+header.main-header .has-mega:hover::before,
+.main-nav .has-mega:hover::before {
+  display: block;
+}
+
+header.main-header .mega-col h4,
+.main-nav .mega-col h4 {
+  font-size: clamp(1rem, 2.2vw, 1.1rem);
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 0.5rem;
+}
+
+header.main-header .mega-col a,
+.main-nav .mega-col a {
+  display: block;
+  padding: clamp(6px, 1vw, 8px) 0;
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  color: #333;
+  font-weight: 500;
+  line-height: 1.6;
+  text-decoration: none;
+}
+
+header.main-header .mega-col a:hover,
+.main-nav .mega-col a:hover {
+  color: #111;
+  font-weight: 500;
+}
+
+/* Dropdown styles */
+header.main-header .has-mega,
+.main-nav .has-mega {
+  position: relative !important;
+  display: inline-block !important;
+}
+
+header.main-header .mega-menu,
+.main-nav .mega-menu {
+  display: none !important;
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  background: #fff !important;
+  border: 1px solid #eee !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  z-index: 10050 !important; /* 헤더 z-index 범위 내 (overlay 9999 < slide-menu 10000 < mega-menu 10050) */
+  min-width: clamp(180px, 30vw, 200px) !important;
+  padding: clamp(16px, 2.5vw, 20px) !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+header.main-header .mega-menu.show,
+.main-nav .mega-menu.show {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* .mega-col a는 위에서 이미 정의됨 (339-352줄) */
+
+/* ===== 마이페이지 드롭다운 ===== */
+.mypage-container {
+  position: relative;
+  display: inline-block;
+}
+
+.mypage-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  min-width: clamp(160px, 25vw, 180px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  margin-top: clamp(6px, 1vw, 8px);
+}
+
+.mypage-dropdown.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  display: block;
+  padding: clamp(10px, 1.5vw, 12px) clamp(14px, 2vw, 16px);
+  color: #333;
+  text-decoration: none;
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  font-weight: 400;
+  border-bottom: 1px solid #f5f5f5;
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+  color: #111;
+}
+
+.dropdown-item:last-child:hover {
+  border-radius: 0 0 8px 8px;
+}
+
+.dropdown-item:first-child:hover {
+  border-radius: 8px 8px 0 0;
+}
+
+.mypage-icon-logged-in {
+  filter: brightness(1.1) contrast(1.1);
+}
+
+/* ===== 모바일 햄버거 메뉴 ===== */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 1001;
+  transform: translateY(-2px); /* 버거 아이콘을 위로 조정 */
+}
+
+.burger-icon {
+  width: clamp(16px, 3vw, 22px);
+  height: clamp(16px, 3vw, 22px);
+  object-fit: contain;
+}
+
+/* 모바일 슬라이드 메뉴 */
+.mobile-slide-menu {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 85%;
+  max-width: 400px;
+  height: 100vh;
+  height: 100dvh; /* 동적 뷰포트 높이 (모바일 브라우저 주소창 고려) */
+  background: #fff;
+  z-index: 10000;
+  transition: right 0.3s ease;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* iOS 부드러운 스크롤 */
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-slide-menu.active {
+  right: 0;
+}
+
+.mobile-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.mobile-menu-logo strong {
+  font-size: 1.2rem;
+  color: #111;
+  font-weight: 600;
+}
+
+.mobile-menu-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #111;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mobile-menu-close:hover {
+  opacity: 0.7;
+}
+
+.mobile-menu-nav {
+  padding: 20px 0;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0; /* 네비게이션은 고정 */
+}
+
+.mobile-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.mobile-menu-list li {
+  display: block;
+  width: 100%;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.mobile-menu-list li:last-child {
+  border-bottom: none;
+}
+
+.mobile-menu-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  color: #111;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 400;
+  transition: background-color 0.2s ease;
+}
+
+.mobile-menu-list a:hover {
+  background-color: #f9f9f9;
+}
+
+.menu-arrow {
+  color: #999;
+  font-size: 0.9rem;
+  margin-left: auto;
+}
+
+.mobile-menu-divider {
+  height: 1px;
+  background-color: #eee;
+  margin: 0;
+  flex-shrink: 0; /* 구분선은 고정 */
+}
+
+.mobile-menu-actions {
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex-shrink: 0; /* 액션 버튼들은 고정 */
+  min-height: 0; /* 스크롤 가능하도록 */
+}
+
+.mobile-menu-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  color: #111;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 400;
+  transition: background-color 0.2s ease;
+  position: relative;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.mobile-menu-action:last-child {
+  border-bottom: none;
+}
+
+.mobile-menu-action:hover {
+  background-color: #f9f9f9;
+}
+
+.mobile-action-text {
+  flex: 1;
+}
+
+.mobile-action-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.mobile-cart-badge {
+  background-color: #e74c3c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.2;
+  margin-left: 8px;
+}
+
+/* 모바일 메뉴 오버레이 */
+.mobile-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.mobile-menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ===== Responsive: 헤더 전환점 X (단일 소유) ===== */
+/* 헤더 모드 전환은 이 @media에서만 정의합니다 */
+
+/* 모바일 모드 (햄버거 메뉴): 0px ~ (X-1)px */
+/* ⚠️ 헤더 전환점 X 변경 시 이 값도 함께 변경해야 합니다 */
+@media (max-width: 1049px) {
+  /* 모바일에서 네비게이션 숨기기 */
+  .main-nav {
+    display: none !important;
+  }
+  
+  /* 모바일에서 일부 액션만 표시 */
+  .header-actions {
+    display: flex !important;
+    gap: 8px;
+  }
+  
+  /* 모바일에서 마이페이지와 언어 숨기기 */
+  .mypage-container,
+  .header-actions .desktop-only {
+    display: none !important;
+  }
+  
+  /* 햄버거 메뉴 버튼 표시 */
+  .mobile-menu-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transform: translateY(-2px); /* 버거 아이콘을 위로 조정 */
+  }
+  
+  .mobile-menu-toggle .burger-icon {
+    width: clamp(14px, 3vw, 18px);
+    height: clamp(14px, 3vw, 18px);
+  }
+  
+  /* 모바일 헤더 조정 */
+  /* 패딩은 .header-container에서 관리하므로 header.main-header에는 패딩 없음 */
+  
+  .header-content {
+    gap: clamp(12px, 3vw, 20px);
+    width: 100%;
+  }
+  
+  /* 모바일 헤더 아이콘 크기 조정 */
+  .main-header .header-actions .action-link .action-icon {
+    width: clamp(24px, 5vw, 32px) !important;
+    height: clamp(24px, 5vw, 32px) !important;
+  }
+  
+  /* 로고 및 브랜드 조정 (헤더 스코프로 제한) */
+  header.main-header .logo-img {
+    height: clamp(22px, 5vw, 28px);
+    margin-right: clamp(6px, 1.5vw, 8px);
+  }
+  
+  /* 모바일 메가 메뉴 조정 */
+  header.main-header .mega-menu,
+  .main-nav .mega-menu {
+    min-width: clamp(160px, 35vw, 180px) !important;
+    padding: clamp(12px, 2.5vw, 16px) !important;
+  }
+  
+  header.main-header .mega-col a,
+  .main-nav .mega-col a {
+    padding: clamp(4px, 1.2vw, 6px) 0;
+    font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+  }
+  
+  header.main-header .mega-col h4,
+  .main-nav .mega-col h4 {
+    font-size: clamp(0.9rem, 2.5vw, 1.05rem);
+  }
+}
+
+/* 데스크탑 모드 (풀 네비게이션): Xpx~ */
+/* ⚠️ 헤더 전환점 X 변경 시 이 값도 함께 변경해야 합니다 */
+@media (min-width: 1050px) {
+  /* 데스크탑에서 햄버거 메뉴 숨기기 */
+  .mobile-menu-toggle {
+    display: none !important;
+  }
+  
+  /* 데스크탑에서 네비게이션 표시 */
+  .main-nav {
+    display: block !important;
+  }
+  
+  /* 데스크탑에서 모든 액션 표시 */
+  .header-actions {
+    display: flex !important;
+  }
+  
+  .mypage-container,
+  .header-actions .desktop-only {
+    display: block !important;
+  }
+}
+

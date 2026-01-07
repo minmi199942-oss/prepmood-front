@@ -1,0 +1,99 @@
+/* ============================================
+   Layout System (격리된 레이아웃 시스템)
+   ============================================
+   네임스페이스: .ls- (layout-system)
+   목적: 기존 global.css, page.css와 완전 격리
+   사용: contact.html부터 선택적 적용
+   ============================================ */
+
+/* 전역 기본값(디폴트) */
+:root {
+  --ls-mw-mobile: 420px;
+  --ls-mw-tablet: 840px;
+  
+  /* 2-타입 폭 시스템 */
+  --ls-mw-desktop: 1680px;      /* Default: 기본 본문 (넓게) */
+  --ls-mw-desktop-narrow: 1200px;  /* Narrow: 폼/문서 (좁게) */
+
+  --ls-pad-mobile: 20px;
+  --ls-pad-tablet: 32px;
+  --ls-pad-desktop: 40px;
+}
+
+/* 컨테이너 시스템 */
+/* Default: 기본 본문 (1680px) - 대부분의 일반 페이지 */
+.ls-container {
+  /* 페이지별로 이 스코프에서만 살짝 override 가능하게 한 겹 더 둠 */
+  --ls-mw-mobile: var(--ls-mw-mobile);
+  --ls-mw-tablet: var(--ls-mw-tablet);
+  --ls-mw-desktop: var(--ls-mw-desktop);
+  --ls-pad-mobile: var(--ls-pad-mobile);
+  --ls-pad-tablet: var(--ls-pad-tablet);
+  --ls-pad-desktop: var(--ls-pad-desktop);
+
+  max-width: var(--ls-mw-mobile);
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+
+  /* 타이포: 이 컨테이너 안에서만 "정지감" 적용 */
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* Narrow: 폼/문서 (1200px) - contact/login/checkout/terms 등 */
+.ls-container--narrow {
+  --ls-mw-desktop: var(--ls-mw-desktop-narrow);
+}
+
+/* 호흡(패딩) */
+.ls-container__inner {
+  padding: 0 var(--ls-pad-mobile);
+  box-sizing: border-box;
+}
+
+
+/* 태블릿 */
+@media (min-width: 768px) {
+  .ls-container {
+    max-width: var(--ls-mw-tablet);
+  }
+  .ls-container__inner {
+    padding: 0 var(--ls-pad-tablet);
+  }
+}
+
+/* 데스크탑 */
+@media (min-width: 1024px) {
+  .ls-container,
+  .ls-container--narrow {
+    max-width: var(--ls-mw-desktop);
+    font-size: 16px;
+    line-height: 1.75;
+  }
+  .ls-container__inner {
+    padding: 0 var(--ls-pad-desktop);
+  }
+}
+
+/* 작은 모바일에서 패딩 과함 방지(선택) */
+@media (max-width: 1500px) {
+    .ls-container__inner {
+      padding: 0 16px;
+    }
+  }
+  
+/* letter-spacing은 본문 텍스트에만(폼 입력까지 퍼지는 걸 방지) */
+.ls-container p,
+.ls-container li,
+.ls-container .text,
+.ls-container .copy {
+  letter-spacing: 0.02em;
+}
+
+/* 
+  헤더는 레이아웃 시스템에서 제외됨
+  헤더는 global.css의 .header-container로 전용 관리
+  이유: 전역 컴포넌트이므로 레이아웃 시스템과 분리하여 충돌 방지
+*/
+
