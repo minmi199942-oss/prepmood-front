@@ -997,15 +997,11 @@ app.post('/api/update-profile', [
         }
 
         // 이름 분리 (성과 이름)
-        const nameParts = name.split(' ');
-        const lastName = nameParts[0] || '';
-        const firstName = nameParts.slice(1).join(' ') || '';
-
-        // 개인정보 업데이트 (기존 컬럼만 업데이트)
-        console.log('📝 개인정보 업데이트 중...', { lastName, firstName, phone, birthdate });
+        // 개인정보 업데이트 (name, phone만 사용)
+        console.log('📝 개인정보 업데이트 중...', { name, phone });
         await connection.execute(
-            'UPDATE users SET last_name = ?, first_name = ?, phone = ?, birth = ? WHERE user_id = ?',
-            [lastName, firstName, phone, birthdate, userId]
+            'UPDATE users SET name = ?, phone = ? WHERE user_id = ?',
+            [name, phone, userId]
         );
         console.log('✅ 개인정보 업데이트 완료');
 
