@@ -404,6 +404,127 @@ async function proceedWithTossPayment(data) {
   }
 }
 
+async function proceedWithInicisPayment(data) {
+  const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
+  const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
+  const originalDesktopText = proceedBtnDesktop?.textContent || '확인 및 진행';
+  const originalMobileText = proceedBtnMobile?.textContent || '확인 및 진행';
+  
+  try {
+    // 버튼 비활성화
+    if (proceedBtnDesktop) {
+      proceedBtnDesktop.disabled = true;
+      proceedBtnDesktop.textContent = '처리 중...';
+    }
+    if (proceedBtnMobile) {
+      proceedBtnMobile.disabled = true;
+      proceedBtnMobile.textContent = '처리 중...';
+    }
+    
+    // 1. 주문 생성
+    const idemKey = uuidv4();
+    const requestPayload = {
+      items: data.items.map(item => ({
+        product_id: String(item.product_id || item.id),
+        quantity: Number(item.quantity || 1)
+      })),
+      shipping: data.shipping
+    };
+    
+    const createRes = await window.secureFetch(`${API_BASE}/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': idemKey
+      },
+      credentials: 'include',
+      body: JSON.stringify(requestPayload)
+    });
+    
+    if (!createRes.ok) {
+      const errorData = await createRes.json();
+      throw new Error(errorData.details?.message || '주문 생성 실패');
+    }
+    
+    const created = await createRes.json();
+    const orderNumber = created.data.order_number;
+    const amount = created.data.amount;
+    
+    // 2. 이니시스 결제창 요청 (서버에서 결제 정보 생성)
+    const paymentRes = await window.secureFetch(`${API_BASE}/payments/inicis/request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        orderNumber: orderNumber,
+        amount: amount,
+        orderName: data.items.length === 1 
+          ? data.items[0].name 
+          : `${data.items[0].name} 외 ${data.items.length - 1}개`,
+        buyerName: `${data.shipping.recipient_first_name} ${data.shipping.recipient_last_name}`,
+        buyerEmail: data.shipping.email,
+        buyerTel: data.shipping.phone
+      })
+    });
+    
+    if (!paymentRes.ok) {
+      const errorData = await paymentRes.json();
+      const errorMessage = errorData.details?.message || '결제 요청 실패';
+      
+      // 이니시스 설정 미완료인 경우 사용자 친화적 메시지
+      if (errorData.code === 'SERVICE_UNAVAILABLE') {
+        throw new Error('이니시스 결제 서비스가 아직 준비되지 않았습니다. 토스페이먼츠를 이용해주세요.');
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    const paymentData = await paymentRes.json();
+    
+    // 3. 이니시스 결제창 호출
+    if (typeof INIStdPay === 'undefined') {
+      throw new Error('이니시스 결제 스크립트가 로드되지 않았습니다.');
+    }
+    
+    // 이니시스 표준결제창 호출
+    INIStdPay.pay(paymentData.data.formData);
+    
+    // 결제 완료/실패는 이니시스가 지정한 returnUrl로 리다이렉트됨
+    // (서버에서 설정한 returnUrl로 이동)
+    
+  } catch (error) {
+    let errorMessage = '결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+    if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    const errorDesktop = document.getElementById('payment-error');
+    const errorMobile = document.getElementById('payment-error-mobile');
+    const displayMessage = `결제에 실패했습니다: ${errorMessage}`;
+    
+    if (errorDesktop) {
+      errorDesktop.textContent = displayMessage;
+      errorDesktop.classList.remove('hidden');
+    }
+    if (errorMobile) {
+      errorMobile.textContent = displayMessage;
+      errorMobile.classList.remove('hidden');
+    }
+  } finally {
+    // 에러 발생 시 버튼 복구
+    if (proceedBtnDesktop && proceedBtnDesktop.disabled) {
+      proceedBtnDesktop.disabled = false;
+      proceedBtnDesktop.textContent = originalDesktopText;
+    }
+    if (proceedBtnMobile && proceedBtnMobile.disabled) {
+      proceedBtnMobile.disabled = false;
+      proceedBtnMobile.textContent = originalMobileText;
+    }
+  }
+}
+
 /**
  * 결제 실패 메시지 표시
  */
