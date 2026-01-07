@@ -42,7 +42,8 @@ header.main-header {
   top: 0;
   left: 0;
   width: 100%;
-  height: var(--header-height); /* CSS 변수는 global.css에서 상속 */
+  min-height: var(--header-height); /* 최소 높이 보장 */
+  height: auto; /* 콘텐츠에 맞게 자동 조정 */
   z-index: 1000;
   transition: transform 0.25s ease;
   display: flex;
@@ -69,18 +70,19 @@ header.main-header .header-container {
   width: 100%;
   max-width: 100%; /* 모바일: 전체 폭 사용 */
   margin: 0 auto;
-  padding: clamp(8px, 1.2vw, 14px) 20px;
+  padding: clamp(12px, 1.5vw, 16px) 20px;
   box-sizing: border-box;
   height: 100%; /* 부모 높이에 맞춤 */
   display: flex;
   align-items: center; /* 세로 중앙 정렬 */
+  min-height: var(--header-height); /* 최소 높이 보장 */
 }
 
 /* 태블릿 스타일 - 768px 이상부터 적용 */
 @media (min-width: 768px) {
   header.main-header .header-container {
     max-width: 100%; /* 태블릿: 전체 폭 사용 */
-    padding: clamp(8px, 1.2vw, 14px) 32px;
+    padding: clamp(12px, 1.5vw, 16px) 32px;
   }
 }
 
@@ -88,7 +90,7 @@ header.main-header .header-container {
 @media (min-width: 1024px) {
   header.main-header .header-container {
     max-width: 1280px; /* 데스크탑: 넓은 기준 */
-    padding: clamp(8px, 1.2vw, 14px) clamp(40px, 4vw, 56px);
+    padding: clamp(12px, 1.5vw, 18px) clamp(40px, 4vw, 56px);
   }
 }
 
@@ -96,7 +98,7 @@ header.main-header .header-container {
 @media (min-width: 1600px) {
   header.main-header .header-container {
     max-width: 2400px; /* 큰 화면: 더 넓게 */
-    padding: clamp(8px, 1.2vw, 14px) clamp(48px, 4vw, 64px);
+    padding: clamp(12px, 1.5vw, 18px) clamp(48px, 4vw, 64px);
   }
 }
 

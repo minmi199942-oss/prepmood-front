@@ -39,7 +39,7 @@
 
 /* ===== CSS Variables ===== */
 :root { 
-  --header-height: 60px; /* 데스크톱 기본값 */
+  --header-height: 72px; /* 데스크톱 기본값 (패딩 포함) */
   /* Footer 위치 조정 변수 */
   --footer-container-max-width: 3000px; /* Footer 컨테이너 최대 너비 */
   --footer-align: flex-end; /* Footer 정렬: flex-start (좌측), center (중앙), flex-end (우측) */
@@ -53,8 +53,8 @@
   헤더 breakpoint 기준점을 변경하려면 아래 값을 수정하세요.
   
   현재 기준:
-  - 모바일/태블릿: 1500px 이하 → 헤더 높이 50px, 햄버거 메뉴 표시
-  - 데스크탑: 1501px 이상 → 헤더 높이 60px, 일반 네비게이션 표시
+  - 모바일/태블릿: 1500px 이하 → 헤더 높이 64px, 햄버거 메뉴 표시
+  - 데스크탑: 1501px 이상 → 헤더 높이 72px, 일반 네비게이션 표시
   
   ⚠️ 주의: 모든 헤더 관련 breakpoint를 동일한 값으로 맞춰야 합니다.
 */
@@ -62,7 +62,7 @@
 /* 모바일/태블릿 (1500px 이하) */
 @media (max-width: 1500px) {
   :root {
-    --header-height: 50px;
+    --header-height: 64px; /* 모바일/태블릿 높이 (패딩 포함) */
   }
 }
 
