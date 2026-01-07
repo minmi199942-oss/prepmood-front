@@ -66,7 +66,7 @@ class GoogleAuthService {
             
             // 1단계: 이메일로 정확한 사용자 찾기
             const [emailUsers] = await connection.execute(
-                'SELECT user_id, email, first_name, last_name, phone, birth, google_id, profile_picture FROM users WHERE email = ?',
+                'SELECT user_id, membership_id, email, name, phone, google_id, profile_picture FROM users WHERE email = ?',
                 [googleUser.email]
             );
             
@@ -78,8 +78,7 @@ class GoogleAuthService {
                     userId: user.user_id,
                     email: user.email,
                     googleId: user.google_id,
-                    firstName: user.first_name,
-                    lastName: user.last_name
+                    name: user.name
                 });
                 
                 // Google ID가 없거나 다르면 업데이트
@@ -95,12 +94,10 @@ class GoogleAuthService {
                     success: true,
                     user: {
                         id: user.user_id,
+                        membership_id: user.membership_id || null,
                         email: user.email,
-                        name: user.first_name || user.last_name || googleUser.name,
-                        firstName: user.first_name,
-                        lastName: user.last_name,
+                        name: user.name || googleUser.name,
                         phone: user.phone || null,
-                        birthdate: user.birth || null,
                         googleId: googleUser.googleId,
                         profilePicture: googleUser.picture
                     }
@@ -135,16 +132,22 @@ class GoogleAuthService {
             
             const hashedPassword = await bcrypt.hash(googleUser.googleId, 10);
             
+            // membership_id 생성
+            const { generateUniqueUserId } = require('./utils/user-id-generator');
+            const membershipId = await generateUniqueUserId(connection);
+            
             const [result] = await connection.execute(
-                'INSERT INTO users (email, first_name, password_hash, google_id, profile_picture, email_verified, verified) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO users (email, name, password_hash, membership_id, google_id, profile_picture, email_verified, verified, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     googleUser.email,
-                    googleUser.name,
+                    googleUser.name || googleUser.email.split('@')[0],
                     hashedPassword,
+                    membershipId,
                     googleUser.googleId,
                     googleUser.picture,
                     googleUser.emailVerified ? 1 : 0,
-                    1  // Google 로그인 사용자는 자동으로 인증됨
+                    1,  // Google 로그인 사용자는 자동으로 인증됨
+                    ''  // phone은 필수이므로 빈 문자열
                 ]
             );
 
@@ -152,10 +155,10 @@ class GoogleAuthService {
                 success: true,
                 user: {
                     id: result.insertId,
+                    membership_id: membershipId,
                     email: googleUser.email,
-                    name: googleUser.name,
+                    name: googleUser.name || googleUser.email.split('@')[0],
                     phone: null,
-                    birthdate: null,
                     googleId: googleUser.googleId,
                     profilePicture: googleUser.picture
                 }
