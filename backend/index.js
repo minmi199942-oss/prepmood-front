@@ -494,10 +494,10 @@ app.post('/api/login', [
         connection = await mysql.createConnection(dbConfig);
         console.log('✅ MySQL 연결 성공');
 
-        // 사용자 정보 조회 (하위호환: last_name, first_name도 함께 조회)
+        // 사용자 정보 조회
         console.log('🔍 사용자 정보 조회 중...');
         const [users] = await connection.execute(
-            'SELECT user_id, membership_id, email, password_hash, name, last_name, first_name, phone, verified FROM users WHERE email = ?',
+            'SELECT user_id, membership_id, email, password_hash, name, phone, verified FROM users WHERE email = ?',
             [email]
         );
         console.log('📧 조회된 사용자 수:', users.length);
@@ -512,14 +512,8 @@ app.post('/api/login', [
 
         const user = users[0];
 
-        // name 필드 처리 (하위호환: name이 없으면 last_name + first_name 조합)
-        let userName = user.name;
-        if (!userName && (user.last_name || user.first_name)) {
-            userName = `${user.last_name || ''} ${user.first_name || ''}`.trim();
-        }
-        if (!userName) {
-            userName = user.email.split('@')[0]; // 이메일 앞부분을 기본값으로
-        }
+        // name 필드 처리 (name이 없으면 이메일 앞부분을 기본값으로)
+        const userName = user.name || user.email.split('@')[0];
 
         // 이메일 인증 상태 확인
         if (!user.verified) {
