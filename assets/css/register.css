@@ -104,6 +104,19 @@
     display: block;
 }
 
+/* 이메일 인증 완료 전 비활성화 섹션 */
+.disabled-section {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.disabled-section input,
+.disabled-section select,
+.disabled-section button {
+    cursor: not-allowed;
+}
+
 .form-group {
     margin-bottom: clamp(20px, 4vw, 28px);
 }
@@ -122,6 +135,18 @@
     margin-bottom: clamp(6px, 1.2vw, 8px);
     letter-spacing: 0.5px;
     text-transform: uppercase;
+}
+
+.form-group label .required {
+    color: #d32f2f;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.form-group label .optional {
+    color: #666;
+    font-weight: 400;
+    margin-left: 4px;
 }
 
 .form-input {
