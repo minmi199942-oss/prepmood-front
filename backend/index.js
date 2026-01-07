@@ -473,6 +473,7 @@ app.post('/api/login', [
     body('email').isEmail().normalizeEmail(),
     body('password').notEmpty()
 ], async (req, res) => {
+    let connection;
     try {
         console.log('📋 로그인 요청 데이터:', JSON.stringify(req.body, null, 2));
         
@@ -490,20 +491,19 @@ app.post('/api/login', [
 
         // MySQL 연결
         console.log('🔗 MySQL 연결 시도 중...');
-        const connection = await mysql.createConnection(dbConfig);
+        connection = await mysql.createConnection(dbConfig);
         console.log('✅ MySQL 연결 성공');
 
-        // 사용자 정보 조회
+        // 사용자 정보 조회 (하위호환: last_name, first_name도 함께 조회)
         console.log('🔍 사용자 정보 조회 중...');
         const [users] = await connection.execute(
-            'SELECT user_id, membership_id, email, password_hash, name, phone, verified FROM users WHERE email = ?',
+            'SELECT user_id, membership_id, email, password_hash, name, last_name, first_name, phone, verified FROM users WHERE email = ?',
             [email]
         );
         console.log('📧 조회된 사용자 수:', users.length);
 
         if (users.length === 0) {
             console.log('❌ 사용자를 찾을 수 없음');
-            await connection.end();
             return res.status(401).json({
                 success: false,
                 message: '이메일 또는 비밀번호가 올바르지 않습니다.'
@@ -512,10 +512,18 @@ app.post('/api/login', [
 
         const user = users[0];
 
+        // name 필드 처리 (하위호환: name이 없으면 last_name + first_name 조합)
+        let userName = user.name;
+        if (!userName && (user.last_name || user.first_name)) {
+            userName = `${user.last_name || ''} ${user.first_name || ''}`.trim();
+        }
+        if (!userName) {
+            userName = user.email.split('@')[0]; // 이메일 앞부분을 기본값으로
+        }
+
         // 이메일 인증 상태 확인
         if (!user.verified) {
             console.log('❌ 이메일 미인증');
-            await connection.end();
             return res.status(401).json({
                 success: false,
                 message: '이메일 인증이 완료되지 않았습니다.'
@@ -528,20 +536,17 @@ app.post('/api/login', [
         
         if (!passwordMatch) {
             console.log('❌ 비밀번호 불일치');
-            await connection.end();
             return res.status(401).json({
                 success: false,
                 message: '이메일 또는 비밀번호가 올바르지 않습니다.'
             });
         }
 
-        await connection.end();
-
         // JWT 토큰 생성
         const token = generateToken({
             id: user.user_id,
             email: user.email,
-            name: user.name || ''
+            name: userName
         });
 
         // httpOnly 쿠키로 토큰 설정
@@ -564,7 +569,7 @@ app.post('/api/login', [
                 id: user.user_id,
                 membership_id: user.membership_id || null,
                 email: user.email,
-                name: user.name || '',
+                name: userName,
                 phone: user.phone || null
             }
             // ✅ token은 httpOnly 쿠키로 전송되므로 응답 본문에 포함하지 않음
@@ -577,6 +582,10 @@ app.post('/api/login', [
             success: false,
             message: '로그인 중 오류가 발생했습니다.'
         });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
     }
 });
 
