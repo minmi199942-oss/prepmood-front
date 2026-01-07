@@ -32,14 +32,7 @@
 
 /* ===== Tablet (768px ~ 1199px) ===== */
 @media (max-width: 1199px) and (min-width: 768px) {
-  /* Header 조정 */
-  header {
-    padding: clamp(8px, 2vw, 15px) clamp(15px, 4vw, 30px);
-  }
-  
-  .header-content {
-    gap: clamp(15px, 3vw, 35px);
-  }
+  /* 헤더 관련 스타일은 header.css로 이동되었습니다 */
   
   nav ul {
     gap: clamp(12px, 2.5vw, 25px);
@@ -103,112 +96,7 @@
 
 /* ===== Mobile (≤767px) ===== */
 @media (max-width: 767px) {
-  /* Header 모바일 조정 */
-  header.main-header {
-    padding: clamp(8px, 2vw, 14px) clamp(12px, 4vw, 20px);
-  }
-  
-  .header-content {
-    gap: clamp(12px, 3vw, 20px);
-    width: 100%;
-  }
-  
-  /* 모바일에서 네비게이션 숨기기 */
-  .main-nav {
-    display: none !important;
-  }
-  
-  /* 모바일에서 일부 액션만 표시 */
-  .header-actions {
-    display: flex !important;
-    gap: 8px;
-  }
-  
-  /* 모바일에서 마이페이지와 언어 숨기기 */
-  .mypage-container,
-  .header-actions .desktop-only {
-    display: none !important;
-  }
-  
-  /* 햄버거 메뉴 버튼 스타일 */
-  .mobile-menu-toggle {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    background: none;
-    border: none;
-    cursor: pointer;
-    transform: translateY(-2px); /* 버거 아이콘을 위로 조정 */
-  }
-  
-  .mobile-menu-toggle .burger-icon {
-    width: clamp(14px, 3vw, 18px);
-    height: clamp(14px, 3vw, 18px);
-  }
-  
-  /* ===== 모바일 헤더 아이콘 크기 조정 ===== */
-  /* 
-   * 모바일 화면에서 헤더 아이콘 크기를 조정하려면 아래 값을 변경하세요.
-   * clamp(최소값, 반응형값, 최대값) 형식입니다.
-   * 
-   * 예시:
-   * - 더 크게: clamp(20px, 4vw, 28px)
-   * - 더 작게: clamp(12px, 2.5vw, 16px)
-   * - 고정 크기: 24px (clamp 없이)
-   * 
-   * ⚠️ 주의: 이 스타일은 헤더(.header-actions) 안의 아이콘에만 적용됩니다.
-   * 상세 상품란의 wishlist-icon은 영향을 받지 않습니다.
-   */
-  .main-header .header-actions .action-link .action-icon {
-    /* 헤더의 액션 아이콘만 타겟팅 (상세 상품란의 wishlist-icon과 분리) */
-    width: clamp(24px, 5vw, 32px) !important;  /* 원하는 최소/최대 크기로 조정 가능 */
-    height: clamp(24px, 5vw, 32px) !important; /* 원하는 최소/최대 크기로 조정 가능 */
-  }
-  
-  /* 상세 상품란의 wishlist-icon은 PC와 동일한 크기 유지 */
-  .product-detail-container .wishlist-icon,
-  .wishlist-btn .wishlist-icon {
-    width: 100% !important;
-    height: 100% !important;
-  }
-  
-  /* 개별 아이콘 크기 조정 (필요시 주석 해제하여 사용) */
-  /*
-  .header-actions #search-toggle .action-icon {
-    width: clamp(22px, 4.5vw, 30px);
-    height: clamp(22px, 4.5vw, 30px);
-  }
-  
-  .header-actions #mypage-toggle .action-icon {
-    width: clamp(20px, 4vw, 28px);
-    height: clamp(20px, 4vw, 28px);
-  }
-  
-  .header-actions .cart-link .action-icon {
-    width: clamp(22px, 4.5vw, 30px);
-    height: clamp(22px, 4.5vw, 30px);
-  }
-  
-  .header-actions [href="wishlist.html"] .action-icon {
-    width: clamp(20px, 4vw, 28px);
-    height: clamp(20px, 4vw, 28px);
-  }
-  */
-  
-  /* 로고 및 브랜드 조정 */
-  .logo-img {
-    height: clamp(22px, 5vw, 28px);
-    margin-right: clamp(6px, 1.5vw, 8px);
-  }
-  
-  .brand-name {
-    font-size: clamp(1rem, 3vw, 1.2rem);
-  }
-  
-  .slogan {
-    font-size: clamp(0.6rem, 2vw, 0.7rem);
-  }
+  /* 헤더 관련 스타일(로고/브랜드 포함)은 header.css로 이동되었습니다 */
   
   /* 제품 그리드 모바일 조정 */
   .product-grid {
@@ -468,20 +356,7 @@
     font-size: clamp(0.75rem, 2.2vw, 0.85rem);
   }
   
-  /* 메가 메뉴 모바일 조정 */
-  .mega-menu {
-    min-width: clamp(160px, 35vw, 180px) !important;
-    padding: clamp(12px, 2.5vw, 16px) !important;
-  }
-  
-  .mega-col a {
-    padding: clamp(4px, 1.2vw, 6px) 0;
-    font-size: clamp(0.75rem, 2.2vw, 0.85rem);
-  }
-  
-  .mega-col h4 {
-    font-size: clamp(0.9rem, 2.5vw, 1.05rem);
-  }
+  /* 메가 메뉴 모바일 조정 - header.css로 이동됨 */
   
   /* Footer 모바일 조정 */
   footer {

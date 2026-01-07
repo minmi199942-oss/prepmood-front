@@ -68,6 +68,12 @@
     /* transform을 사용한 미세 조정 */
     /* 예: 0px (기본), 10px (아래), -10px (위) */
     --brand-logo-translate-y: 0px;
+    
+    /* 상단 흰색 레이어(상단 씰을 감싸는 흰색 요소) 위치 조정 가능 */
+    /* 이 값을 변경하면 상단 흰색 레이어의 상단 위치가 변경됩니다 */
+    /* 예: -28px (기본), -30px (더 위로), -25px (더 아래로) 등 */
+    /* 음수 값: 위로 이동, 양수 값: 아래로 이동 */
+    --seal-top-white-band-top-offset: -28px;
 }
 
 @font-face {
@@ -405,7 +411,7 @@
     transform: translateX(-50%);
     bottom: var(--connector-bottom-bottom);
     height: calc(72px * var(--scale));
-    z-index: 20;
+    z-index: 25;
     transition: all 700ms ease-out;
     opacity: 1;
 }
@@ -465,7 +471,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    top: calc(var(--connector-top-top) - calc(28px * var(--scale))); /* 상단 스트립과 정확히 연결 */
+    top: calc(var(--connector-top-top) + var(--seal-top-white-band-top-offset, -28px)); /* 상단 스트립과 정확히 연결 - 조정 가능 */
     width: var(--connector-white-width, 54px); /* 상단 스트립과 동일한 너비 */
     height: calc(28px * var(--scale)); /* 높이 */
     background: #FFFFFF; /* 상단 스트립과 동일한 배경색 */
