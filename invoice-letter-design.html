@@ -32,6 +32,23 @@
         :root {
             /* 너비 조정: 이 값을 변경하면 카드 너비가 변경됩니다 */
             --card-width: 690px;
+            
+            /* 하단 씰 위치 조정 */
+            --seal-bottom-bottom: 280px;
+            --seal-bottom-left: 50%; /* left: 50% 기준으로 translateX 조정 */
+            --seal-bottom-translate-x: -50%; /* -50% = 중앙, 양수 = 오른쪽, 음수 = 왼쪽 */
+            
+            /* 상단 씰 위치 조정 */
+            --seal-top-bottom: 420px;
+            --seal-top-left: 50%;
+            --seal-top-translate-x: -50%;
+            
+            /* 그레이 레이어 위치 조정 (상단 씰과 하단 씰을 이어주는 레이어) */
+            --greylayer-bottom: 280px; /* 하단 씰 위치 기준 */
+            --greylayer-left: 50%;
+            --greylayer-translate-x: -50%;
+            --greylayer-width: 55px;
+            --greylayer-height: 197px; /* 기본값: 상단 씰(420px) - 하단 씰(280px) = 140px, 더 길게 늘리려면 이 값을 증가시키세요 (예: 200px, 250px 등) */
         }
 
         body {
@@ -47,19 +64,19 @@
 
         /* 디자인 확인용 - 최소한의 스타일만 */
 
-        .invoice-card-container {
+        .invoice-letter-card {
             position: relative;
             cursor: pointer;
             width: var(--card-width);
         }
 
-        .card-wrapper {
+        .invoice-letter-card-wrapper {
             position: relative;
             height: 600px;
         }
 
         /* 하단 고정 - 회색 봉투 본체 */
-        .envelope-body {
+        .invoice-envelope-body {
             position: absolute;
             bottom: 0;
             left: 0;
@@ -71,7 +88,7 @@
             z-index: 10;
         }
 
-        .envelope-brand {
+        .invoice-envelope-brand {
             position: absolute;
             top: 80px;
             left: 0;
@@ -82,33 +99,80 @@
             padding: 0 32px;
         }
 
-        .envelope-brand h3 {
-            font-size: 2.25rem;
-            color: #374151;
-            margin-bottom: 12px;
-            font-family: 'Georgia', serif;
+        .invoice-envelope-logo {
+            max-width: 200px;
+            max-height: 120px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            margin-bottom: 16px;
         }
 
-        .envelope-brand p {
-            font-size: 1rem;
-            color: #6b7280;
+        .invoice-envelope-logo-secondary {
+            max-width: 150px;
+            max-height: 80px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
         }
 
-        .envelope-crest {
-            margin-top: 48px;
-            width: 56px;
-            height: 56px;
-            opacity: 0.3;
+        /* 하단 씰 */
+        .invoice-seal-bottom {
+            position: absolute;
+            left: var(--seal-bottom-left, 50%);
+            transform: translateX(var(--seal-bottom-translate-x, -50%));
+            bottom: var(--seal-bottom-bottom, 280px);
+            z-index: 35;
         }
 
-        .envelope-crest svg {
-            width: 100%;
-            height: 100%;
-            color: #4b5563;
+        .invoice-seal-bottom-circle {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+        }
+
+        /* 그레이 레이어 (상단 씰과 하단 씰을 이어주는 레이어) */
+        .invoice-greylayer {
+            position: absolute;
+            left: var(--greylayer-left, 50%);
+            transform: translateX(var(--greylayer-translate-x, -50%));
+            bottom: var(--greylayer-bottom, 280px); /* 하단 고정 */
+            top: auto;
+            z-index: 30;
+            width: var(--greylayer-width, 50px);
+            height: var(--greylayer-height, 140px); /* 컨테이너 높이 명시 */
+            display: flex;
+            align-items: flex-end; /* 하단 기준으로 정렬 */
+            justify-content: center;
+            overflow: visible; /* 위로 넘어가도 보이도록 */
+        }
+
+        .invoice-greylayer-img {
+            width: var(--greylayer-width, 50px);
+            height: var(--greylayer-height, 140px); /* SVG 높이를 직접 제어 */
+            display: block;
+            transform-origin: bottom center; /* 하단 기준으로 늘어나도록 */
+            flex-shrink: 0; /* flex에서 축소 방지 */
+            /* preserveAspectRatio="none"이 HTML에 설정되어 있어 비율 무시하고 늘어남 */
+        }
+
+        /* 상단 씰 */
+        .invoice-seal-top {
+            position: absolute;
+            left: var(--seal-top-left, 50%);
+            transform: translateX(var(--seal-top-translate-x, -50%));
+            bottom: var(--seal-top-bottom, 420px);
+            z-index: 35;
+        }
+
+        .invoice-seal-top-circle {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
         }
 
         /* 중간 - 인보이스 내용 영역 */
-        .letter-content {
+        .invoice-letter-content {
             position: absolute;
             left: 0;
             right: 0;
@@ -123,34 +187,34 @@
             overflow: hidden;
         }
 
-        .invoice-card-container:hover .letter-content {
+        .invoice-letter-card:hover .invoice-letter-content {
             height: 180px;
             opacity: 1;
         }
 
-        .letter-content-inner {
+        .invoice-letter-content-inner {
             padding: 40px 64px;
             transition: all 700ms;
             opacity: 0;
             transform: translateY(20px);
         }
 
-        .invoice-card-container:hover .letter-content-inner {
+        .invoice-letter-card:hover .invoice-letter-content-inner {
             opacity: 1;
             transform: translateY(0);
         }
 
-        .letter-content-grid {
+        .invoice-letter-content-grid {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
         }
 
-        .letter-content-left {
+        .invoice-letter-content-left {
             flex: 1;
         }
 
-        .letter-content-left .invoice-title {
+        .invoice-letter-content-left .invoice-title {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-weight: 500; /* Paperlogy:5_Medium */
             font-size: 10.891px;
@@ -161,7 +225,7 @@
             white-space: nowrap;
         }
 
-        .letter-content-left .invoice-meta {
+        .invoice-letter-content-left .invoice-meta {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-weight: 500; /* Paperlogy:5_Medium */
             font-size: 10.821px;
@@ -173,29 +237,41 @@
         }
 
         /* INVOICE NO의 "IN" 부분만 다른 크기 */
-        .letter-content-left .invoice-meta .invoice-no-label {
+        .invoice-letter-content-left .invoice-meta .invoice-no-label {
             font-size: 10.891px;
             letter-spacing: 1.0891px;
         }
 
-        .letter-content-left .invoice-meta .invoice-no-value {
+        .invoice-letter-content-left .invoice-meta .invoice-no-value {
             font-size: 10.821px;
             letter-spacing: 1.0821px;
         }
 
         /* ISSUE DATE의 "ISSU" 부분만 다른 크기 */
-        .letter-content-left .invoice-meta .issue-date-label {
+        .invoice-letter-content-left .invoice-meta .issue-date-label {
             font-size: 10.891px;
             letter-spacing: 1.0891px;
         }
 
-        .letter-content-left .invoice-meta .issue-date-value {
+        .invoice-letter-content-left .invoice-meta .issue-date-value {
             font-size: 10.821px;
             letter-spacing: 1.0821px;
         }
 
+        .invoice-letter-content-right {
+            text-align: right;
+        }
+
+        .invoice-content-brand-logo {
+            max-width: 120px;
+            max-height: 60px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
         /* 카드 밑 정보 영역 */
-        .card-info-footer {
+        .invoice-card-info-footer {
             margin-top: 32px;
             padding: 24px;
             background: #ffffff;
@@ -206,8 +282,8 @@
         }
 
         /* Figma 스타일 적용 */
-        .card-info-footer .product-info,
-        .card-info-footer .status {
+        .invoice-card-info-footer .product-info,
+        .invoice-card-info-footer .status {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-size: 10.066px;
             letter-spacing: 1.0066px;
@@ -218,287 +294,65 @@
         }
 
         /* 레이블 (PRODUCT NAME, DATE, STATUS) - SemiBold */
-        .card-info-footer .info-label {
+        .invoice-card-info-footer .info-label {
             font-weight: 600; /* Paperlogy:6_SemiBold */
             color: #808080;
         }
 
         /* 값 (제품명, 날짜) - Medium */
-        .card-info-footer .info-value {
+        .invoice-card-info-footer .info-value {
             font-weight: 500; /* Paperlogy:5_Medium */
             color: #808080;
         }
 
-        .card-info-footer .status {
+        .invoice-card-info-footer .status {
             display: flex;
             align-items: center;
             gap: 8px;
             margin-bottom: 0;
         }
 
-        .card-info-footer .status-label {
+        .invoice-card-info-footer .status-label {
             font-weight: 600; /* Paperlogy:6_SemiBold */
             color: #808080;
         }
 
-        .card-info-footer .status-value {
+        .invoice-card-info-footer .status-value {
             font-weight: 500; /* Paperlogy:5_Medium */
         }
 
-        .card-info-footer .status.verified .status-value {
+        .invoice-card-info-footer .status.verified .status-value {
             color: #0c3008;
         }
 
-        .check-icon {
+        .invoice-check-icon {
             width: 16px;
             height: 16px;
             flex-shrink: 0;
             display: none;
         }
 
-        .card-info-footer .status.verified .check-icon {
+        .invoice-card-info-footer .status.verified .invoice-check-icon {
             display: inline-block;
         }
 
-        .card-info-footer .status.invalid .status-value {
+        .invoice-card-info-footer .status.invalid .status-value {
             color: #310809;
         }
 
-        .warning-icon {
+        .invoice-warning-icon {
             width: 16px;
             height: 16px;
             flex-shrink: 0;
             display: none;
         }
 
-        .card-info-footer .status.invalid .warning-icon {
+        .invoice-card-info-footer .status.invalid .invoice-warning-icon {
             display: inline-block;
         }
 
-        .letter-content-right {
-            text-align: right;
-        }
-
-        .letter-content-right .brand-name {
-            font-size: 1.875rem;
-            color: #1f2937;
-            font-family: 'Paperlogy', 'Georgia', serif;
-        }
-
-        /* 하단 씰 - 고정 */
-        .seal-bottom {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 270px;
-            z-index: 35;
-        }
-
-        .seal-bottom-wrapper {
-            position: relative;
-            width: 60px;
-            margin: 0 auto;
-        }
-
-        .seal-bottom-white-band {
-            display: none; /* 흰색 반원 제거 */
-        }
-
-        /* 전체를 감싸는 흰색 밴드 */
-        .seal-wrapper {
-            position: relative;
-            width: 60px; /* 넓은 흰색 밴드 너비 */
-            margin: 0 auto;
-        }
-
-        .seal-white-band {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: calc(100% + 20px); /* 씰과 스트립을 모두 감싸는 높이 */
-            background: white;
-            border-radius: 30px;
-            z-index: 0;
-        }
-
-        .seal-circle {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: #C5C9CD; /* 외각 회색원 - 대부분의 원을 차지 */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            z-index: 2;
-            margin: 0 auto;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .seal-circle-inner {
-            width: 12px; /* 얇은 흰색 원 - 더 작게 */
-            height: 12px;
-            background: white; /* 얇은 흰색 원 */
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            border: 1px solid rgba(255, 255, 255, 0.9);
-        }
-
-        .seal-circle-core {
-            width: 8px; /* 매우 작은 내부 회색원 */
-            height: 8px;
-            border-radius: 50%;
-            background: #9EA3A8; /* 내부 회색 */
-        }
-
-        /* 전체 흰색 레이어 - 상단 씰, 스트립, 하단 씰을 모두 감싸는 */
-        .seal-complete-white-wrapper {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 270px; /* 하단 씰 시작 위치 */
-            width: 56px; /* 씰(50px)보다 약간만 넓게 - 얇게 감싸는 느낌 */
-            height: 188px; /* 하단 씰(50px) + 하단 스트립(72px) + 상단 스트립(72px) - 겹침(6px) = 188px */
-            /* 상단 씰 그룹: bottom 361px, 상단 씰 50px, 상단 스트립 top 25px + 72px = 97px */
-            /* 전체: 270px ~ 458px = 188px */
-            z-index: 19; /* 스트립보다 뒤, 씰보다 앞 */
-            transition: all 700ms ease-out;
-            opacity: 1;
-        }
-
-        .invoice-card-container:hover .seal-complete-white-wrapper {
-            bottom: 270px;
-            opacity: 0;
-            height: 0px;
-        }
-
-        .seal-complete-white-layer {
-            width: 100%;
-            height: 100%;
-            background: transparent;
-            border: 2px solid #FFFFFF; /* 얇은 흰색 테두리로 감싸는 느낌 */
-            border-radius: 28px; /* 상단과 하단 모두 둥근 형태 */
-            box-sizing: border-box;
-        }
-
-        /* 하단 연결부 */
-        .connector-bottom {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 289px;
-            height: 72px;
-            z-index: 20;
-            transition: all 700ms ease-out;
-            opacity: 1;
-        }
-
-        .invoice-card-container:hover .connector-bottom {
-            bottom: 270px;
-            opacity: 0;
-            height: 0px;
-        }
-
-        .connector-outer {
-            width: 54px; /* 씰(50px)보다 약간 넓게 - 씰을 감싸는 느낌 */
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            margin: 0 auto;
-            z-index: 3; /* 스트립이 흰색 레이어 위에 확실히 보이도록 */
-        }
-
-        .connector-outer-white {
-            width: 54px; /* 외각 흰색 */
-            height: 100%;
-            background: #FFFFFF;
-            border-radius: 0 0 27px 27px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .connector-inner {
-            position: absolute;
-            width: 36px; /* 내부 회색 */
-            height: 100%;
-            background: rgba(204, 204, 204, 1);
-            border-radius: 0 0 18px 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 2;
-        }
-
-
-        /* 상단 씰 + 상단 연결부 그룹 */
-        .seal-top-group {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 361px;
-            opacity: 1;
-            z-index: 30;
-            transition: all 700ms ease-out;
-        }
-
-        .seal-top-wrapper {
-            position: relative;
-            width: 60px;
-            margin: 0 auto;
-        }
-
-        .seal-top-white-band {
-            display: none; /* 흰색 반원 제거 */
-        }
-
-        .invoice-card-container:hover .seal-top-group {
-            bottom: 650px;
-            opacity: 0;
-        }
-
-        .seal-top {
-            position: relative;
-            width: 50px;
-            z-index: 2;
-            margin: 0 auto;
-        }
-
-        .connector-top {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            top: 25px;
-            height: 72px;
-            z-index: 1;
-        }
-
-        .connector-top-white {
-            width: 54px; /* 외각 흰색 - 씰을 감싸는 느낌 */
-            height: 100%;
-            background: #FFFFFF;
-            border-radius: 27px 27px 0 0;
-            position: relative;
-            z-index: 1;
-        }
-
-        .connector-top-inner {
-            position: absolute;
-            width: 36px; /* 내부 회색 */
-            height: 100%;
-            background: rgba(204, 204, 204, 1);
-            border-radius: 18px 18px 0 0;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 2;
-        }
-
         /* 상단 뚜껑 */
-        .envelope-flap {
+        .invoice-envelope-flap {
             position: absolute;
             left: 0;
             right: 0;
@@ -512,36 +366,47 @@
             transition: all 700ms ease-out;
         }
 
-        .invoice-card-container:hover .envelope-flap {
+        .invoice-letter-card:hover .invoice-envelope-flap {
             bottom: 500px;
             box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.25);
         }
     </style>
 </head>
 <body>
-    <div class="invoice-card-container">
-        <div class="card-wrapper">
+    <div class="invoice-letter-card">
+        <div class="invoice-letter-card-wrapper">
             
             <!-- 하단 고정 - 회색 봉투 본체 -->
-            <div class="envelope-body">
-                <div class="envelope-brand">
-                    <h3>Pre.pMood</h3>
-                    <p>The Art of Modern Heritage</p>
-                    
-                    <div class="envelope-crest">
-                        <svg viewBox="0 0 100 100" fill="currentColor">
-                            <circle cx="50" cy="30" r="15"/>
-                            <path d="M30 60 L50 50 L70 60 M35 70 Q50 75 65 70"/>
-                        </svg>
-                    </div>
+            <div class="invoice-envelope-body">
+                <div class="invoice-envelope-brand">
+                    <img src="image/prep2.png" alt="Pre.pMood" class="invoice-envelope-logo">
+                    <img src="image/logo2.png" alt="Pre.pMood Logo" class="invoice-envelope-logo-secondary">
                 </div>
             </div>
 
+            <!-- 하단 씰 -->
+            <div class="invoice-seal-bottom">
+                <svg class="invoice-seal-bottom-circle" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24.699 48.8979C38.0637 48.8979 48.898 38.0637 48.898 24.699C48.898 11.3342 38.0637 0.5 24.699 0.5C11.3342 0.5 0.5 11.3342 0.5 24.699C0.5 38.0637 11.3342 48.8979 24.699 48.8979Z" fill="#CCCCCC" stroke="#CCCCCC" stroke-miterlimit="10"/>
+                    <!-- 작은 원 (하단) -->
+                    <svg x="18" y="18" width="15" height="15" viewBox="0 0 7 7" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3.18903 0C1.42803 0 0 1.42803 0 3.18903C0 4.95003 1.42803 6.37799 3.18903 6.37799C4.95003 6.37799 6.37799 4.95003 6.37799 3.18903C6.37799 1.42803 4.95003 0 3.18903 0ZM3.18903 5.44104C1.94503 5.44104 0.937012 4.43303 0.937012 3.18903C0.937012 1.94503 1.94503 0.937012 3.18903 0.937012C4.43303 0.937012 5.44104 1.94503 5.44104 3.18903C5.44104 4.43303 4.43303 5.44104 3.18903 5.44104Z" fill="white"/>
+                    </svg>
+                </svg>
+            </div>
+
+            <!-- 그레이 레이어 (상단 씰과 하단 씰을 이어주는 레이어) -->
+            <div class="invoice-greylayer">
+                <svg class="invoice-greylayer-img" viewBox="0 0 56 156" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M52.496 27.9979C52.496 14.4681 41.5279 3.5 27.998 3.5C14.4681 3.5 3.5 14.4681 3.5 27.9979V127.525C3.5 141.055 14.4681 152.023 27.998 152.023C41.5279 152.023 52.496 141.055 52.496 127.525V27.9979Z" stroke="white" stroke-width="7" stroke-miterlimit="10"/>
+                </svg>
+            </div>
+
             <!-- 중간 - 인보이스 내용 영역 -->
-            <div class="letter-content">
-                <div class="letter-content-inner">
-                    <div class="letter-content-grid">
-                        <div class="letter-content-left">
+            <div class="invoice-letter-content">
+                <div class="invoice-letter-content-inner">
+                    <div class="invoice-letter-content-grid">
+                        <div class="invoice-letter-content-left">
                             <p class="invoice-title">INVOICE</p>
                             <p class="invoice-meta">
                                 <span class="invoice-no-label">IN</span><span class="invoice-no-value">VOICE NO. </span><span class="invoice-no-value" id="invoice-no"></span>
@@ -550,89 +415,51 @@
                                 <span class="issue-date-label">ISSU</span><span class="issue-date-value">E DATE : </span><span class="issue-date-value" id="issue-date"></span>
                             </p>
                         </div>
-                        
-                        <div class="letter-content-right">
-                            <p class="brand-name">Pre.pMood</p>
+                        <div class="invoice-letter-content-right">
+                            <img src="image/prep3.png" alt="Pre.pMood" class="invoice-content-brand-logo">
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 하단 흰색 레이어 - 씰과 스트립을 감싸는 -->
-            <div class="seal-bottom-white-wrapper">
-                <div class="seal-bottom-white-layer"></div>
-            </div>
-
-            <!-- 하단 씰 - 고정 -->
-            <div class="seal-bottom">
-                <div class="seal-bottom-wrapper">
-                    <div class="seal-bottom-white-band"></div>
-                    <div class="seal-circle">
-                        <div class="seal-circle-inner">
-                            <div class="seal-circle-core"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 하단 연결부 -->
-            <div class="connector-bottom">
-                <div class="connector-outer">
-                    <div class="connector-outer-white"></div>
-                    <div class="connector-inner"></div>
-                </div>
-            </div>
-
-            <!-- 상단 씰 + 상단 연결부 그룹 -->
-            <div class="seal-top-group">
-                <div class="seal-top-wrapper">
-                    <div class="seal-top-white-band"></div>
-                    <!-- 상단 씰 -->
-                    <div class="seal-top">
-                        <div class="seal-circle">
-                            <div class="seal-circle-inner">
-                                <div class="seal-circle-core"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 상단 연결부 -->
-                    <div class="connector-top">
-                        <div class="connector-outer">
-                            <div class="connector-top-white"></div>
-                            <div class="connector-top-inner"></div>
-                        </div>
-                    </div>
-                </div>
+            <!-- 상단 씰 -->
+            <div class="invoice-seal-top">
+                <svg class="invoice-seal-top-circle" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24.699 48.8979C38.0637 48.8979 48.898 38.0637 48.898 24.699C48.898 11.3342 38.0637 0.5 24.699 0.5C11.3342 0.5 0.5 11.3342 0.5 24.699C0.5 38.0637 11.3342 48.8979 24.699 48.8979Z" fill="#CCCCCC" stroke="#CCCCCC" stroke-miterlimit="10"/>
+                    <!-- 작은 원 (상단) -->
+                    <svg x="18" y="18" width="15" height="15" viewBox="0 0 7 7" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3.18903 0C1.42803 0 0 1.42803 0 3.18903C0 4.95003 1.42803 6.37799 3.18903 6.37799C4.95003 6.37799 6.37799 4.95003 6.37799 3.18903C6.37799 1.42803 4.95003 0 3.18903 0ZM3.18903 5.44104C1.94503 5.44104 0.937012 4.43303 0.937012 3.18903C0.937012 1.94503 1.94503 0.937012 3.18903 0.937012C4.43303 0.937012 5.44104 1.94503 5.44104 3.18903C5.44104 4.43303 4.43303 5.44104 3.18903 5.44104Z" fill="white"/>
+                    </svg>
+                </svg>
             </div>
 
             <!-- 상단 뚜껑 -->
-            <div class="envelope-flap"></div>
+            <div class="invoice-envelope-flap"></div>
         </div>
-    </div>
 
-    <!-- 카드 밑 정보 영역 -->
-    <div class="card-info-footer">
-        <p class="product-info">
-            <span class="info-label">PRODUCT NAME:</span> 
-            <span class="info-value" id="product-name"></span>
-        </p>
-        <p class="product-info">
-            <span class="info-label">DATE:</span> 
-            <span class="info-value" id="issue-datetime"></span>
-        </p>
-        <p class="status" id="status">
-            <span class="status-label">STATUS:</span>
-            <svg class="check-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" stroke="#0c3008" stroke-width="2" fill="none"/>
-                <path d="M8 12l2 2 4-4" stroke="#0c3008" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            </svg>
-            <svg class="warning-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 22H22L12 2Z" fill="#310809"/>
-                <path d="M12 8V14M12 18H12.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span class="status-value" id="status-value"></span>
-        </p>
+        <!-- 카드 밑 정보 영역 -->
+        <div class="invoice-card-info-footer">
+            <p class="product-info">
+                <span class="info-label">PRODUCT NAME:</span> 
+                <span class="info-value" id="product-name"></span>
+            </p>
+            <p class="product-info">
+                <span class="info-label">DATE:</span> 
+                <span class="info-value" id="issue-datetime"></span>
+            </p>
+            <p class="status" id="status">
+                <span class="status-label">STATUS:</span>
+                <svg class="invoice-check-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="#0c3008" stroke-width="2" fill="none"/>
+                    <path d="M8 12l2 2 4-4" stroke="#0c3008" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+                <svg class="invoice-warning-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 22H22L12 2Z" fill="#310809"/>
+                    <path d="M12 8V14M12 18H12.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span class="status-value" id="status-value"></span>
+            </p>
+        </div>
     </div>
 
     <script>

@@ -1,6 +1,7 @@
 <!-- 헤더 (프래그먼트) -->
 <header class="main-header">
-  <div class="header-content">
+  <div class="header-container">
+    <div class="header-content">
     <div class="logo">
       <a href="/index.html" style="text-decoration: none;">
         <div class="brand-text">
@@ -97,6 +98,7 @@
       <a href="#" class="action-link desktop-only">
         <img src="/image/language.jpg" alt="언어" class="action-icon" />
       </a>
+    </div>
     </div>
   </div>
 </header>
