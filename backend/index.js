@@ -363,8 +363,11 @@ app.post('/api/register', [
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 8 }),
     body('name').notEmpty().trim(),
-    body('birthdate').isISO8601(),
-    body('phone').optional().trim()
+    body('phone').notEmpty().trim().withMessage('전화번호를 입력해주세요.'),
+    body('privacy_consent').equals('true').withMessage('개인정보 수집 및 이용 동의가 필요합니다.'),
+    body('terms_consent').equals('true').withMessage('이용약관 동의가 필요합니다.'),
+    body('privacy_policy_consent').equals('true').withMessage('개인정보 처리 방침 동의가 필요합니다.'),
+    body('marketing_consent').optional().isBoolean()
 ], async (req, res) => {
     try {
         Logger.log('📋 회원가입 요청 데이터:', JSON.stringify(req.body, null, 2));
@@ -379,7 +382,7 @@ app.post('/api/register', [
             });
         }
 
-        const { email, password, name, birthdate, phone, isUpdate } = req.body;
+        const { email, password, name, phone, privacy_consent, marketing_consent, terms_consent, privacy_policy_consent, isUpdate } = req.body;
 
         // 업데이트 모드인지 확인
         if (isUpdate) {
@@ -434,16 +437,45 @@ app.post('/api/register', [
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         console.log('✅ 비밀번호 해시화 완료');
 
-        // 사용자 정보 저장 (전화번호는 선택사항)
-        const phoneValue = phone || null;
-        const nameParts = name.split(' ');
-        const lastName = nameParts[0] || '';
-        const firstName = nameParts.slice(1).join(' ') || '';
+        // membership_id 생성
+        const { generateUniqueUserId } = require('./utils/user-id-generator');
+        const membershipId = await generateUniqueUserId(connection);
+        console.log('✅ membership_id 생성:', membershipId);
+
+        // 동의 정보 처리
+        const privacyConsentValue = privacy_consent === 'true' || privacy_consent === true ? 1 : 0;
+        const marketingConsentValue = marketing_consent === 'true' || marketing_consent === true ? 1 : 0;
+        const termsConsentValue = terms_consent === 'true' || terms_consent === true ? 1 : 0;
+        const privacyPolicyConsentValue = privacy_policy_consent === 'true' || privacy_policy_consent === true ? 1 : 0;
         
-        console.log('💾 사용자 정보 저장 중...', { email, lastName, firstName, birthdate, phone: phoneValue });
+        console.log('💾 사용자 정보 저장 중...', { 
+            email, 
+            name, 
+            phone, 
+            membership_id: membershipId,
+            privacy_consent: privacyConsentValue,
+            marketing_consent: marketingConsentValue,
+            terms_consent: termsConsentValue,
+            privacy_policy_consent: privacyPolicyConsentValue
+        });
+        
         await connection.execute(
-            'INSERT INTO users (email, password_hash, last_name, first_name, birth, phone, verified) VALUES (?, ?, ?, ?, ?, ?, 1)',
-            [email, hashedPassword, lastName, firstName, birthdate, phoneValue]
+            `INSERT INTO users (
+                email, password_hash, name, phone, membership_id, 
+                verified, email_verified,
+                privacy_consent, marketing_consent, terms_consent, privacy_policy_consent
+            ) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?)`,
+            [
+                email, 
+                hashedPassword, 
+                name, 
+                phone, 
+                membershipId,
+                privacyConsentValue,
+                marketingConsentValue,
+                termsConsentValue,
+                privacyPolicyConsentValue
+            ]
         );
         console.log('✅ 사용자 정보 저장 완료');
 
