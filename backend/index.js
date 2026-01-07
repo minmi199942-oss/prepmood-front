@@ -385,7 +385,7 @@ app.post('/api/register', [
         if (isUpdate) {
             console.log('🔄 개인정보 업데이트 모드 - 이메일 인증 검사 건너뜀');
             // 업데이트 모드에서는 검증을 건너뛰고 바로 처리
-            return await handleProfileUpdate(req, res, { email, name, birthdate, phone });
+            return await handleProfileUpdate(req, res, { email, name, phone });
         }
 
         // 이메일이 인증되었는지 확인 (회원가입 모드만)
@@ -677,7 +677,7 @@ app.post('/api/update-profile-simple', async (req, res) => {
     try {
         console.log('📋 개인정보 업데이트 요청:', JSON.stringify(req.body, null, 2));
         
-        const { email, name, birthdate } = req.body;
+        const { email, name } = req.body;
 
         // MySQL 연결
         console.log('🔗 MySQL 연결 시도 중...');
@@ -703,16 +703,11 @@ app.post('/api/update-profile-simple', async (req, res) => {
 
         const userId = users[0].user_id;
 
-        // 이름 분리 (성과 이름)
-        const nameParts = name.split(' ');
-        const lastName = nameParts[0] || '';
-        const firstName = nameParts.slice(1).join(' ') || '';
-
-        // 개인정보 업데이트
-        console.log('📝 개인정보 업데이트 중...', { lastName, firstName, birthdate });
+        // 개인정보 업데이트 (name만 사용)
+        console.log('📝 개인정보 업데이트 중...', { name });
         await connection.execute(
-            'UPDATE users SET last_name = ?, first_name = ?, birth = ? WHERE user_id = ?',
-            [lastName, firstName, birthdate, userId]
+            'UPDATE users SET name = ? WHERE user_id = ?',
+            [name, userId]
         );
         console.log('✅ 개인정보 업데이트 완료');
 
@@ -735,7 +730,7 @@ app.post('/api/update-profile-simple', async (req, res) => {
 });
 
 // 개인정보 업데이트 처리 함수
-async function handleProfileUpdate(req, res, { email, name, birthdate, phone }) {
+async function handleProfileUpdate(req, res, { email, name, phone }) {
     try {
         console.log('📝 개인정보 업데이트 처리 시작');
         
@@ -763,16 +758,11 @@ async function handleProfileUpdate(req, res, { email, name, birthdate, phone }) 
 
         const userId = users[0].user_id;
 
-        // 이름 분리 (성과 이름)
-        const nameParts = name.split(' ');
-        const lastName = nameParts[0] || '';
-        const firstName = nameParts.slice(1).join(' ') || '';
-
-        // 개인정보 업데이트
-        console.log('📝 개인정보 업데이트 중...', { lastName, firstName, birthdate });
+        // 개인정보 업데이트 (name, phone만 사용)
+        console.log('📝 개인정보 업데이트 중...', { name, phone });
         await connection.execute(
-            'UPDATE users SET last_name = ?, first_name = ?, birth = ? WHERE user_id = ?',
-            [lastName, firstName, birthdate, userId]
+            'UPDATE users SET name = ?, phone = ? WHERE user_id = ?',
+            [name, phone, userId]
         );
         console.log('✅ 개인정보 업데이트 완료');
 
@@ -996,7 +986,6 @@ app.post('/api/update-profile', [
             });
         }
 
-        // 이름 분리 (성과 이름)
         // 개인정보 업데이트 (name, phone만 사용)
         console.log('📝 개인정보 업데이트 중...', { name, phone });
         await connection.execute(
