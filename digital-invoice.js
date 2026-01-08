@@ -174,9 +174,27 @@ function createInvoiceCard(invoice, index) {
       <!-- 하단 고정 - 회색 봉투 본체 -->
       <div class="invoice-envelope-body">
         <div class="invoice-envelope-brand">
-          <img src="image/prep2.png" alt="Pre.pMood" class="invoice-envelope-logo">
-          <img src="image/logo2.png" alt="Pre.pMood Logo" class="invoice-envelope-logo-secondary">
+          <img src="/image/prep2.png" alt="Pre.pMood" class="invoice-envelope-logo">
+          <img src="/image/logo2.png" alt="Pre.pMood Logo" class="invoice-envelope-logo-secondary">
         </div>
+      </div>
+
+      <!-- 하단 씰 -->
+      <div class="invoice-seal-bottom">
+        <svg class="invoice-seal-bottom-circle" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24.699 48.8979C38.0637 48.8979 48.898 38.0637 48.898 24.699C48.898 11.3342 38.0637 0.5 24.699 0.5C11.3342 0.5 0.5 11.3342 0.5 24.699C0.5 38.0637 11.3342 48.8979 24.699 48.8979Z" fill="#CCCCCC" stroke="#CCCCCC" stroke-miterlimit="10"/>
+          <!-- 작은 원 (하단) -->
+          <svg x="18" y="18" width="15" height="15" viewBox="0 0 7 7" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3.18903 0C1.42803 0 0 1.42803 0 3.18903C0 4.95003 1.42803 6.37799 3.18903 6.37799C4.95003 6.37799 6.37799 4.95003 6.37799 3.18903C6.37799 1.42803 4.95003 0 3.18903 0ZM3.18903 5.44104C1.94503 5.44104 0.937012 4.43303 0.937012 3.18903C0.937012 1.94503 1.94503 0.937012 3.18903 0.937012C4.43303 0.937012 5.44104 1.94503 5.44104 3.18903C5.44104 4.43303 4.43303 5.44104 3.18903 5.44104Z" fill="white"/>
+          </svg>
+        </svg>
+      </div>
+
+      <!-- 그레이 레이어 (상단 씰과 하단 씰을 이어주는 레이어) -->
+      <div class="invoice-greylayer">
+        <svg class="invoice-greylayer-img" viewBox="0 0 56 156" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M52.496 27.9979C52.496 14.4681 41.5279 3.5 27.998 3.5C14.4681 3.5 3.5 14.4681 3.5 27.9979V127.525C3.5 141.055 14.4681 152.023 27.998 152.023C41.5279 152.023 52.496 141.055 52.496 127.525V27.9979Z" stroke="white" stroke-width="7" stroke-miterlimit="10"/>
+        </svg>
       </div>
 
       <!-- 중간 - 인보이스 내용 영역 -->
@@ -193,58 +211,21 @@ function createInvoiceCard(invoice, index) {
               </p>
             </div>
             <div class="invoice-letter-content-right">
-              <img src="image/prep3.png" alt="Pre.pMood" class="invoice-content-brand-logo">
+              <img src="/image/prep3.png" alt="Pre.pMood" class="invoice-content-brand-logo">
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 전체 흰색 레이어 - 상단 씰, 스트립, 하단 씰을 모두 감싸는 -->
-      <div class="invoice-seal-complete-white-wrapper">
-        <div class="invoice-seal-complete-white-layer"></div>
-      </div>
-
-      <!-- 하단 씰 - 고정 -->
-      <div class="invoice-seal-bottom">
-        <div class="invoice-seal-bottom-wrapper">
-          <div class="invoice-seal-bottom-white-band"></div>
-          <div class="invoice-seal-circle">
-            <div class="invoice-seal-circle-inner">
-              <div class="invoice-seal-circle-core"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 하단 연결부 -->
-      <div class="invoice-connector-bottom">
-        <div class="invoice-connector-outer">
-          <div class="invoice-connector-outer-white"></div>
-          <div class="invoice-connector-inner"></div>
-        </div>
-      </div>
-
-      <!-- 상단 씰 + 상단 연결부 그룹 -->
-      <div class="invoice-seal-top-group">
-        <div class="invoice-seal-top-wrapper">
-          <div class="invoice-seal-top-white-band"></div>
-          <!-- 상단 씰 -->
-          <div class="invoice-seal-top">
-            <div class="invoice-seal-circle">
-              <div class="invoice-seal-circle-inner">
-                <div class="invoice-seal-circle-core"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 상단 연결부 -->
-          <div class="invoice-connector-top">
-            <div class="invoice-connector-outer">
-              <div class="invoice-connector-top-white"></div>
-              <div class="invoice-connector-top-inner"></div>
-            </div>
-          </div>
-        </div>
+      <!-- 상단 씰 -->
+      <div class="invoice-seal-top">
+        <svg class="invoice-seal-top-circle" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24.699 48.8979C38.0637 48.8979 48.898 38.0637 48.898 24.699C48.898 11.3342 38.0637 0.5 24.699 0.5C11.3342 0.5 0.5 11.3342 0.5 24.699C0.5 38.0637 11.3342 48.8979 24.699 48.8979Z" fill="#CCCCCC" stroke="#CCCCCC" stroke-miterlimit="10"/>
+          <!-- 작은 원 (상단) -->
+          <svg x="18" y="18" width="15" height="15" viewBox="0 0 7 7" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3.18903 0C1.42803 0 0 1.42803 0 3.18903C0 4.95003 1.42803 6.37799 3.18903 6.37799C4.95003 6.37799 6.37799 4.95003 6.37799 3.18903C6.37799 1.42803 4.95003 0 3.18903 0ZM3.18903 5.44104C1.94503 5.44104 0.937012 4.43303 0.937012 3.18903C0.937012 1.94503 1.94503 0.937012 3.18903 0.937012C4.43303 0.937012 5.44104 1.94503 5.44104 3.18903C5.44104 4.43303 4.43303 5.44104 3.18903 5.44104Z" fill="white"/>
+          </svg>
+        </svg>
       </div>
 
       <!-- 상단 뚜껑 -->
@@ -263,15 +244,17 @@ function createInvoiceCard(invoice, index) {
       </p>
       <p class="status ${isVerified ? 'verified' : 'invalid'}">
         <span class="status-label">STATUS:</span>
-        <svg class="invoice-check-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="#0c3008" stroke-width="2" fill="none"/>
-          <path d="M8 12l2 2 4-4" stroke="#0c3008" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        </svg>
-        <svg class="invoice-warning-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L2 22H22L12 2Z" fill="#310809"/>
-          <path d="M12 8V14M12 18H12.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        <span class="status-value">${isVerified ? 'VERIFIED' : 'INVALID'}</span>
+        <span class="status-value-wrapper">
+          <svg class="invoice-check-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="#0c3008" stroke-width="2" fill="none"/>
+            <path d="M8 12l2 2 4-4" stroke="#0c3008" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+          <svg class="invoice-warning-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 22H22L12 2Z" fill="#310809"/>
+            <path d="M12 8V14M12 18H12.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span class="status-value">${isVerified ? 'VERIFIED' : 'INVALID'}</span>
+        </span>
       </p>
     </div>
   `;

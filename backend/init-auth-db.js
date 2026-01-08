@@ -69,7 +69,8 @@ function generateUniqueToken(existingTokens) {
 
 /**
  * xlsx 파일 읽기 및 파싱
- * @returns {Array} 제품 배열 [{internal_code, product_name}, ...]
+ * @returns {Array} 제품 배열 [{serial_number, rot_code, warranty_bottom_code, digital_warranty_code, digital_warranty_collection, product_name}, ...]
+ * 주의: internal_code와 warranty_bottom_code는 별개의 컬럼입니다
  */
 function readXlsxFile() {
     try {
@@ -88,17 +89,26 @@ function readXlsxFile() {
         const products = [];
         for (const row of data) {
             // 컬럼명에 공백이 있을 수 있으므로 trim 처리
-            const internalCode = String(row['internal_code '] || row['internal_code'] || '').trim();
+            const serialNumber = String(row['serial_number '] || row['serial_number'] || '').trim();
+            const rotCode = String(row['rot_code '] || row['rot_code'] || '').trim();
+            const warrantyBottomCode = String(row['warranty_bottom_code '] || row['warranty_bottom_code'] || '').trim();
+            const digitalWarrantyCode = String(row['digital_warranty_code '] || row['digital_warranty_code'] || '').trim();
+            const digitalWarrantyCollection = String(row['digital_warranty_collection '] || row['digital_warranty_collection'] || '').trim();
             const productName = String(row['product_name'] || '').trim();
             
-            // 빈 값 제외
-            if (!internalCode || !productName) {
-                Logger.warn('[INIT] 빈 값 발견, 건너뜀:', row);
+            // 필수 필드 확인 (product_name은 필수)
+            if (!productName) {
+                Logger.warn('[INIT] product_name이 없어 건너뜀:', row);
                 continue;
             }
             
+            // serial_number, rot_code, warranty_bottom_code, digital_warranty_code, digital_warranty_collection는 선택 필드 (NULL 허용)
             products.push({
-                internal_code: internalCode,
+                serial_number: serialNumber || null,
+                rot_code: rotCode || null,
+                warranty_bottom_code: warrantyBottomCode || null,
+                digital_warranty_code: digitalWarrantyCode || null,
+                digital_warranty_collection: digitalWarrantyCollection || null,
                 product_name: productName
             });
         }

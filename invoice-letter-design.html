@@ -19,9 +19,13 @@
             font-display: swap;
         }
 
-        /* Paperlogy 폰트 weight 매핑 (실제 폰트 파일이 있으면 추가) */
-        /* Paperlogy:5_Medium → font-weight: 500 */
-        /* Paperlogy:6_SemiBold → font-weight: 600 */
+        @font-face {
+            font-family: 'Paperlogy';
+            src: url('/static/fonts/Paperlogy-5Medium.ttf') format('truetype');
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+        }
 
         * {
             margin: 0;
@@ -30,8 +34,13 @@
         }
 
         :root {
-            /* 너비 조정: 이 값을 변경하면 카드 너비가 변경됩니다 */
+            /* 카드 비율 (Figma 기준: width 492.7px, height 703.9px) */
+            /* 비율 계산: 703.9 / 492.7 ≈ 1.428 */
+            --card-aspect-ratio: 1.428;
+            
+            /* 너비 조정: 이 값을 변경하면 카드 너비가 변경되고, 높이는 비율에 맞춰 자동 계산됩니다 */
             --card-width: 690px;
+            --card-height: calc(var(--card-width) * var(--card-aspect-ratio));
             
             /* 하단 씰 위치 조정 */
             --seal-bottom-bottom: 280px;
@@ -39,7 +48,7 @@
             --seal-bottom-translate-x: -50%; /* -50% = 중앙, 양수 = 오른쪽, 음수 = 왼쪽 */
             
             /* 상단 씰 위치 조정 */
-            --seal-top-bottom: 420px;
+            --seal-top-bottom: 375px;
             --seal-top-left: 50%;
             --seal-top-translate-x: -50%;
             
@@ -47,8 +56,8 @@
             --greylayer-bottom: 280px; /* 하단 씰 위치 기준 */
             --greylayer-left: 50%;
             --greylayer-translate-x: -50%;
-            --greylayer-width: 55px;
-            --greylayer-height: 197px; /* 기본값: 상단 씰(420px) - 하단 씰(280px) = 140px, 더 길게 늘리려면 이 값을 증가시키세요 (예: 200px, 250px 등) */
+            --greylayer-width: 60px;
+            --greylayer-height: 153px; /* 기본값: 상단 씰(420px) - 하단 씰(280px) = 140px, 더 길게 늘리려면 이 값을 증가시키세요 (예: 200px, 250px 등) */
         }
 
         body {
@@ -72,7 +81,7 @@
 
         .invoice-letter-card-wrapper {
             position: relative;
-            height: 600px;
+            height: var(--card-height);
         }
 
         /* 하단 고정 - 회색 봉투 본체 */
@@ -82,7 +91,7 @@
             left: 0;
             right: 0;
             height: 320px;
-            background-color: #E6E6E6;
+            background-color: rgba(230, 230, 230, 1);
             box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.5);
             z-index: 10;
@@ -123,6 +132,12 @@
             transform: translateX(var(--seal-bottom-translate-x, -50%));
             bottom: var(--seal-bottom-bottom, 280px);
             z-index: 35;
+            opacity: 1;
+            transition: opacity 700ms ease-out;
+        }
+
+        .invoice-letter-card:hover .invoice-seal-bottom {
+            opacity: 0; /* 페이드아웃만 (올라가지 않음) */
         }
 
         .invoice-seal-bottom-circle {
@@ -145,6 +160,13 @@
             align-items: flex-end; /* 하단 기준으로 정렬 */
             justify-content: center;
             overflow: visible; /* 위로 넘어가도 보이도록 */
+            opacity: 1;
+            transition: bottom 700ms ease-out, opacity 700ms ease-out;
+        }
+
+        .invoice-letter-card:hover .invoice-greylayer {
+            bottom: calc(var(--greylayer-bottom, 280px) + 180px); /* 올라가면서 */
+            opacity: 0; /* 사라짐 */
         }
 
         .invoice-greylayer-img {
@@ -163,6 +185,13 @@
             transform: translateX(var(--seal-top-translate-x, -50%));
             bottom: var(--seal-top-bottom, 420px);
             z-index: 35;
+            opacity: 1;
+            transition: bottom 700ms ease-out, opacity 700ms ease-out;
+        }
+
+        .invoice-letter-card:hover .invoice-seal-top {
+            bottom: calc(var(--seal-top-bottom, 420px) + 180px); /* 올라가면서 */
+            opacity: 0; /* 사라짐 */
         }
 
         .invoice-seal-top-circle {
@@ -216,23 +245,25 @@
 
         .invoice-letter-content-left .invoice-title {
             font-family: 'Paperlogy', 'Georgia', serif;
-            font-weight: 500; /* Paperlogy:5_Medium */
+            font-weight: 500;
             font-size: 10.891px;
-            color: #000000;
-            margin-bottom: 16px;
-            letter-spacing: 1.0891px;
+            font-style: normal;
+            color: #000;
             line-height: normal;
+            letter-spacing: 1.089px;
+            margin-bottom: 16px;
             white-space: nowrap;
         }
 
         .invoice-letter-content-left .invoice-meta {
             font-family: 'Paperlogy', 'Georgia', serif;
-            font-weight: 500; /* Paperlogy:5_Medium */
-            font-size: 10.821px;
-            color: #000000;
-            margin-bottom: 8px;
-            letter-spacing: 1.0821px;
+            font-weight: 500;
+            font-size: 10.891px;
+            font-style: normal;
+            color: #000;
             line-height: normal;
+            letter-spacing: 1.089px;
+            margin-bottom: 8px;
             white-space: nowrap;
         }
 
@@ -285,40 +316,57 @@
         .invoice-card-info-footer .product-info,
         .invoice-card-info-footer .status {
             font-family: 'Paperlogy', 'Georgia', serif;
-            font-size: 10.066px;
-            letter-spacing: 1.0066px;
+            font-size: 14px;
+            font-style: normal;
+            font-weight: 600;
             line-height: normal;
+            letter-spacing: 2.443px;
             color: #808080;
-            margin-bottom: 8px;
+            margin-bottom: 20px;
             white-space: nowrap;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         /* 레이블 (PRODUCT NAME, DATE, STATUS) - SemiBold */
         .invoice-card-info-footer .info-label {
-            font-weight: 600; /* Paperlogy:6_SemiBold */
+            font-weight: 600;
             color: #808080;
         }
 
         /* 값 (제품명, 날짜) - Medium */
         .invoice-card-info-footer .info-value {
-            font-weight: 500; /* Paperlogy:5_Medium */
+            font-weight: 600;
             color: #808080;
+            text-align: right;
         }
 
         .invoice-card-info-footer .status {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 8px;
+        }
+        
+        .invoice-card-info-footer .status:last-child {
             margin-bottom: 0;
         }
 
         .invoice-card-info-footer .status-label {
-            font-weight: 600; /* Paperlogy:6_SemiBold */
+            font-weight: 600;
             color: #808080;
         }
 
+        .invoice-card-info-footer .status-value-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
         .invoice-card-info-footer .status-value {
-            font-weight: 500; /* Paperlogy:5_Medium */
+            font-weight: 600;
         }
 
         .invoice-card-info-footer .status.verified .status-value {
@@ -358,7 +406,7 @@
             right: 0;
             bottom: 320px;
             height: 200px;
-            background-color: #E6E6E6;
+            background-color: rgba(230, 230, 230, 1);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             border-bottom: 2px solid #E0E0E0;
             border: 1px solid rgba(255, 255, 255, 0.5);
@@ -449,15 +497,17 @@
             </p>
             <p class="status" id="status">
                 <span class="status-label">STATUS:</span>
-                <svg class="invoice-check-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="#0c3008" stroke-width="2" fill="none"/>
-                    <path d="M8 12l2 2 4-4" stroke="#0c3008" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                </svg>
-                <svg class="invoice-warning-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L2 22H22L12 2Z" fill="#310809"/>
-                    <path d="M12 8V14M12 18H12.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                <span class="status-value" id="status-value"></span>
+                <span class="status-value-wrapper">
+                    <svg class="invoice-check-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="#0c3008" stroke-width="2" fill="none"/>
+                        <path d="M8 12l2 2 4-4" stroke="#0c3008" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    </svg>
+                    <svg class="invoice-warning-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 22H22L12 2Z" fill="#310809"/>
+                        <path d="M12 8V14M12 18H12.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <span class="status-value" id="status-value"></span>
+                </span>
             </p>
         </div>
     </div>

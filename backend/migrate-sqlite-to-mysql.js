@@ -103,14 +103,22 @@ async function migrateSqliteToMysql() {
                     : null;
                 
                 // INSERT ... ON DUPLICATE KEY UPDATE
+                // 새 필드(serial_number, rot_code, warranty_bottom_code, digital_warranty_code, digital_warranty_collection)는 SQLite에 없으므로 NULL 처리
+                // internal_code는 SQLite에서 그대로 가져옴 (warranty_bottom_code와 별개)
                 await mysqlConn.execute(
                     `INSERT INTO token_master 
-                     (token, internal_code, product_name, is_blocked, owner_user_id, 
+                     (token, internal_code, product_name, serial_number, rot_code, warranty_bottom_code, digital_warranty_code, digital_warranty_collection,
+                      is_blocked, owner_user_id, 
                       scan_count, first_scanned_at, last_scanned_at, created_at, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE
                      internal_code = VALUES(internal_code),
                      product_name = VALUES(product_name),
+                     serial_number = COALESCE(serial_number, VALUES(serial_number)),
+                     rot_code = COALESCE(rot_code, VALUES(rot_code)),
+                     warranty_bottom_code = COALESCE(warranty_bottom_code, VALUES(warranty_bottom_code)),
+                     digital_warranty_code = COALESCE(digital_warranty_code, VALUES(digital_warranty_code)),
+                     digital_warranty_collection = COALESCE(digital_warranty_collection, VALUES(digital_warranty_collection)),
                      is_blocked = VALUES(is_blocked),
                      owner_user_id = COALESCE(owner_user_id, VALUES(owner_user_id)),
                      scan_count = VALUES(scan_count),
@@ -119,8 +127,13 @@ async function migrateSqliteToMysql() {
                      updated_at = VALUES(updated_at)`,
                     [
                         product.token,
-                        product.internal_code,
+                        product.internal_code, // SQLite에서 그대로 가져옴
                         product.product_name,
+                        null, // serial_number (SQLite에는 없음)
+                        null, // rot_code (SQLite에는 없음)
+                        null, // warranty_bottom_code (SQLite에는 없음)
+                        null, // digital_warranty_code (SQLite에는 없음)
+                        null, // digital_warranty_collection (SQLite에는 없음)
                         isBlocked,
                         ownerUserId,
                         product.scan_count || 0,
