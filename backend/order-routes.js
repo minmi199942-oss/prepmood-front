@@ -854,6 +854,9 @@ router.get('/orders/:orderId', authenticateToken, async (req, res) => {
             fraction: fraction,
             eta: order.estimated_delivery ? order.estimated_delivery.toISOString().split('T')[0] : null,
             shipping: {
+                recipient_name: order.shipping_first_name && order.shipping_last_name 
+                    ? `${order.shipping_first_name} ${order.shipping_last_name}`.trim()
+                    : (order.shipping_first_name || order.shipping_last_name || ''),
                 first_name: order.shipping_first_name,
                 last_name: order.shipping_last_name,
                 email: order.shipping_email,

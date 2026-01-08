@@ -280,7 +280,7 @@ function displayShippingInfo(shipping, currency, fraction) {
   
   const shippingInfo = `
     <div class="shipping-detail">
-      <p><strong>수령인:</strong> ${escapeHtml(shipping.first_name)} ${escapeHtml(shipping.last_name)}</p>
+      <p><strong>수령인:</strong> ${escapeHtml(shipping.recipient_name || `${shipping.first_name || ''} ${shipping.last_name || ''}`.trim())}</p>
       <p><strong>연락처:</strong> ${escapeHtml(shipping.phone)}</p>
       <p><strong>이메일:</strong> ${escapeHtml(shipping.email)}</p>
       <p><strong>배송 주소:</strong></p>
