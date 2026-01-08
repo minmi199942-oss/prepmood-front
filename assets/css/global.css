@@ -48,11 +48,41 @@
   --footer-padding-left: clamp(16px, 3vw, 24px); /* Footer 좌측 패딩 */
   
   /* ===== Border Radius (모서리 둥글기) 조정 변수 ===== */
-  /* 아래 값들을 수정하면 홈페이지 전체의 모서리 둥글기가 변경됩니다 */
+  
+  /* ===== 버튼 표준 사이즈 시스템 ===== */
+  /* 디자이너 요청: 버튼 높이의 1/4을 R값으로 사용
+   * 
+   * 핵심 원칙:
+   * 1. 버튼은 반드시 sm/md/lg 중 하나의 표준 사이즈를 사용해야 함
+   * 2. 각 사이즈의 높이와 R값은 토큰으로 고정 (비율 원칙은 디자인 기준, 구현은 토큰값 확정)
+   * 3. 페이지마다 버튼 높이가 달라도, 표준 사이즈 내에서만 움직임
+   * 
+   * 버튼 사이즈 정의:
+   * - sm: 작은 버튼 (높이 36-40px) → R값 9-10px
+   * - md: 기본 버튼 (높이 48px) → R값 12px
+   * - lg: 큰 버튼 (높이 56px) → R값 14px (하지만 캡 12px 적용)
+   */
+  
+  /* 버튼 사이즈별 높이 토큰 */
+  --btn-height-sm: clamp(36px, 8vw, 40px);   /* 작은 버튼 높이 */
+  --btn-height-md: clamp(44px, 9vw, 48px);    /* 기본 버튼 높이 */
+  --btn-height-lg: clamp(52px, 10vw, 56px);   /* 큰 버튼 높이 */
+  
+  /* 버튼 사이즈별 패딩 토큰 (상하 패딩) */
+  --btn-padding-y-sm: clamp(8px, 1.5vw, 10px);    /* sm 버튼 상하 패딩 */
+  --btn-padding-y-md: clamp(12px, 2.5vw, 16px);    /* md 버튼 상하 패딩 */
+  --btn-padding-y-lg: clamp(16px, 3.5vw, 20px);    /* lg 버튼 상하 패딩 */
+  
+  /* 버튼 사이즈별 R값 토큰 (높이의 1/4, 최대값 캡 적용) */
+  --btn-radius-sm: clamp(9px, 2vw, 10px);     /* sm 버튼 R값 (높이 36-40px의 1/4) */
+  --btn-radius-md: clamp(11px, 2.5vw, 12px);  /* md 버튼 R값 (높이 44-48px의 1/4) */
+  --btn-radius-lg: 12px;                       /* lg 버튼 R값 (높이 52-56px의 1/4 = 13-14px, 캡 12px) */
+  
+  /* 기타 요소: 고정값 (비율 기반 아님) */
   --radius-large: clamp(12px, 2vw, 16px);      /* 큰 카드/배너용 (예: 홈 배너) */
   --radius-medium: clamp(8px, 1.5vw, 12px);    /* 중간 크기 카드용 (예: 상품 카드) */
   --radius-medium-sm: clamp(8px, 1.5vw, 10px); /* 중간 크기 (약간 작음) */
-  --radius-small: clamp(6px, 1.2vw, 8px);      /* 작은 요소용 (예: 입력창, 버튼) */
+  --radius-small: clamp(6px, 1.2vw, 8px);      /* 작은 요소용 (예: 입력창) */
   --radius-tiny: clamp(4px, 1vw, 6px);         /* 매우 작은 요소용 */
 }
 
@@ -235,14 +265,16 @@ body {
   gap: 10px;
 }
 
+/* 기본 버튼 - sm 사이즈 */
 .btn-primary, .btn-secondary {
-  padding: 12px;
+  padding: var(--btn-padding-y-sm);
   border: none;
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
   text-align: center;
   transition: background-color 0.2s;
+  border-radius: var(--btn-radius-sm);
 }
 
 .btn-primary {
