@@ -47,7 +47,10 @@
                     <div class="error-message" id="emailError"></div>
                     
                     <div class="verification-code" id="verificationSection">
-                        <input type="text" id="verificationCode" class="form-input" placeholder="인증 코드 6자리" maxlength="6">
+                        <div class="verification-input-wrapper">
+                            <input type="text" id="verificationCode" class="form-input" placeholder="인증 코드 6자리" maxlength="6">
+                            <span class="verification-check-icon" id="verificationCheckIcon" style="display: none;">✓</span>
+                        </div>
                         <div class="error-message" id="codeError"></div>
                     </div>
                 </div>
@@ -184,6 +187,13 @@
                     this.validateEmail();
                 });
                 document.getElementById('verificationCode').addEventListener('input', async () => {
+                    // 입력 중에는 에러 상태 초기화 (인증 완료 상태가 아닐 때만)
+                    const codeInput = document.getElementById('verificationCode');
+                    if (!codeInput.disabled) {
+                        codeInput.classList.remove('error');
+                        this.hideError('codeError');
+                    }
+                    
                     this.validateVerificationCode();
                     // 인증 코드가 6자리 입력되면 자동으로 인증 시도
                     const code = document.getElementById('verificationCode').value;
@@ -268,7 +278,7 @@
                     // 3) 정상 – 인증 코드 발송 완료
                     this.verificationSection.classList.add('show');
                     this.verifyBtn.textContent = '재발송';
-                    this.showSuccess('인증 코드가 발송되었습니다.');
+                    // 메시지 없이 상태만 변경 (세련된 UX)
                     // 이메일 인증 후 개인정보 입력 필드 활성화
                     this.enablePersonalInfoSection();
                 } catch (error) {
@@ -300,11 +310,14 @@
 
                     if (data.success) {
                         this.emailVerified = true;
-                        this.showSuccess('이메일 인증이 완료되었습니다.');
+                        // 성공 시 시각적 피드백만 제공 (메시지 없음)
+                        this.setVerificationSuccess();
                         this.enablePersonalInfoSection();
                         return true;
                     } else {
-                        this.showError('codeError', data.message);
+                        // 실패 시 에러 메시지 표시
+                        this.showError('codeError', '잘못된 인증코드입니다.');
+                        this.setVerificationError();
                         return false;
                     }
                 } catch (error) {
@@ -312,7 +325,48 @@
                         window.Logger.error('verify-code 에러:', error);
                     }
                     this.showError('codeError', '인증 코드 확인 중 오류가 발생했습니다.');
+                    this.setVerificationError();
                     return false;
+                }
+            }
+
+            setVerificationSuccess() {
+                // 성공 시 시각적 피드백
+                const codeInput = document.getElementById('verificationCode');
+                const checkIcon = document.getElementById('verificationCheckIcon');
+                
+                // 에러 메시지 숨기기
+                this.hideError('codeError');
+                
+                // 입력 필드 스타일 변경 (초록 테두리)
+                codeInput.classList.remove('error');
+                codeInput.classList.add('verified');
+                codeInput.disabled = true;
+                
+                // 체크 아이콘 표시
+                if (checkIcon) {
+                    checkIcon.style.display = 'inline-block';
+                }
+                
+                // 재전송 버튼 비활성화
+                if (this.verifyBtn) {
+                    this.verifyBtn.disabled = true;
+                    this.verifyBtn.textContent = '인증 완료';
+                }
+            }
+
+            setVerificationError() {
+                // 실패 시 에러 스타일
+                const codeInput = document.getElementById('verificationCode');
+                const checkIcon = document.getElementById('verificationCheckIcon');
+                
+                codeInput.classList.remove('verified');
+                codeInput.classList.add('error');
+                codeInput.disabled = false;
+                
+                // 체크 아이콘 숨기기
+                if (checkIcon) {
+                    checkIcon.style.display = 'none';
                 }
             }
 
@@ -329,7 +383,7 @@
                 if (!this.emailVerified) {
                     const verified = await this.verifyCode();
                     if (!verified) {
-                        this.showError('codeError', '이메일 인증을 완료해주세요.');
+                        // verifyCode 내부에서 이미 에러 메시지 표시됨
                         return;
                     }
                 }
