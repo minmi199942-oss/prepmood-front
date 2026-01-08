@@ -196,12 +196,9 @@ async function fillUserInfo() {
       if (data.success && data.user) {
         const user = data.user;
         
-        // 이름 설정 (first_name + last_name)
-        if (user.first_name) {
-          document.getElementById('firstName').value = user.first_name;
-        }
-        if (user.last_name) {
-          document.getElementById('lastName').value = user.last_name;
+        // 이름 설정
+        if (user.name) {
+          document.getElementById('name').value = user.name;
         }
         
         // 이메일 설정
@@ -353,7 +350,7 @@ function handleCompleteOrder() {
 function validateShippingForms() {
   // 배송 정보만 검증 (카드 정보 제외)
   const requiredFields = [
-    'firstName', 'lastName', 'email', 'phone', 'address', 'city', 'postalCode', 'country'
+    'name', 'email', 'phone', 'address', 'city', 'postalCode', 'country'
   ];
   
   let isValid = true;
@@ -430,8 +427,7 @@ function collectShippingData() {
   return {
     items: cartItems,
     shipping: {
-      recipient_first_name: document.getElementById('firstName').value,
-      recipient_last_name: document.getElementById('lastName').value,
+      recipient_name: document.getElementById('name').value.trim(),
       email: document.getElementById('email').value,
       phone: document.getElementById('phone').value,
       address: document.getElementById('address').value,
@@ -454,8 +450,7 @@ function collectOrderData() {
   return {
     items: cartItems,
     shipping: {
-      recipient_first_name: document.getElementById('firstName').value,
-      recipient_last_name: document.getElementById('lastName').value,
+      recipient_name: document.getElementById('name').value.trim(),
       email: document.getElementById('email').value,
       phone: document.getElementById('phone').value,
       address: document.getElementById('address').value,
@@ -475,7 +470,7 @@ function collectOrderData() {
 
 function validateForms() {
   const requiredFields = [
-    'firstName', 'lastName', 'email', 'phone', 'address', 'city', 'postalCode', 'country',
+    'name', 'email', 'phone', 'address', 'city', 'postalCode', 'country',
     'cardNumber', 'expiryDate', 'cvv', 'cardName'
   ];
   

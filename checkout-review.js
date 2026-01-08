@@ -33,7 +33,7 @@ function renderShippingInfo(shipping) {
   
   container.innerHTML = `
     <div style="line-height: 1.8;">
-      <p><strong>이름:</strong> ${escapeHtml(shipping.recipient_first_name)} ${escapeHtml(shipping.recipient_last_name)}</p>
+      <p><strong>이름:</strong> ${escapeHtml(shipping.recipient_name || `${shipping.recipient_first_name || ''} ${shipping.recipient_last_name || ''}`.trim())}</p>
       <p><strong>이메일:</strong> ${escapeHtml(shipping.email)}</p>
       <p><strong>전화번호:</strong> ${escapeHtml(shipping.phone)}</p>
       <p><strong>주소:</strong> ${escapeHtml(shipping.address)}</p>

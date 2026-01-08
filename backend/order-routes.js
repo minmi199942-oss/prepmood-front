@@ -204,12 +204,29 @@ function validateOrderRequest(req) {
         return errors;
     }
     
-    // 이름 길이 및 패턴 검증
-    if (!shipping.recipient_first_name || shipping.recipient_first_name.trim().length < 1 || shipping.recipient_first_name.trim().length > 50) {
-        errors['shipping.recipient_first_name'] = '이름은 1-50자 사이여야 합니다';
+    // 이름 검증 (recipient_name 우선, 없으면 recipient_first_name/last_name 사용 - 하위 호환)
+    let recipientName = '';
+    if (shipping.recipient_name && shipping.recipient_name.trim()) {
+        recipientName = shipping.recipient_name.trim();
+        if (recipientName.length < 1 || recipientName.length > 100) {
+            errors['shipping.recipient_name'] = '이름은 1-100자 사이여야 합니다';
+        }
+    } else if (shipping.recipient_first_name || shipping.recipient_last_name) {
+        // 하위 호환: 기존 방식 지원
+        const firstName = (shipping.recipient_first_name || '').trim();
+        const lastName = (shipping.recipient_last_name || '').trim();
+        if (!firstName && !lastName) {
+            errors['shipping.recipient_name'] = '이름을 입력해주세요';
+        } else {
+            recipientName = `${lastName} ${firstName}`.trim();
+        }
+    } else {
+        errors['shipping.recipient_name'] = '이름을 입력해주세요';
     }
-    if (!shipping.recipient_last_name || shipping.recipient_last_name.trim().length < 1 || shipping.recipient_last_name.trim().length > 50) {
-        errors['shipping.recipient_last_name'] = '성은 1-50자 사이여야 합니다';
+    
+    // recipientName을 req 객체에 저장 (나중에 사용)
+    if (recipientName && !errors['shipping.recipient_name']) {
+        req.recipientName = recipientName;
     }
     
     // 이메일 패턴 검증
@@ -519,6 +536,28 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
                 try {
                     orderNumber = await generateOrderNumber(connection);
                     
+                    // recipient_name을 first_name과 last_name으로 분리
+                    let shippingFirstName = '';
+                    let shippingLastName = '';
+                    
+                    if (req.recipientName) {
+                        // recipient_name이 제공된 경우 분리
+                        const nameParts = req.recipientName.trim().split(/\s+/);
+                        if (nameParts.length > 1) {
+                            // 공백으로 분리 가능한 경우: 첫 번째를 성, 나머지를 이름
+                            shippingLastName = nameParts[0];
+                            shippingFirstName = nameParts.slice(1).join(' ');
+                        } else {
+                            // 단일 단어인 경우: 전체를 이름으로, 성은 빈 값
+                            shippingFirstName = nameParts[0];
+                            shippingLastName = '';
+                        }
+                    } else {
+                        // 하위 호환: 기존 방식 지원
+                        shippingFirstName = shipping.recipient_first_name || '';
+                        shippingLastName = shipping.recipient_last_name || '';
+                    }
+                    
                     // orders 테이블에 주문 생성 (배송 정보 및 주문번호 포함)
                     [orderResult] = await connection.execute(
                         `INSERT INTO orders (user_id, order_number, total_price, status, 
@@ -527,9 +566,9 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
                          shipping_method, shipping_cost, estimated_delivery) 
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                         [userId, orderNumber, finalTotal, 'pending',
-                         shipping.recipient_first_name, shipping.recipient_last_name, shipping.email, shipping.phone,
+                         shippingFirstName, shippingLastName, shipping.email, shipping.phone,
                          shipping.address, shipping.city, shipping.postal_code, shipping.country,
-                         shipping.method || 'standard', shipping.cost || 0, etaStr] // 새로운 필드명 사용
+                         shipping.method || 'standard', shipping.cost || 0, etaStr]
                     );
                     
                     // 성공 시 루프 종료
