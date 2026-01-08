@@ -6,8 +6,6 @@ const API_BASE = (window.API_BASE)
       : '/api');
 
 document.addEventListener('DOMContentLoaded', async function() {
-  console.log('✅ 주문 완료 페이지 로드됨');
-  
   // URL 파라미터 확인
   const urlParams = new URLSearchParams(window.location.search);
   const paymentKey = urlParams.get('paymentKey');
@@ -19,7 +17,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   
   // 토스페이먼츠 success URL에서 온 경우 (paymentKey가 있으면)
   if (paymentKey && orderId && amount) {
-    console.log('💳 토스페이먼츠 결제 성공 URL 감지:', { paymentKey, orderId, amount });
     if (!isAuthenticated) {
       showOrderError('결제 확인을 위해 로그인이 필요합니다. 로그인 후 다시 시도해주세요.');
       return;
@@ -59,8 +56,6 @@ async function fetchAuthStatus() {
 
 async function loadOrderDetails(orderId) {
   try {
-    console.log('📋 주문 상세 정보 로딩 중...', orderId);
-    
     const response = await fetch(`${API_BASE}/orders/${orderId}`, {
       credentials: 'include'
     });
@@ -88,7 +83,6 @@ async function loadOrderDetails(orderId) {
       
       // 세션스토리지 정리 (서버가 진실 원천)
       sessionStorage.removeItem('serverCurrencyInfo');
-      console.log('✅ 서버 응답 우선 사용, 세션스토리지 정리 완료');
       
     } else if (result.success && result.order) {
       // 기존 호환성 유지 (order 필드만 있는 경우)
@@ -108,8 +102,6 @@ async function loadOrderDetails(orderId) {
 }
 
 function displayOrderInfoFromServer(data, orderDetail) {
-  console.log('📋 서버 응답으로 주문 정보 표시:', data);
-  
   const orderInfoSection = document.getElementById('order-info-section');
   if (!orderInfoSection) {
     console.error('❌ order-info-section을 찾을 수 없습니다');
@@ -238,8 +230,6 @@ function showOrderError(message) {
 }
 
 function displayOrderInfo(order) {
-  console.log('📋 주문 정보 표시:', order);
-  
   // 주문 정보 섹션 표시
   const orderInfoSection = document.getElementById('order-info-section');
   orderInfoSection.style.display = 'block';
@@ -376,8 +366,6 @@ function getStatusText(status) {
  */
 async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
   try {
-    console.log('💳 결제 확인 API 호출 중...', { paymentKey, orderId, amount });
-    
     // 로딩 상태 표시
     showPaymentProcessing();
     
@@ -401,7 +389,6 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     }
     
     const result = await response.json();
-    console.log('✅ 결제 확인 완료:', result);
     
     // 결제 확인 성공 → 주문 정보 로드
     await loadOrderDetails(orderId);
@@ -443,7 +430,6 @@ function showPaymentProcessing() {
 function showPaymentSuccess() {
   // 이미 loadOrderDetails에서 주문 정보가 표시되므로 추가 메시지는 생략
   // 필요시 토스트 메시지나 배너 추가 가능
-  console.log('✅ 결제 확인 완료, 주문 정보 표시됨');
 }
 
 /**
