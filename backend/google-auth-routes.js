@@ -97,7 +97,7 @@ router.get('/auth/google/status', authenticateToken, async (req, res) => {
         });
 
         const [users] = await connection.execute(
-            'SELECT user_id, email, first_name, last_name, google_id, profile_picture FROM users WHERE user_id = ?',
+            'SELECT user_id, email, name, google_id, profile_picture FROM users WHERE user_id = ?',
             [req.user.userId]
         );
 
@@ -133,21 +133,23 @@ router.post('/auth/complete-profile', authLimiter, authenticateToken, async (req
         // authenticateToken 미들웨어에서 이미 토큰 검증 완료
         const userId = req.user.userId;
 
+        // 요청 데이터 파싱
+        const { name, phone } = req.body;
+
         // 입력 값 검증
-        if (!lastName || !firstName) {
+        if (!name || !name.trim()) {
             return res.status(400).json({
                 success: false,
-                error: '성과 이름은 필수 항목입니다.'
+                error: '이름은 필수 항목입니다.'
             });
         }
 
         // XSS 방지: HTML 태그 제거
         const sanitize = (str) => str.replace(/<[^>]*>/g, '').trim();
-        const sanitizedLastName = sanitize(lastName);
-        const sanitizedFirstName = sanitize(firstName);
+        const sanitizedName = sanitize(name);
 
         // 이름 길이 검증
-        if (sanitizedLastName.length > 50 || sanitizedFirstName.length > 50) {
+        if (sanitizedName.length > 100) {
             return res.status(400).json({
                 success: false,
                 error: '이름이 너무 깁니다.'
@@ -155,7 +157,7 @@ router.post('/auth/complete-profile', authLimiter, authenticateToken, async (req
         }
 
         // 이름 형식 검증 (한글, 영문, 공백, 하이픈, 아포스트로피 허용)
-        if (!/^[가-힣a-zA-Z\s'-]+$/.test(sanitizedLastName) || !/^[가-힣a-zA-Z\s'-]+$/.test(sanitizedFirstName)) {
+        if (!/^[가-힣a-zA-Z\s'-]+$/.test(sanitizedName)) {
             return res.status(400).json({
                 success: false,
                 error: '이름에는 한글, 영문, 하이픈(-), 아포스트로피(\')만 입력 가능합니다.'
@@ -170,21 +172,6 @@ router.post('/auth/complete-profile', authLimiter, authenticateToken, async (req
             });
         }
 
-        // 생년월일 형식 검증 (선택적)
-        if (birth) {
-            const birthDate = new Date(birth);
-            const today = new Date();
-            today.setHours(23, 59, 59, 999); // 오늘 끝까지 허용
-            const minDate = new Date('1900-01-01');
-            
-            if (isNaN(birthDate.getTime()) || birthDate > today || birthDate < minDate) {
-                return res.status(400).json({
-                    success: false,
-                    error: '유효하지 않은 생년월일입니다.'
-                });
-            }
-        }
-
         const mysql = require('mysql2/promise');
         connection = await mysql.createConnection({
             host: process.env.DB_HOST,
@@ -193,10 +180,10 @@ router.post('/auth/complete-profile', authLimiter, authenticateToken, async (req
             database: process.env.DB_NAME
         });
 
-        // 사용자 정보 업데이트 (sanitized 값 사용)
+        // 사용자 정보 업데이트 (name, phone만 사용)
         const [result] = await connection.execute(
-            'UPDATE users SET last_name = ?, first_name = ?, phone = ?, birth = ? WHERE user_id = ?',
-            [sanitizedLastName, sanitizedFirstName, phone || null, birth || null, userId]
+            'UPDATE users SET name = ?, phone = ? WHERE user_id = ?',
+            [sanitizedName, phone || null, userId]
         );
 
         if (result.affectedRows === 0) {

@@ -99,6 +99,13 @@
             font-weight: 400;
         }
 
+        .form-group label .required {
+            color: #c62828; /* 톤 다운된 레드 (에러 레드보다 부드러움) */
+            font-weight: 500;
+            font-size: 0.9em; /* 텍스트보다 살짝 작게 */
+            margin-left: 2px; /* 괄호 없이 바로 붙이므로 간격 최소화 */
+        }
+
         .submit-btn {
             width: 100%;
             padding: 14px;
@@ -177,23 +184,13 @@
 
         <form id="completeProfileForm">
             <div class="form-group">
-                <label for="lastName">이름*</label>
-                <input type="text" id="lastName" name="lastName" required>
-            </div>
-
-            <div class="form-group">
-                <label for="firstName">이름 *</label>
-                <input type="text" id="firstName" name="firstName" required>
+                <label for="name">이름<span class="required">*</span></label>
+                <input type="text" id="name" name="name" required>
             </div>
 
             <div class="form-group">
                 <label for="phone">전화번호 <span class="optional">(선택)</span></label>
                 <input type="tel" id="phone" name="phone" placeholder="010-0000-0000">
-            </div>
-
-            <div class="form-group">
-                <label for="birth">생년월일 <span class="optional">(선택)</span></label>
-                <input type="date" id="birth" name="birth">
             </div>
 
             <button type="submit" class="submit-btn" id="submitBtn">완료</button>
@@ -308,15 +305,9 @@
                 `;
             }
 
-            // Google 이름과 성을 자동 분리 (선택사항)
+            // Google 이름 자동 입력
             if (user.name) {
-                const nameParts = user.name.trim().split(' ');
-                if (nameParts.length === 2) {
-                    document.getElementById('lastName').value = nameParts[0];
-                    document.getElementById('firstName').value = nameParts[1];
-                } else if (nameParts.length === 1) {
-                    document.getElementById('firstName').value = nameParts[0];
-                }
+                document.getElementById('name').value = user.name;
             }
         });
 
@@ -332,10 +323,8 @@
             errorMessage.style.display = 'none';
 
             const formData = {
-                lastName: document.getElementById('lastName').value.trim(),
-                firstName: document.getElementById('firstName').value.trim(),
-                phone: document.getElementById('phone').value.trim(),
-                birth: document.getElementById('birth').value
+                name: document.getElementById('name').value.trim(),
+                phone: document.getElementById('phone').value.trim()
             };
 
             try {

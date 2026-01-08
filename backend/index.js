@@ -978,8 +978,7 @@ app.post('/api/update-password', [
 app.post('/api/update-profile', [
     body('userId').isInt(),
     body('name').notEmpty().trim(),
-    body('phone').notEmpty().trim(),
-    body('birthdate').isISO8601()
+    body('phone').notEmpty().trim()
 ], async (req, res) => {
     try {
         console.log('📋 개인정보 수정 요청 데이터:', JSON.stringify(req.body, null, 2));
@@ -994,7 +993,7 @@ app.post('/api/update-profile', [
             });
         }
 
-        const { userId, name, phone, birthdate } = req.body;
+        const { userId, name, phone } = req.body;
 
         // MySQL 연결
         console.log('🔗 MySQL 연결 시도 중...');
@@ -1416,8 +1415,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
                 o.order_date as created_at,
                 o.order_date as updated_at,
                 u.email as customer_email,
-                u.first_name,
-                u.last_name
+                u.name as customer_name
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.user_id
             WHERE 1=1
@@ -1432,9 +1430,9 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         if (search) {
-            query += ' AND (o.order_number LIKE ? OR o.shipping_first_name LIKE ? OR o.shipping_last_name LIKE ? OR u.email LIKE ?)';
+            query += ' AND (o.order_number LIKE ? OR o.shipping_first_name LIKE ? OR o.shipping_last_name LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
             const searchPattern = `%${search}%`;
-            params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+            params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
         }
         
         if (date_from) {
@@ -1479,9 +1477,9 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         if (search) {
-            countQuery += ' AND (o.order_number LIKE ? OR o.shipping_first_name LIKE ? OR o.shipping_last_name LIKE ? OR u.email LIKE ?)';
+            countQuery += ' AND (o.order_number LIKE ? OR o.shipping_first_name LIKE ? OR o.shipping_last_name LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
             const searchPattern = `%${search}%`;
-            countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+            countParams.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
         }
         
         if (date_from) {
@@ -1541,8 +1539,7 @@ app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (re
             `SELECT 
                 o.*,
                 u.email as customer_email,
-                u.first_name,
-                u.last_name,
+                u.name as customer_name,
                 u.phone as customer_phone
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.user_id

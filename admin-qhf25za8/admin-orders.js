@@ -169,7 +169,7 @@
         minute: '2-digit'
       });
 
-      const customerName = order.shipping_name || `${order.last_name || ''}${order.first_name || ''}`;
+      const customerName = order.shipping_name || order.customer_name || '-';
       
       const itemsSummary = order.items.length > 0 
         ? order.items.slice(0, 2).map(item => 
@@ -289,7 +289,7 @@
   function renderOrderDetailModal(order) {
     elements.modalOrderTitle.textContent = `주문 상세 - ${order.order_number || `#${order.order_id}`}`;
 
-    const customerName = order.shipping_name || `${order.last_name || ''}${order.first_name || ''}`;
+    const customerName = order.shipping_name || order.customer_name || '-';
     
     const priceFormatted = new Intl.NumberFormat('ko-KR', {
       style: 'currency',

@@ -74,7 +74,7 @@ function formatDate(dateValue) {
  */
 async function getUserIdByEmail(connection, email) {
     const [rows] = await connection.execute(
-        'SELECT user_id, email, first_name, last_name FROM users WHERE email = ?',
+        'SELECT user_id, email, name FROM users WHERE email = ?',
         [email.toLowerCase().trim()]
     );
     
@@ -105,7 +105,7 @@ async function lookupToken(connection, token) {
     let ownerInfo = null;
     if (tokenMaster.owner_user_id) {
         const [userRows] = await connection.execute(
-            'SELECT user_id, email, first_name, last_name FROM users WHERE user_id = ?',
+            'SELECT user_id, email, name FROM users WHERE user_id = ?',
             [tokenMaster.owner_user_id]
         );
         if (userRows.length > 0) {
@@ -786,7 +786,7 @@ program
                 console.log(`\n👤 소유주 정보 (token_master 기준):`);
                 console.log(`   user_id: ${info.owner.user_id}`);
                 console.log(`   이메일: ${info.owner.email}`);
-                console.log(`   이름: ${info.owner.first_name || ''} ${info.owner.last_name || ''}`);
+                console.log(`   이름: ${info.owner.name || '-'}`);
             } else {
                 console.log(`\n👤 소유주 (token_master): 없음`);
             }
@@ -808,7 +808,7 @@ program
                         
                         // warranties의 소유주 정보 조회
                         const [warrantyOwnerRows] = await connection.execute(
-                            'SELECT user_id, email, first_name, last_name FROM users WHERE user_id = ?',
+                            'SELECT user_id, email, name FROM users WHERE user_id = ?',
                             [warrantyOwnerId]
                         );
                         
@@ -817,7 +817,7 @@ program
                             console.log(`\n📄 보증서 소유주 (warranties 기준):`);
                             console.log(`   user_id: ${warrantyOwner.user_id}`);
                             console.log(`   이메일: ${warrantyOwner.email}`);
-                            console.log(`   이름: ${warrantyOwner.first_name || ''} ${warrantyOwner.last_name || ''}`);
+                            console.log(`   이름: ${warrantyOwner.name || '-'}`);
                         }
                     } else {
                         console.log(`\n✅ 소유주 일치: warranties와 token_master의 소유주가 일치합니다.`);

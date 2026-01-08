@@ -95,15 +95,6 @@ async function displayUserInfo() {
             // 사용자 정보가 없는 경우, 기본값으로 "정보 없음" 표시
             document.getElementById('user-region').textContent = user.region || '정보 없음';
             document.getElementById('user-phone').textContent = user.phone || '정보 없음';
-            
-            // 생년월일 형식 처리
-            if (user.birthdate) {
-                const birthDate = new Date(user.birthdate);
-                const formattedBirth = `${birthDate.getFullYear()}. ${String(birthDate.getMonth() + 1).padStart(2, '0')}. ${String(birthDate.getDate()).padStart(2, '0')}.`;
-                document.getElementById('user-birthdate').textContent = formattedBirth;
-            } else {
-                document.getElementById('user-birthdate').textContent = '정보 없음';
-            }
         }
     } catch (error) {
         console.error('사용자 정보 로드 오류:', error);
@@ -185,22 +176,10 @@ function openPersonalInfoSidebar() {
     const currentName = document.getElementById('user-full-name').textContent;
     const currentRegion = document.getElementById('user-region').textContent;
     const currentPhone = document.getElementById('user-phone').textContent;
-    const currentBirthdate = document.getElementById('user-birthdate').textContent;
-    
-    // 날짜 형식 변환 (2002. 06. 03. -> 2002-06-03)
-    const formattedDate = currentBirthdate.replace(/\.\s*/g, '-').replace(/\.$/, '').replace(/-$/, '');
     
     document.getElementById('edit-name').placeholder = currentName;
     document.getElementById('edit-region').placeholder = currentRegion;
     document.getElementById('edit-phone').placeholder = currentPhone;
-    
-    // 날짜 형식 검증 및 설정
-    if (formattedDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        document.getElementById('edit-birthdate').value = formattedDate;
-    } else {
-        // 기본값으로 현재 날짜 설정
-        document.getElementById('edit-birthdate').value = '';
-    }
     
     overlay.classList.add('show');
     sidebar.classList.add('show');
@@ -217,11 +196,10 @@ async function handlePersonalInfoSubmit(e) {
     
     const name = document.getElementById('edit-name').value.trim();
     const phone = document.getElementById('edit-phone').value.trim();
-    const birthdate = document.getElementById('edit-birthdate').value;
     
     // 필수값 검증
-    if (!name || !phone || !birthdate) {
-        showFormError('personal-info-error', '모든 필드를 입력해주세요.');
+    if (!name || !phone) {
+        showFormError('personal-info-error', '이름과 연락처를 입력해주세요.');
         return;
     }
     
@@ -251,7 +229,7 @@ async function handlePersonalInfoSubmit(e) {
         
         // 서버 API 호출 준비 (사용자 데이터 검증 후 사용)
         try {
-            Logger.log('서버 API 호출 준비:', { userId: userData.user.userId, name, phone, birthdate });
+            Logger.log('서버 API 호출 준비:', { userId: userData.user.userId, name, phone });
             
             const response = await fetch(`${API_BASE}/update-profile`, {
                 method: 'POST',
@@ -262,8 +240,7 @@ async function handlePersonalInfoSubmit(e) {
                 body: JSON.stringify({
                     userId: userData.user.userId,
                     name: name,
-                    phone: phone,
-                    birthdate: birthdate
+                    phone: phone
                 })
             });
             
@@ -309,12 +286,11 @@ async function handlePersonalInfoSubmit(e) {
 function updatePersonalInfoSubmitButton() {
     const name = document.getElementById('edit-name').value.trim();
     const phone = document.getElementById('edit-phone').value.trim();
-    const birthdate = document.getElementById('edit-birthdate').value;
     
     const submitButton = document.getElementById('personal-info-submit');
     
     // 필수 필드가 채워져야 활성화 (region은 선택사항)
-    const isValid = name && phone && birthdate;
+    const isValid = name && phone;
     
     submitButton.disabled = !isValid;
 }
