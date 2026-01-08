@@ -234,8 +234,7 @@ router.post('/inquiries',
     verifyCSRF,
     [
         body('salutation').notEmpty().withMessage('호칭을 선택해주세요.'),
-        body('first_name').trim().notEmpty().withMessage('이름을 입력해주세요.').isLength({ max: 50 }).withMessage('이름은 50자 이하여야 합니다.'),
-        body('last_name').trim().notEmpty().withMessage('성을 입력해주세요.').isLength({ max: 50 }).withMessage('성은 50자 이하여야 합니다.'),
+        body('name').trim().notEmpty().withMessage('이름을 입력해주세요.').isLength({ max: 100 }).withMessage('이름은 100자 이하여야 합니다.'),
         body('email').isEmail().withMessage('올바른 이메일 형식이 아닙니다.').normalizeEmail(),
         body('region').notEmpty().withMessage('선호 지역을 선택해주세요.'),
         body('city').optional().trim().isLength({ max: 80 }).withMessage('도시는 80자 이하여야 합니다.'),
@@ -297,15 +296,14 @@ router.post('/inquiries',
                 // 1. INSERT inquiries
                 const [result] = await connection.execute(
                     `INSERT INTO inquiries (
-                        user_id, salutation, first_name, last_name, email, 
+                        user_id, salutation, name, email, 
                         region, city, country_code, phone,
                         category, topic, message, privacy_consent, age_consent, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
                     [
                         req.user?.userId || null,
                         req.body.salutation,
-                        escapeHtml(req.body.first_name.trim()),
-                        escapeHtml(req.body.last_name.trim()),
+                        escapeHtml(req.body.name.trim()),
                         req.body.email.toLowerCase().trim(),
                         req.body.region,
                         req.body.city ? escapeHtml(req.body.city.trim()) : null,
@@ -383,7 +381,7 @@ router.get('/admin/inquiries', authenticateToken, requireAdmin, async (req, res)
         let query = `
             SELECT 
                 id, inquiry_number, user_id,
-                salutation, first_name, last_name, email, region, city, country_code, phone,
+                salutation, name, email, region, city, country_code, phone,
                 category, topic, message, privacy_consent, age_consent,
                 status, admin_memo,
                 created_at, updated_at
@@ -414,7 +412,7 @@ router.get('/admin/inquiries', authenticateToken, requireAdmin, async (req, res)
         }
 
         if (search) {
-            query += ' AND (email LIKE ? OR inquiry_number LIKE ? OR CONCAT(last_name, first_name) LIKE ?)';
+            query += ' AND (email LIKE ? OR inquiry_number LIKE ? OR name LIKE ?)';
             const searchPattern = `%${search}%`;
             params.push(searchPattern, searchPattern, searchPattern);
         }
@@ -510,7 +508,7 @@ router.get('/admin/inquiries/:id', authenticateToken, requireAdmin, async (req, 
         const [inquiries] = await connection.execute(
             `SELECT 
                 id, inquiry_number, user_id,
-                salutation, first_name, last_name, email, region, city, country_code, phone,
+                salutation, name, email, region, city, country_code, phone,
                 category, topic, message, privacy_consent, age_consent,
                 status, admin_memo,
                 created_at, updated_at
@@ -564,7 +562,7 @@ router.get('/admin/inquiries/:id/replies', authenticateToken, requireAdmin, asyn
             `SELECT 
                 ir.id, ir.inquiry_id, ir.admin_user_id, ir.message,
                 ir.email_status, ir.email_error, ir.created_at,
-                u.email as admin_email, u.first_name as admin_first_name, u.last_name as admin_last_name
+                u.email as admin_email, u.name as admin_name
             FROM inquiry_replies ir
             LEFT JOIN users u ON ir.admin_user_id = u.user_id
             WHERE ir.inquiry_id = ?
@@ -626,7 +624,7 @@ router.post('/admin/inquiries/:id/reply',
             try {
                 // 1. 문의 존재 확인
                 const [inquiries] = await connection.execute(
-                    'SELECT id, email, first_name, last_name, inquiry_number FROM inquiries WHERE id = ?',
+                    'SELECT id, email, name, inquiry_number FROM inquiries WHERE id = ?',
                     [inquiryId]
                 );
 
@@ -662,7 +660,7 @@ router.post('/admin/inquiries/:id/reply',
                 let emailResult = { success: false, error: '이메일 발송 실패' };
                 try {
                     emailResult = await sendInquiryReplyEmail(inquiry.email, {
-                        customerName: `${inquiry.last_name} ${inquiry.first_name}`.trim(),
+                        customerName: inquiry.name || '고객님',
                         inquiryNumber: inquiry.inquiry_number || `#${inquiryId}`,
                         replyMessage: replyMessage
                     });

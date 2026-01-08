@@ -269,7 +269,7 @@
   function renderInquiriesTable(inquiries) {
     elements.inquiriesTableBody.innerHTML = inquiries.map(inquiry => {
       const createdAt = safeDate(inquiry.created_at);
-      const customerName = `${inquiry.last_name || ''}${inquiry.first_name || ''}`.trim() || '-';
+      const customerName = inquiry.name || '-';
       
       return `
         <tr data-inquiry-id="${inquiry.id}" onclick="window.openInquiryDetail(${inquiry.id})">
@@ -466,7 +466,7 @@
   // ============================================
   function renderInquiryDetail(inquiry) {
     const createdAt = safeDate(inquiry.created_at);
-    const customerName = `${inquiry.last_name || ''}${inquiry.first_name || ''}`.trim() || '-';
+    const customerName = inquiry.name || '-';
     const phone = inquiry.country_code && inquiry.phone 
       ? `${inquiry.country_code} ${inquiry.phone}` 
       : (inquiry.phone || '-');
@@ -530,9 +530,7 @@
 
     elements.replyHistoryContent.innerHTML = replies.map(reply => {
       const createdAt = safeDate(reply.created_at);
-      const adminName = reply.admin_first_name && reply.admin_last_name
-        ? `${reply.admin_last_name}${reply.admin_first_name}`
-        : (reply.admin_email || '관리자');
+      const adminName = reply.admin_name || reply.admin_email || '관리자';
       
       const emailStatusBadge = reply.email_status === 'sent' 
         ? '<span class="badge badge-success" style="font-size: 0.7rem;">이메일 발송됨</span>'

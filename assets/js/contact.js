@@ -91,8 +91,7 @@
     privacyToggle: document.getElementById('privacyToggle'),
     privacyDetails: document.getElementById('privacyDetails'),
     // 자동 채움용
-    lastName: document.getElementById('lastName'),
-    firstName: document.getElementById('firstName'),
+    name: document.getElementById('name'),
     email: document.getElementById('email'),
     countryCode: document.getElementById('countryCode'),
     phone: document.getElementById('phone'),
@@ -310,12 +309,9 @@
 
       const data = await response.json();
       if (data.success && data.user) {
-        // last_name, first_name 분리해서 채움
-        if (data.user.last_name) {
-          elements.lastName.value = data.user.last_name;
-        }
-        if (data.user.first_name) {
-          elements.firstName.value = data.user.first_name;
+        // name 필드 채움
+        if (data.user.name) {
+          elements.name.value = data.user.name;
         }
         if (data.user.email) {
           elements.email.value = data.user.email;
@@ -406,8 +402,7 @@
       // 폼 데이터 수집
       const formData = {
         salutation: elements.form.salutation.value,
-        first_name: elements.form.first_name.value.trim(),
-        last_name: elements.form.last_name.value.trim(),
+        name: elements.form.name.value.trim(),
         email: elements.form.email.value.trim(),
         region: elements.form.region.value,
         city: elements.form.city.value.trim() || null,
