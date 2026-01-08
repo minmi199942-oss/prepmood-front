@@ -55,9 +55,9 @@
     font-size: clamp(0.7rem, 1.6vw, 0.8rem);
     color: #666;
     font-weight: 400;
-    text-align: center;
+    text-align: left;
     margin-top: clamp(16px, 3vw, 20px);
-    margin-bottom: clamp(12px, 2.5vw, 16px);
+    margin-bottom: clamp(6px, 1.2vw, 8px); /* 회원가입 버튼과 더 가깝게 */
     letter-spacing: 0.3px;
 }
 
@@ -299,10 +299,10 @@
 }
 
 .consent-text .required-badge {
-    color: #c62828; /* 톤 다운된 레드 (에러 레드보다 부드러움) */
-    font-weight: 500;
+    color: #666; /* (선택)과 동일한 색상 */
+    font-weight: 400;
     font-size: 0.85em; /* 텍스트보다 살짝 작게 */
-    margin-left: 4px; /* [필수] 표시이므로 적절한 간격 */
+    margin-left: 4px; /* (필수) 표시이므로 적절한 간격 */
 }
 
 .consent-text .optional {
