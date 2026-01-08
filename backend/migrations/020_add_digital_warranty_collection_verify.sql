@@ -33,9 +33,7 @@ SELECT
     NULLABLE,
     INDEX_TYPE,
     COMMENT,
-    INDEX_COMMENT,
-    VISIBLE,
-    EXPRESSION
+    INDEX_COMMENT
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = 'prepmood'
   AND TABLE_NAME = 'token_master'
