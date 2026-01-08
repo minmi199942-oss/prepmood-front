@@ -11,14 +11,23 @@
  */
 
 require('dotenv').config();
-const Database = require('better-sqlite3');
+const mysql = require('mysql2/promise');
 const path = require('path');
 const fs = require('fs');
 const QRCode = require('qrcode');
 const Logger = require('./logger');
 
-// DB 파일 경로
-const DB_PATH = path.join(__dirname, 'prep.db');
+// DB 설정
+const dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'prepmood_user',
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || 'prepmood',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+};
+
 const OUTPUT_DIR = path.join(__dirname, '..', 'output_qrcodes');
 const BASE_URL = process.env.AUTH_BASE_URL || 'https://prepmood.kr/a/';
 
@@ -91,15 +100,16 @@ async function generateQRCodes(preset = 'default') {
             Logger.log('[QR] 출력 폴더 생성:', OUTPUT_DIR);
         }
 
-        // DB 연결
-        const db = new Database(DB_PATH);
+        // MySQL DB 연결
+        const connection = await mysql.createConnection(dbConfig);
+        Logger.log('[QR] ✅ MySQL 연결 성공');
         
-        // 모든 제품 조회
-        const products = db.prepare(`
+        // 모든 토큰 조회
+        const [products] = await connection.execute(`
             SELECT token, internal_code, product_name
-            FROM products
+            FROM token_master
             ORDER BY internal_code
-        `).all();
+        `);
 
         Logger.log(`[QR] ${products.length}개 제품의 QR 코드 생성 시작...`);
 
@@ -157,7 +167,7 @@ async function generateQRCodes(preset = 'default') {
             }
         }
 
-        db.close();
+        await connection.end();
 
         Logger.log('\n' + '='.repeat(50));
         Logger.log('✅ QR 코드 생성 완료!');

@@ -163,17 +163,16 @@ async function initializeTokenMaster() {
         connection = await mysql.createConnection(dbConfig);
         Logger.log('[INIT] ✅ MySQL 연결 성공');
         
-        // 2. 기존 토큰 개수 확인
+        // 2. 기존 데이터 삭제 (재생성 모드)
         const [countRows] = await connection.execute('SELECT COUNT(*) as count FROM token_master');
         const existingCount = countRows[0].count;
         
         if (existingCount > 0) {
-            Logger.warn('[INIT] ⚠️  token_master 테이블에 이미 데이터가 있습니다!');
+            Logger.warn('[INIT] ⚠️  token_master 테이블에 기존 데이터가 있습니다!');
             Logger.warn(`[INIT] 기존 토큰 수: ${existingCount}개`);
-            Logger.warn('[INIT] 기존 데이터를 보존하기 위해 초기화를 중단합니다.');
-            Logger.warn('[INIT] 재초기화가 필요한 경우 기존 데이터를 삭제 후 다시 실행하세요.');
-            Logger.log('='.repeat(50));
-            return;
+            Logger.warn('[INIT] 재생성 모드: 기존 데이터를 삭제합니다...');
+            await connection.execute('DELETE FROM token_master');
+            Logger.log(`[INIT] ✅ 기존 데이터 ${existingCount}개 삭제 완료`);
         }
         
         // 3. xlsx 파일 읽기
