@@ -536,37 +536,22 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
                 try {
                     orderNumber = await generateOrderNumber(connection);
                     
-                    // recipient_name을 first_name과 last_name으로 분리
-                    let shippingFirstName = '';
-                    let shippingLastName = '';
-                    
-                    if (req.recipientName) {
-                        // recipient_name이 제공된 경우 분리
-                        const nameParts = req.recipientName.trim().split(/\s+/);
-                        if (nameParts.length > 1) {
-                            // 공백으로 분리 가능한 경우: 첫 번째를 성, 나머지를 이름
-                            shippingLastName = nameParts[0];
-                            shippingFirstName = nameParts.slice(1).join(' ');
-                        } else {
-                            // 단일 단어인 경우: 전체를 이름으로, 성은 빈 값
-                            shippingFirstName = nameParts[0];
-                            shippingLastName = '';
-                        }
-                    } else {
-                        // 하위 호환: 기존 방식 지원
-                        shippingFirstName = shipping.recipient_first_name || '';
-                        shippingLastName = shipping.recipient_last_name || '';
-                    }
+                    // recipient_name을 shipping_name으로 사용 (단일 필드)
+                    const shippingName = req.recipientName 
+                        ? req.recipientName.trim() 
+                        : (shipping.recipient_name || (shipping.recipient_first_name && shipping.recipient_last_name 
+                            ? `${shipping.recipient_last_name} ${shipping.recipient_first_name}`.trim()
+                            : (shipping.recipient_first_name || shipping.recipient_last_name || '')));
                     
                     // orders 테이블에 주문 생성 (배송 정보 및 주문번호 포함)
                     [orderResult] = await connection.execute(
                         `INSERT INTO orders (user_id, order_number, total_price, status, 
-                         shipping_first_name, shipping_last_name, shipping_email, shipping_phone,
+                         shipping_name, shipping_email, shipping_phone,
                          shipping_address, shipping_city, shipping_postal_code, shipping_country,
                          shipping_method, shipping_cost, estimated_delivery) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                         [userId, orderNumber, finalTotal, 'pending',
-                         shippingFirstName, shippingLastName, shipping.email, shipping.phone,
+                         shippingName, shipping.email, shipping.phone,
                          shipping.address, shipping.city, shipping.postal_code, shipping.country,
                          shipping.method || 'standard', shipping.cost || 0, etaStr]
                     );
@@ -701,7 +686,7 @@ router.get('/orders', authenticateToken, async (req, res) => {
         // 주문 목록 조회 (배송 정보 및 주문번호 포함)
         const [orders] = await connection.execute(
             `SELECT order_id, order_number, total_price, order_date, status, 
-                    shipping_first_name, shipping_last_name, shipping_city, shipping_country,
+                    shipping_name, shipping_city, shipping_country,
                     shipping_method, shipping_cost, estimated_delivery
              FROM orders 
              WHERE user_id = ? 
@@ -854,11 +839,7 @@ router.get('/orders/:orderId', authenticateToken, async (req, res) => {
             fraction: fraction,
             eta: order.estimated_delivery ? order.estimated_delivery.toISOString().split('T')[0] : null,
             shipping: {
-                recipient_name: order.shipping_first_name && order.shipping_last_name 
-                    ? `${order.shipping_first_name} ${order.shipping_last_name}`.trim()
-                    : (order.shipping_first_name || order.shipping_last_name || ''),
-                first_name: order.shipping_first_name,
-                last_name: order.shipping_last_name,
+                recipient_name: order.shipping_name || '',
                 email: order.shipping_email,
                 phone: order.shipping_phone,
                 address: order.shipping_address,

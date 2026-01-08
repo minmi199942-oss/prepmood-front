@@ -1407,7 +1407,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
                 o.user_id,
                 o.total_price,
                 o.status,
-                CONCAT(COALESCE(o.shipping_first_name, ''), ' ', COALESCE(o.shipping_last_name, '')) as shipping_name,
+                o.shipping_name,
                 o.shipping_phone,
                 o.shipping_address,
                 o.shipping_postal_code as shipping_zipcode,
@@ -1430,7 +1430,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         if (search) {
-            query += ' AND (o.order_number LIKE ? OR o.shipping_first_name LIKE ? OR o.shipping_last_name LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
+            query += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
             const searchPattern = `%${search}%`;
             params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
         }
@@ -1477,7 +1477,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         if (search) {
-            countQuery += ' AND (o.order_number LIKE ? OR o.shipping_first_name LIKE ? OR o.shipping_last_name LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
+            countQuery += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
             const searchPattern = `%${search}%`;
             countParams.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
         }
