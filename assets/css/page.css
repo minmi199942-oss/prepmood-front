@@ -1482,9 +1482,9 @@
 /* 장바구니 버튼 - lg 사이즈 매핑 */
 .cart-btn {
   /* 사이즈 시스템 적용 */
-  height: var(--btn-height-lg);
+  min-height: var(--btn-height-lg);
   padding: 0 var(--btn-padding-x-lg);
-  line-height: var(--btn-height-lg);
+  line-height: 1.2;
   border-radius: var(--btn-radius-lg);
   
   /* 기능별 스타일 */
@@ -1527,12 +1527,15 @@
 /* 빠른 구매 버튼 - md 사이즈 매핑 */
 .quick-buy-btn {
   /* 사이즈 시스템 적용 */
-  height: var(--btn-height-md);
+  min-height: var(--btn-height-md);
   padding: 0 var(--btn-padding-x-md);
-  line-height: var(--btn-height-md);
+  line-height: 1.2;
   border-radius: var(--btn-radius-md);
   
   /* 기능별 스타일 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   background-color: #1d4ed8;
   color: #fff;
@@ -2317,9 +2320,9 @@
 /* 스캔 버튼 - md 사이즈 매핑 */
 .btn-scan {
   /* 사이즈 시스템 적용 */
-  height: var(--btn-height-md);
+  min-height: var(--btn-height-md);
   padding: 0 clamp(28px, 5vw, 36px);
-  line-height: var(--btn-height-md);
+  line-height: 1.2;
   border-radius: var(--btn-radius-md);
   
   /* 기능별 스타일 */
@@ -2395,12 +2398,15 @@
 /* 인증 버튼 - md 사이즈 매핑 */
 .btn-verify {
   /* 사이즈 시스템 적용 */
-  height: var(--btn-height-md);
+  min-height: var(--btn-height-md);
   padding: 0 clamp(24px, 4vw, 32px);
-  line-height: var(--btn-height-md);
+  line-height: 1.2;
   border-radius: var(--btn-radius-md);
   
   /* 기능별 스타일 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #111;
   color: #fff;
   border: none;
@@ -2524,9 +2530,9 @@
 .btn-login,
 .btn-retry {
   /* 사이즈 시스템 적용 */
-  height: var(--btn-height-md);
+  min-height: var(--btn-height-md);
   padding: 0 var(--btn-padding-x-md);
-  line-height: var(--btn-height-md);
+  line-height: 1.2;
   border-radius: var(--btn-radius-md);
   
   /* 기능별 스타일 */
@@ -2817,9 +2823,9 @@
 /* 생성 버튼 - md 사이즈 매핑 */
 .btn-generate {
   /* 사이즈 시스템 적용 */
-  height: var(--btn-height-md);
+  min-height: var(--btn-height-md);
   padding: 0 clamp(28px, 5vw, 36px);
-  line-height: var(--btn-height-md);
+  line-height: 1.2;
   border-radius: var(--btn-radius-md);
   
   /* 기능별 스타일 */
@@ -2908,9 +2914,9 @@
 .btn-download,
 .btn-reset {
   /* 사이즈 시스템 적용 */
-  height: var(--btn-height-md);
+  min-height: var(--btn-height-md);
   padding: 0 var(--btn-padding-x-md);
-  line-height: var(--btn-height-md);
+  line-height: 1.2;
   border-radius: var(--btn-radius-md);
   
   /* 기능별 스타일 */
@@ -2984,12 +2990,15 @@
 .btn-upload,
 .btn-download-template {
   /* 사이즈 시스템 적용 */
-  height: var(--btn-height-md);
+  min-height: var(--btn-height-md);
   padding: 0 clamp(24px, 4vw, 32px);
-  line-height: var(--btn-height-md);
+  line-height: 1.2;
   border-radius: var(--btn-radius-md);
   
   /* 기능별 스타일 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #111;
   color: #fff;
   border: none;

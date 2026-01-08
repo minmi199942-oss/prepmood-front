@@ -78,7 +78,11 @@
   --btn-radius-md: 12px;      /* md 버튼 R값 (높이 48px의 1/4) */
   --btn-radius-lg: 12px;      /* lg 버튼 R값 (높이 56px의 1/4 = 14px, 캡 12px) */
   
-  /* 기타 요소: 고정값 (비율 기반 아님) */
+  /* ===== 모달/카드/입력창 Radius 토큰 (버튼과 분리) ===== */
+  /* 버튼과 같은 철학(일관성)을 공유하되, 계산 방식은 분리 */
+  --radius-modal: 12px;        /* 모달 (버튼 md와 동일) */
+  --radius-card: 12px;         /* 카드 (모달과 동일) */
+  --radius-input: 8px;         /* 입력창/체크박스 (모달보다 한 단계 작게) */
   --radius-large: clamp(12px, 2vw, 16px);      /* 큰 카드/배너용 (예: 홈 배너) */
   --radius-medium: clamp(8px, 1.5vw, 12px);    /* 중간 크기 카드용 (예: 상품 카드) */
   --radius-medium-sm: clamp(8px, 1.5vw, 10px); /* 중간 크기 (약간 작음) */
@@ -263,6 +267,113 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* ===== 버튼 기본 클래스 (사이즈 시스템) ===== */
+/* 사이즈 클래스: .btn--sm, .btn--md, .btn--lg */
+/* 
+ * 핵심 원칙:
+ * 1. min-height 사용 (확대/번역/긴 문구에서 덜 터짐)
+ * 2. inline-flex로 중앙정렬 (아이콘+텍스트 조합 안정적)
+ * 3. line-height는 일반값(1.2)로 설정 (줄바꿈 대응)
+ */
+.btn--sm {
+  min-height: var(--btn-height-sm);
+  padding: 0 var(--btn-padding-x-sm);
+  line-height: 1.2;
+  border-radius: var(--btn-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.2vw, 8px);
+}
+
+.btn--md {
+  min-height: var(--btn-height-md);
+  padding: 0 var(--btn-padding-x-md);
+  line-height: 1.2;
+  border-radius: var(--btn-radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 1.5vw, 10px);
+}
+
+.btn--lg {
+  min-height: var(--btn-height-lg);
+  padding: 0 var(--btn-padding-x-lg);
+  line-height: 1.2;
+  border-radius: var(--btn-radius-lg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 2vw, 12px);
+}
+
+/* ===== 버튼 스킨 클래스 ===== */
+.btn--primary {
+  background: #111;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.btn--primary:hover {
+  background: #333;
+}
+
+.btn--secondary {
+  background: #f5f5f5;
+  color: #111;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.btn--secondary:hover {
+  background: #e5e5e5;
+}
+
+/* ===== 기존 버튼 매핑 (하위 호환성) ===== */
+/* 기능 클래스를 사이즈 클래스로 매핑 */
+.btn-primary, .btn-secondary {
+  /* 기본은 md 사이즈 */
+  min-height: var(--btn-height-md);
+  padding: 0 var(--btn-padding-x-md);
+  line-height: 1.2;
+  border-radius: var(--btn-radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.btn-primary {
+  background: #111;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #333;
+}
+
+.btn-secondary {
+  background: #f5f5f5;
+  color: #111;
+}
+
+.btn-secondary:hover {
+  background: #e5e5e5;
 }
 
 .mini-cart-overlay {
