@@ -1479,17 +1479,22 @@
   margin-top: clamp(8px, 1.5vw, 12px);
 }
 
-/* 장바구니 버튼 - lg 사이즈 */
+/* 장바구니 버튼 - lg 사이즈 매핑 */
 .cart-btn {
+  /* 사이즈 시스템 적용 */
+  height: var(--btn-height-lg);
+  padding: 0 var(--btn-padding-x-lg);
+  line-height: var(--btn-height-lg);
+  border-radius: var(--btn-radius-lg);
+  
+  /* 기능별 스타일 */
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: var(--btn-padding-y-lg) clamp(24px, 4.5vw, 32px);
   background-color: #ccc;
   color: #888;
   border: none;
-  border-radius: var(--btn-radius-lg);
   font-size: clamp(0.95rem, 2vw, 1.05rem);
   font-weight: 600;
   cursor: not-allowed;
@@ -1519,14 +1524,19 @@
   letter-spacing: 0.5px;
 }
 
-/* 빠른 구매 버튼 - md 사이즈 */
+/* 빠른 구매 버튼 - md 사이즈 매핑 */
 .quick-buy-btn {
+  /* 사이즈 시스템 적용 */
+  height: var(--btn-height-md);
+  padding: 0 var(--btn-padding-x-md);
+  line-height: var(--btn-height-md);
+  border-radius: var(--btn-radius-md);
+  
+  /* 기능별 스타일 */
   width: 100%;
-  padding: var(--btn-padding-y-md) clamp(24px, 4.5vw, 32px);
   background-color: #1d4ed8;
   color: #fff;
   border: 2px solid #1d4ed8;
-  border-radius: var(--btn-radius-md);
   font-size: clamp(0.95rem, 2vw, 1.05rem);
   font-weight: 600;
   cursor: not-allowed;
@@ -2304,16 +2314,21 @@
   margin-bottom: clamp(24px, 4vw, 32px);
 }
 
-/* 스캔 버튼 - md 사이즈 */
+/* 스캔 버튼 - md 사이즈 매핑 */
 .btn-scan {
+  /* 사이즈 시스템 적용 */
+  height: var(--btn-height-md);
+  padding: 0 clamp(28px, 5vw, 36px);
+  line-height: var(--btn-height-md);
+  border-radius: var(--btn-radius-md);
+  
+  /* 기능별 스타일 */
   display: inline-flex;
   align-items: center;
   gap: clamp(8px, 1.5vw, 10px);
-  padding: var(--btn-padding-y-md) clamp(28px, 5vw, 36px);
   background: #111;
   color: #fff;
   border: none;
-  border-radius: var(--btn-radius-md);
   font-size: clamp(0.95rem, 2vw, 1.05rem);
   font-weight: 600;
   cursor: pointer;
@@ -2377,13 +2392,18 @@
   border-color: #111;
 }
 
-/* 인증 버튼 - md 사이즈 */
+/* 인증 버튼 - md 사이즈 매핑 */
 .btn-verify {
-  padding: var(--btn-padding-y-md) clamp(24px, 4vw, 32px);
+  /* 사이즈 시스템 적용 */
+  height: var(--btn-height-md);
+  padding: 0 clamp(24px, 4vw, 32px);
+  line-height: var(--btn-height-md);
+  border-radius: var(--btn-radius-md);
+  
+  /* 기능별 스타일 */
   background: #111;
   color: #fff;
   border: none;
-  border-radius: var(--btn-radius-md);
   font-size: clamp(0.9rem, 1.8vw, 1rem);
   font-weight: 600;
   cursor: pointer;
@@ -2499,21 +2519,26 @@
   max-width: 60%;
 }
 
-/* 액션 버튼 - md 사이즈 */
+/* 액션 버튼 - md 사이즈 매핑 */
 .btn-register,
 .btn-login,
 .btn-retry {
+  /* 사이즈 시스템 적용 */
+  height: var(--btn-height-md);
+  padding: 0 var(--btn-padding-x-md);
+  line-height: var(--btn-height-md);
+  border-radius: var(--btn-radius-md);
+  
+  /* 기능별 스타일 */
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: clamp(8px, 1.5vw, 10px);
   width: 100%;
-  padding: var(--btn-padding-y-md);
   margin-top: clamp(24px, 4vw, 32px);
   background: #111;
   color: #fff;
   border: none;
-  border-radius: var(--btn-radius-md);
   font-size: clamp(0.95rem, 2vw, 1.05rem);
   font-weight: 600;
   cursor: pointer;
@@ -2789,16 +2814,21 @@
   color: #999;
 }
 
-/* 생성 버튼 - md 사이즈 */
+/* 생성 버튼 - md 사이즈 매핑 */
 .btn-generate {
+  /* 사이즈 시스템 적용 */
+  height: var(--btn-height-md);
+  padding: 0 clamp(28px, 5vw, 36px);
+  line-height: var(--btn-height-md);
+  border-radius: var(--btn-radius-md);
+  
+  /* 기능별 스타일 */
   display: inline-flex;
   align-items: center;
   gap: clamp(8px, 1.5vw, 10px);
-  padding: var(--btn-padding-y-md) clamp(28px, 5vw, 36px);
   background: #111;
   color: #fff;
   border: none;
-  border-radius: var(--btn-radius-md);
   font-size: clamp(0.95rem, 2vw, 1.05rem);
   font-weight: 600;
   cursor: pointer;
@@ -2874,15 +2904,20 @@
   justify-content: center;
 }
 
-/* 다운로드/리셋 버튼 - md 사이즈 */
+/* 다운로드/리셋 버튼 - md 사이즈 매핑 */
 .btn-download,
 .btn-reset {
+  /* 사이즈 시스템 적용 */
+  height: var(--btn-height-md);
+  padding: 0 var(--btn-padding-x-md);
+  line-height: var(--btn-height-md);
+  border-radius: var(--btn-radius-md);
+  
+  /* 기능별 스타일 */
   display: inline-flex;
   align-items: center;
   gap: clamp(6px, 1.2vw, 8px);
-  padding: var(--btn-padding-y-md) clamp(20px, 3vw, 24px);
   border: 2px solid #111;
-  border-radius: var(--btn-radius-md);
   font-size: clamp(0.9rem, 1.8vw, 1rem);
   font-weight: 600;
   cursor: pointer;
@@ -2945,14 +2980,19 @@
   margin-bottom: clamp(16px, 3vw, 20px);
 }
 
-/* 업로드/템플릿 다운로드 버튼 - md 사이즈 */
+/* 업로드/템플릿 다운로드 버튼 - md 사이즈 매핑 */
 .btn-upload,
 .btn-download-template {
-  padding: var(--btn-padding-y-md) clamp(24px, 4vw, 32px);
+  /* 사이즈 시스템 적용 */
+  height: var(--btn-height-md);
+  padding: 0 clamp(24px, 4vw, 32px);
+  line-height: var(--btn-height-md);
+  border-radius: var(--btn-radius-md);
+  
+  /* 기능별 스타일 */
   background: #111;
   color: #fff;
   border: none;
-  border-radius: var(--btn-radius-md);
   font-size: clamp(0.9rem, 1.8vw, 1rem);
   font-weight: 600;
   cursor: pointer;

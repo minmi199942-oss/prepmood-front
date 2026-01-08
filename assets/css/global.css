@@ -54,29 +54,29 @@
    * 
    * 핵심 원칙:
    * 1. 버튼은 반드시 sm/md/lg 중 하나의 표준 사이즈를 사용해야 함
-   * 2. 각 사이즈의 높이와 R값은 토큰으로 고정 (비율 원칙은 디자인 기준, 구현은 토큰값 확정)
-   * 3. 페이지마다 버튼 높이가 달라도, 표준 사이즈 내에서만 움직임
+   * 2. 높이는 토큰으로 강제하여 통일감 확보 (A안: height 강제 방식)
+   * 3. R값은 높이의 1/4 원칙을 따르되, 고정값으로 확정 (시스템 규칙으로 고정)
    * 
    * 버튼 사이즈 정의:
-   * - sm: 작은 버튼 (높이 36-40px) → R값 9-10px
-   * - md: 기본 버튼 (높이 48px) → R값 12px
-   * - lg: 큰 버튼 (높이 56px) → R값 14px (하지만 캡 12px 적용)
+   * - sm: 높이 40px → R값 10px (40px / 4)
+   * - md: 높이 48px → R값 12px (48px / 4)
+   * - lg: 높이 56px → R값 12px (56px / 4 = 14px, 캡 12px 적용)
    */
   
-  /* 버튼 사이즈별 높이 토큰 */
+  /* 버튼 사이즈별 높이 토큰 (반응형) */
   --btn-height-sm: clamp(36px, 8vw, 40px);   /* 작은 버튼 높이 */
   --btn-height-md: clamp(44px, 9vw, 48px);    /* 기본 버튼 높이 */
   --btn-height-lg: clamp(52px, 10vw, 56px);   /* 큰 버튼 높이 */
   
-  /* 버튼 사이즈별 패딩 토큰 (상하 패딩) */
-  --btn-padding-y-sm: clamp(8px, 1.5vw, 10px);    /* sm 버튼 상하 패딩 */
-  --btn-padding-y-md: clamp(12px, 2.5vw, 16px);    /* md 버튼 상하 패딩 */
-  --btn-padding-y-lg: clamp(16px, 3.5vw, 20px);    /* lg 버튼 상하 패딩 */
+  /* 버튼 사이즈별 좌우 패딩 토큰 */
+  --btn-padding-x-sm: clamp(16px, 3vw, 20px);
+  --btn-padding-x-md: clamp(20px, 4vw, 24px);
+  --btn-padding-x-lg: clamp(24px, 4.5vw, 32px);
   
-  /* 버튼 사이즈별 R값 토큰 (높이의 1/4, 최대값 캡 적용) */
-  --btn-radius-sm: clamp(9px, 2vw, 10px);     /* sm 버튼 R값 (높이 36-40px의 1/4) */
-  --btn-radius-md: clamp(11px, 2.5vw, 12px);  /* md 버튼 R값 (높이 44-48px의 1/4) */
-  --btn-radius-lg: 12px;                       /* lg 버튼 R값 (높이 52-56px의 1/4 = 13-14px, 캡 12px) */
+  /* 버튼 사이즈별 R값 토큰 (높이의 1/4, 고정값으로 확정) */
+  --btn-radius-sm: 10px;     /* sm 버튼 R값 (높이 40px의 1/4) */
+  --btn-radius-md: 12px;      /* md 버튼 R값 (높이 48px의 1/4) */
+  --btn-radius-lg: 12px;      /* lg 버튼 R값 (높이 56px의 1/4 = 14px, 캡 12px) */
   
   /* 기타 요소: 고정값 (비율 기반 아님) */
   --radius-large: clamp(12px, 2vw, 16px);      /* 큰 카드/배너용 (예: 홈 배너) */
@@ -263,36 +263,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-/* 기본 버튼 - sm 사이즈 */
-.btn-primary, .btn-secondary {
-  padding: var(--btn-padding-y-sm);
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  text-align: center;
-  transition: background-color 0.2s;
-  border-radius: var(--btn-radius-sm);
-}
-
-.btn-primary {
-  background: #111;
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background: #333;
-}
-
-.btn-secondary {
-  background: #f5f5f5;
-  color: #111;
-}
-
-.btn-secondary:hover {
-  background: #e5e5e5;
 }
 
 .mini-cart-overlay {
