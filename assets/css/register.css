@@ -372,6 +372,29 @@
     display: none;
 }
 
+.info-message {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    padding: clamp(16px, 3vw, 20px) clamp(18px, 3.5vw, 24px);
+    border-radius: 8px;
+    margin-bottom: clamp(16px, 3vw, 20px);
+    border-left: 4px solid #0c5460;
+    display: none;
+}
+
+.info-message-title {
+    font-size: clamp(1rem, 2.2vw, 1.1rem);
+    font-weight: 600;
+    margin-bottom: clamp(8px, 1.5vw, 12px);
+    color: #0c5460;
+}
+
+.info-message-body {
+    font-size: clamp(0.85rem, 1.9vw, 0.95rem);
+    line-height: 1.6;
+    color: #0c5460;
+}
+
 .loading {
     opacity: 0.6;
     pointer-events: none;
