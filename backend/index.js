@@ -1432,7 +1432,7 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         if (search) {
             query += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
             const searchPattern = `%${search}%`;
-            params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+            params.push(searchPattern, searchPattern, searchPattern, searchPattern);
         }
         
         if (date_from) {
