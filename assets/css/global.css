@@ -46,6 +46,14 @@
   --footer-info-max-width: 800px; /* Footer 정보 블록 최대 너비 */
   --footer-padding-right: clamp(16px, 3vw, 24px); /* Footer 우측 패딩 */
   --footer-padding-left: clamp(16px, 3vw, 24px); /* Footer 좌측 패딩 */
+  
+  /* ===== Border Radius (모서리 둥글기) 조정 변수 ===== */
+  /* 아래 값들을 수정하면 홈페이지 전체의 모서리 둥글기가 변경됩니다 */
+  --radius-large: clamp(12px, 2vw, 16px);      /* 큰 카드/배너용 (예: 홈 배너) */
+  --radius-medium: clamp(8px, 1.5vw, 12px);    /* 중간 크기 카드용 (예: 상품 카드) */
+  --radius-medium-sm: clamp(8px, 1.5vw, 10px); /* 중간 크기 (약간 작음) */
+  --radius-small: clamp(6px, 1.2vw, 8px);      /* 작은 요소용 (예: 입력창, 버튼) */
+  --radius-tiny: clamp(4px, 1vw, 6px);         /* 매우 작은 요소용 */
 }
 
 /* ===== 헤더 Breakpoint 기준점 (조정 가능) ===== */

@@ -64,7 +64,7 @@
 
 .login-box {
   background: #fff;
-  border-radius: clamp(8px, 1.5vw, 12px);
+  border-radius: var(--radius-medium);
   box-shadow: 0 20px 60px rgba(0,0,0,0.15);
   padding: clamp(32px, 6vw, 48px) clamp(28px, 5vw, 40px);
   width: 100%;
@@ -81,7 +81,7 @@
   right: 0;
   height: 4px;
   background: linear-gradient(90deg, #000 0%, #333 100%);
-  border-radius: clamp(8px, 1.5vw, 12px) clamp(8px, 1.5vw, 12px) 0 0;
+  border-radius: var(--radius-medium) var(--radius-medium) 0 0;
 }
 
 /* ===== 소셜 로그인 컨테이너 ===== */
@@ -112,7 +112,7 @@
   width: 100%;
   padding: clamp(14px, 3vw, 18px);
   border: 2px solid transparent;
-  border-radius: clamp(6px, 1.2vw, 8px);
+  border-radius: var(--radius-small);
   font-size: clamp(0.9rem, 2.2vw, 1rem);
   font-weight: 600;
   cursor: pointer;
@@ -240,7 +240,7 @@
   padding: clamp(12px, 2.5vw, 16px) clamp(12px, 2.5vw, 16px);
   font-size: clamp(0.9rem, 2vw, 1rem);
   border: 2px solid #eee;
-  border-radius: clamp(6px, 1.2vw, 8px);
+  border-radius: var(--radius-small);
   background-color: #fff;
   transition: border-color 0.2s ease;
   font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
@@ -281,7 +281,7 @@
   background-color: #ccc;
   color: #666;
   border: none;
-  border-radius: clamp(6px, 1.2vw, 8px);
+  border-radius: var(--radius-small);
   font-size: clamp(0.9rem, 2.2vw, 1rem);
   font-weight: 600;
   cursor: not-allowed;
@@ -326,7 +326,7 @@
   border: 2px solid #000;
   color: #000;
   padding: clamp(12px, 2.5vw, 16px) clamp(24px, 5vw, 32px);
-  border-radius: clamp(6px, 1.2vw, 8px);
+  border-radius: var(--radius-small);
   font-size: clamp(0.85rem, 2vw, 0.9rem);
   font-weight: 600;
   cursor: pointer;

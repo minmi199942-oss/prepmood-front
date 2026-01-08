@@ -136,7 +136,7 @@
     height: clamp(45vh, 60vw, 55vh);
     min-height: clamp(350px, 50vw, 420px);
     margin: 0 clamp(12px, 3vw, 18px);
-    border-radius: clamp(8px, 1.5vw, 12px);
+    border-radius: var(--radius-medium);
   }
   
   .hero-content h2 {
