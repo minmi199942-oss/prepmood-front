@@ -394,6 +394,22 @@
       return;
     }
 
+    // 전화번호 검증 (국가코드와 전화번호 모두 필수)
+    const countryCode = elements.form.country_code.value.trim();
+    const phone = elements.form.phone.value.trim();
+    
+    if (!countryCode || countryCode === '') {
+      alert('국가 코드를 선택해주세요.');
+      elements.countryCode.focus();
+      return;
+    }
+    
+    if (!phone || phone === '') {
+      alert('전화번호를 입력해주세요.');
+      elements.phone.focus();
+      return;
+    }
+
     // 제출 버튼 비활성화
     elements.submitBtn.disabled = true;
     elements.submitBtn.textContent = '전송 중...';

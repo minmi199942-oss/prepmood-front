@@ -238,8 +238,14 @@ router.post('/inquiries',
         body('email').isEmail().withMessage('올바른 이메일 형식이 아닙니다.').normalizeEmail(),
         body('region').notEmpty().withMessage('선호 지역을 선택해주세요.'),
         body('city').optional().trim().isLength({ max: 80 }).withMessage('도시는 80자 이하여야 합니다.'),
-        body('country_code').optional().trim().isLength({ max: 10 }).withMessage('국가 코드는 10자 이하여야 합니다.'),
-        body('phone').optional().trim().isLength({ max: 30 }).withMessage('전화번호는 30자 이하여야 합니다.'),
+        body('country_code')
+            .notEmpty().withMessage('국가 코드를 선택해주세요.')
+            .trim()
+            .isLength({ max: 10 }).withMessage('국가 코드는 10자 이하여야 합니다.'),
+        body('phone')
+            .notEmpty().withMessage('전화번호를 입력해주세요.')
+            .trim()
+            .isLength({ min: 1, max: 30 }).withMessage('전화번호는 1자 이상 30자 이하여야 합니다.'),
         body('category').notEmpty().withMessage('관심 분야를 선택해주세요.').isLength({ max: 80 }).withMessage('관심 분야는 80자 이하여야 합니다.'),
         body('topic').notEmpty().withMessage('주제를 선택해주세요.').isLength({ max: 120 }).withMessage('주제는 120자 이하여야 합니다.'),
         body('message').notEmpty().withMessage('메시지를 입력해주세요.'),
