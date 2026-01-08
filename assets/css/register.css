@@ -51,6 +51,14 @@
     letter-spacing: 0.5px;
 }
 
+.required-notice {
+    font-size: clamp(0.75rem, 1.8vw, 0.85rem);
+    color: #666;
+    font-weight: 400;
+    margin-top: clamp(8px, 1.5vw, 12px);
+    letter-spacing: 0.3px;
+}
+
 .step-indicator {
     display: flex;
     justify-content: center;
@@ -138,9 +146,10 @@
 }
 
 .form-group label .required {
-    color: #d32f2f;
-    font-weight: 600;
-    margin-left: 4px;
+    color: #c62828; /* 톤 다운된 레드 (에러 레드보다 부드러움) */
+    font-weight: 500;
+    font-size: 0.9em; /* 텍스트보다 살짝 작게 */
+    margin-left: 2px; /* 괄호 없이 바로 붙이므로 간격 최소화 */
 }
 
 .form-group label .optional {
@@ -288,8 +297,10 @@
 }
 
 .consent-text .required {
-    color: #d32f2f;
-    font-weight: 600;
+    color: #c62828; /* 톤 다운된 레드 (에러 레드보다 부드러움) */
+    font-weight: 500;
+    font-size: 0.9em; /* 텍스트보다 살짝 작게 */
+    margin-left: 2px; /* 괄호 없이 바로 붙이므로 간격 최소화 */
 }
 
 .consent-text .optional {
