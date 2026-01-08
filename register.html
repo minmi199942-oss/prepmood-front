@@ -269,7 +269,8 @@
                     this.verificationSection.classList.add('show');
                     this.verifyBtn.textContent = '재발송';
                     this.showSuccess('인증 코드가 발송되었습니다.');
-                    this.updateNextButton();
+                    // 이메일 인증 후 개인정보 입력 필드 활성화
+                    this.enablePersonalInfoSection();
                 } catch (error) {
                     if (window.Logger) {
                         window.Logger.error('send-verification 에러:', error);
