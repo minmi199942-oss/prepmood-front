@@ -399,6 +399,27 @@ echo "  ✅ 권한 보정 완료"
 
 echo ""
 echo "✅ 배포 완료: $TIMESTAMP"
+
+# 9. 배포 완료 후 최신 커밋 확인 (배포 중 새 커밋이 들어온 경우 대비)
+echo "🔍 최신 커밋 확인 중..."
+cd "$REPO_DIR" || { echo "❌ $REPO_DIR 디렉토리 접근 실패"; exit 1; }
+git fetch origin main >/dev/null 2>&1
+LOCAL_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "")
+REMOTE_COMMIT=$(git rev-parse origin/main 2>/dev/null || echo "")
+
+if [ -n "$LOCAL_COMMIT" ] && [ -n "$REMOTE_COMMIT" ] && [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
+  echo "⚠️  배포 중 새로운 커밋이 감지되었습니다!"
+  echo "   로컬: ${LOCAL_COMMIT:0:7}"
+  echo "   원격: ${REMOTE_COMMIT:0:7}"
+  echo "🔄 자동으로 최신 커밋으로 재배포를 시작합니다..."
+  echo ""
+  # 락 파일은 trap으로 자동 삭제되므로, 재귀적으로 배포 스크립트 실행
+  exec "$0"
+else
+  echo "✅ 최신 커밋 확인 완료 (로컬과 원격이 동일)"
+fi
+
+echo ""
 echo "💡 롤백이 필요한 경우:"
 echo "   tar -C /var/www/html -xzf $BACKUP_DIR/backend_backup_$TIMESTAMP.tgz"
 echo "   pm2 restart prepmood-backend"
