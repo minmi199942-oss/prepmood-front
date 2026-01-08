@@ -44,31 +44,31 @@
                     </div>
                 </div>
 
-                <!-- 개인정보 입력 필드들 (이메일 인증 완료 후 활성화) -->
-                <div id="personalInfoSection" class="disabled-section">
+                <!-- 개인정보 입력 필드들 (항상 활성화, 이메일 인증 필수) -->
+                <div id="personalInfoSection">
                     <div class="form-group">
                         <label for="name">이름 <span class="required">(필수)</span></label>
-                        <input type="text" id="name" class="form-input" placeholder="이름을 입력해주세요" required disabled>
+                        <input type="text" id="name" class="form-input" placeholder="이름을 입력해주세요" required>
                         <div class="error-message" id="nameError"></div>
                     </div>
 
                     <div class="form-group">
                         <label for="phone">전화번호 <span class="required">(필수)</span></label>
                         <div class="phone-input">
-                            <select id="countryCode" class="country-select" disabled>
+                            <select id="countryCode" class="country-select">
                                 <option value="+82">대한민국 +82</option>
                                 <option value="+1">미국 +1</option>
                                 <option value="+81">일본 +81</option>
                                 <option value="+86">중국 +86</option>
                             </select>
-                            <input type="tel" id="phone" class="form-input" placeholder="010-1234-5678" autocomplete="tel" required disabled />
+                            <input type="tel" id="phone" class="form-input" placeholder="010-1234-5678" autocomplete="tel" required />
                         </div>
                         <div class="error-message" id="phoneError"></div>
                     </div>
 
                     <div class="form-group">
                         <label for="password">비밀번호</label>
-                        <input type="password" id="password" class="form-input" placeholder="8자 이상, 대소문자, 숫자, 특수문자 포함" required disabled>
+                        <input type="password" id="password" class="form-input" placeholder="8자 이상, 대소문자, 숫자, 특수문자 포함" required>
                         <div class="password-requirements">
                             <div class="requirement-text">비밀번호 조건:</div>
                             <div class="requirement-item" id="req-length">최소 8자 이상</div>
@@ -82,7 +82,7 @@
 
                     <div class="form-group">
                         <label for="confirmPassword">비밀번호 확인</label>
-                        <input type="password" id="confirmPassword" class="form-input" placeholder="비밀번호를 다시 입력해주세요" required disabled>
+                        <input type="password" id="confirmPassword" class="form-input" placeholder="비밀번호를 다시 입력해주세요" required>
                         <div class="error-message" id="confirmPasswordError"></div>
                     </div>
 
@@ -91,7 +91,7 @@
                         <!-- 개인정보 수집 및 이용 동의 (필수) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
-                                <input type="checkbox" id="privacyConsent" required disabled>
+                                <input type="checkbox" id="privacyConsent" required>
                                 <span class="checkmark"></span>
                                 <span class="consent-text">개인정보 수집 및 이용 동의 <span class="required">(필수)</span></span>
                             </label>
@@ -104,7 +104,7 @@
                         <!-- 마케팅 정보 수신 동의 (선택) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
-                                <input type="checkbox" id="marketingConsent" disabled>
+                                <input type="checkbox" id="marketingConsent">
                                 <span class="checkmark"></span>
                                 <span class="consent-text">마케팅 정보 수신 동의 <span class="optional">(선택)</span></span>
                             </label>
@@ -116,7 +116,7 @@
                         <!-- 이용약관 동의 (필수) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
-                                <input type="checkbox" id="termsConsent" required disabled>
+                                <input type="checkbox" id="termsConsent" required>
                                 <span class="checkmark"></span>
                                 <span class="consent-text">이용약관에 동의합니다 <span class="required">(필수)</span></span>
                             </label>
@@ -126,7 +126,7 @@
                         <!-- 개인정보 처리 방침 동의 (필수) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
-                                <input type="checkbox" id="privacyPolicyConsent" required disabled>
+                                <input type="checkbox" id="privacyPolicyConsent" required>
                                 <span class="checkmark"></span>
                                 <span class="consent-text">개인정보 처리 방침에 동의합니다 <span class="required">(필수)</span></span>
                             </label>
@@ -190,60 +190,40 @@
                         await this.verifyCode();
                     }
                 });
-                // 이메일 인증 전에는 필드 입력 방지
+                // 필드 입력 이벤트 리스너 (항상 활성화)
                 document.getElementById('name').addEventListener('input', () => {
-                    if (!this.emailVerified) return;
                     this.validateName();
                     this.updateRegisterButton();
                 });
                 document.getElementById('phone').addEventListener('input', (e) => {
-                    if (!this.emailVerified) return;
                     this.formatPhoneNumber(e);
                     this.validatePhone();
                     this.updateRegisterButton();
                 });
                 document.getElementById('password').addEventListener('input', () => {
-                    if (!this.emailVerified) return;
                     this.validatePassword();
                     this.validateConfirmPassword(); // 비밀번호 변경 시 확인 비밀번호도 재검증
                     this.updateRegisterButton();
                 });
                 document.getElementById('confirmPassword').addEventListener('input', () => {
-                    if (!this.emailVerified) return;
                     this.validateConfirmPassword();
                     this.updateRegisterButton();
                 });
                 
                 // 개인정보 동의 체크박스 이벤트 리스너
                 document.getElementById('privacyConsent').addEventListener('change', () => {
-                    if (!this.emailVerified) {
-                        document.getElementById('privacyConsent').checked = false;
-                        return;
-                    }
                     this.validatePrivacyConsent();
                     this.updateRegisterButton();
                 });
                 document.getElementById('termsConsent').addEventListener('change', () => {
-                    if (!this.emailVerified) {
-                        document.getElementById('termsConsent').checked = false;
-                        return;
-                    }
                     this.validateTermsConsent();
                     this.updateRegisterButton();
                 });
                 document.getElementById('privacyPolicyConsent').addEventListener('change', () => {
-                    if (!this.emailVerified) {
-                        document.getElementById('privacyPolicyConsent').checked = false;
-                        return;
-                    }
                     this.validatePrivacyPolicyConsent();
                     this.updateRegisterButton();
                 });
                 document.getElementById('marketingConsent').addEventListener('change', () => {
-                    if (!this.emailVerified) {
-                        document.getElementById('marketingConsent').checked = false;
-                        return;
-                    }
                     this.updateRegisterButton();
                 });
             }
@@ -335,12 +315,9 @@
             }
 
             enablePersonalInfoSection() {
-                // 이메일 인증 완료 후 개인정보 입력 필드 활성화
-                this.personalInfoSection.classList.remove('disabled-section');
-                const fields = this.personalInfoSection.querySelectorAll('input, select, button');
-                fields.forEach(field => {
-                    field.disabled = false;
-                });
+                // 이메일 인증 완료 후 회원가입 버튼 활성화 가능 상태로 변경
+                // 필드들은 이미 활성화되어 있으므로 버튼 상태만 업데이트
+                this.updateRegisterButton();
             }
 
             async handleSubmit(e) {
