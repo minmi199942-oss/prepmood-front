@@ -21,7 +21,6 @@
             <div class="register-header">
                 <h1>회원가입</h1>
                 <p>Pre.p Mood에 오신 것을 환영합니다</p>
-                <p class="required-notice">* 는 필수 입력 항목입니다.</p>
             </div>
 
             <div class="success-message" id="successMessage">
@@ -94,7 +93,7 @@
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="privacyConsent" required>
                                 <span class="checkmark"></span>
-                                <span class="consent-text">개인정보 수집 및 이용 동의<span class="required">*</span></span>
+                                <span class="consent-text">개인정보 수집 및 이용 동의<span class="required-badge">[필수]</span></span>
                             </label>
                             <p class="consent-description">
                                 회원은 개인정보 수집 및 이용에 동의하며, 프리무드가 회원의 개인정보를 처리할 수 있도록 설정합니다
@@ -119,7 +118,7 @@
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="termsConsent" required>
                                 <span class="checkmark"></span>
-                                <span class="consent-text">이용약관에 동의합니다<span class="required">*</span></span>
+                                <span class="consent-text">이용약관에 동의합니다<span class="required-badge">[필수]</span></span>
                             </label>
                             <div class="error-message" id="termsConsentError"></div>
                         </div>
@@ -129,7 +128,7 @@
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="privacyPolicyConsent" required>
                                 <span class="checkmark"></span>
-                                <span class="consent-text">개인정보 처리 방침에 동의합니다<span class="required">*</span></span>
+                                <span class="consent-text">개인정보 처리 방침에 동의합니다<span class="required-badge">[필수]</span></span>
                             </label>
                             <div class="error-message" id="privacyPolicyConsentError"></div>
                         </div>
@@ -139,6 +138,8 @@
                     <button type="submit" class="register-btn" id="registerBtn" disabled>회원가입</button>
                 </div>
             </form>
+
+            <p class="required-notice">* 는 필수 입력 항목입니다.</p>
 
             <div class="login-link">
                 이미 계정이 있으신가요? <a href="login.html">로그인</a>
