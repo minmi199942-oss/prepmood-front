@@ -1538,6 +1538,7 @@ app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (re
         const [orders] = await connection.execute(
             `SELECT 
                 o.*,
+                o.shipping_postal_code as shipping_zipcode,
                 u.email as customer_email,
                 u.name as customer_name,
                 u.phone as customer_phone
