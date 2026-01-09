@@ -6,7 +6,13 @@
 USE prepmood;
 
 -- ============================================================
--- 1. warranties.token_pk 컬럼 추가
+-- 1. warranties 데이터 확인
+-- ============================================================
+SELECT '=== warranties 데이터 확인 ===' AS info;
+SELECT COUNT(*) as warranty_count FROM warranties;
+
+-- ============================================================
+-- 2. warranties.token_pk 컬럼 추가
 -- ============================================================
 ALTER TABLE warranties 
   ADD COLUMN token_pk INT NULL
@@ -14,25 +20,27 @@ ALTER TABLE warranties
   AFTER token;
 
 -- ============================================================
--- 2. 기존 데이터 마이그레이션 (token → token_pk 매핑)
+-- 3. 기존 데이터 마이그레이션 (token → token_pk 매핑)
 -- ============================================================
+-- warranties가 비어있으면 UPDATE는 실행되지 않음 (에러 없음)
 UPDATE warranties w
 JOIN token_master tm ON w.token = tm.token
 SET w.token_pk = tm.token_pk;
 
 -- ============================================================
--- 3. 검증: 매핑되지 않은 데이터 확인
+-- 4. 검증: 매핑되지 않은 데이터 확인
 -- ============================================================
 SELECT '=== 검증: 매핑되지 않은 warranties 확인 ===' AS info;
 SELECT COUNT(*) as unmapped_count
 FROM warranties w
 LEFT JOIN token_master tm ON w.token = tm.token
 WHERE w.token_pk IS NULL AND w.token IS NOT NULL;
--- 결과: 0 (모든 warranties가 매핑되어야 함)
+-- 결과: 0 (모든 warranties가 매핑되어야 함, 또는 warranties가 비어있으면 0)
 
 -- ============================================================
--- 4. token_pk를 NOT NULL로 변경
+-- 5. token_pk를 NOT NULL로 변경
 -- ============================================================
+-- warranties가 비어있으면 NOT NULL로 변경 가능
 ALTER TABLE warranties 
   MODIFY COLUMN token_pk INT NOT NULL;
 
