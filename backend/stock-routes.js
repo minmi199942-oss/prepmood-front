@@ -341,48 +341,6 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
                 });
             }
 
-            // ============================================================
-            // 교차 정합성 검증: token_master.product_id와 요청 product_id 일치 확인
-            // ============================================================
-            // 주의: token_master.product_id가 NULL일 수 있으므로 (단계적 마이그레이션)
-            // NULL인 경우 경고만 하고, NULL이 아닌 경우에만 검증
-            const [tokenValidation] = await connection.execute(
-                `SELECT 
-                    tm.token_pk,
-                    tm.product_id as token_product_id,
-                    tm.product_name as token_product_name,
-                    ap.name as admin_product_name
-                FROM token_master tm
-                LEFT JOIN admin_products ap ON tm.product_id = ap.id
-                WHERE tm.token_pk IN (${placeholders})`,
-                tokenPkArray
-            );
-
-            // product_id가 NULL이 아닌 경우 검증
-            const mismatchedTokens = tokenValidation.filter(t => 
-                t.token_product_id !== null && t.token_product_id !== product_id
-            );
-
-            if (mismatchedTokens.length > 0) {
-                await connection.rollback();
-                await connection.end();
-                const mismatchedInfo = mismatchedTokens.map(t => 
-                    `token_pk=${t.token_pk} (token의 product_id=${t.token_product_id}, 요청 product_id=${product_id})`
-                ).join(', ');
-                
-                Logger.error('[STOCK] 교차 정합성 검증 실패', {
-                    product_id,
-                    mismatched_tokens: mismatchedTokens.map(t => t.token_pk),
-                    admin: req.user.email
-                });
-
-                return res.status(400).json({
-                    success: false,
-                    message: `선택한 토큰의 상품과 일치하지 않습니다. (${mismatchedTokens.length}개)`,
-                    details: mismatchedInfo
-                });
-            }
-
             // product_id가 NULL인 토큰이 있는 경우 경고 (단계적 마이그레이션 중)
             const nullProductIdTokens = tokenValidation.filter(t => t.token_product_id === null);
             if (nullProductIdTokens.length > 0) {
