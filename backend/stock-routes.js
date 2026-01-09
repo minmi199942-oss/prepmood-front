@@ -150,7 +150,25 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
 
         connection = await mysql.createConnection(dbConfig);
 
-        // 해당 상품의 token_master 조회 (재고에 등록되지 않은 것만)
+        // 상품 이름 조회
+        const [products] = await connection.execute(
+            'SELECT name FROM admin_products WHERE id = ?',
+            [productId]
+        );
+
+        if (products.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '상품을 찾을 수 없습니다.'
+            });
+        }
+
+        const productName = products[0].name;
+        
+        // token_master의 product_name이 admin_products.name의 시작 부분과 일치하는지 확인
+        // 예: "솔리드 수트 스키니 타이"가 "솔리드 수트 스키니 타이 Solid Suit Skinny Tie 26 - Black"의 시작 부분과 일치
+        // 또는 admin_products.name이 token_master.product_name으로 시작하는지 확인
         const [tokens] = await connection.execute(
             `SELECT 
                 tm.token_pk,
@@ -159,15 +177,17 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
                 tm.serial_number,
                 tm.product_name
             FROM token_master tm
-            WHERE tm.product_name = (
-                SELECT name FROM admin_products WHERE id = ?
+            WHERE (
+                tm.product_name = ? 
+                OR ? LIKE CONCAT(tm.product_name, '%')
+                OR tm.product_name LIKE CONCAT(?, '%')
             )
             AND tm.token_pk NOT IN (
-                SELECT token_pk FROM stock_units WHERE product_id = ?
+                SELECT COALESCE(token_pk, 0) FROM stock_units WHERE product_id = ?
             )
             ORDER BY tm.token_pk
             LIMIT 100`,
-            [productId, productId]
+            [productName, productName, productName, productId]
         );
 
         await connection.end();
