@@ -31,6 +31,7 @@ const { verifyCSRF } = require('./csrf-middleware');
 const Logger = require('./logger');
 const crypto = require('crypto');
 const { createInvoiceFromOrder } = require('./utils/invoice-creator');
+const { processPaidOrder } = require('./utils/paid-order-processor');
 require('dotenv').config();
 
 // MySQL 연결 설정 (order-routes.js와 동일)
@@ -327,35 +328,60 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             [orderStatus, orderNumber]
         );
 
-        // 6. 인보이스 생성 (결제 성공 시에만)
-        // 주의: 인보이스 생성 실패는 결제 성공을 막지 않아야 함
+        // 6. Paid 처리 (결제 성공 시에만)
+        // processPaidOrder()는 재고 배정, 주문 단위 생성, 보증서 생성, 인보이스 생성을 모두 처리
+        // 주의: Paid 처리 실패는 결제 성공을 막지 않아야 함
         // 따라서 트랜잭션 커밋 전에 시도하되, 실패해도 롤백하지 않음
+        let paidProcessed = false;
         let invoiceCreated = false;
         let invoiceNumber = null;
-        let invoiceError = null;
+        let paidProcessError = null;
         
         if (paymentStatus === 'captured') {
             try {
-                const invoiceResult = await createInvoiceFromOrder(connection, order.order_id);
-                invoiceCreated = true;
-                invoiceNumber = invoiceResult.invoice_number;
-                Logger.log('[payments][confirm] 인보이스 생성 완료', {
-                    order_id: order.order_id,
-                    invoice_number: invoiceNumber
+                const paidResult = await processPaidOrder({
+                    connection,
+                    orderId: order.order_id,
+                    paymentKey: paymentKey,
+                    amount: serverAmount,
+                    currency: currency,
+                    eventSource: isMockMode ? 'redirect' : 'redirect', // MOCK/TOSS 모두 redirect
+                    rawPayload: confirmData
                 });
+                
+                paidProcessed = true;
+                invoiceCreated = paidResult.data.invoiceNumber !== null;
+                invoiceNumber = paidResult.data.invoiceNumber;
+                
+                if (paidResult.alreadyProcessed) {
+                    Logger.log('[payments][confirm] 이미 처리된 주문 (Paid 처리 스킵)', {
+                        order_id: order.order_id,
+                        order_number: orderNumber
+                    });
+                } else {
+                    Logger.log('[payments][confirm] Paid 처리 완료', {
+                        order_id: order.order_id,
+                        order_number: orderNumber,
+                        stockUnitsReserved: paidResult.data.stockUnitsReserved,
+                        orderItemUnitsCreated: paidResult.data.orderItemUnitsCreated,
+                        warrantiesCreated: paidResult.data.warrantiesCreated,
+                        invoiceNumber: paidResult.data.invoiceNumber
+                    });
+                }
             } catch (err) {
-                // 인보이스 생성 실패는 결제 성공을 막지 않음 (로깅만)
-                invoiceError = err;
-                Logger.error('[payments][confirm] 인보이스 생성 실패 (결제는 성공)', {
+                // Paid 처리 실패는 결제 성공을 막지 않음 (로깅만)
+                paidProcessError = err;
+                Logger.error('[payments][confirm] Paid 처리 실패 (결제는 성공)', {
                     order_id: order.order_id,
                     order_number: orderNumber,
                     error: err.message,
                     error_code: err.code,
                     error_sql_state: err.sqlState,
+                    error_sql_message: err.sqlMessage,
                     stack: err.stack
                 });
                 // 에러를 다시 throw하지 않음 (결제는 성공 처리)
-                // 인보이스 생성 실패는 나중에 수동으로 생성 가능
+                // Paid 처리 실패는 나중에 수동으로 재처리 가능
             }
         }
 
@@ -386,6 +412,7 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             amount: serverAmount,
             status: paymentStatus,
             cartCleared,
+            paidProcessed,
             invoiceCreated,
             invoiceNumber
         });
@@ -1055,36 +1082,105 @@ async function handlePaymentStatusChange(connection, data) {
 
         // orders 테이블 업데이트 (재조회 결과의 orderId 사용)
         const finalOrderId = verifiedOrderId || orderId;
+        let orderIdForPaidProcess = null;
+        
         if (finalOrderId) {
+            // order_number로 order_id 조회
             const [orderRows] = await connection.execute(
-                `UPDATE orders 
-                 SET status = ?, updated_at = NOW() 
-                 WHERE order_number = ?`,
-                [orderStatus, finalOrderId]
+                `SELECT order_id FROM orders WHERE order_number = ?`,
+                [finalOrderId]
             );
 
-            if (orderRows.affectedRows > 0) {
-                Logger.log('✅ [payments][webhook] orders 테이블 업데이트 완료', {
-                    orderId: finalOrderId,
-                    status: orderStatus,
-                    affectedRows: orderRows.affectedRows
-                });
+            if (orderRows.length > 0) {
+                orderIdForPaidProcess = orderRows[0].order_id;
+                
+                const [updateResult] = await connection.execute(
+                    `UPDATE orders 
+                     SET status = ?, updated_at = NOW() 
+                     WHERE order_id = ?`,
+                    [orderStatus, orderIdForPaidProcess]
+                );
+
+                if (updateResult.affectedRows > 0) {
+                    Logger.log('✅ [payments][webhook] orders 테이블 업데이트 완료', {
+                        orderId: finalOrderId,
+                        order_id: orderIdForPaidProcess,
+                        status: orderStatus,
+                        affectedRows: updateResult.affectedRows
+                    });
+                }
             }
         } else {
             // orderId가 없으면 payment_key로 orders 조회
             const [orderRows] = await connection.execute(
-                `UPDATE orders o
+                `SELECT o.order_id, o.order_number
+                 FROM orders o
                  INNER JOIN payments p ON o.order_number = p.order_number
-                 SET o.status = ?, o.updated_at = NOW()
                  WHERE p.payment_key = ?`,
-                [orderStatus, paymentKey]
+                [paymentKey]
             );
 
-            if (orderRows.affectedRows > 0) {
-                Logger.log('[payments][webhook] orders 테이블 업데이트 완료 (payment_key로 조회)', {
-                    paymentKey: paymentKey.substring(0, 10) + '...',
-                    status: orderStatus,
-                    affectedRows: orderRows.affectedRows
+            if (orderRows.length > 0) {
+                orderIdForPaidProcess = orderRows[0].order_id;
+                const orderNumber = orderRows[0].order_number;
+                
+                const [updateResult] = await connection.execute(
+                    `UPDATE orders 
+                     SET status = ?, updated_at = NOW() 
+                     WHERE order_id = ?`,
+                    [orderStatus, orderIdForPaidProcess]
+                );
+
+                if (updateResult.affectedRows > 0) {
+                    Logger.log('[payments][webhook] orders 테이블 업데이트 완료 (payment_key로 조회)', {
+                        paymentKey: paymentKey.substring(0, 10) + '...',
+                        order_number: orderNumber,
+                        order_id: orderIdForPaidProcess,
+                        status: orderStatus,
+                        affectedRows: updateResult.affectedRows
+                    });
+                }
+            }
+        }
+
+        // Paid 처리 (결제 성공 시에만)
+        if (paymentStatus === 'captured' && orderIdForPaidProcess) {
+            try {
+                const paidResult = await processPaidOrder({
+                    connection,
+                    orderId: orderIdForPaidProcess,
+                    paymentKey: paymentKey,
+                    amount: verifiedAmount || webhookAmount || 0,
+                    currency: verifiedPayment.currency || 'KRW',
+                    eventSource: 'webhook',
+                    rawPayload: verifiedPayment
+                });
+                
+                if (paidResult.alreadyProcessed) {
+                    Logger.log('[payments][webhook] 이미 처리된 주문 (Paid 처리 스킵)', {
+                        order_id: orderIdForPaidProcess,
+                        order_number: finalOrderId
+                    });
+                } else {
+                    Logger.log('[payments][webhook] Paid 처리 완료', {
+                        order_id: orderIdForPaidProcess,
+                        order_number: finalOrderId,
+                        stockUnitsReserved: paidResult.data.stockUnitsReserved,
+                        orderItemUnitsCreated: paidResult.data.orderItemUnitsCreated,
+                        warrantiesCreated: paidResult.data.warrantiesCreated,
+                        invoiceNumber: paidResult.data.invoiceNumber
+                    });
+                }
+            } catch (err) {
+                // Paid 처리 실패는 로깅만 (웹훅 처리는 계속 진행)
+                Logger.error('[payments][webhook] Paid 처리 실패 (웹훅은 성공)', {
+                    order_id: orderIdForPaidProcess,
+                    order_number: finalOrderId,
+                    error: err.message,
+                    error_code: err.code,
+                    error_sql_state: err.sqlState,
+                    error_sql_message: err.sqlMessage,
+                    stack: err.stack
                 });
             }
         }
