@@ -20,12 +20,30 @@ HAVING COUNT(*) > 1;
 -- 중복이 없으면 다음 단계 진행
 
 -- ============================================================
--- 1. UNIQUE 제약 추가
+-- 1. UNIQUE 제약 추가 (이미 존재하면 스킵)
 -- ============================================================
-SELECT '=== stock_units.token_pk UNIQUE 제약 추가 ===' AS info;
+SELECT '=== stock_units.token_pk UNIQUE 제약 확인 ===' AS info;
 
-ALTER TABLE stock_units
-ADD CONSTRAINT uk_stock_units_token_pk UNIQUE (token_pk);
+-- 기존 제약 확인
+SELECT COUNT(*) INTO @constraint_exists
+FROM information_schema.TABLE_CONSTRAINTS tc
+JOIN information_schema.KEY_COLUMN_USAGE kcu 
+  ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME 
+  AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA 
+  AND tc.TABLE_NAME = kcu.TABLE_NAME
+WHERE tc.TABLE_SCHEMA = 'prepmood' 
+  AND tc.TABLE_NAME = 'stock_units'
+  AND tc.CONSTRAINT_TYPE = 'UNIQUE'
+  AND kcu.COLUMN_NAME = 'token_pk';
+
+-- 제약이 없으면 추가
+SET @sql = IF(@constraint_exists = 0,
+    'ALTER TABLE stock_units ADD CONSTRAINT uk_stock_units_token_pk UNIQUE (token_pk)',
+    'SELECT "UNIQUE 제약이 이미 존재합니다." AS info');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- ============================================================
 -- 사후 검증
