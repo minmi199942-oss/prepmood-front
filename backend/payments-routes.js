@@ -30,6 +30,7 @@ const { authenticateToken } = require('./auth-middleware');
 const { verifyCSRF } = require('./csrf-middleware');
 const Logger = require('./logger');
 const crypto = require('crypto');
+const { createInvoiceFromOrder } = require('./utils/invoice-creator');
 require('dotenv').config();
 
 // MySQL 연결 설정 (order-routes.js와 동일)
@@ -321,9 +322,31 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
 
         // 5. 주문 상태 업데이트 (MOCK/TOSS 공통)
         await connection.execute(
-            'UPDATE orders SET status = ? WHERE order_number = ?',
+            'UPDATE orders SET status = ?, paid_at = NOW() WHERE order_number = ?',
             [orderStatus, orderNumber]
         );
+
+        // 6. 인보이스 생성 (결제 성공 시에만)
+        let invoiceCreated = false;
+        let invoiceNumber = null;
+        if (paymentStatus === 'captured') {
+            try {
+                const invoiceResult = await createInvoiceFromOrder(connection, order.order_id);
+                invoiceCreated = true;
+                invoiceNumber = invoiceResult.invoice_number;
+                Logger.log('[payments][confirm] 인보이스 생성 완료', {
+                    order_id: order.order_id,
+                    invoice_number: invoiceNumber
+                });
+            } catch (invoiceError) {
+                // 인보이스 생성 실패는 결제 성공을 막지 않음 (로깅만)
+                Logger.error('[payments][confirm] 인보이스 생성 실패 (결제는 성공)', {
+                    order_id: order.order_id,
+                    error: invoiceError.message,
+                    stack: invoiceError.stack
+                });
+            }
+        }
 
         let cartCleared = false;
         if (userId) {
@@ -351,7 +374,9 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             paymentKey,
             amount: serverAmount,
             status: paymentStatus,
-            cartCleared
+            cartCleared,
+            invoiceCreated,
+            invoiceNumber
         });
 
         res.json({
@@ -362,6 +387,8 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 currency: currency,
                 payment_status: paymentStatus,
                 cartCleared,
+                invoice_created: invoiceCreated,
+                invoice_number: invoiceNumber,
                 alreadyConfirmed: false
             }
         });
