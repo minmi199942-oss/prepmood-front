@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>재고 관리 | Pre.pMood Admin</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    /* 재고 관리 전용 스타일 */
+    .stats-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .stock-table-container {
+      overflow-x: auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .stock-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .stock-table thead {
+      background: #f8f9fa;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .stock-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #495057;
+    }
+
+    .stock-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #dee2e6;
+      font-size: 0.875rem;
+    }
+
+    .stock-table tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 12px;
+      text-transform: uppercase;
+    }
+
+    .badge.in-stock {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .badge.reserved {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .badge.sold {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    .badge.returned {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .token-masked {
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
+
+    .modal-content {
+      max-width: 600px;
+    }
+
+    .token-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .token-item {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .token-item:last-child {
+      border-bottom: none;
+    }
+
+    .token-item input[type="checkbox"] {
+      margin-right: 0.5rem;
+    }
+
+    .token-info {
+      flex: 1;
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- 관리자 헤더는 admin-layout.js에서 동적 생성됨 -->
+
+  <!-- 메인 컨텐츠 -->
+  <main class="admin-main">
+    <div class="admin-container">
+      <!-- 상단 액션 바 -->
+      <div class="admin-toolbar">
+        <h2>재고 관리</h2>
+        <div class="toolbar-actions">
+          <select id="productFilter" class="filter-select">
+            <option value="">전체 상품</option>
+          </select>
+          <select id="statusFilter" class="filter-select">
+            <option value="">전체 상태</option>
+            <option value="in_stock">재고 있음</option>
+            <option value="reserved">예약됨</option>
+            <option value="sold">판매됨</option>
+            <option value="returned">반품됨</option>
+          </select>
+          <button id="addStockBtn" class="btn-primary">+ 재고 추가</button>
+        </div>
+      </div>
+
+      <!-- 통계 카드 -->
+      <div class="stats-cards" id="statsCards">
+        <div class="stat-card">
+          <div class="stat-label">전체 재고</div>
+          <div class="stat-value" id="totalStock">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">재고 있음</div>
+          <div class="stat-value" id="inStockCount">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">예약됨</div>
+          <div class="stat-value warning" id="reservedCount">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">판매됨</div>
+          <div class="stat-value" id="soldCount">-</div>
+        </div>
+      </div>
+
+      <!-- 로딩 상태 -->
+      <div class="loading-state" id="loadingState">
+        <p>재고 목록을 불러오는 중...</p>
+      </div>
+
+      <!-- 재고 목록 -->
+      <div class="stock-table-container" id="stockTableContainer" style="display: none;">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>재고 ID</th>
+              <th>상품명</th>
+              <th>토큰</th>
+              <th>내부 코드</th>
+              <th>시리얼 넘버</th>
+              <th>상태</th>
+              <th>예약 주문</th>
+              <th>생성일</th>
+              <th>액션</th>
+            </tr>
+          </thead>
+          <tbody id="stockTableBody">
+            <!-- 재고 목록이 JavaScript로 동적 생성됨 -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 빈 상태 -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">📦</div>
+        <h3>등록된 재고가 없습니다</h3>
+        <p>새 재고를 추가해보세요.</p>
+        <button class="btn-primary" onclick="document.getElementById('addStockBtn').click()">+ 재고 추가</button>
+      </div>
+
+      <!-- 페이지네이션 -->
+      <div class="pagination" id="pagination" style="display: none;">
+        <button id="prevBtn" class="btn-secondary" disabled>이전</button>
+        <span id="pageInfo">페이지 1 / 1</span>
+        <button id="nextBtn" class="btn-secondary" disabled>다음</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 재고 추가 모달 -->
+  <div class="modal" id="addStockModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>재고 추가</h3>
+        <button class="modal-close" id="closeAddStockModal">&times;</button>
+      </div>
+      
+      <form id="addStockForm" class="product-form">
+        <!-- 상품 선택 -->
+        <div class="form-group">
+          <label for="addStockProductId">상품 *</label>
+          <select id="addStockProductId" name="product_id" required>
+            <option value="">상품을 선택하세요</option>
+          </select>
+        </div>
+
+        <!-- 토큰 선택 -->
+        <div class="form-group">
+          <label>사용 가능한 토큰 *</label>
+          <div id="tokenListContainer" style="display: none;">
+            <div class="token-list" id="tokenList">
+              <!-- 토큰 목록이 JavaScript로 동적 생성됨 -->
+            </div>
+            <small style="display: block; margin-top: 0.5rem; color: #6c757d;">
+              최소 1개 이상의 토큰을 선택하세요
+            </small>
+          </div>
+          <div id="tokenListLoading" style="display: none;">
+            <p>토큰 목록을 불러오는 중...</p>
+          </div>
+          <div id="tokenListEmpty" style="display: none;">
+            <p style="color: #6c757d;">사용 가능한 토큰이 없습니다.</p>
+          </div>
+        </div>
+
+        <!-- 버튼 -->
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="cancelAddStockBtn">취소</button>
+          <button type="submit" class="btn-primary" id="submitAddStockBtn" disabled>추가</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 재고 상세 모달 -->
+  <div class="modal" id="stockDetailModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>재고 상세</h3>
+        <button class="modal-close" id="closeStockDetailModal">&times;</button>
+      </div>
+      
+      <div id="stockDetailContent">
+        <!-- 재고 상세 정보가 JavaScript로 동적 생성됨 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 공통 레이아웃 스크립트 (헤더/네비게이션) -->
+  <script src="admin-layout.js"></script>
+  <!-- 페이지별 스크립트 -->
+  <script src="admin-stock.js"></script>
+  <script>
+    // 공통 레이아웃 초기화 (권한 체크 + 헤더 렌더링)
+    document.addEventListener('DOMContentLoaded', async () => {
+      const ok = await initAdminLayout('stock');
+      if (!ok) return;
+      
+      // 네임스페이스 패턴으로 페이지별 init 호출
+      const fn = window.AdminPages?.stock?.init;
+      if (typeof fn === 'function') fn();
+    });
+  </script>
+</body>
+</html>
