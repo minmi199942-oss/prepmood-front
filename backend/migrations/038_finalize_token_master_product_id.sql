@@ -26,17 +26,18 @@ SELECT
 FROM token_master;
 
 -- 매핑 누락이 있으면 중단
-SELECT COUNT(*) INTO @null_count
+SELECT '--- 매핑 누락 확인 ---' AS info;
+SELECT 
+    COUNT(*) as null_count,
+    CASE 
+        WHEN COUNT(*) > 0 THEN CONCAT('❌ 오류: ', COUNT(*), '개의 토큰이 product_id가 NULL입니다. 먼저 매핑을 완료하세요.')
+        ELSE '✅ 모든 토큰의 product_id가 채워져 있습니다.'
+    END AS status
 FROM token_master
 WHERE product_id IS NULL;
 
-IF @null_count > 0 THEN
-    SELECT CONCAT('❌ 오류: ', @null_count, '개의 토큰이 product_id가 NULL입니다. 먼저 매핑을 완료하세요.') AS error;
-    SELECT '이 스크립트를 중단합니다. 매핑을 완료한 후 다시 실행하세요.' AS message;
-    -- 스크립트 중단 (MySQL에서는 SIGNAL 사용)
-    SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'product_id가 NULL인 토큰이 있습니다. 매핑을 완료한 후 다시 실행하세요.';
-END IF;
+-- 매핑 누락이 있으면 수동으로 확인 후 진행
+-- 주의: 아래 ALTER TABLE은 NULL이 있으면 실패합니다.
 
 -- ============================================================
 -- 2. 참조 무결성 확인 (admin_products에 없는 product_id가 있는지)
@@ -52,18 +53,20 @@ LEFT JOIN admin_products ap ON tm.product_id = ap.id
 WHERE tm.product_id IS NOT NULL
   AND ap.id IS NULL;
 
-SELECT COUNT(*) INTO @orphan_count
+SELECT '--- 참조 무결성 확인 ---' AS info;
+SELECT 
+    COUNT(*) as orphan_count,
+    CASE 
+        WHEN COUNT(*) > 0 THEN CONCAT('❌ 오류: ', COUNT(*), '개의 토큰이 존재하지 않는 product_id를 참조합니다.')
+        ELSE '✅ 모든 product_id가 admin_products에 존재합니다.'
+    END AS status
 FROM token_master tm
 LEFT JOIN admin_products ap ON tm.product_id = ap.id
 WHERE tm.product_id IS NOT NULL
   AND ap.id IS NULL;
 
-IF @orphan_count > 0 THEN
-    SELECT CONCAT('❌ 오류: ', @orphan_count, '개의 토큰이 존재하지 않는 product_id를 참조합니다.') AS error;
-    SELECT '이 스크립트를 중단합니다. product_id를 수정한 후 다시 실행하세요.' AS message;
-    SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = '존재하지 않는 product_id를 참조하는 토큰이 있습니다.';
-END IF;
+-- 참조 무결성 위반이 있으면 수동으로 확인 후 진행
+-- 주의: 아래 FK 추가는 참조 무결성 위반이 있으면 실패합니다.
 
 -- ============================================================
 -- 3. product_id를 NOT NULL로 변경
@@ -82,21 +85,23 @@ SELECT 'product_id NOT NULL 변경 완료' AS info;
 SELECT '=== FK 추가 시작 ===' AS info;
 
 -- FK가 이미 존재하는지 확인
-SELECT COUNT(*) INTO @fk_exists
+SELECT '--- fk_token_master_product_id FK 존재 여부 확인 ---' AS info;
+SELECT 
+    CASE 
+        WHEN COUNT(*) > 0 THEN 'fk_token_master_product_id FK가 이미 존재합니다.'
+        ELSE 'fk_token_master_product_id FK가 없습니다. 추가합니다.'
+    END AS status
 FROM information_schema.TABLE_CONSTRAINTS
 WHERE TABLE_SCHEMA = 'prepmood'
   AND TABLE_NAME = 'token_master'
   AND CONSTRAINT_NAME = 'fk_token_master_product_id';
 
-IF @fk_exists = 0 THEN
-    ALTER TABLE token_master
-    ADD CONSTRAINT fk_token_master_product_id
-    FOREIGN KEY (product_id) REFERENCES admin_products(id) ON DELETE RESTRICT;
-    
-    SELECT 'fk_token_master_product_id FK 추가 완료' AS info;
-ELSE
-    SELECT 'fk_token_master_product_id FK가 이미 존재합니다. 스킵합니다.' AS info;
-END IF;
+-- FK 추가 (이미 존재하면 에러 발생하지만 무시 가능)
+-- 주의: 이미 존재하는 경우 "Duplicate foreign key constraint name" 에러가 발생하지만
+--       스크립트 실행에는 문제 없음 (다음 단계로 진행)
+ALTER TABLE token_master
+ADD CONSTRAINT fk_token_master_product_id
+FOREIGN KEY (product_id) REFERENCES admin_products(id) ON DELETE RESTRICT;
 
 -- ============================================================
 -- 5. 사후 검증

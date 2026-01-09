@@ -35,22 +35,24 @@ ORDER BY ORDINAL_POSITION;
 SELECT '=== product_id 컬럼 추가 시작 ===' AS info;
 
 -- 컬럼이 이미 존재하는지 확인
-SELECT COUNT(*) INTO @column_exists
+SELECT '--- product_id 컬럼 존재 여부 확인 ---' AS info;
+SELECT 
+    CASE 
+        WHEN COUNT(*) > 0 THEN 'product_id 컬럼이 이미 존재합니다.'
+        ELSE 'product_id 컬럼이 없습니다. 추가합니다.'
+    END AS status
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = 'prepmood'
   AND TABLE_NAME = 'token_master'
   AND COLUMN_NAME = 'product_id';
 
-IF @column_exists = 0 THEN
-    ALTER TABLE token_master
-    ADD COLUMN product_id VARCHAR(50) NULL 
-    COMMENT 'admin_products.id 참조 (FK 추가 예정, 현재 NULL 허용)' 
-    AFTER product_name;
-    
-    SELECT 'product_id 컬럼 추가 완료' AS info;
-ELSE
-    SELECT 'product_id 컬럼이 이미 존재합니다. 스킵합니다.' AS info;
-END IF;
+-- 컬럼 추가 (이미 존재하면 에러 발생하지만 무시 가능)
+-- 주의: 이미 존재하는 경우 "Duplicate column name" 에러가 발생하지만
+--       스크립트 실행에는 문제 없음 (다음 단계로 진행)
+ALTER TABLE token_master
+ADD COLUMN product_id VARCHAR(50) NULL 
+COMMENT 'admin_products.id 참조 (FK 추가 예정, 현재 NULL 허용)' 
+AFTER product_name;
 
 -- ============================================================
 -- 2. 인덱스 추가 (검색 성능 향상)
@@ -58,18 +60,21 @@ END IF;
 SELECT '=== product_id 인덱스 추가 시작 ===' AS info;
 
 -- 인덱스가 이미 존재하는지 확인
-SELECT COUNT(*) INTO @index_exists
+SELECT '--- idx_product_id 인덱스 존재 여부 확인 ---' AS info;
+SELECT 
+    CASE 
+        WHEN COUNT(*) > 0 THEN 'idx_product_id 인덱스가 이미 존재합니다.'
+        ELSE 'idx_product_id 인덱스가 없습니다. 추가합니다.'
+    END AS status
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = 'prepmood'
   AND TABLE_NAME = 'token_master'
   AND INDEX_NAME = 'idx_product_id';
 
-IF @index_exists = 0 THEN
-    CREATE INDEX idx_product_id ON token_master(product_id);
-    SELECT 'idx_product_id 인덱스 추가 완료' AS info;
-ELSE
-    SELECT 'idx_product_id 인덱스가 이미 존재합니다. 스킵합니다.' AS info;
-END IF;
+-- 인덱스 추가 (이미 존재하면 에러 발생하지만 무시 가능)
+-- 주의: 이미 존재하는 경우 "Duplicate key name" 에러가 발생하지만
+--       스크립트 실행에는 문제 없음 (다음 단계로 진행)
+CREATE INDEX idx_product_id ON token_master(product_id);
 
 -- ============================================================
 -- 3. 사후 검증
