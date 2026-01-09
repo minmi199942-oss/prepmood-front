@@ -204,40 +204,39 @@ fi
 
 # 5. 서버 재시작
 echo "🔄 서버 재시작 중..."
-# set -e 상태에서 exit code를 저장하려면 일시적으로 set +e로 감싸야 함
+# PM2 재시작을 별도 프로세스로 실행하여 부모 프로세스 종료의 영향을 받지 않도록 함
+# nohup과 &를 사용하여 완전히 분리된 프로세스로 실행
 set +e
-pm2 restart prepmood-backend
-PM2_RESTART_EXIT=$?
+# PM2 재시작을 백그라운드로 실행하고, 잠시 대기 후 상태 확인
+nohup bash -c "pm2 restart prepmood-backend && sleep 3 && pm2 status prepmood-backend" > /tmp/pm2-restart.log 2>&1 &
+PM2_RESTART_PID=$!
 set -e
-echo "📋 PM2_RESTART_EXIT=$PM2_RESTART_EXIT"
+echo "📋 PM2 재시작 프로세스 시작됨 (PID: $PM2_RESTART_PID)"
 
-# PM2 재시작 실패 처리 개선
-# Exit code 130 (SIGINT)는 PM2 재시작으로 인해 배포 프로세스가 종료된 경우
-# 이 경우 파일은 이미 동기화되었으므로 경고만 하고 계속 진행
-if [ $PM2_RESTART_EXIT -ne 0 ]; then
-  if [ $PM2_RESTART_EXIT -eq 130 ]; then
-    echo "⚠️  PM2 재시작으로 인해 배포 프로세스가 종료되었습니다 (exit 130)"
-    echo "⚠️  파일은 이미 동기화되었지만, PM2 재시작 상태를 확인해야 합니다"
-    echo "💡 다음 단계:"
-    echo "   1. pm2 status prepmood-backend 확인"
-    echo "   2. pm2 logs prepmood-backend 확인"
-    echo "   3. 필요시 수동으로 pm2 restart prepmood-backend 실행"
-    echo ""
-    echo "⚠️  배포는 부분적으로 완료되었습니다 (파일 동기화 완료, PM2 재시작 확인 필요)"
-    # exit 1 대신 경고만 하고 계속 진행 (파일은 이미 동기화됨)
-    # 하지만 헬스체크는 건너뛰고 종료
-    echo "⚠️  헬스체크를 건너뜁니다 (PM2 재시작 확인 후 수동으로 헬스체크 권장)"
-    exit 0
-  else
-    echo "❌ PM2 재시작 실패 (exit code: $PM2_RESTART_EXIT) - 배포 중단"
-    echo "💡 해결 방법:"
-    echo "   1. pm2 status 확인"
-    echo "   2. pm2 logs prepmood-backend 확인"
-    echo "   3. 수동으로 pm2 restart prepmood-backend 실행 후 재배포"
-    exit 1
-  fi
+# 잠시 대기 (PM2 재시작이 시작되도록)
+sleep 2
+
+# PM2 상태 확인 (재시작이 완료되었는지 확인)
+echo "🔍 PM2 상태 확인 중..."
+set +e
+PM2_STATUS=$(pm2 status prepmood-backend 2>&1)
+PM2_STATUS_EXIT=$?
+set -e
+
+if [ $PM2_STATUS_EXIT -eq 0 ]; then
+  echo "✅ PM2 프로세스 확인됨"
+  echo "$PM2_STATUS" | head -n 5
+else
+  echo "⚠️  PM2 상태 확인 실패 (프로세스가 재시작 중일 수 있음)"
 fi
-echo "✅ PM2 재시작 성공"
+
+# 재시작 로그 확인
+if [ -f /tmp/pm2-restart.log ]; then
+  echo "📋 PM2 재시작 로그:"
+  tail -n 10 /tmp/pm2-restart.log || true
+fi
+
+echo "✅ PM2 재시작 프로세스 시작 완료 (백그라운드 실행 중)"
 
 # 6. 상태 확인
 sleep 2
