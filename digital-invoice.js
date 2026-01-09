@@ -37,8 +37,8 @@ document.addEventListener('DOMContentLoaded', async function() {
   // 사용자 환영 메시지 표시
   displayUserWelcome(userInfo);
 
-  // 인보이스 렌더링 (최소 1개 더미 카드 보장)
-  renderInvoices();
+  // 인보이스 목록 로드
+  await loadInvoices();
   
   // 모바일 클릭 토글 초기화
   initMobileToggle();
@@ -71,15 +71,22 @@ function displayUserWelcome(user) {
   }
 }
 
-// invoiceNo 생성 함수 (PM-INV-YYMMDD-HHmm)
+// invoiceNo 생성 함수 (PM-INV-YYMMDD-HHmm-{랜덤4자})
+// 주의: 실제 서버에서는 backend/utils/invoice-number-generator.js 사용
+// 이 함수는 프론트엔드 디스플레이용 (서버에서 받은 invoice_number를 그대로 표시)
 function generateInvoiceNo(date = new Date()) {
+  // 실제로는 서버에서 생성된 invoice_number를 사용하므로
+  // 이 함수는 더미 데이터용으로만 사용됨
   const year = date.getFullYear().toString().slice(-2);
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   
-  return `PM-INV-${year}${month}${day}-${hours}${minutes}`;
+  // 더미 데이터용 랜덤 4자 (실제 서버에서는 crypto.randomInt 사용)
+  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  
+  return `PM-INV-${year}${month}${day}-${hours}${minutes}-${randomSuffix}`;
 }
 
 // issueDate 포맷 함수 (DD Mon YYYY)
@@ -105,8 +112,67 @@ function formatDateTime(date = new Date()) {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
+// 인보이스 목록 로드
+async function loadInvoices() {
+  const grid = document.getElementById('invoiceGrid');
+  const noInvoices = document.getElementById('no-invoices');
+  const loadingInvoices = document.getElementById('loading-invoices');
+  
+  if (!grid) {
+    console.error('invoiceGrid를 찾을 수 없습니다.');
+    return;
+  }
+
+  // 로딩 표시
+  if (loadingInvoices) {
+    loadingInvoices.style.display = 'block';
+  }
+  if (grid) {
+    grid.style.display = 'none';
+  }
+  if (noInvoices) {
+    noInvoices.style.display = 'none';
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/invoices/me?limit=50&offset=0`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.success && data.invoices && data.invoices.length > 0) {
+      renderInvoices(data.invoices);
+      if (noInvoices) {
+        noInvoices.style.display = 'none';
+      }
+    } else {
+      // 인보이스가 없는 경우
+      renderInvoices([]);
+      if (noInvoices) {
+        noInvoices.style.display = 'block';
+      }
+    }
+  } catch (error) {
+    console.error('인보이스 목록 로드 오류:', error);
+    renderInvoices([]);
+    if (noInvoices) {
+      noInvoices.style.display = 'block';
+    }
+  } finally {
+    if (loadingInvoices) {
+      loadingInvoices.style.display = 'none';
+    }
+  }
+}
+
 // 인보이스 렌더링
-function renderInvoices() {
+function renderInvoices(invoices) {
   const grid = document.getElementById('invoiceGrid');
   const noInvoices = document.getElementById('no-invoices');
   
@@ -115,47 +181,29 @@ function renderInvoices() {
     return;
   }
 
-  // 더미 데이터 (나중에 서버에서 가져올 데이터)
-  const invoices = [
-    {
-      invoiceNo: generateInvoiceNo(new Date()),
-      issueDate: formatIssueDate(new Date()),
-      productName: '제품명',
-      issueDateTime: formatDateTime(new Date()),
-      isVerified: true
-    },
-    {
-      invoiceNo: generateInvoiceNo(new Date(Date.now() - 86400000)), // 어제
-      issueDate: formatIssueDate(new Date(Date.now() - 86400000)),
-      productName: '제품명',
-      issueDateTime: formatDateTime(new Date(Date.now() - 86400000)),
-      isVerified: false
-    }
-  ];
-
-  // 최소 1개는 항상 보장
-  if (invoices.length === 0) {
-    invoices.push({
-      invoiceNo: generateInvoiceNo(),
-      issueDate: formatIssueDate(),
-      productName: '제품명',
-      issueDateTime: formatDateTime(),
-      isVerified: true
-    });
-  }
-
+  // 그리드 표시
+  grid.style.display = 'flex';
+  
   // 그리드 초기화
   grid.innerHTML = '';
   
   // 카드 렌더링
   invoices.forEach((invoice, index) => {
-    const card = createInvoiceCard(invoice, index);
+    // API 응답 데이터를 카드 형식으로 변환
+    const invoiceDate = new Date(invoice.issuedAt);
+    const card = createInvoiceCard({
+      invoiceNo: invoice.invoiceNumber,
+      issueDate: formatIssueDate(invoiceDate),
+      productName: invoice.shippingName || invoice.billingName || '제품명',
+      issueDateTime: formatDateTime(invoiceDate),
+      isVerified: invoice.status === 'issued'
+    }, index);
     grid.appendChild(card);
   });
 
-  // no-invoices 숨김
-  if (noInvoices) {
-    noInvoices.style.display = 'none';
+  // 인보이스가 없는 경우 처리
+  if (invoices.length === 0 && noInvoices) {
+    grid.style.display = 'none';
   }
 }
 

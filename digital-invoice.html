@@ -11,6 +11,9 @@
     <link rel="stylesheet" href="/assets/css/page.css">
     <link rel="stylesheet" href="/assets/css/responsive.css">
     <style>
+        /* ============================================
+           폰트 정의
+           ============================================ */
         @font-face {
             font-family: 'Paperlogy';
             src: url('/static/fonts/Paperlogy-4Regular.ttf') format('truetype');
@@ -27,35 +30,49 @@
             font-display: swap;
         }
 
+        /* ============================================
+           편지 카드 사이즈 조정 변수
+           이 섹션의 값만 변경하면 전체 편지 크기가 조정됩니다
+           ============================================ */
         :root {
-            /* 카드 비율 조정: 세로를 더 줄이고 가로를 더 늘림 */
-            /* 원본 Figma: 492.7px × 703.9px (비율 1.428) → 너무 세로로 김 */
+            /* === 카드 기본 크기 === */
+            /* 원본 Figma: 492.7px × 703.9px (비율 1.428) */
             /* 조정된 비율: 1.0 (정사각형에 가까운 비율) */
             --card-aspect-ratio: 1.0;
-            
-            /* 너비 조정: 이 값을 변경하면 카드 너비가 변경되고, 높이는 비율에 맞춰 자동 계산됩니다 */
             --card-width: 650px;
             --card-height: calc(var(--card-width) * var(--card-aspect-ratio));
             
-            /* 하단 씰 위치 조정 */
-            --seal-bottom-bottom: 280px;
-            --seal-bottom-left: 50%; /* left: 50% 기준으로 translateX 조정 */
-            --seal-bottom-translate-x: -50%; /* -50% = 중앙, 양수 = 오른쪽, 음수 = 왼쪽 */
+            /* === 봉투 본체 높이 === */
+            --envelope-body-height: 320px;
             
-            /* 상단 씰 위치 조정 */
+            /* === 뚜껑 높이 === */
+            --envelope-flap-height: 200px;
+            
+            /* === 편지 내용 영역 높이 (hover 시) === */
+            --letter-content-height: 180px;
+            
+            /* === 씰 위치 조정 === */
+            --seal-bottom-bottom: 280px;
+            --seal-bottom-left: 50%;
+            --seal-bottom-translate-x: -50%;
             --seal-top-bottom: 375px;
             --seal-top-left: 50%;
             --seal-top-translate-x: -50%;
             
-            /* 그레이 레이어 위치 조정 (상단 씰과 하단 씰을 이어주는 레이어) */
-            --greylayer-bottom: 280px; /* 하단 씰 위치 기준 */
+            /* === 그레이 레이어 (씰 연결선) === */
+            --greylayer-bottom: 280px;
             --greylayer-left: 50%;
             --greylayer-translate-x: -50%;
             --greylayer-width: 60px;
             --greylayer-height: 153px;
+            
+            /* === 호버 애니메이션 이동 거리 === */
+            --hover-lift-distance: 180px;
         }
 
-        /* 편지 디자인 스타일 */
+        /* ============================================
+           편지 카드 디자인 스타일
+           ============================================ */
         .invoice-letter-card {
             position: relative;
             cursor: pointer;
@@ -74,7 +91,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 320px;
+            height: var(--envelope-body-height);
             background-color: rgba(230, 230, 230, 1);
             box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.5);
@@ -149,7 +166,7 @@
         }
 
         .invoice-letter-card:hover .invoice-greylayer {
-            bottom: calc(var(--greylayer-bottom, 280px) + 180px); /* 올라가면서 */
+            bottom: calc(var(--greylayer-bottom) + var(--hover-lift-distance)); /* 올라가면서 */
             opacity: 0; /* 사라짐 */
         }
 
@@ -173,7 +190,7 @@
         }
 
         .invoice-letter-card:hover .invoice-seal-top {
-            bottom: calc(var(--seal-top-bottom, 420px) + 180px); /* 올라가면서 */
+            bottom: calc(var(--seal-top-bottom) + var(--hover-lift-distance)); /* 올라가면서 */
             opacity: 0; /* 사라짐 */
         }
 
@@ -190,7 +207,7 @@
             right: 0;
             background: white;
             transition: all 700ms ease-out;
-            bottom: 320px;
+            bottom: var(--envelope-body-height);
             height: 0px;
             opacity: 0;
             border-left: 1px solid rgba(224, 224, 224, 0.5);
@@ -200,7 +217,7 @@
         }
 
         .invoice-letter-card:hover .invoice-letter-content {
-            height: 180px;
+            height: var(--letter-content-height);
             opacity: 1;
         }
 
@@ -384,8 +401,8 @@
             position: absolute;
             left: 0;
             right: 0;
-            bottom: 320px;
-            height: 200px;
+            bottom: var(--envelope-body-height);
+            height: var(--envelope-flap-height);
             background-color: rgba(230, 230, 230, 1);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             border-bottom: 2px solid #E0E0E0;
@@ -395,11 +412,14 @@
         }
 
         .invoice-letter-card:hover .invoice-envelope-flap {
-            bottom: 500px;
+            bottom: calc(var(--envelope-body-height) + var(--envelope-flap-height) + var(--hover-lift-distance));
             box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.25);
         }
 
-        /* 인보이스 그리드 레이아웃 */
+        /* ============================================
+           인보이스 그리드 레이아웃
+           (편지 카드들을 담는 컨테이너)
+           ============================================ */
         .invoice-grid {
             display: flex;
             flex-direction: column;
