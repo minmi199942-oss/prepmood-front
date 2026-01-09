@@ -1239,6 +1239,8 @@ const orderRoutes = require('./order-routes');
 const paymentsRoutes = require('./payments-routes');
 const inquiryRoutes = require('./inquiry-routes');
 const invoiceRoutes = require('./invoice-routes');
+const stockRoutes = require('./stock-routes');
+const warrantyEventRoutes = require('./warranty-event-routes');
 const deployWebhook = require('./deploy-webhook');
 
 app.use('/api', googleAuthRoutes);
@@ -1247,6 +1249,8 @@ app.use('/api', deployWebhook);
 app.use('/api', orderRoutes);
 app.use('/api', inquiryRoutes);
 app.use('/api', invoiceRoutes);
+app.use('/api', stockRoutes);
+app.use('/api', warrantyEventRoutes);
 
 // 장바구니 라우트
 const cartRoutes = require('./cart-routes');

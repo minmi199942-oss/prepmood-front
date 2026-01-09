@@ -8,16 +8,21 @@
  * - 멱등성: paid_events UNIQUE 제약 활용
  * - 재고 배정: stock_units.status = 'in_stock'만 배정
  * - 보증서 생성: 회원/비회원 구분 (issued vs issued_unassigned)
+ * 
+ * 중요: paid_events는 별도 커넥션(autocommit)으로 먼저 생성되어야 함
+ * 이 함수는 paidEventId를 받아서 주문 처리 트랜잭션만 수행
  */
 
 const Logger = require('../logger');
 const { createInvoiceFromOrder } = require('./invoice-creator');
+const { updateProcessingStatus, recordStockIssue } = require('./paid-event-creator');
 
 /**
  * Paid 주문 처리
  * 
  * @param {Object} params - 처리 파라미터
  * @param {Object} params.connection - MySQL 연결 (트랜잭션 내, 이미 시작된 상태)
+ * @param {number} params.paidEventId - paid_events.event_id (이미 생성된 결제 증거)
  * @param {number} params.orderId - 주문 ID
  * @param {string} params.paymentKey - 결제 키 (토스페이먼츠 paymentKey)
  * @param {number} params.amount - 결제 금액
@@ -33,6 +38,7 @@ const { createInvoiceFromOrder } = require('./invoice-creator');
  */
 async function processPaidOrder({
     connection,
+    paidEventId,
     orderId,
     paymentKey,
     amount,
@@ -75,28 +81,14 @@ async function processPaidOrder({
         const order = orderRows[0];
 
         // 금액/통화 검증 (서버 확정값과 일치 확인)
+        // 주의: paid_events는 이미 별도 커넥션에서 생성되어 있음
         if (parseFloat(order.total_price) != parseFloat(amount)) {
-            // 불일치 시 paid_events는 기록하되(증거), 주문 처리는 중단
             Logger.error('[PAID_PROCESSOR] 결제 금액 불일치', {
                 orderId,
+                paidEventId,
                 orderTotalPrice: order.total_price,
                 paymentAmount: amount
             });
-            
-            try {
-                await connection.execute(
-                    `INSERT INTO paid_events 
-                    (order_id, payment_key, event_source, amount, currency, raw_payload_json, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-                    [orderId, paymentKey, eventSource, amount, currency, rawPayload ? JSON.stringify(rawPayload) : null]
-                );
-            } catch (err) {
-                // paid_events 기록 실패는 무시 (증거 보존 시도)
-                Logger.error('[PAID_PROCESSOR] paid_events 기록 실패 (금액 불일치)', {
-                    orderId,
-                    error: err.message
-                });
-            }
             
             throw new Error(`결제 금액 불일치: 주문=${order.total_price}, 결제=${amount}`);
         }
@@ -104,70 +96,29 @@ async function processPaidOrder({
         if (order.currency !== currency) {
             Logger.error('[PAID_PROCESSOR] 통화 불일치', {
                 orderId,
+                paidEventId,
                 orderCurrency: order.currency,
                 paymentCurrency: currency
             });
-            
-            try {
-                await connection.execute(
-                    `INSERT INTO paid_events 
-                    (order_id, payment_key, event_source, amount, currency, raw_payload_json, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-                    [orderId, paymentKey, eventSource, amount, currency, rawPayload ? JSON.stringify(rawPayload) : null]
-                );
-            } catch (err) {
-                Logger.error('[PAID_PROCESSOR] paid_events 기록 실패 (통화 불일치)', {
-                    orderId,
-                    error: err.message
-                });
-            }
             
             throw new Error(`통화 불일치: 주문=${order.currency}, 결제=${currency}`);
         }
 
         // ============================================================
-        // 2. paid_events INSERT (멱등성 체크) - 락 순서: orders 이후
+        // 2. paidEventId 검증 (이미 별도 커넥션에서 생성됨)
         // ============================================================
-        Logger.log('[PAID_PROCESSOR] paid_events INSERT 시도', {
+        Logger.log('[PAID_PROCESSOR] paidEventId 검증', {
             orderId,
-            paymentKey: paymentKey?.substring(0, 20) + '...'
+            paidEventId
         });
 
-        let paidEventId;
-        try {
-            const [paidEventResult] = await connection.execute(
-                `INSERT INTO paid_events 
-                (order_id, payment_key, event_source, amount, currency, raw_payload_json, confirmed_at, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                [orderId, paymentKey, eventSource, amount, currency, rawPayload ? JSON.stringify(rawPayload) : null]
-            );
-            paidEventId = paidEventResult.insertId;
-            Logger.log('[PAID_PROCESSOR] paid_events INSERT 성공', {
-                orderId,
-                paidEventId
-            });
-        } catch (error) {
-            if (error.code === 'ER_DUP_ENTRY') {
-                // 이미 처리됨
-                Logger.log('[PAID_PROCESSOR] 이미 처리된 주문 (paid_events 중복)', {
-                    orderId,
-                    paymentKey: paymentKey?.substring(0, 20) + '...'
-                });
-                return {
-                    success: true,
-                    alreadyProcessed: true,
-                    message: '이미 처리된 주문입니다.',
-                    data: {
-                        paidEventId: null,
-                        stockUnitsReserved: 0,
-                        orderItemUnitsCreated: 0,
-                        warrantiesCreated: 0,
-                        invoiceNumber: null
-                    }
-                };
-            }
-            throw error;
+        if (!paidEventId) {
+            throw new Error('paidEventId가 필요합니다. paid_events가 먼저 생성되어야 합니다.');
         }
+
+        // paid_event_processing 상태를 'processing'으로 업데이트
+        // (별도 커넥션에서 수행, 트랜잭션과 분리)
+        await updateProcessingStatus(paidEventId, 'processing');
 
         // ============================================================
         // 3. order_items 조회
@@ -222,6 +173,9 @@ async function processPaidOrder({
             );
 
             if (availableStock.length < needQty) {
+                // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)
+                await recordStockIssue(paidEventId, orderId, productId, needQty, availableStock.length);
+                
                 throw new Error(
                     `재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableStock.length}`
                 );
@@ -443,12 +397,16 @@ async function processPaidOrder({
 
         Logger.log('[PAID_PROCESSOR] Paid 처리 완료', {
             orderId,
+            paidEventId,
             duration,
             stockUnitsReserved: reservedStockUnits.length,
             orderItemUnitsCreated: createdOrderItemUnits.length,
             warrantiesCreated: createdWarranties.length,
             invoiceNumber
         });
+
+        // 처리 상태를 'success'로 업데이트 (별도 커넥션, 트랜잭션과 분리)
+        await updateProcessingStatus(paidEventId, 'success');
 
         return {
             success: true,
@@ -467,6 +425,7 @@ async function processPaidOrder({
         const duration = Date.now() - startTime;
         Logger.error('[PAID_PROCESSOR] Paid 처리 실패', {
             orderId,
+            paidEventId,
             duration,
             error: error.message,
             error_code: error.code,
@@ -474,6 +433,10 @@ async function processPaidOrder({
             error_sql_message: error.sqlMessage,
             stack: error.stack
         });
+
+        // 처리 상태를 'failed'로 업데이트 (별도 커넥션, 트랜잭션과 분리)
+        await updateProcessingStatus(paidEventId, 'failed', error.message);
+
         throw error;
     }
 }
