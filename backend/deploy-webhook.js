@@ -16,14 +16,11 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const { exec } = require('child_process');
-const { promisify } = require('util');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const Logger = require('./logger');
 require('dotenv').config();
-
-const execAsync = promisify(exec);
 
 // 배포 웹훅 로그 파일 경로 (backend 디렉토리 내부 - 권한 문제 방지)
 const DEPLOY_LOG_FILE = path.join(__dirname, 'deploy-webhook.log');
@@ -119,58 +116,43 @@ router.post('/deploy/webhook', async (req, res) => {
             return res.status(500).json({ error: 'Deploy script not found' });
         }
         
-        // 배포 스크립트를 백그라운드로 실행 (stdout/stderr를 파일로 리다이렉트)
-        // 주의: pm2 restart로 인해 이 프로세스가 재시작될 수 있으므로,
-        // 완료 로그는 deploy-run.log에서 확인해야 함
-        // /bin/bash -lc를 사용하여 쉘 리다이렉트가 제대로 작동하도록 함
-        // bash -x로 각 라인 실행 시마다 로그를 남겨서 정확한 중단 지점 확인
-        // /root/prepmood-repo/deploy.sh를 직접 실행하여 동기화 누락 문제 방지
-        // 보안: 경로를 직접 문자열로 사용 (변수 삽입 방지)
-        const deployCommand = `/bin/bash -lc "bash -x ${DEPLOY_SCRIPT} >> '${DEPLOY_RUN_LOG.replace(/'/g, "'\\''")}' 2>&1"`;
-        const deployProcess = exec(deployCommand, {
+        // 배포 스크립트를 완전히 분리된 프로세스로 실행
+        // spawn + detached: true를 사용하여 PM2 재시작의 영향을 받지 않도록 함
+        // stdout/stderr를 파일로 리다이렉트
+        // nohup을 사용하여 부모 프로세스 종료 후에도 계속 실행되도록 함
+        
+        // 로그 파일 경로를 안전하게 처리 (command injection 방지)
+        const logFileEscaped = DEPLOY_RUN_LOG.replace(/'/g, "'\\''");
+        
+        // spawn을 사용하여 완전히 분리된 프로세스로 실행
+        // detached: true로 부모 프로세스와 완전히 분리
+        // stdio를 파일로 리다이렉트하여 로그 저장
+        const deployProcess = spawn('bash', ['-x', DEPLOY_SCRIPT], {
             cwd: '/root',
-            env: { ...process.env, PATH: process.env.PATH },
-            maxBuffer: 10 * 1024 * 1024 // 10MB 버퍼
-        }, (error, stdout, stderr) => {
-            // 주의: pm2 restart로 인해 이 콜백이 실행되지 않을 수 있음
-            // 실제 배포 결과는 deploy-run.log에서 확인
-            if (error) {
-                logToFile('❌ 배포 프로세스 오류 (콜백)', {
-                    error: error.message,
-                    code: error.code,
-                    signal: error.signal
-                });
-                console.log('[DEPLOY] ❌ 배포 프로세스 오류 (콜백)', {
-                    error: error.message,
-                    code: error.code
-                });
-            } else {
-                // 성공해도 이 콜백은 실행되지 않을 가능성이 높음 (pm2 restart 때문)
-                logToFile('✅ 배포 완료 (콜백)', {
-                    stdoutLength: stdout ? stdout.length : 0
-                });
-                console.log('[DEPLOY] ✅ 배포 완료 (콜백)', {
-                    stdoutLength: stdout ? stdout.length : 0
-                });
-            }
+            detached: true,  // 부모 프로세스와 완전히 분리
+            stdio: ['ignore', 'a', 'a'],  // stdin 무시, stdout/stderr는 파일로
+            env: { ...process.env, PATH: process.env.PATH }
         });
 
-        // 프로세스 시작 로그 (이건 재시작 전에 기록됨)
-        logToFile('📤 deploy.sh 실행 요청', { 
+        // stdout/stderr를 파일로 리다이렉트
+        const logStream = fs.createWriteStream(DEPLOY_RUN_LOG, { flags: 'a' });
+        deployProcess.stdout.pipe(logStream);
+        deployProcess.stderr.pipe(logStream);
+
+        // 프로세스를 완전히 분리 (부모 프로세스가 종료되어도 계속 실행)
+        deployProcess.unref();
+
+        // 프로세스 시작 로그
+        logToFile('📤 deploy.sh 실행 요청 (분리된 프로세스)', { 
             pid: deployProcess.pid,
             logFile: DEPLOY_RUN_LOG
         });
-        console.log('[DEPLOY] 📤 deploy.sh 실행 요청', { 
+        console.log('[DEPLOY] 📤 deploy.sh 실행 요청 (분리된 프로세스)', { 
             pid: deployProcess.pid,
             logFile: DEPLOY_RUN_LOG
         });
 
-        // 프로세스 이벤트 리스너 (디버깅용, 실행되지 않을 수 있음)
-        deployProcess.on('close', (code) => {
-            logToFile('📋 배포 프로세스 종료 (이벤트)', { exitCode: code });
-            console.log('[DEPLOY] 📋 배포 프로세스 종료 (이벤트)', { exitCode: code });
-        });
-
+        // 프로세스 이벤트 리스너 (선택적, 분리된 프로세스이므로 실행되지 않을 수 있음)
         deployProcess.on('error', (error) => {
             logToFile('❌ 배포 프로세스 실행 오류 (이벤트)', { error: error.message });
             console.error('[DEPLOY] ❌ 배포 프로세스 실행 오류 (이벤트)', error);
