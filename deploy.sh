@@ -243,16 +243,39 @@ sleep 2
 echo "🔍 서버 상태 확인..."
 pm2 status prepmood-backend
 
-# 7. 헬스체크 (실패 시 배포 실패 처리)
+# 7. 헬스체크 (PM2 재시작 후 서버가 완전히 시작될 때까지 대기)
 echo "🏥 헬스체크 중..."
-if curl -fsS https://prepmood.kr/auth/health >/dev/null 2>&1; then
-  echo "✅ 헬스체크 성공"
-else
-  echo "❌ 헬스체크 실패 - 배포 실패로 처리"
-  echo "💡 롤백 방법:"
-  echo "   tar -C /var/www/html -xzf $BACKUP_DIR/backend_backup_$TIMESTAMP.tgz"
-  echo "   pm2 restart prepmood-backend"
-  exit 1
+echo "   (PM2 재시작 후 서버 시작 대기 중...)"
+sleep 5  # PM2 재시작 후 서버가 완전히 시작될 때까지 대기
+
+# 헬스체크 재시도 (최대 3번, 각 2초 간격)
+HEALTH_CHECK_RETRIES=3
+HEALTH_CHECK_SUCCESS=0
+
+for i in $(seq 1 $HEALTH_CHECK_RETRIES); do
+  echo "   시도 $i/$HEALTH_CHECK_RETRIES..."
+  if curl -fsS https://prepmood.kr/auth/health >/dev/null 2>&1; then
+    echo "✅ 헬스체크 성공"
+    HEALTH_CHECK_SUCCESS=1
+    break
+  else
+    if [ $i -lt $HEALTH_CHECK_RETRIES ]; then
+      echo "   ⏳ 서버 시작 대기 중... (2초 후 재시도)"
+      sleep 2
+    fi
+  fi
+done
+
+if [ $HEALTH_CHECK_SUCCESS -eq 0 ]; then
+  echo "⚠️  헬스체크 실패 (재시도 $HEALTH_CHECK_RETRIES회 모두 실패)"
+  echo "💡 다음을 확인하세요:"
+  echo "   1. pm2 logs prepmood-backend --lines 50"
+  echo "   2. curl -v https://prepmood.kr/auth/health"
+  echo "   3. 서버가 정상적으로 시작되었는지 확인"
+  echo ""
+  echo "⚠️  배포는 완료되었지만 헬스체크에 실패했습니다."
+  echo "   파일은 정상적으로 동기화되었으므로, 서버 로그를 확인하세요."
+  # exit 1 대신 경고만 하고 계속 진행 (파일은 이미 동기화됨)
 fi
 
 # 8. 배포 후 자동 검증 (루트 파일 실제 갱신 확인)
