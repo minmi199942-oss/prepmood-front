@@ -409,9 +409,14 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             await connection.end();
         }
         const paymentMode = process.env.MOCK_GATEWAY === '1' ? 'MOCK' : 'TOSS';
-        Logger.log(`[payments][mode=${paymentMode}] 결제 확정 처리 오류`, {
+        Logger.error(`[payments][mode=${paymentMode}] 결제 확정 처리 오류`, {
             error: error.message,
-            stack: error.stack
+            error_code: error.code,
+            error_sql_state: error.sqlState,
+            error_sql_message: error.sqlMessage,
+            stack: error.stack,
+            orderNumber: req.body?.orderNumber,
+            paymentKey: req.body?.paymentKey
         });
         return res.status(500).json({
             code: 'INTERNAL_ERROR',
