@@ -7,7 +7,7 @@ USE prepmood;
 
 CREATE TABLE IF NOT EXISTS stock_units (
     stock_unit_id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    product_id INT NOT NULL,
+    product_id VARCHAR(50) NOT NULL COMMENT 'admin_products.id 참조',
     token_pk INT NOT NULL COMMENT 'token_master.token_pk 참조',
     status ENUM('in_stock', 'reserved', 'sold', 'returned') NOT NULL DEFAULT 'in_stock',
     reserved_at DATETIME NULL,
