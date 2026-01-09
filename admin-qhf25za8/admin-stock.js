@@ -385,14 +385,21 @@
       const item = document.createElement('div');
       item.className = 'token-item';
       
+      // product_name 표시 (확인 UX)
+      const productNameDisplay = token.product_name 
+        ? `<span style="color: #666; font-size: 0.9em;">[${token.product_name}]</span>` 
+        : '';
+      
       item.innerHTML = `
         <input type="checkbox" 
                id="token-${token.token_pk}" 
                value="${token.token_pk}"
+               data-product-name="${token.product_name || ''}"
                onchange="window.AdminPages.stock.updateSubmitButton()">
         <label for="token-${token.token_pk}" class="token-info">
           ${token.token} (${token.internal_code || '-'})
           ${token.serial_number ? ` - ${token.serial_number}` : ''}
+          ${productNameDisplay}
         </label>
       `;
 
@@ -421,6 +428,48 @@
     if (!productId || tokenPkArray.length === 0) {
       alert('상품과 최소 1개 이상의 토큰을 선택해주세요.');
       return;
+    }
+
+    // ============================================
+    // 확인 UX: 선택한 토큰의 product_name과 선택한 상품명 비교
+    // ============================================
+    const selectedProductName = elements.addStockProductId.options[elements.addStockProductId.selectedIndex].textContent;
+    const selectedTokens = availableTokens.filter(t => tokenPkArray.includes(t.token_pk));
+    
+    // product_name이 다른 토큰이 있는지 확인
+    const mismatchedTokens = selectedTokens.filter(t => {
+      // 부분 매칭 허용 (단계적 마이그레이션 중)
+      const tokenProductName = t.product_name || '';
+      const productNameOnly = selectedProductName.split(' (')[0]; // "(ID)" 제거
+      return tokenProductName !== productNameOnly 
+        && !productNameOnly.includes(tokenProductName)
+        && !tokenProductName.includes(productNameOnly);
+    });
+
+    if (mismatchedTokens.length > 0) {
+      const mismatchedInfo = mismatchedTokens.map(t => 
+        `token_pk=${t.token_pk} (토큰의 product_name="${t.product_name}")`
+      ).join('\n');
+      
+      const confirmMessage = `⚠️ 경고: 선택한 토큰 중 일부가 선택한 상품과 일치하지 않습니다.\n\n` +
+        `선택한 상품: ${selectedProductName}\n\n` +
+        `일치하지 않는 토큰:\n${mismatchedInfo}\n\n` +
+        `정말 추가하시겠습니까?`;
+      
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+    } else {
+      // 모든 토큰이 일치하는 경우에도 확인 메시지 표시
+      const confirmMessage = `재고 추가 확인\n\n` +
+        `선택한 상품: ${selectedProductName}\n` +
+        `선택한 토큰: ${tokenPkArray.length}개\n\n` +
+        `선택한 토큰의 product_name과 선택한 상품명이 일치합니다.\n` +
+        `계속하시겠습니까?`;
+      
+      if (!confirm(confirmMessage)) {
+        return;
+      }
     }
 
     elements.submitAddStockBtn.disabled = true;
