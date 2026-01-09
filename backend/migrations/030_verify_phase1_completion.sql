@@ -26,9 +26,9 @@ ORDER BY ORDINAL_POSITION;
 -- 1-2. PK 확인 (token_pk가 PK인지)
 SELECT '--- PK 확인 (token_pk가 PRIMARY KEY인지) ---' AS info;
 SELECT 
-    CONSTRAINT_NAME,
-    COLUMN_NAME,
-    CONSTRAINT_TYPE
+    tc.CONSTRAINT_NAME,
+    kcu.COLUMN_NAME,
+    tc.CONSTRAINT_TYPE
 FROM information_schema.TABLE_CONSTRAINTS tc
 JOIN information_schema.KEY_COLUMN_USAGE kcu 
   ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
@@ -39,9 +39,9 @@ WHERE tc.TABLE_SCHEMA = 'prepmood'
 -- 1-3. token UNIQUE 확인
 SELECT '--- token UNIQUE 확인 ---' AS info;
 SELECT 
-    CONSTRAINT_NAME,
-    COLUMN_NAME,
-    CONSTRAINT_TYPE
+    tc.CONSTRAINT_NAME,
+    kcu.COLUMN_NAME,
+    tc.CONSTRAINT_TYPE
 FROM information_schema.TABLE_CONSTRAINTS tc
 JOIN information_schema.KEY_COLUMN_USAGE kcu 
   ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
@@ -112,9 +112,9 @@ WHERE TABLE_SCHEMA = 'prepmood'
 -- 2-5. UNIQUE(token_pk) 확인
 SELECT '--- UNIQUE(token_pk) 확인 ---' AS info;
 SELECT 
-    CONSTRAINT_NAME,
-    COLUMN_NAME,
-    CONSTRAINT_TYPE
+    tc.CONSTRAINT_NAME,
+    kcu.COLUMN_NAME,
+    tc.CONSTRAINT_TYPE
 FROM information_schema.TABLE_CONSTRAINTS tc
 JOIN information_schema.KEY_COLUMN_USAGE kcu 
   ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
@@ -157,9 +157,9 @@ WHERE TABLE_SCHEMA = 'prepmood'
 -- 3-2. UNIQUE(order_id, payment_key) 확인
 SELECT '--- UNIQUE(order_id, payment_key) 확인 ---' AS info;
 SELECT 
-    CONSTRAINT_NAME,
-    COLUMN_NAME,
-    CONSTRAINT_TYPE
+    tc.CONSTRAINT_NAME,
+    kcu.COLUMN_NAME,
+    tc.CONSTRAINT_TYPE
 FROM information_schema.TABLE_CONSTRAINTS tc
 JOIN information_schema.KEY_COLUMN_USAGE kcu 
   ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
@@ -260,9 +260,9 @@ WHERE TABLE_SCHEMA = 'prepmood'
 -- 6-3. UNIQUE 제약 확인
 SELECT '--- order_item_units UNIQUE 제약 확인 ---' AS info;
 SELECT 
-    CONSTRAINT_NAME,
-    COLUMN_NAME,
-    CONSTRAINT_TYPE
+    tc.CONSTRAINT_NAME,
+    kcu.COLUMN_NAME,
+    tc.CONSTRAINT_TYPE
 FROM information_schema.TABLE_CONSTRAINTS tc
 JOIN information_schema.KEY_COLUMN_USAGE kcu 
   ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
