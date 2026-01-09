@@ -321,8 +321,9 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
         );
 
         // 5. 주문 상태 업데이트 (MOCK/TOSS 공통)
+        // 주의: orders 테이블에 paid_at 컬럼이 없으므로 status만 업데이트
         await connection.execute(
-            'UPDATE orders SET status = ?, paid_at = NOW() WHERE order_number = ?',
+            'UPDATE orders SET status = ? WHERE order_number = ?',
             [orderStatus, orderNumber]
         );
 
