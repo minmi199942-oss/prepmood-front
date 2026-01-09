@@ -207,22 +207,58 @@ async function initializeTokenMaster() {
             });
         }
         
-        // 5. DB에 삽입
+        // 5. product_id 매핑 (product_name으로 admin_products 조회)
+        Logger.log('[INIT] product_id 매핑 중...');
+        const productsWithProductId = [];
+        let unmappedCount = 0;
+        
+        for (const product of productsWithToken) {
+            // product_name으로 admin_products 조회 (부분 매칭)
+            const [adminProducts] = await connection.execute(
+                `SELECT id, name 
+                 FROM admin_products 
+                 WHERE name = ? 
+                    OR name LIKE CONCAT(?, '%')
+                    OR ? LIKE CONCAT(name, '%')
+                 LIMIT 1`,
+                [product.product_name, product.product_name, product.product_name]
+            );
+            
+            if (adminProducts.length === 0) {
+                Logger.warn(`[INIT] ⚠️  product_id를 찾을 수 없음: ${product.product_name}`);
+                unmappedCount++;
+                // 매핑 실패 시 에러 (product_id는 NOT NULL이므로)
+                throw new Error(`admin_products에서 상품을 찾을 수 없습니다: ${product.product_name}`);
+            }
+            
+            const productId = adminProducts[0].id;
+            productsWithProductId.push({
+                ...product,
+                product_id: productId
+            });
+        }
+        
+        if (unmappedCount > 0) {
+            Logger.warn(`[INIT] ⚠️  매핑 실패한 제품: ${unmappedCount}개`);
+        }
+        
+        // 6. DB에 삽입
         Logger.log('[INIT] DB에 데이터 삽입 중...');
         let inserted = 0;
         let skipped = 0;
         
-        for (const product of productsWithToken) {
+        for (const product of productsWithProductId) {
             try {
                 await connection.execute(
                     `INSERT INTO token_master 
-                     (token, internal_code, product_name, serial_number, rot_code, warranty_bottom_code, digital_warranty_code, digital_warranty_collection,
+                     (token, internal_code, product_name, product_id, serial_number, rot_code, warranty_bottom_code, digital_warranty_code, digital_warranty_collection,
                       is_blocked, scan_count, created_at, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`,
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`,
                     [
                         product.token,
                         product.internal_code, // 자동 생성된 internal_code
                         product.product_name,
+                        product.product_id, // admin_products에서 조회한 product_id
                         product.serial_number,
                         product.rot_code,
                         product.warranty_bottom_code, // xlsx에서 읽은 보증서 하단 코드

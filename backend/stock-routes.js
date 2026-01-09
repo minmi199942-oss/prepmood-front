@@ -150,9 +150,9 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
 
         connection = await mysql.createConnection(dbConfig);
 
-        // 상품 이름 조회
+        // 상품 존재 확인
         const [products] = await connection.execute(
-            'SELECT name FROM admin_products WHERE id = ?',
+            'SELECT id, name FROM admin_products WHERE id = ?',
             [productId]
         );
 
@@ -164,11 +164,7 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
             });
         }
 
-        const productName = products[0].name;
-        
-        // token_master의 product_name이 admin_products.name의 시작 부분과 일치하는지 확인
-        // 예: "솔리드 수트 스키니 타이"가 "솔리드 수트 스키니 타이 Solid Suit Skinny Tie 26 - Black"의 시작 부분과 일치
-        // 또는 admin_products.name이 token_master.product_name으로 시작하는지 확인
+        // product_id로 직접 조회 (문자열 매칭 제거)
         const [tokens] = await connection.execute(
             `SELECT 
                 tm.token_pk,
@@ -177,17 +173,13 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
                 tm.serial_number,
                 tm.product_name
             FROM token_master tm
-            WHERE (
-                tm.product_name = ? 
-                OR ? LIKE CONCAT(tm.product_name, '%')
-                OR tm.product_name LIKE CONCAT(?, '%')
-            )
-            AND tm.token_pk NOT IN (
-                SELECT COALESCE(token_pk, 0) FROM stock_units WHERE product_id = ?
-            )
+            WHERE tm.product_id = ?
+              AND tm.token_pk NOT IN (
+                  SELECT COALESCE(token_pk, 0) FROM stock_units WHERE product_id = ?
+              )
             ORDER BY tm.token_pk
             LIMIT 100`,
-            [productName, productName, productName, productId]
+            [productId, productId]
         );
 
         await connection.end();
@@ -309,10 +301,9 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
             );
 
             // 교차 정합성 검증: token_master.product_id와 요청 product_id 일치 확인
-            // 주의: token_master.product_id가 NULL일 수 있으므로 (단계적 마이그레이션)
-            // NULL인 경우 경고만 하고, NULL이 아닌 경우에만 검증
+            // product_id는 NOT NULL이므로 항상 검증
             const mismatchedTokens = tokenWithProductId.filter(t => 
-                t.token_product_id !== null && t.token_product_id !== product_id
+                t.token_product_id !== product_id
             );
 
             if (mismatchedTokens.length > 0) {
@@ -333,37 +324,6 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
                     message: `선택한 토큰의 상품과 일치하지 않습니다. (${mismatchedTokens.length}개)`,
                     details: mismatchedInfo
                 });
-            }
-
-            // product_id가 NULL인 토큰이 있는 경우 경고 (단계적 마이그레이션 중)
-            // 이 경우 기존 product_name 문자열 매칭으로 fallback 검증
-            const nullProductIdTokens = tokenWithProductId.filter(t => t.token_product_id === null);
-            if (nullProductIdTokens.length > 0) {
-                Logger.warn('[STOCK] product_id가 NULL인 토큰 입고 (단계적 마이그레이션, product_name 매칭으로 fallback)', {
-                    product_id,
-                    null_count: nullProductIdTokens.length,
-                    admin: req.user.email
-                });
-                
-                // Fallback: product_name 문자열 매칭 검증
-                const productName = products[0].name;
-                const invalidTokens = nullProductIdTokens.filter(t => {
-                    const tokenInfo = tokens.find(tok => tok.token_pk === t.token_pk);
-                    if (!tokenInfo) return true;
-                    // 부분 매칭 허용 (단계적 마이그레이션 중)
-                    return tokenInfo.product_name !== productName 
-                        && !productName.includes(tokenInfo.product_name)
-                        && !tokenInfo.product_name.includes(productName);
-                });
-                
-                if (invalidTokens.length > 0) {
-                    await connection.rollback();
-                    await connection.end();
-                    return res.status(400).json({
-                        success: false,
-                        message: `일부 토큰이 해당 상품(${productName})과 일치하지 않습니다. (product_name 매칭 실패)`
-                    });
-                }
             }
 
             // 이미 재고에 등록된 token_pk 확인
