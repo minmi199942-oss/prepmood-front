@@ -342,7 +342,7 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
             }
 
             // product_id가 NULL인 토큰이 있는 경우 경고 (단계적 마이그레이션 중)
-            const nullProductIdTokens = tokenValidation.filter(t => t.token_product_id === null);
+            const nullProductIdTokens = tokenWithProductId.filter(t => t.token_product_id === null);
             if (nullProductIdTokens.length > 0) {
                 Logger.warn('[STOCK] product_id가 NULL인 토큰 입고 (단계적 마이그레이션)', {
                     product_id,
