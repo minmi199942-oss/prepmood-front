@@ -32,9 +32,9 @@ ADD CONSTRAINT uk_stock_units_token_pk UNIQUE (token_pk);
 -- ============================================================
 SELECT '=== 사후 검증: UNIQUE 제약 확인 ===' AS info;
 SELECT 
-    CONSTRAINT_NAME,
-    COLUMN_NAME,
-    CONSTRAINT_TYPE
+    tc.CONSTRAINT_NAME,
+    kcu.COLUMN_NAME,
+    tc.CONSTRAINT_TYPE
 FROM information_schema.TABLE_CONSTRAINTS tc
 JOIN information_schema.KEY_COLUMN_USAGE kcu 
   ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME 
