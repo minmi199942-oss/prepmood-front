@@ -77,14 +77,34 @@ async function createInvoiceFromOrder(connection, orderId) {
         const netAmount = totalAmount - taxAmount;
 
         // 5. Billing 정보 (회원 정보 또는 배송 정보 사용)
-        const billingName = order.user_name || order.shipping_name;
+        const billingName = order.user_name || order.shipping_name || '고객';
         const billingEmail = order.user_email || order.shipping_email;
-        const billingPhone = order.user_phone || order.shipping_phone;
+        const billingPhone = order.user_phone || order.shipping_phone || null;
+        
+        // 필수 필드 검증 (billing_email은 NOT NULL이므로 반드시 필요)
+        if (!billingEmail) {
+            Logger.error('[INVOICE] Billing email 누락', {
+                order_id: orderId,
+                user_email: order.user_email,
+                shipping_email: order.shipping_email
+            });
+            throw new Error(`Billing email이 없습니다: order_id=${orderId}, user_email=${order.user_email || 'null'}, shipping_email=${order.shipping_email || 'null'}`);
+        }
 
         // 6. Shipping 정보
-        const shippingName = order.shipping_name;
-        const shippingEmail = order.shipping_email;
-        const shippingPhone = order.shipping_phone;
+        const shippingName = order.shipping_name || billingName || '고객';
+        const shippingEmail = order.shipping_email || billingEmail;
+        const shippingPhone = order.shipping_phone || billingPhone || null;
+        
+        // 필수 필드 검증 (shipping_name은 NOT NULL이므로 반드시 필요)
+        if (!shippingName || shippingName.trim() === '') {
+            Logger.error('[INVOICE] Shipping name 누락', {
+                order_id: orderId,
+                shipping_name: order.shipping_name,
+                billing_name: billingName
+            });
+            throw new Error(`Shipping name이 없습니다: order_id=${orderId}, shipping_name=${order.shipping_name || 'null'}`);
+        }
 
         // 7. 주소 JSON 생성
         const billingAddressJson = {
@@ -143,34 +163,51 @@ async function createInvoiceFromOrder(connection, orderId) {
         const invoiceNumber = await generateUniqueInvoiceNumber(connection);
 
         // 11. 인보이스 INSERT
-        const [invoiceResult] = await connection.execute(
-            `INSERT INTO invoices (
-                order_id, invoice_number, type, status,
-                currency, total_amount, tax_amount, net_amount,
-                billing_name, billing_email, billing_phone, billing_address_json,
-                shipping_name, shipping_email, shipping_phone, shipping_address_json,
-                payload_json, order_snapshot_hash, version,
-                issued_by, issued_at
-            ) VALUES (?, ?, 'invoice', 'issued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'system', NOW())`,
-            [
-                order.order_id,
-                invoiceNumber,
-                currency,
-                totalAmount,
-                taxAmount,
-                netAmount,
-                billingName,
-                billingEmail,
-                billingPhone,
-                JSON.stringify(billingAddressJson),
-                shippingName,
-                shippingEmail,
-                shippingPhone,
-                JSON.stringify(shippingAddressJson),
-                payloadString,
-                orderSnapshotHash
-            ]
-        );
+        let invoiceResult;
+        try {
+            [invoiceResult] = await connection.execute(
+                `INSERT INTO invoices (
+                    order_id, invoice_number, type, status,
+                    currency, total_amount, tax_amount, net_amount,
+                    billing_name, billing_email, billing_phone, billing_address_json,
+                    shipping_name, shipping_email, shipping_phone, shipping_address_json,
+                    payload_json, order_snapshot_hash, version,
+                    issued_by, issued_at
+                ) VALUES (?, ?, 'invoice', 'issued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'system', NOW())`,
+                [
+                    order.order_id,
+                    invoiceNumber,
+                    currency,
+                    totalAmount,
+                    taxAmount,
+                    netAmount,
+                    billingName,
+                    billingEmail,
+                    billingPhone,
+                    JSON.stringify(billingAddressJson),
+                    shippingName,
+                    shippingEmail,
+                    shippingPhone,
+                    JSON.stringify(shippingAddressJson),
+                    payloadString,
+                    orderSnapshotHash
+                ]
+            );
+        } catch (sqlError) {
+            Logger.error('[INVOICE] SQL INSERT 실패', {
+                order_id: orderId,
+                invoice_number: invoiceNumber,
+                error: sqlError.message,
+                error_code: sqlError.code,
+                sql_state: sqlError.sqlState,
+                sql_message: sqlError.sqlMessage,
+                billing_name: billingName,
+                billing_email: billingEmail,
+                shipping_name: shippingName,
+                shipping_email: shippingEmail
+            });
+            throw sqlError;
+        }
 
         const invoiceId = invoiceResult.insertId;
 

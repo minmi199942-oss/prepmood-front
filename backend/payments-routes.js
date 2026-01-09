@@ -327,8 +327,12 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
         );
 
         // 6. 인보이스 생성 (결제 성공 시에만)
+        // 주의: 인보이스 생성 실패는 결제 성공을 막지 않아야 함
+        // 따라서 트랜잭션 커밋 전에 시도하되, 실패해도 롤백하지 않음
         let invoiceCreated = false;
         let invoiceNumber = null;
+        let invoiceError = null;
+        
         if (paymentStatus === 'captured') {
             try {
                 const invoiceResult = await createInvoiceFromOrder(connection, order.order_id);
@@ -338,13 +342,19 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     order_id: order.order_id,
                     invoice_number: invoiceNumber
                 });
-            } catch (invoiceError) {
+            } catch (err) {
                 // 인보이스 생성 실패는 결제 성공을 막지 않음 (로깅만)
+                invoiceError = err;
                 Logger.error('[payments][confirm] 인보이스 생성 실패 (결제는 성공)', {
                     order_id: order.order_id,
-                    error: invoiceError.message,
-                    stack: invoiceError.stack
+                    order_number: orderNumber,
+                    error: err.message,
+                    error_code: err.code,
+                    error_sql_state: err.sqlState,
+                    stack: err.stack
                 });
+                // 에러를 다시 throw하지 않음 (결제는 성공 처리)
+                // 인보이스 생성 실패는 나중에 수동으로 생성 가능
             }
         }
 
