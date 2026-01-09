@@ -84,8 +84,8 @@ router.get('/admin/stock', authenticateToken, requireAdmin, async (req, res) => 
         const total = countResult[0]?.total || 0;
 
         // 데이터 조회 (정렬: 최신순)
-        query += ' ORDER BY su.created_at DESC LIMIT ? OFFSET ?';
-        params.push(limitNum, offsetNum);
+        // 주의: LIMIT과 OFFSET은 파라미터로 바인딩할 수 없으므로 직접 숫자로 넣어야 함
+        query += ` ORDER BY su.created_at DESC LIMIT ${limitNum} OFFSET ${offsetNum}`;
 
         const [rows] = await connection.execute(query, params);
 
@@ -350,6 +350,83 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
         res.status(500).json({
             success: false,
             message: '재고 추가에 실패했습니다.'
+        });
+    }
+});
+
+/**
+ * GET /api/admin/stock/stats
+ * 재고 통계 조회 (상품별, 상태별)
+ * 주의: /admin/stock/:stockUnitId보다 먼저 정의해야 함
+ */
+router.get('/admin/stock/stats', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+
+        // 상품별 재고 통계 (stock_units가 비어있어도 빈 배열 반환)
+        let productStats = [];
+        try {
+            const [result] = await connection.execute(
+                `SELECT 
+                    su.product_id,
+                    ap.name as product_name,
+                    su.status,
+                    COUNT(*) as count
+                FROM stock_units su
+                INNER JOIN admin_products ap ON su.product_id = ap.id
+                GROUP BY su.product_id, su.status
+                ORDER BY su.product_id, su.status`
+            );
+            productStats = result || [];
+        } catch (err) {
+            // stock_units가 비어있거나 JOIN 실패 시 빈 배열 반환
+            Logger.warn('[STOCK] 상품별 통계 조회 실패 (빈 배열 반환)', {
+                error: err.message
+            });
+        }
+
+        // 전체 통계 (stock_units가 비어있어도 빈 배열 반환)
+        let totalStats = [];
+        try {
+            const [result] = await connection.execute(
+                `SELECT 
+                    status,
+                    COUNT(*) as count
+                FROM stock_units
+                GROUP BY status`
+            );
+            totalStats = result || [];
+        } catch (err) {
+            // stock_units가 비어있을 때 빈 배열 반환
+            Logger.warn('[STOCK] 전체 통계 조회 실패 (빈 배열 반환)', {
+                error: err.message
+            });
+        }
+
+        await connection.end();
+
+        res.json({
+            success: true,
+            stats: {
+                by_product: productStats,
+                by_status: totalStats
+            }
+        });
+
+    } catch (error) {
+        Logger.error('[STOCK] 재고 통계 조회 실패', {
+            error: error.message,
+            stack: error.stack
+        });
+
+        if (connection) {
+            await connection.end();
+        }
+
+        res.status(500).json({
+            success: false,
+            message: '재고 통계를 불러오는데 실패했습니다.'
         });
     }
 });
