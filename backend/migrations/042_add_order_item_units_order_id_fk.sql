@@ -76,8 +76,7 @@ SELECT
     CONSTRAINT_NAME, 
     COLUMN_NAME, 
     REFERENCED_TABLE_NAME, 
-    REFERENCED_COLUMN_NAME,
-    DELETE_RULE
+    REFERENCED_COLUMN_NAME
 FROM information_schema.KEY_COLUMN_USAGE
 WHERE TABLE_SCHEMA = 'prepmood' 
   AND TABLE_NAME = 'order_item_units'
@@ -106,13 +105,16 @@ WHERE TABLE_SCHEMA = 'prepmood'
 
 SELECT '--- FK 확인 ===' AS info;
 SELECT 
-    CONSTRAINT_NAME, 
-    COLUMN_NAME, 
-    REFERENCED_TABLE_NAME, 
-    REFERENCED_COLUMN_NAME,
-    DELETE_RULE
-FROM information_schema.KEY_COLUMN_USAGE
-WHERE TABLE_SCHEMA = 'prepmood' 
-  AND TABLE_NAME = 'order_item_units'
-  AND REFERENCED_TABLE_NAME = 'orders'
-  AND COLUMN_NAME = 'order_id';
+    kcu.CONSTRAINT_NAME, 
+    kcu.COLUMN_NAME, 
+    kcu.REFERENCED_TABLE_NAME, 
+    kcu.REFERENCED_COLUMN_NAME,
+    rc.DELETE_RULE
+FROM information_schema.KEY_COLUMN_USAGE kcu
+LEFT JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+  ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+  AND kcu.TABLE_SCHEMA = rc.CONSTRAINT_SCHEMA
+WHERE kcu.TABLE_SCHEMA = 'prepmood' 
+  AND kcu.TABLE_NAME = 'order_item_units'
+  AND kcu.REFERENCED_TABLE_NAME = 'orders'
+  AND kcu.COLUMN_NAME = 'order_id';
