@@ -213,25 +213,28 @@ async function initializeTokenMaster() {
         let unmappedCount = 0;
         
         for (const product of productsWithToken) {
-            // product_name으로 admin_products 조회 (부분 매칭)
+            // product_name을 short_name으로 정확히 매칭 (공백 trim 처리)
+            const normalizedProductName = product.product_name.trim();
+            
             const [adminProducts] = await connection.execute(
-                `SELECT id, name 
+                `SELECT id, name, short_name 
                  FROM admin_products 
-                 WHERE name = ? 
-                    OR name LIKE CONCAT(?, '%')
-                    OR ? LIKE CONCAT(name, '%')
+                 WHERE short_name = ? 
                  LIMIT 1`,
-                [product.product_name, product.product_name, product.product_name]
+                [normalizedProductName]
             );
             
             if (adminProducts.length === 0) {
-                Logger.warn(`[INIT] ⚠️  product_id를 찾을 수 없음: ${product.product_name}`);
+                Logger.warn(`[INIT] ⚠️  product_id를 찾을 수 없음: "${normalizedProductName}"`);
+                Logger.warn(`[INIT]    short_name으로 매칭 실패. admin_products 테이블을 확인하세요.`);
                 unmappedCount++;
                 // 매핑 실패 시 에러 (product_id는 NOT NULL이므로)
-                throw new Error(`admin_products에서 상품을 찾을 수 없습니다: ${product.product_name}`);
+                throw new Error(`admin_products에서 상품을 찾을 수 없습니다: "${normalizedProductName}". short_name 컬럼을 확인하세요.`);
             }
             
             const productId = adminProducts[0].id;
+            Logger.log(`[INIT] ✅ 매칭 성공: "${normalizedProductName}" → ${productId} (${adminProducts[0].name})`);
+            
             productsWithProductId.push({
                 ...product,
                 product_id: productId
@@ -240,6 +243,8 @@ async function initializeTokenMaster() {
         
         if (unmappedCount > 0) {
             Logger.warn(`[INIT] ⚠️  매핑 실패한 제품: ${unmappedCount}개`);
+        } else {
+            Logger.log(`[INIT] ✅ 모든 제품 매칭 성공: ${productsWithProductId.length}개`);
         }
         
         // 6. DB에 삽입

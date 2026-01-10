@@ -74,6 +74,7 @@ function readXlsxFile() {
             const warrantyBottomCode = String(row['warranty_bottom_code '] || row['warranty_bottom_code'] || '').trim();
             const digitalWarrantyCode = String(row['digital_warranty_code '] || row['digital_warranty_code'] || '').trim();
             const digitalWarrantyCollection = String(row['digital_warranty_collection '] || row['digital_warranty_collection'] || '').trim();
+            const internalCode = String(row['internal_code '] || row['internal_code'] || '').trim(); // internal_code도 확인
             const productName = String(row['product_name'] || '').trim();
             
             // 필수 필드 확인 (product_name은 필수)
@@ -82,15 +83,17 @@ function readXlsxFile() {
                 continue;
             }
             
-            // serial_number, rot_code, warranty_bottom_code가 있는 행만 추가
-            if (serialNumber || rotCode || warrantyBottomCode) {
+            // serial_number, rot_code, warranty_bottom_code, internal_code 중 하나라도 있으면 추가
+            // internal_code가 있으면 그것을 warranty_bottom_code로 매핑 (호환성)
+            if (serialNumber || rotCode || warrantyBottomCode || internalCode) {
                 products.push({
                     serial_number: serialNumber || null,
                     rot_code: rotCode || null,
-                    warranty_bottom_code: warrantyBottomCode || null,
+                    warranty_bottom_code: warrantyBottomCode || internalCode || null, // internal_code를 warranty_bottom_code로 사용
                     digital_warranty_code: digitalWarrantyCode || null,
                     digital_warranty_collection: digitalWarrantyCollection || null,
-                    product_name: productName
+                    product_name: productName,
+                    internal_code: internalCode || null // 디버깅용으로 저장
                 });
             } else {
                 skippedNoData++;
@@ -165,20 +168,19 @@ async function updateTokenMaster() {
         let noChange = 0;
         
         for (const product of products) {
-            // 3-1. product_name으로 admin_products 조회 (부분 매칭)
+            // 3-1. product_name을 short_name으로 admin_products 조회 (정확히 매칭)
+            const normalizedProductName = product.product_name.trim();
             const [adminProducts] = await connection.execute(
-                `SELECT id, name 
+                `SELECT id, name, short_name 
                  FROM admin_products 
-                 WHERE name = ? 
-                    OR name LIKE CONCAT(?, '%')
-                    OR ? LIKE CONCAT(name, '%')
-                    OR name LIKE CONCAT('%', ?, '%')
+                 WHERE short_name = ? 
                  LIMIT 1`,
-                [product.product_name, product.product_name, product.product_name, product.product_name]
+                [normalizedProductName]
             );
             
             if (adminProducts.length === 0) {
-                Logger.warn(`[UPDATE] ⚠️  admin_products에서 상품을 찾을 수 없음: ${product.product_name}`);
+                Logger.warn(`[UPDATE] ⚠️  admin_products에서 상품을 찾을 수 없음: "${normalizedProductName}"`);
+                Logger.warn(`[UPDATE]    short_name으로 매칭 실패. admin_products 테이블을 확인하세요.`);
                 notFound++;
                 continue;
             }
