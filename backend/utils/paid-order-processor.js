@@ -174,16 +174,25 @@ async function processPaidOrder({
             
             const stockParams = [productId];
             
-            // size가 주문에 있으면 정확 매칭만 (NULL 재고 제외)
-            if (size) {
+            // size 정책 (정석): 주문에 size가 있으면 정확 매칭, 없으면 NULL 재고만 배정
+            // 핵심: 타이/액세서리처럼 size 없는 상품은 size IS NULL 재고만 배정
+            // 이유: "S가 품절인데 NULL 재고가 대신 배정되는" 사고 방지
+            if (size !== null && size !== undefined && size !== '') {
                 stockQuery += ` AND size = ?`;
                 stockParams.push(size);
+            } else {
+                // 주문에 size가 NULL이면 NULL 재고만 배정 (정책: size 없는 상품 처리)
+                stockQuery += ` AND size IS NULL`;
             }
             
-            // color가 주문에 있으면 정확 매칭만 (NULL 재고 제외)
-            if (color) {
+            // color 정책 (정석): 주문에 color가 있으면 정확 매칭, 없으면 NULL 재고만 배정
+            // (현재는 모든 상품에 color가 있어야 하므로, NULL 케이스는 드뭅지만 정책 일관성 유지)
+            if (color !== null && color !== undefined && color !== '') {
                 stockQuery += ` AND color = ?`;
                 stockParams.push(color);
+            } else {
+                // 주문에 color가 NULL이면 NULL 재고만 배정 (정책 일관성)
+                stockQuery += ` AND color IS NULL`;
             }
             
             // stock_unit_id 순서 정렬 (인덱스 커버)

@@ -231,16 +231,14 @@ async function proceedWithTossPayment(data) {
       proceedBtnMobile.textContent = '처리 중...';
     }
     
-    // 1. 주문 생성 (Idempotency 키 포함)
+    // 1. 주문 생성 (SSOT 함수 사용)
     const idemKey = uuidv4();
     
-    const requestPayload = {
-      items: data.items.map(item => ({
-        product_id: String(item.product_id || item.id),
-        quantity: Number(item.quantity || 1)
-      })),
-      shipping: data.shipping
-    };
+    if (!window.createOrderPayload) {
+      throw new Error('checkout-utils.js가 로드되지 않았습니다.');
+    }
+    
+    const requestPayload = window.createOrderPayload(data.items, data.shipping);
     
     const createRes = await window.secureFetch(`${API_BASE}/orders`, {
       method: 'POST',
@@ -421,15 +419,14 @@ async function proceedWithInicisPayment(data) {
       proceedBtnMobile.textContent = '처리 중...';
     }
     
-    // 1. 주문 생성
+    // 1. 주문 생성 (SSOT 함수 사용)
     const idemKey = uuidv4();
-    const requestPayload = {
-      items: data.items.map(item => ({
-        product_id: String(item.product_id || item.id),
-        quantity: Number(item.quantity || 1)
-      })),
-      shipping: data.shipping
-    };
+    
+    if (!window.createOrderPayload) {
+      throw new Error('checkout-utils.js가 로드되지 않았습니다.');
+    }
+    
+    const requestPayload = window.createOrderPayload(data.items, data.shipping);
     
     const createRes = await window.secureFetch(`${API_BASE}/orders`, {
       method: 'POST',
