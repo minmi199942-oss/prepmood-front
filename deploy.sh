@@ -108,6 +108,7 @@ rsync -av \
   --include="header.partial" \
   --include="footer.partial" \
   --include="utils.js" \
+  --include="utils/checkout-utils.js" \
   --include="common.js" \
   --include="my-*.js" \
   --include="warranty-detail.js" \
