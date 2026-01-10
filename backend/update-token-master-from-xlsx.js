@@ -36,21 +36,30 @@ const dbConfig = {
  */
 function readXlsxFile() {
     try {
+        console.log('[UPDATE] xlsx 파일 읽는 중:', XLSX_PATH);
         Logger.log('[UPDATE] xlsx 파일 읽는 중:', XLSX_PATH);
         
         const workbook = XLSX.readFile(XLSX_PATH);
+        console.log('[UPDATE] workbook 읽기 완료, 시트 개수:', workbook.SheetNames.length);
+        Logger.log('[UPDATE] workbook 읽기 완료, 시트 개수:', workbook.SheetNames.length);
+        
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
         // JSON 형식으로 변환 (헤더 기반)
         const data = XLSX.utils.sheet_to_json(worksheet);
-        
+        console.log(`[UPDATE] 시트 "${sheetName}"에서 ${data.length}개 행 발견`);
         Logger.log(`[UPDATE] 시트 "${sheetName}"에서 ${data.length}개 행 발견`);
         
         // 디버깅: 첫 번째 행 확인
         if (data.length > 0) {
+            console.log('[UPDATE] 첫 번째 행 샘플:', JSON.stringify(data[0], null, 2));
+            console.log('[UPDATE] 첫 번째 행의 모든 키:', Object.keys(data[0]));
             Logger.log('[UPDATE] 첫 번째 행 샘플:', JSON.stringify(data[0], null, 2));
             Logger.log('[UPDATE] 첫 번째 행의 모든 키:', Object.keys(data[0]));
+        } else {
+            console.log('[UPDATE] ⚠️ 데이터 행이 없습니다!');
+            Logger.warn('[UPDATE] ⚠️ 데이터 행이 없습니다!');
         }
         
         // 데이터 정제
@@ -88,14 +97,18 @@ function readXlsxFile() {
             }
         }
         
+        console.log(`[UPDATE] 유효한 제품 데이터 (serial_number/rot_code/warranty_bottom_code 중 하나라도 있는 것): ${products.length}개`);
+        console.log(`[UPDATE] 건너뜀: product_name 없음=${skippedNoProductName}개, 데이터 없음=${skippedNoData}개`);
         Logger.log(`[UPDATE] 유효한 제품 데이터 (serial_number/rot_code/warranty_bottom_code 중 하나라도 있는 것): ${products.length}개`);
         Logger.log(`[UPDATE] 건너뜀: product_name 없음=${skippedNoProductName}개, 데이터 없음=${skippedNoData}개`);
         return products;
         
     } catch (error) {
+        console.error('[UPDATE] xlsx 파일 읽기 실패:', error);
         Logger.error('[UPDATE] xlsx 파일 읽기 실패:', {
             message: error.message,
-            code: error.code
+            code: error.code,
+            stack: error.stack
         });
         throw error;
     }
@@ -124,12 +137,24 @@ async function updateTokenMaster() {
         }
         Logger.log('[UPDATE] ✅ xlsx 파일 존재 확인');
         
-        const products = readXlsxFile();
+        // xlsx 파일 읽기 (에러 처리 강화)
+        let products = [];
+        try {
+            products = readXlsxFile();
+            Logger.log(`[UPDATE] readXlsxFile() 완료, 반환된 products.length: ${products.length}`);
+        } catch (error) {
+            Logger.error('[UPDATE] ❌ readXlsxFile() 에러:', {
+                message: error.message,
+                stack: error.stack
+            });
+            throw error;
+        }
         
         Logger.log(`[UPDATE] 읽은 제품 데이터: ${products.length}개`);
         if (products.length === 0) {
             Logger.warn('[UPDATE] 업데이트할 제품 데이터가 없습니다.');
             Logger.warn('[UPDATE] 원인 확인: xlsx 파일을 확인하거나 디버깅 로그를 확인하세요.');
+            Logger.warn('[UPDATE] readXlsxFile() 함수 내부 로그를 확인하세요.');
             return;
         }
         
