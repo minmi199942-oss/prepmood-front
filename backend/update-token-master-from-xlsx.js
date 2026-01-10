@@ -116,10 +116,20 @@ async function updateTokenMaster() {
         Logger.log('[UPDATE] ✅ MySQL 연결 성공');
         
         // 2. xlsx 파일 읽기
+        Logger.log('[UPDATE] xlsx 파일 경로:', XLSX_PATH);
+        const fs = require('fs');
+        if (!fs.existsSync(XLSX_PATH)) {
+            Logger.error('[UPDATE] ❌ xlsx 파일이 존재하지 않습니다:', XLSX_PATH);
+            return;
+        }
+        Logger.log('[UPDATE] ✅ xlsx 파일 존재 확인');
+        
         const products = readXlsxFile();
         
+        Logger.log(`[UPDATE] 읽은 제품 데이터: ${products.length}개`);
         if (products.length === 0) {
             Logger.warn('[UPDATE] 업데이트할 제품 데이터가 없습니다.');
+            Logger.warn('[UPDATE] 원인 확인: xlsx 파일을 확인하거나 디버깅 로그를 확인하세요.');
             return;
         }
         
