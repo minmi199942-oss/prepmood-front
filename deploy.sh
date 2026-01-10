@@ -81,6 +81,8 @@ LIVE_ROOT="/var/www/html"
 # 주의: --delete 제거 (robots.txt, favicon.ico, images/ 등 기존 파일 보호)
 rsync -av \
   --include="*/" \
+  --include="utils/" \
+  --include="utils/*.js" \
   --include="index.html" \
   --include="login.html" \
   --include="register.html" \
