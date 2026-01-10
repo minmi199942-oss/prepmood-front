@@ -347,7 +347,7 @@
     elements.submitAddStockBtn.disabled = true;
 
     try {
-      const response = await fetch(`${API_BASE}/admin/stock/products/${productId}/tokens`, {
+      const response = await fetch(`${API_BASE}/admin/stock/products/${encodeURIComponent(productId)}/tokens`, {
         credentials: 'include'
       });
 
