@@ -42,42 +42,41 @@ ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
 
 -- 2-1. idx_oiu_orderid_unitstatus (주문별 출고 대상 빠르게 조회)
 SELECT '=== idx_oiu_orderid_unitstatus 인덱스 추가 ===' AS info;
-SELECT 
-    CASE 
-        WHEN COUNT(*) > 0 THEN CONCAT('⚠️ 경고: idx_oiu_orderid_unitstatus 인덱스가 이미 존재합니다. 건너뜁니다.')
-        ELSE '✅ 인덱스를 추가합니다.'
-    END AS status
+
+-- 기존 인덱스 확인
+SELECT COUNT(*) INTO @index_exists
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = 'prepmood' 
   AND TABLE_NAME = 'order_item_units'
   AND INDEX_NAME = 'idx_oiu_orderid_unitstatus';
 
--- 인덱스 추가 (존재하지 않는 경우에만)
-SET @index_exists = (
-    SELECT COUNT(*)
-    FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = 'prepmood' 
-      AND TABLE_NAME = 'order_item_units'
-      AND INDEX_NAME = 'idx_oiu_orderid_unitstatus'
-);
+-- 인덱스가 없으면 추가
+SET @sql = IF(@index_exists = 0,
+    'CREATE INDEX idx_oiu_orderid_unitstatus ON order_item_units(order_id, unit_status)',
+    'SELECT "인덱스가 이미 존재합니다." AS info');
 
--- MySQL에서는 동적 SQL이 제한적이므로, 직접 실행
--- (에러 발생 시 무시하도록 수동 확인 필요)
-CREATE INDEX idx_oiu_orderid_unitstatus ON order_item_units(order_id, unit_status);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 2-2. idx_oiu_tracking_number (송장 검색)
 SELECT '=== idx_oiu_tracking_number 인덱스 추가 ===' AS info;
-SELECT 
-    CASE 
-        WHEN COUNT(*) > 0 THEN CONCAT('⚠️ 경고: idx_oiu_tracking_number 인덱스가 이미 존재합니다. 건너뜁니다.')
-        ELSE '✅ 인덱스를 추가합니다.'
-    END AS status
+
+-- 기존 인덱스 확인
+SELECT COUNT(*) INTO @index_exists
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = 'prepmood' 
   AND TABLE_NAME = 'order_item_units'
   AND INDEX_NAME = 'idx_oiu_tracking_number';
 
-CREATE INDEX idx_oiu_tracking_number ON order_item_units(tracking_number);
+-- 인덱스가 없으면 추가
+SET @sql = IF(@index_exists = 0,
+    'CREATE INDEX idx_oiu_tracking_number ON order_item_units(tracking_number)',
+    'SELECT "인덱스가 이미 존재합니다." AS info');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- ============================================================
 -- 3. stock_units 인덱스 추가
@@ -85,17 +84,22 @@ CREATE INDEX idx_oiu_tracking_number ON order_item_units(tracking_number);
 
 -- 3-1. idx_stock_reserved_order_status (특정 주문 예약 재고 조회)
 SELECT '=== idx_stock_reserved_order_status 인덱스 추가 ===' AS info;
-SELECT 
-    CASE 
-        WHEN COUNT(*) > 0 THEN CONCAT('⚠️ 경고: idx_stock_reserved_order_status 인덱스가 이미 존재합니다. 건너뜁니다.')
-        ELSE '✅ 인덱스를 추가합니다.'
-    END AS status
+
+-- 기존 인덱스 확인
+SELECT COUNT(*) INTO @index_exists
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = 'prepmood' 
   AND TABLE_NAME = 'stock_units'
   AND INDEX_NAME = 'idx_stock_reserved_order_status';
 
-CREATE INDEX idx_stock_reserved_order_status ON stock_units(reserved_by_order_id, status);
+-- 인덱스가 없으면 추가
+SET @sql = IF(@index_exists = 0,
+    'CREATE INDEX idx_stock_reserved_order_status ON stock_units(reserved_by_order_id, status)',
+    'SELECT "인덱스가 이미 존재합니다." AS info');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- ============================================================
 -- 4. 검증: 인덱스 추가 완료 확인
