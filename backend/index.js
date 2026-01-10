@@ -11,6 +11,7 @@ const { authenticateToken, optionalAuth, generateToken, setTokenCookie, clearTok
 const { issueCSRFToken, verifyCSRF } = require('./csrf-middleware');
 const { cleanupIdempotency } = require('./idempotency-cleanup');
 const Logger = require('./logger');
+const { buildInClause } = require('./utils/query-helpers');
 require('dotenv').config();
 
 const app = express();
@@ -1688,6 +1689,493 @@ app.put('/api/admin/orders/:orderId/status', authenticateToken, requireAdmin, as
         res.status(500).json({ 
             success: false, 
             message: '주문 상태 변경에 실패했습니다.' 
+        });
+    }
+});
+
+/**
+ * POST /api/admin/orders/:orderId/shipped
+ * 출고 처리 (관리자 전용)
+ * 
+ * Body:
+ * - unitIds: Array<number> - 출고할 order_item_unit_id 배열
+ * - carrierCode: string - 택배사 코드 (예: 'ILYANG', 'VALEX')
+ * - trackingNumber: string - 송장번호
+ * 
+ * 동기화 규칙:
+ * - order_item_units.unit_status = 'shipped'
+ * - order_item_units.carrier_code, tracking_number, shipped_at 기록
+ * - stock_units.status는 reserved 유지 (delivered 시점에 sold로 변경)
+ */
+app.post('/api/admin/orders/:orderId/shipped', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { orderId } = req.params;
+        const { unitIds, carrierCode, trackingNumber } = req.body;
+
+        // 입력 검증
+        if (!Array.isArray(unitIds) || unitIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'unitIds는 비어있지 않은 배열이어야 합니다.'
+            });
+        }
+
+        if (!carrierCode || !trackingNumber) {
+            return res.status(400).json({
+                success: false,
+                message: 'carrierCode와 trackingNumber는 필수입니다.'
+            });
+        }
+
+        // unitIds 중복 방어 (정책: 에러로 끊기)
+        const uniqueUnitIds = [...new Set(unitIds)];
+        if (uniqueUnitIds.length !== unitIds.length) {
+            const duplicates = unitIds.filter((id, index) => unitIds.indexOf(id) !== index);
+            return res.status(400).json({
+                success: false,
+                message: `중복된 unitId가 포함되어 있습니다. 입력: ${unitIds.length}개, 고유: ${uniqueUnitIds.length}개`,
+                duplicates
+            });
+        }
+
+        // 송장번호 정규화
+        const normalizedTrackingNumber = (trackingNumber ?? '').trim();
+        if (!normalizedTrackingNumber) {
+            return res.status(400).json({
+                success: false,
+                message: '송장번호는 필수입니다.'
+            });
+        }
+
+        // 택배사 코드 검증 (carriers 테이블 확인)
+        connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+
+        try {
+            // carriers 테이블에서 택배사 코드 확인
+            const [carriers] = await connection.execute(
+                'SELECT code, name FROM carriers WHERE code = ? AND is_active = 1',
+                [carrierCode]
+            );
+
+            if (carriers.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `유효하지 않은 택배사 코드입니다: ${carrierCode}`
+                });
+            }
+
+            // buildInClause로 IN 절 생성
+            const { placeholders, params: unitIdsParams } = buildInClause(uniqueUnitIds);
+
+            // 주문 존재 확인
+            const [orders] = await connection.execute(
+                'SELECT order_id FROM orders WHERE order_id = ?',
+                [orderId]
+            );
+
+            if (orders.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(404).json({
+                    success: false,
+                    message: '주문을 찾을 수 없습니다.'
+                });
+            }
+
+            // order_item_units 조회 (FOR UPDATE로 잠금)
+            const [units] = await connection.execute(
+                `SELECT 
+                    oiu.order_item_unit_id,
+                    oiu.order_id,
+                    oiu.unit_status,
+                    oiu.shipped_at,
+                    oiu.carrier_code,
+                    oiu.tracking_number,
+                    oiu.stock_unit_id
+                FROM order_item_units oiu
+                WHERE oiu.order_item_unit_id IN (${placeholders})
+                  AND oiu.order_id = ?
+                FOR UPDATE`,
+                [...unitIdsParams, orderId]
+            );
+
+            // 검증: 길이 일치
+            if (units.length !== uniqueUnitIds.length) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `검증 실패: 요청=${uniqueUnitIds.length}개, 조회=${units.length}개`
+                });
+            }
+
+            // 검증: order_id 일치
+            const mismatchedOrderId = units.find(u => u.order_id !== parseInt(orderId));
+            if (mismatchedOrderId) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `orderId 불일치: unit_id=${mismatchedOrderId.order_item_unit_id}, expected=${orderId}, actual=${mismatchedOrderId.order_id}`
+                });
+            }
+
+            // 검증: unit_status = 'reserved'
+            const invalidStatus = units.filter(u => u.unit_status !== 'reserved');
+            if (invalidStatus.length > 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `예약 상태가 아닌 유닛이 포함되어 있습니다: ${invalidStatus.map(u => `${u.order_item_unit_id}(${u.unit_status})`).join(', ')}`
+                });
+            }
+
+            // 검증: shipped_at 전부 NULL
+            const alreadyShipped = units.filter(u => u.shipped_at !== null);
+            if (alreadyShipped.length > 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `이미 출고된 유닛이 포함되어 있습니다: ${alreadyShipped.map(u => u.order_item_unit_id).join(', ')}`
+                });
+            }
+
+            // 같은 주문의 기존 shipped 송장번호 조회 (로그용)
+            const [existingShipped] = await connection.execute(
+                `SELECT DISTINCT tracking_number 
+                FROM order_item_units 
+                WHERE order_id = ? 
+                  AND unit_status = 'shipped' 
+                  AND tracking_number IS NOT NULL
+                  AND tracking_number != ''`,
+                [orderId]
+            );
+
+            // order_item_units 업데이트 (출고 처리)
+            const updateParams = [carrierCode, normalizedTrackingNumber, ...unitIdsParams, orderId];
+            const [updateResult] = await connection.execute(
+                `UPDATE order_item_units
+                SET unit_status = 'shipped',
+                    carrier_code = ?,
+                    tracking_number = ?,
+                    shipped_at = NOW()
+                WHERE order_item_unit_id IN (${placeholders})
+                  AND order_id = ?
+                  AND unit_status = 'reserved'
+                  AND shipped_at IS NULL`,
+                updateParams
+            );
+
+            if (updateResult.affectedRows !== uniqueUnitIds.length) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(500).json({
+                    success: false,
+                    message: `출고 처리 실패: 요청=${uniqueUnitIds.length}개, 업데이트=${updateResult.affectedRows}개`
+                });
+            }
+
+            await connection.commit();
+
+            Logger.log('[ADMIN] 출고 처리 완료', {
+                orderId,
+                unitIds: uniqueUnitIds,
+                carrierCode,
+                trackingNumber: normalizedTrackingNumber,
+                affectedRows: updateResult.affectedRows,
+                existingTrackingNumbers: existingShipped.map(r => r.tracking_number),
+                admin: req.user.email
+            });
+
+            res.json({
+                success: true,
+                message: '출고 처리가 완료되었습니다.',
+                data: {
+                    orderId,
+                    shippedUnitCount: updateResult.affectedRows,
+                    carrierCode: carriers[0].name,
+                    trackingNumber: normalizedTrackingNumber
+                }
+            });
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            await connection.end();
+        }
+
+    } catch (error) {
+        if (connection) {
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                Logger.error('[ADMIN] 출고 처리 롤백 실패', { error: rollbackError.message });
+            }
+            await connection.end();
+        }
+        Logger.error('[ADMIN] 출고 처리 실패', {
+            orderId: req.params.orderId,
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: '출고 처리에 실패했습니다.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * POST /api/admin/orders/:orderId/delivered
+ * 배송완료 처리 (관리자 전용)
+ * 
+ * Body:
+ * - unitIds: Array<number> - 배송완료 처리할 order_item_unit_id 배열
+ * 
+ * 동기화 규칙:
+ * - order_item_units.unit_status = 'delivered'
+ * - order_item_units.delivered_at 기록
+ * - stock_units.status = 'sold' + stock_units.sold_at = NOW()
+ */
+app.post('/api/admin/orders/:orderId/delivered', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { orderId } = req.params;
+        const { unitIds } = req.body;
+
+        // 입력 검증
+        if (!Array.isArray(unitIds) || unitIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'unitIds는 비어있지 않은 배열이어야 합니다.'
+            });
+        }
+
+        // unitIds 중복 방어 (정책: 에러로 끊기)
+        const uniqueUnitIds = [...new Set(unitIds)];
+        if (uniqueUnitIds.length !== unitIds.length) {
+            const duplicates = unitIds.filter((id, index) => unitIds.indexOf(id) !== index);
+            return res.status(400).json({
+                success: false,
+                message: `중복된 unitId가 포함되어 있습니다. 입력: ${unitIds.length}개, 고유: ${uniqueUnitIds.length}개`,
+                duplicates
+            });
+        }
+
+        connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+
+        try {
+            // buildInClause로 IN 절 생성
+            const { placeholders, params: unitIdsParams } = buildInClause(uniqueUnitIds);
+
+            // 주문 존재 확인
+            const [orders] = await connection.execute(
+                'SELECT order_id FROM orders WHERE order_id = ?',
+                [orderId]
+            );
+
+            if (orders.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(404).json({
+                    success: false,
+                    message: '주문을 찾을 수 없습니다.'
+                });
+            }
+
+            // order_item_units 조회 (FOR UPDATE로 잠금 - 락 순서 1)
+            const [units] = await connection.execute(
+                `SELECT 
+                    oiu.order_item_unit_id,
+                    oiu.order_id,
+                    oiu.unit_status,
+                    oiu.delivered_at,
+                    oiu.stock_unit_id
+                FROM order_item_units oiu
+                WHERE oiu.order_item_unit_id IN (${placeholders})
+                  AND oiu.order_id = ?
+                FOR UPDATE`,
+                [...unitIdsParams, orderId]
+            );
+
+            // 검증: 길이 일치
+            if (units.length !== uniqueUnitIds.length) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `검증 실패: 요청=${uniqueUnitIds.length}개, 조회=${units.length}개`
+                });
+            }
+
+            // 검증: order_id 일치
+            const inferredOrderId = units[0]?.order_id;
+            if (inferredOrderId !== parseInt(orderId)) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `orderId 불일치: 입력=${orderId}, 조회=${inferredOrderId}`
+                });
+            }
+
+            // 검증: unit_status = 'shipped'
+            const invalidStatus = units.filter(u => u.unit_status !== 'shipped');
+            if (invalidStatus.length > 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `출고 상태가 아닌 유닛이 포함되어 있습니다: ${invalidStatus.map(u => `${u.order_item_unit_id}(${u.unit_status})`).join(', ')}`
+                });
+            }
+
+            // 검증: delivered_at 전부 NULL
+            const alreadyDelivered = units.filter(u => u.delivered_at !== null);
+            if (alreadyDelivered.length > 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `이미 배송완료 처리된 유닛이 포함되어 있습니다: ${alreadyDelivered.map(u => u.order_item_unit_id).join(', ')}`
+                });
+            }
+
+            // stock_unit_id 추출 (중복 제거)
+            const stockUnitIds = [...new Set(units.map(u => u.stock_unit_id).filter(id => id !== null))];
+
+            // stock_units 조회 및 잠금 (FOR UPDATE - 락 순서 2)
+            let stockUnits = [];
+            if (stockUnitIds.length > 0) {
+                const { placeholders: stockPlaceholders, params: stockParams } = buildInClause(stockUnitIds);
+                const [stockRows] = await connection.execute(
+                    `SELECT 
+                        stock_unit_id,
+                        status,
+                        reserved_by_order_id
+                    FROM stock_units
+                    WHERE stock_unit_id IN (${stockPlaceholders})
+                      AND status = 'reserved'
+                      AND reserved_by_order_id = ?
+                    FOR UPDATE`,
+                    [...stockParams, orderId]
+                );
+                stockUnits = stockRows;
+            }
+
+            // stock_units 검증: 상태가 reserved이고 reserved_by_order_id가 일치
+            const targetStockCount = stockUnitIds.length;
+            const validStockCount = stockUnits.length;
+
+            if (validStockCount !== targetStockCount) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `재고 상태 검증 실패: 요청=${targetStockCount}개, 유효=${validStockCount}개. 예약 상태가 아니거나 주문 ID가 일치하지 않습니다.`
+                });
+            }
+
+            // order_item_units 업데이트 (배송완료 처리)
+            const [updateUnitsResult] = await connection.execute(
+                `UPDATE order_item_units
+                SET unit_status = 'delivered',
+                    delivered_at = NOW()
+                WHERE order_item_unit_id IN (${placeholders})
+                  AND order_id = ?
+                  AND unit_status = 'shipped'
+                  AND delivered_at IS NULL`,
+                [...unitIdsParams, orderId]
+            );
+
+            if (updateUnitsResult.affectedRows !== uniqueUnitIds.length) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(500).json({
+                    success: false,
+                    message: `배송완료 처리 실패: 요청=${uniqueUnitIds.length}개, 업데이트=${updateUnitsResult.affectedRows}개`
+                });
+            }
+
+            // stock_units 업데이트 (sold 처리)
+            if (stockUnits.length > 0) {
+                const { placeholders: stockUpdatePlaceholders, params: stockUpdateParams } = buildInClause(stockUnitIds);
+                const [updateStockResult] = await connection.execute(
+                    `UPDATE stock_units
+                    SET status = 'sold',
+                        sold_at = NOW(),
+                        updated_at = NOW()
+                    WHERE stock_unit_id IN (${stockUpdatePlaceholders})
+                      AND status = 'reserved'
+                      AND reserved_by_order_id = ?`,
+                    [...stockUpdateParams, orderId]
+                );
+
+                if (updateStockResult.affectedRows !== stockUnits.length) {
+                    await connection.rollback();
+                    await connection.end();
+                    return res.status(500).json({
+                        success: false,
+                        message: `재고 상태 업데이트 실패: 요청=${stockUnits.length}개, 업데이트=${updateStockResult.affectedRows}개`
+                    });
+                }
+            }
+
+            await connection.commit();
+
+            Logger.log('[ADMIN] 배송완료 처리 완료', {
+                orderId,
+                unitIds: uniqueUnitIds,
+                affectedUnitRows: updateUnitsResult.affectedRows,
+                affectedStockRows: stockUnits.length,
+                synchronized: stockUnits.length === targetStockCount,
+                admin: req.user.email
+            });
+
+            res.json({
+                success: true,
+                message: '배송완료 처리가 완료되었습니다.',
+                data: {
+                    orderId,
+                    deliveredUnitCount: updateUnitsResult.affectedRows,
+                    soldStockCount: stockUnits.length
+                }
+            });
+
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            await connection.end();
+        }
+
+    } catch (error) {
+        if (connection) {
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                Logger.error('[ADMIN] 배송완료 처리 롤백 실패', { error: rollbackError.message });
+            }
+            await connection.end();
+        }
+        Logger.error('[ADMIN] 배송완료 처리 실패', {
+            orderId: req.params.orderId,
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: '배송완료 처리에 실패했습니다.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
