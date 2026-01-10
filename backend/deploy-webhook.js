@@ -121,18 +121,20 @@ router.post('/deploy/webhook', async (req, res) => {
         // stdout/stderr를 파일로 리다이렉트
         // nohup을 사용하여 부모 프로세스 종료 후에도 계속 실행되도록 함
         
-        // 로그 파일 스트림 생성 (append 모드)
-        const logStream = fs.createWriteStream(DEPLOY_RUN_LOG, { flags: 'a' });
+        // 로그 파일 디스크립터 열기 (append 모드)
+        const logFd = fs.openSync(DEPLOY_RUN_LOG, 'a');
         
         // spawn을 사용하여 완전히 분리된 프로세스로 실행
         // detached: true로 부모 프로세스와 완전히 분리
-        // stdio를 직접 파일 스트림으로 리다이렉트하여 로그 저장
+        // stdio를 파일 디스크립터로 리다이렉트하여 로그 저장
         const deployProcess = spawn('bash', ['-x', DEPLOY_SCRIPT], {
             cwd: '/root',
             detached: true,  // 부모 프로세스와 완전히 분리
-            stdio: ['ignore', logStream, logStream],  // stdin 무시, stdout/stderr는 파일로
+            stdio: ['ignore', logFd, logFd],  // stdin 무시, stdout/stderr는 파일로
             env: { ...process.env, PATH: process.env.PATH }
         });
+        
+        // 파일 디스크립터를 닫지 않음 (자식 프로세스가 사용 중이므로)
 
         // 프로세스를 완전히 분리 (부모 프로세스가 종료되어도 계속 실행)
         deployProcess.unref();
