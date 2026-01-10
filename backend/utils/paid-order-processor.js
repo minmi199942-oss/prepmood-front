@@ -164,8 +164,9 @@ async function processPaidOrder({
             const size = item.size || null;
             const color = item.color || null;
 
-            // 재고 조회 (정석: product_id, size, color로 정확히 매칭)
-            // size나 color가 NULL이면 해당 조건 무시 (하위 호환)
+            // 재고 조회 (정석: product_id, status, size, color로 정확히 매칭)
+            // 정책: size/color가 주문에 있으면 정확히 매칭만 허용 (NULL 재고는 배정 제외)
+            // 이유: 사이즈별 정확 배정이 목표이므로, 레거시(NULL) 재고는 명시적으로만 처리
             let stockQuery = `SELECT stock_unit_id, token_pk, product_id, size, color
                 FROM stock_units
                 WHERE product_id = ? 
@@ -173,16 +174,19 @@ async function processPaidOrder({
             
             const stockParams = [productId];
             
+            // size가 주문에 있으면 정확 매칭만 (NULL 재고 제외)
             if (size) {
-                stockQuery += ` AND (size = ? OR size IS NULL)`;
+                stockQuery += ` AND size = ?`;
                 stockParams.push(size);
             }
             
+            // color가 주문에 있으면 정확 매칭만 (NULL 재고 제외)
             if (color) {
-                stockQuery += ` AND (color = ? OR color IS NULL)`;
+                stockQuery += ` AND color = ?`;
                 stockParams.push(color);
             }
             
+            // stock_unit_id 순서 정렬 (인덱스 커버)
             stockQuery += ` ORDER BY stock_unit_id
                 LIMIT ?
                 FOR UPDATE SKIP LOCKED`;

@@ -158,18 +158,20 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- 복합 인덱스 추가 (product_id, size, color, status) - 재고 배정 쿼리 최적화
+-- 복합 인덱스 추가 (product_id, status, size, color, stock_unit_id) - 재고 배정 쿼리 최적화
+-- 정석: status가 앞에 있어서 WHERE product_id=? AND status='in_stock' 빠른 필터링
+-- size, color는 정확 매칭, stock_unit_id는 ORDER BY에 사용
 SET @index_exists = (
     SELECT COUNT(*)
     FROM information_schema.STATISTICS
     WHERE TABLE_SCHEMA = 'prepmood'
       AND TABLE_NAME = 'stock_units'
-      AND INDEX_NAME = 'idx_stock_units_product_size_color_status'
+      AND INDEX_NAME = 'idx_stock_units_product_status_size_color_stockid'
 );
 
 SET @sql = IF(@index_exists = 0,
-    'ALTER TABLE stock_units ADD INDEX idx_stock_units_product_size_color_status (product_id, size, color, status)',
-    'SELECT "idx_stock_units_product_size_color_status 인덱스가 이미 존재합니다." AS info'
+    'ALTER TABLE stock_units ADD INDEX idx_stock_units_product_status_size_color_stockid (product_id, status, size, color, stock_unit_id)',
+    'SELECT "idx_stock_units_product_status_size_color_stockid 인덱스가 이미 존재합니다." AS info'
 );
 
 PREPARE stmt FROM @sql;
@@ -201,7 +203,7 @@ SELECT
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = 'prepmood'
   AND TABLE_NAME = 'stock_units'
-  AND INDEX_NAME IN ('idx_stock_units_size', 'idx_stock_units_color', 'idx_stock_units_product_size_color_status')
+  AND INDEX_NAME IN ('idx_stock_units_size', 'idx_stock_units_color', 'idx_stock_units_product_status_size_color_stockid')
 ORDER BY INDEX_NAME, SEQ_IN_INDEX;
 
 SELECT '=== 마이그레이션 완료 ===' AS info;

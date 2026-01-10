@@ -548,6 +548,8 @@ async function processPayment(orderData) {
         
         return {
           product_id: productId,  // 문자열 그대로 전송 (VARCHAR)
+          size: item.size || null,  // size 추가 (order_items 저장용)
+          color: item.color || null,  // color 추가 (order_items 저장용)
           quantity: parsedQuantity
         };
       }).filter(item => item !== null && item.product_id && item.quantity > 0);

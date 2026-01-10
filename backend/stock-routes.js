@@ -232,7 +232,7 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
 router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) => {
     let connection;
     try {
-        const { product_id, token_pk } = req.body;
+        const { product_id, token_pk, size, color } = req.body;
 
         // 유효성 검증
         if (!product_id) {
@@ -359,71 +359,84 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
                 // 경고만 하고 계속 진행 (단계적 마이그레이션 허용)
             }
 
-            // token_master에서 size, color 추출 (serial_number 파싱)
-            const [tokenDetails] = await connection.execute(
-                `SELECT 
-                    token_pk,
-                    serial_number
-                FROM token_master
-                WHERE token_pk IN (${placeholders})`,
-                tokenPkArray
-            );
+            // size, color 결정 로직 (정석: 입력값 우선, 파싱은 fallback)
+            // 입력값이 있으면 우선 사용, 없으면 serial_number 파싱, 둘 다 없으면 NULL (레거시)
+            const finalSize = size || null;
+            const finalColor = color || null;
             
-            // serial_number에서 size, color 추출하는 함수
-            const extractSizeColor = (serialNumber) => {
-                if (!serialNumber) return { size: null, color: null };
+            // 입력값이 없을 때만 파싱 시도 (fallback)
+            let tokenSizeColorMap = {};
+            if (!finalSize || !finalColor) {
+                const [tokenDetails] = await connection.execute(
+                    `SELECT 
+                        token_pk,
+                        serial_number
+                    FROM token_master
+                    WHERE token_pk IN (${placeholders})`,
+                    tokenPkArray
+                );
                 
-                // size 추출: -S-, -M-, -L-, -XL-, -XXL-, -F-
-                let size = null;
-                const sizePatterns = [
-                    { pattern: /-S-[0-9]/, value: 'S' },
-                    { pattern: /-M-[0-9]/, value: 'M' },
-                    { pattern: /-L-[0-9]/, value: 'L' },
-                    { pattern: /-XL-[0-9]/, value: 'XL' },
-                    { pattern: /-XXL-[0-9]/, value: 'XXL' },
-                    { pattern: /-F-[0-9]|-[0-9]+-F/, value: 'F' }
-                ];
-                for (const { pattern, value } of sizePatterns) {
-                    if (pattern.test(serialNumber)) {
-                        size = value;
-                        break;
+                // serial_number에서 size, color 추출하는 함수 (fallback용)
+                const extractSizeColor = (serialNumber) => {
+                    if (!serialNumber) return { size: null, color: null };
+                    
+                    // size 추출: -S-, -M-, -L-, -XL-, -XXL-, -F-
+                    let extractedSize = null;
+                    const sizePatterns = [
+                        { pattern: /-S-[0-9]/, value: 'S' },
+                        { pattern: /-M-[0-9]/, value: 'M' },
+                        { pattern: /-L-[0-9]/, value: 'L' },
+                        { pattern: /-XL-[0-9]/, value: 'XL' },
+                        { pattern: /-XXL-[0-9]/, value: 'XXL' },
+                        { pattern: /-F-[0-9]|-[0-9]+-F/, value: 'F' }
+                    ];
+                    for (const { pattern, value } of sizePatterns) {
+                        if (pattern.test(serialNumber)) {
+                            extractedSize = value;
+                            break;
+                        }
                     }
-                }
-                
-                // color 추출: -LightBlue-, -Black-, -Navy-, -White-, -Grey-
-                let color = null;
-                const colorPatterns = [
-                    { pattern: /-(LightBlue|Light-Blue|LB)-/i, value: 'Light Blue' },
-                    { pattern: /-(Black|BK)-/i, value: 'Black' },
-                    { pattern: /-(Navy|NV)-/i, value: 'Navy' },
-                    { pattern: /-(White|WH|WT)-/i, value: 'White' },
-                    { pattern: /-(Grey|GY|Gray)-/i, value: 'Grey' },
-                    { pattern: /-(LightGrey|Light-Grey|LGY)-/i, value: 'Light Grey' }
-                ];
-                for (const { pattern, value } of colorPatterns) {
-                    if (pattern.test(serialNumber)) {
-                        color = value;
-                        break;
+                    
+                    // color 추출: -LightBlue-, -Black-, -Navy-, -White-, -Grey-
+                    let extractedColor = null;
+                    const colorPatterns = [
+                        { pattern: /-(LightBlue|Light-Blue|LB)-/i, value: 'Light Blue' },
+                        { pattern: /-(Black|BK)-/i, value: 'Black' },
+                        { pattern: /-(Navy|NV)-/i, value: 'Navy' },
+                        { pattern: /-(White|WH|WT)-/i, value: 'White' },
+                        { pattern: /-(Grey|GY|Gray)-/i, value: 'Grey' },
+                        { pattern: /-(LightGrey|Light-Grey|LGY)-/i, value: 'Light Grey' }
+                    ];
+                    for (const { pattern, value } of colorPatterns) {
+                        if (pattern.test(serialNumber)) {
+                            extractedColor = value;
+                            break;
+                        }
                     }
-                }
+                    
+                    return { size: extractedSize, color: extractedColor };
+                };
                 
-                return { size, color };
-            };
-            
-            // token_pk별 size, color 매핑 생성
-            const tokenSizeColorMap = {};
-            for (const token of tokenDetails) {
-                const { size, color } = extractSizeColor(token.serial_number);
-                tokenSizeColorMap[token.token_pk] = { size, color };
+                // token_pk별 size, color 매핑 생성 (fallback용)
+                for (const token of tokenDetails) {
+                    const extracted = extractSizeColor(token.serial_number);
+                    tokenSizeColorMap[token.token_pk] = {
+                        size: extracted.size,
+                        color: extracted.color
+                    };
+                }
             }
             
-            // 재고 추가 (size, color 포함)
+            // 재고 추가 (정책: 입력값 우선, 파싱 fallback, 둘 다 없으면 NULL)
             const insertValues = tokenPkArray.map(tpk => {
-                const { size, color } = tokenSizeColorMap[tpk] || { size: null, color: null };
+                // 입력값 우선, 없으면 파싱 결과, 둘 다 없으면 NULL
+                const stockSize = finalSize || (tokenSizeColorMap[tpk]?.size || null);
+                const stockColor = finalColor || (tokenSizeColorMap[tpk]?.color || null);
+                
                 return [
                     product_id,
-                    size,
-                    color,
+                    stockSize,
+                    stockColor,
                     tpk,
                     'in_stock',
                     new Date(),
