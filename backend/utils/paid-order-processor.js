@@ -121,12 +121,14 @@ async function processPaidOrder({
         await updateProcessingStatus(paidEventId, 'processing');
 
         // ============================================================
-        // 3. order_items 조회
+        // 3. order_items 조회 (size, color 포함)
         // ============================================================
         const [orderItems] = await connection.execute(
             `SELECT 
                 order_item_id,
                 product_id,
+                size,
+                color,
                 quantity,
                 unit_price,
                 subtotal
@@ -159,18 +161,35 @@ async function processPaidOrder({
         for (const item of orderItems) {
             const needQty = item.quantity;
             const productId = item.product_id;
+            const size = item.size || null;
+            const color = item.color || null;
 
-            // 재고 조회 (in_stock만, SKIP LOCKED로 동시성 제어)
-            const [availableStock] = await connection.execute(
-                `SELECT stock_unit_id, token_pk, product_id
+            // 재고 조회 (정석: product_id, size, color로 정확히 매칭)
+            // size나 color가 NULL이면 해당 조건 무시 (하위 호환)
+            let stockQuery = `SELECT stock_unit_id, token_pk, product_id, size, color
                 FROM stock_units
                 WHERE product_id = ? 
-                  AND status = 'in_stock'
-                ORDER BY stock_unit_id
+                  AND status = 'in_stock'`;
+            
+            const stockParams = [productId];
+            
+            if (size) {
+                stockQuery += ` AND (size = ? OR size IS NULL)`;
+                stockParams.push(size);
+            }
+            
+            if (color) {
+                stockQuery += ` AND (color = ? OR color IS NULL)`;
+                stockParams.push(color);
+            }
+            
+            stockQuery += ` ORDER BY stock_unit_id
                 LIMIT ?
-                FOR UPDATE SKIP LOCKED`,
-                [productId, needQty]
-            );
+                FOR UPDATE SKIP LOCKED`;
+            
+            stockParams.push(needQty);
+            
+            const [availableStock] = await connection.execute(stockQuery, stockParams);
 
             if (availableStock.length < needQty) {
                 // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)

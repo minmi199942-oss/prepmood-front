@@ -359,18 +359,81 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
                 // 경고만 하고 계속 진행 (단계적 마이그레이션 허용)
             }
 
-            // 재고 추가
-            const insertValues = tokenPkArray.map(tpk => [
-                product_id,
-                tpk,
-                'in_stock',
-                new Date(),
-                new Date()
-            ]);
+            // token_master에서 size, color 추출 (serial_number 파싱)
+            const [tokenDetails] = await connection.execute(
+                `SELECT 
+                    token_pk,
+                    serial_number
+                FROM token_master
+                WHERE token_pk IN (${placeholders})`,
+                tokenPkArray
+            );
+            
+            // serial_number에서 size, color 추출하는 함수
+            const extractSizeColor = (serialNumber) => {
+                if (!serialNumber) return { size: null, color: null };
+                
+                // size 추출: -S-, -M-, -L-, -XL-, -XXL-, -F-
+                let size = null;
+                const sizePatterns = [
+                    { pattern: /-S-[0-9]/, value: 'S' },
+                    { pattern: /-M-[0-9]/, value: 'M' },
+                    { pattern: /-L-[0-9]/, value: 'L' },
+                    { pattern: /-XL-[0-9]/, value: 'XL' },
+                    { pattern: /-XXL-[0-9]/, value: 'XXL' },
+                    { pattern: /-F-[0-9]|-[0-9]+-F/, value: 'F' }
+                ];
+                for (const { pattern, value } of sizePatterns) {
+                    if (pattern.test(serialNumber)) {
+                        size = value;
+                        break;
+                    }
+                }
+                
+                // color 추출: -LightBlue-, -Black-, -Navy-, -White-, -Grey-
+                let color = null;
+                const colorPatterns = [
+                    { pattern: /-(LightBlue|Light-Blue|LB)-/i, value: 'Light Blue' },
+                    { pattern: /-(Black|BK)-/i, value: 'Black' },
+                    { pattern: /-(Navy|NV)-/i, value: 'Navy' },
+                    { pattern: /-(White|WH|WT)-/i, value: 'White' },
+                    { pattern: /-(Grey|GY|Gray)-/i, value: 'Grey' },
+                    { pattern: /-(LightGrey|Light-Grey|LGY)-/i, value: 'Light Grey' }
+                ];
+                for (const { pattern, value } of colorPatterns) {
+                    if (pattern.test(serialNumber)) {
+                        color = value;
+                        break;
+                    }
+                }
+                
+                return { size, color };
+            };
+            
+            // token_pk별 size, color 매핑 생성
+            const tokenSizeColorMap = {};
+            for (const token of tokenDetails) {
+                const { size, color } = extractSizeColor(token.serial_number);
+                tokenSizeColorMap[token.token_pk] = { size, color };
+            }
+            
+            // 재고 추가 (size, color 포함)
+            const insertValues = tokenPkArray.map(tpk => {
+                const { size, color } = tokenSizeColorMap[tpk] || { size: null, color: null };
+                return [
+                    product_id,
+                    size,
+                    color,
+                    tpk,
+                    'in_stock',
+                    new Date(),
+                    new Date()
+                ];
+            });
 
             await connection.query(
                 `INSERT INTO stock_units 
-                 (product_id, token_pk, status, created_at, updated_at) 
+                 (product_id, size, color, token_pk, status, created_at, updated_at) 
                  VALUES ?`,
                 [insertValues]
             );
