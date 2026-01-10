@@ -369,13 +369,14 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     // 로딩 상태 표시
     showPaymentProcessing();
     
-    // 서버에 결제 확인 요청
+    // 서버에 결제 확인 요청 (타임아웃 60초로 증가 - processPaidOrder가 오래 걸릴 수 있음)
     const response = await window.secureFetch(`${API_BASE}/payments/confirm`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       credentials: 'include',
+      timeoutMs: 60000, // 60초로 증가 (기본값: 15초)
       body: JSON.stringify({
         orderNumber: orderId,
         paymentKey: paymentKey,
