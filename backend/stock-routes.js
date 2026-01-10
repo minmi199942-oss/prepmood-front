@@ -150,9 +150,9 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
 
         connection = await mysql.createConnection(dbConfig);
 
-        // 상품 존재 확인
+        // 상품 존재 확인 (short_name도 포함)
         const [products] = await connection.execute(
-            'SELECT id, name FROM admin_products WHERE id = ?',
+            'SELECT id, name, short_name FROM admin_products WHERE id = ?',
             [productId]
         );
 
@@ -184,8 +184,15 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
 
         await connection.end();
 
+        const product = products[0];
+        
         res.json({
             success: true,
+            product: {
+                id: product.id,
+                name: product.name,
+                short_name: product.short_name // 프론트엔드 매칭용
+            },
             tokens: tokens.map(t => ({
                 token_pk: t.token_pk,
                 token: maskToken(t.token), // 마스킹 처리

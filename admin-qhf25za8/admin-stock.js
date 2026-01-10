@@ -15,6 +15,7 @@
   let allStock = [];
   let allProducts = [];
   let availableTokens = [];
+  let selectedProductShortName = null; // 선택한 상품의 short_name 저장
 
   // DOM 요소
   const elements = {
@@ -335,6 +336,7 @@
     elements.tokenListEmpty.style.display = 'none';
     elements.tokenListLoading.style.display = 'none';
     availableTokens = [];
+    selectedProductShortName = null;
   }
 
   // ============================================
@@ -359,6 +361,7 @@
       
       if (data.success) {
         availableTokens = data.tokens || [];
+        selectedProductShortName = data.product?.short_name || null; // 상품의 short_name 저장
         elements.tokenListLoading.style.display = 'none';
 
         if (availableTokens.length === 0) {
@@ -431,19 +434,26 @@
     }
 
     // ============================================
-    // 확인 UX: 선택한 토큰의 product_name과 선택한 상품명 비교
+    // 확인 UX: 선택한 토큰의 product_name과 선택한 상품의 short_name 비교
     // ============================================
     const selectedProductName = elements.addStockProductId.options[elements.addStockProductId.selectedIndex].textContent;
     const selectedTokens = availableTokens.filter(t => tokenPkArray.includes(t.token_pk));
     
-    // product_name이 다른 토큰이 있는지 확인
+    // product_name이 다른 토큰이 있는지 확인 (short_name으로 정확히 매칭)
     const mismatchedTokens = selectedTokens.filter(t => {
-      // 부분 매칭 허용 (단계적 마이그레이션 중)
-      const tokenProductName = t.product_name || '';
-      const productNameOnly = selectedProductName.split(' (')[0]; // "(ID)" 제거
-      return tokenProductName !== productNameOnly 
-        && !productNameOnly.includes(tokenProductName)
-        && !tokenProductName.includes(productNameOnly);
+      const tokenProductName = (t.product_name || '').trim();
+      const productShortName = (selectedProductShortName || '').trim();
+      
+      // short_name이 있으면 정확히 일치해야 함, 없으면 기존 로직 사용
+      if (productShortName) {
+        return tokenProductName !== productShortName;
+      } else {
+        // fallback: 부분 매칭 (단계적 마이그레이션 중)
+        const productNameOnly = selectedProductName.split(' (')[0]; // "(ID)" 제거
+        return tokenProductName !== productNameOnly 
+          && !productNameOnly.includes(tokenProductName)
+          && !tokenProductName.includes(productNameOnly);
+      }
     });
 
     if (mismatchedTokens.length > 0) {
