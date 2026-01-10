@@ -49,10 +49,10 @@ SELECT '=== 기본 택배사 데이터 삽입 ===' AS info;
 INSERT IGNORE INTO carriers (code, name, name_en, is_active, tracking_url_template) VALUES
 ('CJ', 'CJ대한통운', 'CJ Logistics', 1, 'https://www.cjlogistics.com/ko/tool/parcel/tracking?param={tracking_number}'),
 ('HANJIN', '한진택배', 'Hanjin Express', 1, 'https://www.hanjin.co.kr/kor/CMS/DeliveryMgr/WaybillSch?mCode=MN038&schLang=KR&wblnum={tracking_number}'),
-('ILYANG', '일양택배', 'ILYANG Express', 1, 'https://ilyanglogis.com/delivery/delivery_search.jsp?dlvry_type=1&dlvry_num={tracking_number}'),
+('ILYANG', '일양로지스', 'ILYANG Logistics', 1, 'https://ilyanglogis.com/delivery/delivery_search.jsp?dlvry_type=1&dlvry_num={tracking_number}'),
 ('KOREA', '한덱스', 'Korea Express', 1, NULL),
 ('KGB', '로젠택배', 'KGB Logistics', 1, 'https://www.cvsnet.co.kr/invoice/tracking.do?invoice_no={tracking_number}'),
-('LOGEN', '로젠택배', 'LOGEN', 1, NULL),
+('LOGEN', '로지스앤컴퍼니', 'LOGEN Logistics', 1, NULL),
 ('CVS', 'GS25편의점택배', 'GS25 CVS Delivery', 1, NULL),
 ('CU', 'CU편의점택배', 'CU CVS Delivery', 1, NULL),
 ('7ELEVEN', '세븐일레븐편의점택배', '7-Eleven CVS Delivery', 1, NULL),
