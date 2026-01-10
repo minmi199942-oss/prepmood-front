@@ -56,7 +56,7 @@ INSERT IGNORE INTO carriers (code, name, name_en, is_active, tracking_url_templa
 ('CVS', 'GS25편의점택배', 'GS25 CVS Delivery', 1, NULL),
 ('CU', 'CU편의점택배', 'CU CVS Delivery', 1, NULL),
 ('7ELEVEN', '세븐일레븐편의점택배', '7-Eleven CVS Delivery', 1, NULL),
-('VALEX', '한진택배', 'VALEX', 1, NULL);
+('VALEX', '발렉스 특수 물류', 'VALEX Special Logistics', 1, NULL);
 
 -- 삽입 결과 확인
 SELECT '--- 삽입된 택배사 목록 ---' AS info;
