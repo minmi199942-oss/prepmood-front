@@ -47,8 +47,17 @@ function readXlsxFile() {
         
         Logger.log(`[UPDATE] 시트 "${sheetName}"에서 ${data.length}개 행 발견`);
         
+        // 디버깅: 첫 번째 행 확인
+        if (data.length > 0) {
+            Logger.log('[UPDATE] 첫 번째 행 샘플:', JSON.stringify(data[0], null, 2));
+            Logger.log('[UPDATE] 첫 번째 행의 모든 키:', Object.keys(data[0]));
+        }
+        
         // 데이터 정제
         const products = [];
+        let skippedNoProductName = 0;
+        let skippedNoData = 0;
+        
         for (const row of data) {
             // 컬럼명에 공백이 있을 수 있으므로 trim 처리
             const serialNumber = String(row['serial_number '] || row['serial_number'] || '').trim();
@@ -60,7 +69,7 @@ function readXlsxFile() {
             
             // 필수 필드 확인 (product_name은 필수)
             if (!productName) {
-                Logger.warn('[UPDATE] product_name이 없어 건너뜀:', row);
+                skippedNoProductName++;
                 continue;
             }
             
@@ -74,10 +83,13 @@ function readXlsxFile() {
                     digital_warranty_collection: digitalWarrantyCollection || null,
                     product_name: productName
                 });
+            } else {
+                skippedNoData++;
             }
         }
         
         Logger.log(`[UPDATE] 유효한 제품 데이터 (serial_number/rot_code/warranty_bottom_code 중 하나라도 있는 것): ${products.length}개`);
+        Logger.log(`[UPDATE] 건너뜀: product_name 없음=${skippedNoProductName}개, 데이터 없음=${skippedNoData}개`);
         return products;
         
     } catch (error) {
