@@ -68,19 +68,19 @@ ORDER BY color_code;
 -- ============================================================
 SELECT '=== 5. FK 제약 확인 ===' AS info;
 SELECT 
-    CONSTRAINT_NAME,
-    TABLE_NAME,
-    COLUMN_NAME,
-    REFERENCED_TABLE_NAME,
-    REFERENCED_COLUMN_NAME,
-    DELETE_RULE
+    kcu.CONSTRAINT_NAME,
+    kcu.TABLE_NAME,
+    kcu.COLUMN_NAME,
+    kcu.REFERENCED_TABLE_NAME,
+    kcu.REFERENCED_COLUMN_NAME,
+    rc.DELETE_RULE
 FROM information_schema.KEY_COLUMN_USAGE kcu
 JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
   ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
   AND kcu.TABLE_SCHEMA = rc.CONSTRAINT_SCHEMA
 WHERE kcu.TABLE_SCHEMA = 'prepmood'
   AND kcu.CONSTRAINT_NAME IN ('fk_stock_units_color_standard', 'fk_order_items_color_standard')
-ORDER BY TABLE_NAME, CONSTRAINT_NAME;
+ORDER BY kcu.TABLE_NAME, kcu.CONSTRAINT_NAME;
 
 -- ============================================================
 -- 6. color 값 분포 확인 (표준값 준수 여부)
