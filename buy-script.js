@@ -78,10 +78,22 @@
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.options) {
+          // 디버깅: API 응답 확인
+          if (window.Logger) {
+            window.Logger.log('상품 옵션 API 응답:', {
+              product_id: product.id,
+              sizes: data.options.sizes,
+              colors: data.options.colors
+            });
+          }
           // 실제 재고 기반 옵션 생성
           generateSizeOptionsFromAPI(product, data.options.sizes);
           generateColorOptionsFromAPI(data.options.colors);
           return;
+        }
+      } else {
+        if (window.Logger) {
+          window.Logger.warn('상품 옵션 조회 실패:', response.status, response.statusText);
         }
       }
     } catch (error) {

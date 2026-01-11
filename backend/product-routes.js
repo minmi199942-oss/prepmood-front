@@ -141,6 +141,14 @@ router.get('/products/options', async (req, res) => {
         const colors = [...new Set(sizeColorRows.map(row => row.color).filter(c => c !== null))];
         const sizes = [...new Set(sizeColorRows.map(row => row.size).filter(s => s !== null))];
         
+        // 디버깅: 쿼리 결과 확인
+        console.log('✅ 상품 옵션 조회:', {
+            product_id: product_id,
+            raw_rows: sizeColorRows.length,
+            unique_sizes: sizes,
+            unique_colors: colors
+        });
+        
         await connection.end();
         
         res.json({
