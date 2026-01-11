@@ -94,6 +94,82 @@ router.get('/products', async (req, res) => {
     }
 });
 
+// 상품별 사용 가능한 색상/사이즈 조회 (공개 API)
+// Query 방식으로 변경: /products/options?product_id=...
+router.get('/products/options', async (req, res) => {
+    let connection;
+    try {
+        const { product_id } = req.query;
+        
+        // product_id 필수 검증
+        if (!product_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'product_id 파라미터가 필요합니다.'
+            });
+        }
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // 상품 존재 확인
+        const [products] = await connection.execute(
+            'SELECT id FROM admin_products WHERE id = ?',
+            [product_id]
+        );
+        
+        if (products.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '상품을 찾을 수 없습니다.'
+            });
+        }
+        
+        // 재고에서 사용 가능한 색상/사이즈 조회 (in_stock 상태만)
+        const [sizeColorRows] = await connection.execute(
+            `SELECT DISTINCT 
+                su.size,
+                su.color
+            FROM stock_units su
+            WHERE su.product_id = ?
+              AND su.status = 'in_stock'
+              AND (su.size IS NOT NULL OR su.color IS NOT NULL)
+            ORDER BY su.size, su.color`,
+            [product_id]
+        );
+        
+        // 색상과 사이즈를 별도로 추출 (중복 제거)
+        const colors = [...new Set(sizeColorRows.map(row => row.color).filter(c => c !== null))];
+        const sizes = [...new Set(sizeColorRows.map(row => row.size).filter(s => s !== null))];
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            options: {
+                colors: colors.sort(),
+                sizes: sizes.sort((a, b) => {
+                    const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
+                    const aIndex = sizeOrder.indexOf(a);
+                    const bIndex = sizeOrder.indexOf(b);
+                    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+                    if (aIndex !== -1) return -1;
+                    if (bIndex !== -1) return 1;
+                    return a.localeCompare(b);
+                })
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ 상품 옵션 조회 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '상품 옵션을 불러오는데 실패했습니다.'
+        });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
 // 특정 상품 조회
 router.get('/products/:id', async (req, res) => {
     let connection;
@@ -124,73 +200,6 @@ router.get('/products/:id', async (req, res) => {
         res.status(500).json({
             success: false,
             message: '상품을 불러오는데 실패했습니다.'
-        });
-    } finally {
-        if (connection) await connection.end();
-    }
-});
-
-// 상품별 사용 가능한 색상/사이즈 조회 (공개 API)
-router.get('/products/:id/options', async (req, res) => {
-    let connection;
-    try {
-        const { id } = req.params;
-        
-        connection = await mysql.createConnection(dbConfig);
-        
-        // 상품 존재 확인
-        const [products] = await connection.execute(
-            'SELECT id FROM admin_products WHERE id = ?',
-            [id]
-        );
-        
-        if (products.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: '상품을 찾을 수 없습니다.'
-            });
-        }
-        
-        // 재고에서 사용 가능한 색상/사이즈 조회 (in_stock 상태만)
-        const [sizeColorRows] = await connection.execute(
-            `SELECT DISTINCT 
-                su.size,
-                su.color
-            FROM stock_units su
-            WHERE su.product_id = ?
-              AND su.status = 'in_stock'
-              AND (su.size IS NOT NULL OR su.color IS NOT NULL)
-            ORDER BY su.size, su.color`,
-            [id]
-        );
-        
-        // 색상과 사이즈를 별도로 추출 (중복 제거)
-        const colors = [...new Set(sizeColorRows.map(row => row.color).filter(c => c !== null))];
-        const sizes = [...new Set(sizeColorRows.map(row => row.size).filter(s => s !== null))];
-        
-        await connection.end();
-        
-        res.json({
-            success: true,
-            options: {
-                colors: colors.sort(),
-                sizes: sizes.sort((a, b) => {
-                    const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
-                    const aIndex = sizeOrder.indexOf(a);
-                    const bIndex = sizeOrder.indexOf(b);
-                    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-                    if (aIndex !== -1) return -1;
-                    if (bIndex !== -1) return 1;
-                    return a.localeCompare(b);
-                })
-            }
-        });
-        
-    } catch (error) {
-        console.error('❌ 상품 옵션 조회 오류:', error);
-        res.status(500).json({
-            success: false,
-            message: '상품 옵션을 불러오는데 실패했습니다.'
         });
     } finally {
         if (connection) await connection.end();

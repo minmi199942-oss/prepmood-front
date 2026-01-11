@@ -71,9 +71,10 @@
     // 이미지 표시 (여러 장 시뮬레이션)
     displayProductImages(product);
 
-    // 실제 재고 데이터에서 색상/사이즈 옵션 가져오기
+    // 실제 재고 데이터에서 색상/사이즈 옵션 가져오기 (Query 방식)
     try {
-      const response = await fetch(`${API_BASE_URL}/products/${product.id}/options`);
+      const encodedProductId = encodeURIComponent(product.id);
+      const response = await fetch(`${API_BASE_URL}/products/options?product_id=${encodedProductId}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.options) {
