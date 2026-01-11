@@ -283,15 +283,27 @@
 
   // 색상 옵션 생성 (API 데이터 사용)
   function generateColorOptionsFromAPI(colors) {
+    console.log('[generateColorOptionsFromAPI] 시작:', {
+      colors: colors,
+      colors_length: colors?.length
+    });
+    
     const colorSelect = document.getElementById('color-select');
-    if (!colorSelect || !colors || colors.length === 0) {
-      // 색상이 없으면 기본 색상 사용
+    if (!colorSelect) {
+      console.warn('[generateColorOptionsFromAPI] colorSelect 없음');
+      return;
+    }
+    
+    // 기본 옵션만 남기고 나머지 제거
+    colorSelect.innerHTML = '<option value="">색상을 선택해주세요</option>';
+
+    // 색상이 없거나 빈 배열인 경우 처리
+    if (!colors || colors.length === 0) {
+      console.log('[generateColorOptionsFromAPI] 색상 배열 비어있음, 기본 색상 사용');
+      // 색상이 없으면 기본 색상 사용 (하위 호환성)
       generateColorOptions();
       return;
     }
-
-    // 기본 옵션만 남기고 나머지 제거
-    colorSelect.innerHTML = '<option value="">색상을 선택해주세요</option>';
 
     // 색상 표시명 매핑
     const colorLabelMap = {
@@ -303,12 +315,59 @@
       'Light Grey': '라이트 그레이'
     };
 
-    // API에서 받은 색상으로 옵션 생성
-    colors.forEach(color => {
+    // API에서 받은 색상으로 옵션 생성 (재고 상태 포함)
+    colors.forEach(colorObj => {
+      // colors가 배열인데 각 요소가 객체인지 문자열인지 확인
+      let color;
+      let available = true;
+      
+      if (typeof colorObj === 'object' && colorObj !== null) {
+        // 객체인 경우 color 속성 추출
+        color = colorObj.color || colorObj['color'];
+        available = colorObj.available !== undefined ? colorObj.available : true;
+      } else {
+        // 문자열인 경우 (하위 호환성)
+        color = colorObj;
+        available = true;
+      }
+      
+      // color가 유효한지 확인
+      if (!color || color === undefined || color === null) {
+        console.error('[generateColorOptionsFromAPI] 유효하지 않은 color:', colorObj);
+        return; // 건너뛰기
+      }
+      
+      console.log('[generateColorOptionsFromAPI] 색상 옵션 추가:', {
+        color: color,
+        available: available,
+        colorObj: colorObj
+      });
+      
       const option = document.createElement('option');
-      option.value = color; // DB에 저장된 표준값 사용
-      option.textContent = colorLabelMap[color] || color; // 표시명이 있으면 사용, 없으면 원본
+      option.value = String(color); // 명시적으로 문자열 변환
+      
+      // 색상 표시명 생성
+      let displayText = colorLabelMap[color] || color;
+      if (!available) {
+        displayText += ' (품절)';
+        option.disabled = true; // 품절 옵션은 선택 불가
+        option.style.color = '#999'; // 품절 표시 스타일
+      }
+      
+      option.textContent = displayText;
       colorSelect.appendChild(option);
+      
+      console.log('[generateColorOptionsFromAPI] 색상 옵션 추가 완료:', {
+        color: color,
+        available: available,
+        displayText: displayText,
+        option_value: option.value,
+        option_text: option.textContent
+      });
+    });
+    
+    console.log('[generateColorOptionsFromAPI] 완료:', {
+      options_count: colorSelect.options.length
     });
   }
 

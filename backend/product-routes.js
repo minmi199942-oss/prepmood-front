@@ -165,8 +165,54 @@ router.get('/products/options', async (req, res) => {
             return uniqueSizes;
         }
         
+        // product_id에서 색상 추출 (예: PM-25-SH-Teneu-Solid-LB-S/M/L → Light Blue)
+        function extractColorFromProductId(productId) {
+            if (!productId) return null;
+            
+            // 색상 코드 매핑 (SSOT: SIZE_COLOR_STANDARDIZATION_POLICY.md 참고)
+            const colorCodeMap = {
+                'LB': 'Light Blue',
+                'GY': 'Grey',  // 또는 Light Grey일 수 있지만, 일단 Grey로 매핑
+                'LGY': 'Light Grey',
+                'BK': 'Black',
+                'NV': 'Navy',
+                'WH': 'White',
+                'WT': 'White'
+            };
+            
+            // product_id에서 색상 코드 찾기
+            // 예: PM-25-SH-Teneu-Solid-LB-S/M/L → LB
+            // 예: PM-25-SH-Oxford-Stripe-GY-S/M/L → GY
+            const parts = productId.split('-');
+            
+            // 각 부분에서 색상 코드 검색
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i].toUpperCase();
+                
+                // 직접 매칭
+                if (colorCodeMap[part]) {
+                    return colorCodeMap[part];
+                }
+                
+                // 슬래시로 분리된 경우 (예: BK/GY → GY)
+                if (part.includes('/')) {
+                    const subParts = part.split('/');
+                    for (const subPart of subParts) {
+                        if (colorCodeMap[subPart]) {
+                            return colorCodeMap[subPart];
+                        }
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
         // product_id에서 가능한 사이즈 추출
         const allPossibleSizes = extractSizesFromProductId(product_id);
+        
+        // product_id에서 색상 추출
+        const extractedColor = extractColorFromProductId(product_id);
         
         // 재고가 있는 사이즈/색상 조회 (in_stock 상태)
         const [sizeColorRows] = await connection.execute(
@@ -202,15 +248,33 @@ router.get('/products/options', async (req, res) => {
             available: availableSizes.has(size)
         }));
         
-        // 재고가 있는 색상 목록
-        const colors = Array.from(availableColors).sort();
+        // 색상 처리: product_id에서 추출한 색상과 재고 상태 결합
+        const colorsWithStock = [];
+        if (extractedColor) {
+            // product_id에서 추출한 색상이 있으면, 재고 상태와 함께 반환
+            colorsWithStock.push({
+                color: extractedColor,
+                available: availableColors.has(extractedColor)
+            });
+        } else {
+            // product_id에서 색상을 추출할 수 없으면, 재고가 있는 색상만 반환
+            // (기존 동작 유지)
+            availableColors.forEach(color => {
+                colorsWithStock.push({
+                    color: color,
+                    available: true
+                });
+            });
+        }
         
         // 디버깅: 최종 결과 확인
         console.log('✅ 상품 옵션 조회 완료:', {
             product_id: product_id,
+            extracted_color: extractedColor,
             all_possible_sizes: allPossibleSizes,
             sizes_with_stock: sizesWithStock,
-            available_colors: colors,
+            colors_with_stock: colorsWithStock,
+            available_colors: Array.from(availableColors),
             stock_map: stockMap
         });
         
@@ -219,7 +283,10 @@ router.get('/products/options', async (req, res) => {
         res.json({
             success: true,
             options: {
-                colors: colors,
+                colors: colorsWithStock.sort((a, b) => {
+                    // 색상 알파벳 순서로 정렬
+                    return a.color.localeCompare(b.color);
+                }),
                 sizes: sizesWithStock.sort((a, b) => {
                     const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
                     const aIndex = sizeOrder.indexOf(a.size);
