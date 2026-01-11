@@ -363,13 +363,31 @@
 
     console.log('[generateSizeOptionsFromAPI] 사이즈 옵션 생성:', sizes);
 
-    // API에서 받은 사이즈로 옵션 생성
-    sizes.forEach(size => {
+    // API에서 받은 사이즈로 옵션 생성 (재고 상태 포함)
+    sizes.forEach(sizeObj => {
+      // sizes가 배열인데 각 요소가 객체인지 문자열인지 확인
+      const size = typeof sizeObj === 'object' ? sizeObj.size : sizeObj;
+      const available = typeof sizeObj === 'object' ? sizeObj.available : true;
+      
       const option = document.createElement('option');
       option.value = size;
-      option.textContent = size === 'F' ? 'Free' : size;
+      
+      // 사이즈 표시명 생성
+      let displayText = size === 'F' ? 'Free' : size;
+      if (!available) {
+        displayText += ' (품절)';
+        option.disabled = true; // 품절 옵션은 선택 불가
+        option.style.color = '#999'; // 품절 표시 스타일
+      }
+      
+      option.textContent = displayText;
       sizeSelect.appendChild(option);
-      console.log('[generateSizeOptionsFromAPI] 사이즈 옵션 추가:', size);
+      
+      console.log('[generateSizeOptionsFromAPI] 사이즈 옵션 추가:', {
+        size: size,
+        available: available,
+        displayText: displayText
+      });
     });
     
     console.log('[generateSizeOptionsFromAPI] 완료:', {

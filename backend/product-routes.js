@@ -124,29 +124,94 @@ router.get('/products/options', async (req, res) => {
             });
         }
         
-        // 재고에서 사용 가능한 색상/사이즈 조회 (in_stock 상태만)
+        // product_id에서 가능한 사이즈 추출 (예: PM-25-SH-Teneu-Solid-LB-S/M/L → [S, M, L])
+        function extractSizesFromProductId(productId) {
+            if (!productId) return [];
+            const parts = productId.split('-');
+            const lastPart = parts[parts.length - 1];
+            const validSizes = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
+            const sizes = [];
+            
+            // F 처리
+            if (lastPart.endsWith('F') && !lastPart.endsWith('TF')) {
+                if (lastPart.includes('-F') || lastPart.endsWith('/F')) {
+                    return ['F'];
+                } else if (lastPart === 'F') {
+                    return ['F'];
+                }
+            }
+            
+            // 슬래시/하이픈으로 분리
+            const allParts = lastPart.split(/[-/]/);
+            allParts.forEach(part => {
+                const trimmed = part.trim().toUpperCase();
+                if (validSizes.includes(trimmed)) {
+                    sizes.push(trimmed);
+                }
+            });
+            
+            // 중복 제거 및 정렬
+            const uniqueSizes = [...new Set(sizes)];
+            const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
+            uniqueSizes.sort((a, b) => {
+                const aIndex = sizeOrder.indexOf(a);
+                const bIndex = sizeOrder.indexOf(b);
+                if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+                if (aIndex !== -1) return -1;
+                if (bIndex !== -1) return 1;
+                return a.localeCompare(b);
+            });
+            
+            return uniqueSizes;
+        }
+        
+        // product_id에서 가능한 사이즈 추출
+        const allPossibleSizes = extractSizesFromProductId(product_id);
+        
+        // 재고가 있는 사이즈/색상 조회 (in_stock 상태)
         const [sizeColorRows] = await connection.execute(
             `SELECT DISTINCT 
                 su.size,
-                su.color
+                su.color,
+                COUNT(*) as stock_count
             FROM stock_units su
             WHERE su.product_id = ?
               AND su.status = 'in_stock'
               AND (su.size IS NOT NULL OR su.color IS NOT NULL)
+            GROUP BY su.size, su.color
             ORDER BY su.size, su.color`,
             [product_id]
         );
         
-        // 색상과 사이즈를 별도로 추출 (중복 제거)
-        const colors = [...new Set(sizeColorRows.map(row => row.color).filter(c => c !== null))];
-        const sizes = [...new Set(sizeColorRows.map(row => row.size).filter(s => s !== null))];
+        // 재고가 있는 사이즈와 색상 추출
+        const availableSizes = new Set();
+        const availableColors = new Set();
+        const stockMap = {}; // {size: {color: count}} 형태로 재고 저장
         
-        // 디버깅: 쿼리 결과 확인
-        console.log('✅ 상품 옵션 조회:', {
+        sizeColorRows.forEach(row => {
+            if (row.size) availableSizes.add(row.size);
+            if (row.color) availableColors.add(row.color);
+            
+            if (!stockMap[row.size]) stockMap[row.size] = {};
+            stockMap[row.size][row.color] = row.stock_count;
+        });
+        
+        // 모든 가능한 사이즈에 대해 재고 상태 포함하여 반환
+        const sizesWithStock = allPossibleSizes.map(size => ({
+            size: size,
+            available: availableSizes.has(size)
+        }));
+        
+        // 재고가 있는 색상 목록
+        const colors = Array.from(availableColors).sort();
+        
+        // 디버깅: 최종 결과 확인
+        console.log('✅ 상품 옵션 조회 완료:', {
             product_id: product_id,
-            raw_rows: sizeColorRows.length,
-            unique_sizes: sizes,
-            unique_colors: colors
+            all_possible_sizes: allPossibleSizes,
+            sizes_with_stock: sizesWithStock,
+            available_colors: colors,
+            stock_map: stockMap
         });
         
         await connection.end();
@@ -154,15 +219,15 @@ router.get('/products/options', async (req, res) => {
         res.json({
             success: true,
             options: {
-                colors: colors.sort(),
-                sizes: sizes.sort((a, b) => {
+                colors: colors,
+                sizes: sizesWithStock.sort((a, b) => {
                     const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
-                    const aIndex = sizeOrder.indexOf(a);
-                    const bIndex = sizeOrder.indexOf(b);
+                    const aIndex = sizeOrder.indexOf(a.size);
+                    const bIndex = sizeOrder.indexOf(b.size);
                     if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
                     if (aIndex !== -1) return -1;
                     if (bIndex !== -1) return 1;
-                    return a.localeCompare(b);
+                    return a.size.localeCompare(b.size);
                 })
             }
         });
