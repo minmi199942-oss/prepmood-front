@@ -45,7 +45,7 @@
   }
 
   // 제품 정보 표시
-  function displayProductInfo(product) {
+  async function displayProductInfo(product) {
     if (!product) {
       document.getElementById('product-name').textContent = '제품을 찾을 수 없습니다';
       return;
@@ -71,10 +71,26 @@
     // 이미지 표시 (여러 장 시뮬레이션)
     displayProductImages(product);
 
-    // 사이즈 옵션 생성 (제품 ID에서 추출)
-    generateSizeOptions(product);
+    // 실제 재고 데이터에서 색상/사이즈 옵션 가져오기
+    try {
+      const response = await fetch(`${API_BASE_URL}/products/${product.id}/options`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.options) {
+          // 실제 재고 기반 옵션 생성
+          generateSizeOptionsFromAPI(product, data.options.sizes);
+          generateColorOptionsFromAPI(data.options.colors);
+          return;
+        }
+      }
+    } catch (error) {
+      if (window.Logger) {
+        window.Logger.warn('상품 옵션 조회 실패, 기본 옵션 사용:', error.message);
+      }
+    }
 
-    // 색상 옵션 생성
+    // API 조회 실패 시 기존 방식 사용 (하위 호환성)
+    generateSizeOptions(product);
     generateColorOptions();
   }
 
@@ -199,14 +215,16 @@
     }
   }
 
-  // 색상 옵션 생성 (가상 데이터)
+  // 색상 옵션 생성 (가상 데이터 - 하위 호환성용)
   function generateColorOptions() {
     const colorSelect = document.getElementById('color-select');
+    if (!colorSelect) return;
+    
     const colors = [
-      { value: 'black', label: '블랙' },
-      { value: 'white', label: '화이트' },
-      { value: 'gray', label: '그레이' },
-      { value: 'navy', label: '네이비' }
+      { value: 'Black', label: '블랙' },
+      { value: 'White', label: '화이트' },
+      { value: 'Grey', label: '그레이' },
+      { value: 'Navy', label: '네이비' }
     ];
 
     colors.forEach(color => {
@@ -214,6 +232,75 @@
       option.value = color.value;
       option.textContent = color.label;
       colorSelect.appendChild(option);
+    });
+  }
+
+  // 색상 옵션 생성 (API 데이터 사용)
+  function generateColorOptionsFromAPI(colors) {
+    const colorSelect = document.getElementById('color-select');
+    if (!colorSelect || !colors || colors.length === 0) {
+      // 색상이 없으면 기본 색상 사용
+      generateColorOptions();
+      return;
+    }
+
+    // 기본 옵션만 남기고 나머지 제거
+    colorSelect.innerHTML = '<option value="">색상을 선택해주세요</option>';
+
+    // 색상 표시명 매핑
+    const colorLabelMap = {
+      'Black': '블랙',
+      'Navy': '네이비',
+      'White': '화이트',
+      'Grey': '그레이',
+      'Light Blue': '라이트 블루',
+      'Light Grey': '라이트 그레이'
+    };
+
+    // API에서 받은 색상으로 옵션 생성
+    colors.forEach(color => {
+      const option = document.createElement('option');
+      option.value = color; // DB에 저장된 표준값 사용
+      option.textContent = colorLabelMap[color] || color; // 표시명이 있으면 사용, 없으면 원본
+      colorSelect.appendChild(option);
+    });
+  }
+
+  // 사이즈 옵션 생성 (API 데이터 사용)
+  function generateSizeOptionsFromAPI(product, sizes) {
+    if (!product || !product.id) return;
+
+    const sizeSelect = document.getElementById('size-select');
+    const sizeOptionGroup = sizeSelect ? sizeSelect.closest('.option-group') : null;
+    
+    if (!sizeSelect || !sizeOptionGroup) return;
+
+    // 카테고리 확인 (액세서리는 사이즈 선택 제외)
+    const productIdLower = product.id.toLowerCase();
+    const isAccessory = product.category === 'accessories' || 
+                        productIdLower.includes('acc-') ||
+                        productIdLower.startsWith('pm-25-acc-');
+
+    // 사이즈가 없거나 액세서리인 경우 사이즈 선택 필드 숨기기
+    if (!sizes || sizes.length === 0 || isAccessory) {
+      sizeOptionGroup.style.display = 'none';
+      // 액세서리의 경우 사이즈를 'Free'로 자동 설정
+      selectedSize = 'Free';
+      return;
+    }
+
+    // 사이즈 선택 필드 표시
+    sizeOptionGroup.style.display = 'block';
+
+    // 기본 옵션만 남기고 나머지 제거
+    sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option>';
+
+    // API에서 받은 사이즈로 옵션 생성
+    sizes.forEach(size => {
+      const option = document.createElement('option');
+      option.value = size;
+      option.textContent = size === 'F' ? 'Free' : size;
+      sizeSelect.appendChild(option);
     });
   }
 
@@ -526,7 +613,7 @@
   }
 
   // 초기화
-  function init() {
+  async function init() {
     // 제품 데이터 로드 대기
     if (typeof window.CATALOG_DATA === 'undefined' || !window.productsLoaded) {
       // productsLoaded 이벤트를 기다림
@@ -545,7 +632,7 @@
     
     // 제품 정보 표시
     const product = findProductById(productId);
-    displayProductInfo(product);
+    await displayProductInfo(product);
 
     // 위시리스트 상태 확인
     checkWishlistStatus();
