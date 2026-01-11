@@ -74,32 +74,65 @@
     // 실제 재고 데이터에서 색상/사이즈 옵션 가져오기 (Query 방식)
     try {
       const encodedProductId = encodeURIComponent(product.id);
-      const response = await fetch(`${API_BASE_URL}/products/options?product_id=${encodedProductId}`);
+      const apiUrl = `${API_BASE_URL}/products/options?product_id=${encodedProductId}`;
+      
+      // 디버깅: API 호출 시작
+      console.log('[상품 옵션 API] 호출 시작:', {
+        product_id: product.id,
+        encoded_id: encodedProductId,
+        api_url: apiUrl
+      });
+      
+      const response = await fetch(apiUrl);
+      
+      // 디버깅: 응답 상태 확인
+      console.log('[상품 옵션 API] 응답 상태:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
       if (response.ok) {
         const data = await response.json();
+        
+        // 디버깅: API 응답 데이터 확인
+        console.log('[상품 옵션 API] 응답 데이터:', {
+          success: data.success,
+          has_options: !!data.options,
+          sizes: data.options?.sizes || [],
+          colors: data.options?.colors || [],
+          sizes_count: data.options?.sizes?.length || 0,
+          colors_count: data.options?.colors?.length || 0
+        });
+        
         if (data.success && data.options) {
-          // 디버깅: API 응답 확인
-          if (window.Logger) {
-            window.Logger.log('상품 옵션 API 응답:', {
-              product_id: product.id,
-              sizes: data.options.sizes,
-              colors: data.options.colors
-            });
-          }
           // 실제 재고 기반 옵션 생성
+          console.log('[상품 옵션 API] 옵션 생성 시작:', {
+            sizes: data.options.sizes,
+            colors: data.options.colors
+          });
+          
           generateSizeOptionsFromAPI(product, data.options.sizes);
           generateColorOptionsFromAPI(data.options.colors);
           return;
+        } else {
+          console.warn('[상품 옵션 API] 응답이 옵션을 포함하지 않음:', data);
         }
       } else {
-        if (window.Logger) {
-          window.Logger.warn('상품 옵션 조회 실패:', response.status, response.statusText);
-        }
+        // 응답 본문도 확인
+        const errorText = await response.text();
+        console.error('[상품 옵션 API] 조회 실패:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
       }
     } catch (error) {
-      if (window.Logger) {
-        window.Logger.warn('상품 옵션 조회 실패, 기본 옵션 사용:', error.message);
-      }
+      console.error('[상품 옵션 API] 예외 발생:', {
+        message: error.message,
+        stack: error.stack,
+        error: error
+      });
     }
 
     // API 조회 실패 시 기존 방식 사용 (하위 호환성)
@@ -281,12 +314,27 @@
 
   // 사이즈 옵션 생성 (API 데이터 사용)
   function generateSizeOptionsFromAPI(product, sizes) {
-    if (!product || !product.id) return;
+    console.log('[generateSizeOptionsFromAPI] 시작:', {
+      product_id: product?.id,
+      sizes: sizes,
+      sizes_length: sizes?.length
+    });
+    
+    if (!product || !product.id) {
+      console.warn('[generateSizeOptionsFromAPI] product 없음');
+      return;
+    }
 
     const sizeSelect = document.getElementById('size-select');
     const sizeOptionGroup = sizeSelect ? sizeSelect.closest('.option-group') : null;
     
-    if (!sizeSelect || !sizeOptionGroup) return;
+    if (!sizeSelect || !sizeOptionGroup) {
+      console.warn('[generateSizeOptionsFromAPI] DOM 요소 없음:', {
+        sizeSelect: !!sizeSelect,
+        sizeOptionGroup: !!sizeOptionGroup
+      });
+      return;
+    }
 
     // 카테고리 확인 (액세서리는 사이즈 선택 제외)
     const productIdLower = product.id.toLowerCase();
@@ -296,6 +344,11 @@
 
     // 사이즈가 없거나 액세서리인 경우 사이즈 선택 필드 숨기기
     if (!sizes || sizes.length === 0 || isAccessory) {
+      console.log('[generateSizeOptionsFromAPI] 사이즈 없음 또는 액세서리:', {
+        sizes: sizes,
+        sizes_length: sizes?.length,
+        isAccessory: isAccessory
+      });
       sizeOptionGroup.style.display = 'none';
       // 액세서리의 경우 사이즈를 'Free'로 자동 설정
       selectedSize = 'Free';
@@ -308,12 +361,19 @@
     // 기본 옵션만 남기고 나머지 제거
     sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option>';
 
+    console.log('[generateSizeOptionsFromAPI] 사이즈 옵션 생성:', sizes);
+
     // API에서 받은 사이즈로 옵션 생성
     sizes.forEach(size => {
       const option = document.createElement('option');
       option.value = size;
       option.textContent = size === 'F' ? 'Free' : size;
       sizeSelect.appendChild(option);
+      console.log('[generateSizeOptionsFromAPI] 사이즈 옵션 추가:', size);
+    });
+    
+    console.log('[generateSizeOptionsFromAPI] 완료:', {
+      options_count: sizeSelect.options.length
     });
   }
 
