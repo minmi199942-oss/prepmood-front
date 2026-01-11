@@ -38,6 +38,8 @@
     closeAddStockModal: document.getElementById('closeAddStockModal'),
     addStockForm: document.getElementById('addStockForm'),
     addStockProductId: document.getElementById('addStockProductId'),
+    addStockSize: document.getElementById('addStockSize'),
+    addStockColor: document.getElementById('addStockColor'),
     tokenListContainer: document.getElementById('tokenListContainer'),
     tokenList: document.getElementById('tokenList'),
     tokenListLoading: document.getElementById('tokenListLoading'),
@@ -234,14 +236,46 @@
         ? `<a href="orders.html?orderId=${item.reserved_by_order_id}" style="color: #007bff;">${item.reserved_by_order_number}</a>`
         : '-';
 
+      // size, color 표시 (NULL인 경우 "-" 표시)
+      const sizeDisplay = item.size || '-';
+      const colorDisplay = item.color || '-';
+      
+      // reserved_at, sold_at 표시 (NULL인 경우 "-" 표시)
+      const reservedAtDisplay = item.reserved_at ? formatDate(item.reserved_at) : '-';
+      const soldAtDisplay = item.sold_at ? formatDate(item.sold_at) : '-';
+
       row.innerHTML = `
         <td>${item.stock_unit_id}</td>
         <td>${item.product_name}</td>
-        <td class="token-masked">${item.token}</td>
+        <td>${sizeDisplay}</td>
+        <td>${colorDisplay}</td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 0.25rem;">
+            <span class="token-masked">${item.token}</span>
+            <button 
+              class="btn-secondary btn-sm" 
+              style="padding: 0.125rem 0.375rem; font-size: 0.75rem;"
+              onclick="window.AdminPages.stock.copyToken('${item.token}', ${item.stock_unit_id})"
+              title="토큰 복사 (마스킹)"
+            >
+              복사
+            </button>
+            <button 
+              class="btn-secondary btn-sm" 
+              style="padding: 0.125rem 0.375rem; font-size: 0.75rem;"
+              onclick="window.AdminPages.stock.copyTokenFull('${item.token_full || item.token}', ${item.stock_unit_id})"
+              title="전체 토큰 복사"
+            >
+              전체 복사
+            </button>
+          </div>
+        </td>
         <td>${item.internal_code || '-'}</td>
         <td>${item.serial_number || '-'}</td>
         <td>${statusBadge}</td>
         <td>${orderInfo}</td>
+        <td>${reservedAtDisplay}</td>
+        <td>${soldAtDisplay}</td>
         <td>${formatDate(item.created_at)}</td>
         <td>
           <button class="btn-secondary btn-sm" onclick="window.AdminPages.stock.viewDetail(${item.stock_unit_id})">
@@ -319,11 +353,14 @@
   function openAddStockModal() {
     elements.addStockModal.style.display = 'flex';
     elements.addStockProductId.value = '';
+    elements.addStockSize.value = '';  // size 초기화
+    elements.addStockColor.value = '';  // color 초기화
     elements.tokenListContainer.style.display = 'none';
     elements.tokenListEmpty.style.display = 'none';
     elements.tokenListLoading.style.display = 'none';
     elements.submitAddStockBtn.disabled = true;
     availableTokens = [];
+    selectedProductShortName = null;  // 선택한 상품 초기화
   }
 
   // ============================================
@@ -486,6 +523,27 @@
     elements.submitAddStockBtn.textContent = '추가 중...';
 
     try {
+      // size, color 정규화 (입력값 우선, 없으면 null)
+      // 정책: "Free" → null (액세서리/타이류 처리)
+      let normalizedSize = elements.addStockSize.value || null;
+      if (normalizedSize === '' || normalizedSize === 'Free') {
+        normalizedSize = null;
+      }
+
+      // color 정규화 (표준값으로 변환)
+      // 정책: SIZE_COLOR_STANDARDIZATION_POLICY.md 참고
+      let normalizedColor = elements.addStockColor.value || null;
+      if (normalizedColor === '') {
+        normalizedColor = null;
+      } else if (normalizedColor) {
+        // 프론트엔드 정규화 함수 사용 (checkout-utils.js의 normalizeColor)
+        // 없으면 그대로 전송 (백엔드에서 정규화 또는 DB 제약으로 검증)
+        if (typeof window.normalizeColor === 'function') {
+          normalizedColor = window.normalizeColor(normalizedColor);
+        }
+        // 정규화 함수가 없어도 SELECT 옵션에 표준값만 있으므로 그대로 사용 가능
+      }
+
       const response = await fetch(`${API_BASE}/admin/stock`, {
         method: 'POST',
         headers: {
@@ -494,7 +552,9 @@
         credentials: 'include',
         body: JSON.stringify({
           product_id: productId,
-          token_pk: tokenPkArray
+          token_pk: tokenPkArray,
+          size: normalizedSize,  // size 추가 (입력값 우선, 없으면 null → 백엔드에서 파싱)
+          color: normalizedColor  // color 추가 (입력값 우선, 없으면 null → 백엔드에서 파싱)
         })
       });
 
@@ -578,6 +638,14 @@
             <td style="padding: 0.5rem;">${stock.internal_code || '-'}</td>
           </tr>
           <tr>
+            <td style="padding: 0.5rem; font-weight: 600;">사이즈</td>
+            <td style="padding: 0.5rem;">${stock.size || '-'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 0.5rem; font-weight: 600;">색상</td>
+            <td style="padding: 0.5rem;">${stock.color || '-'}</td>
+          </tr>
+          <tr>
             <td style="padding: 0.5rem; font-weight: 600;">시리얼 넘버</td>
             <td style="padding: 0.5rem;">${stock.serial_number || '-'}</td>
           </tr>
@@ -641,6 +709,46 @@
   }
 
   // ============================================
+  // 토큰 복사 (마스킹)
+  // ============================================
+  function copyToken(maskedToken, stockUnitId) {
+    if (!maskedToken) {
+      alert('토큰이 없습니다.');
+      return;
+    }
+
+    navigator.clipboard.writeText(maskedToken).then(() => {
+      console.log(`[STOCK] 토큰 복사 성공 (stock_unit_id: ${stockUnitId}, 마스킹)`);
+      // 간단한 피드백 (선택사항: toast 메시지 등)
+    }).catch(err => {
+      console.error('[STOCK] 토큰 복사 실패:', err.message);
+      alert('토큰 복사에 실패했습니다.');
+    });
+  }
+
+  // ============================================
+  // 토큰 전체 복사 (확인 후)
+  // ============================================
+  function copyTokenFull(fullToken, stockUnitId) {
+    if (!fullToken) {
+      alert('토큰이 없습니다.');
+      return;
+    }
+
+    if (!confirm('전체 토큰은 외부 유출 금지. 그래도 복사하시겠습니까?')) {
+      return;
+    }
+
+    navigator.clipboard.writeText(fullToken).then(() => {
+      console.log(`[STOCK] 전체 토큰 복사 성공 (stock_unit_id: ${stockUnitId})`);
+      // 간단한 피드백 (선택사항: toast 메시지 등)
+    }).catch(err => {
+      console.error('[STOCK] 전체 토큰 복사 실패:', err.message);
+      alert('토큰 복사에 실패했습니다.');
+    });
+  }
+
+  // ============================================
   // 페이지 로드 시 초기화
   // ============================================
   // init은 admin-layout.js의 inline 스크립트에서 호출됨
@@ -650,5 +758,7 @@
   window.AdminPages.stock.init = init;
   window.AdminPages.stock.viewDetail = viewDetail;
   window.AdminPages.stock.updateSubmitButton = updateSubmitButton;
+  window.AdminPages.stock.copyToken = copyToken;
+  window.AdminPages.stock.copyTokenFull = copyTokenFull;
 
 })();

@@ -194,11 +194,15 @@
             <tr>
               <th>재고 ID</th>
               <th>상품명</th>
+              <th>사이즈</th>
+              <th>색상</th>
               <th>토큰</th>
               <th>내부 코드</th>
               <th>시리얼 넘버</th>
               <th>상태</th>
               <th>예약 주문</th>
+              <th>예약일시</th>
+              <th>판매일시</th>
               <th>생성일</th>
               <th>액션</th>
             </tr>
@@ -241,6 +245,40 @@
           <select id="addStockProductId" name="product_id" required>
             <option value="">상품을 선택하세요</option>
           </select>
+        </div>
+
+        <!-- 사이즈 선택 (선택 사항) -->
+        <div class="form-group">
+          <label for="addStockSize">사이즈</label>
+          <select id="addStockSize" name="size">
+            <option value="">사이즈 선택 (선택 사항)</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+            <option value="XL">XL</option>
+            <option value="XXL">XXL</option>
+            <option value="F">F (Free)</option>
+          </select>
+          <small style="display: block; margin-top: 0.5rem; color: #6c757d;">
+            사이즈를 입력하지 않으면 serial_number에서 자동으로 파싱됩니다. 액세서리/타이류는 비워두세요.
+          </small>
+        </div>
+
+        <!-- 색상 선택 (선택 사항) -->
+        <div class="form-group">
+          <label for="addStockColor">색상</label>
+          <select id="addStockColor" name="color">
+            <option value="">색상 선택 (선택 사항)</option>
+            <option value="Black">Black</option>
+            <option value="Navy">Navy</option>
+            <option value="White">White</option>
+            <option value="Grey">Grey</option>
+            <option value="Light Blue">Light Blue</option>
+            <option value="Light Grey">Light Grey</option>
+          </select>
+          <small style="display: block; margin-top: 0.5rem; color: #6c757d;">
+            색상을 입력하지 않으면 serial_number에서 자동으로 파싱됩니다.
+          </small>
         </div>
 
         <!-- 토큰 선택 -->

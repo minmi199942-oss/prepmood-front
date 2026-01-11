@@ -1581,6 +1581,59 @@ app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (re
         
         order.items = items;
         
+        // 주문 항목 단위 정보 (order_item_units) - 출고/배송 관점
+        const [orderItemUnits] = await connection.execute(
+            `SELECT 
+                oiu.order_item_unit_id,
+                oiu.order_item_id,
+                oiu.unit_seq,
+                oiu.stock_unit_id,
+                oiu.token_pk,
+                oiu.unit_status,
+                oiu.carrier_code,
+                oiu.tracking_number,
+                oiu.shipped_at,
+                oiu.delivered_at,
+                oiu.created_at,
+                oiu.updated_at,
+                oi.product_name,
+                oi.size,
+                oi.color,
+                tm.token,
+                tm.internal_code,
+                tm.serial_number
+            FROM order_item_units oiu
+            INNER JOIN order_items oi ON oiu.order_item_id = oi.order_item_id
+            INNER JOIN token_master tm ON oiu.token_pk = tm.token_pk
+            WHERE oiu.order_id = ?
+            ORDER BY oiu.order_item_id, oiu.unit_seq`,
+            [orderId]
+        );
+        
+        order.order_item_units = orderItemUnits;
+        
+        // 인보이스 정보 (주문 소속 정보)
+        const [invoices] = await connection.execute(
+            `SELECT 
+                invoice_id,
+                invoice_number,
+                type,
+                status,
+                total_amount,
+                issued_at,
+                document_url
+            FROM invoices
+            WHERE order_id = ?
+              AND status = 'issued'
+            ORDER BY issued_at DESC
+            LIMIT 1`,
+            [orderId]
+        );
+        
+        if (invoices.length > 0) {
+            order.invoice = invoices[0];
+        }
+        
         // 결제 정보
         const [payments] = await connection.execute(
             `SELECT * FROM payments WHERE order_number = ? ORDER BY created_at DESC LIMIT 1`,

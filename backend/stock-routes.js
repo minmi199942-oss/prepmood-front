@@ -47,6 +47,8 @@ router.get('/admin/stock', authenticateToken, requireAdmin, async (req, res) => 
                 su.stock_unit_id,
                 su.product_id,
                 su.token_pk,
+                su.size,
+                su.color,
                 su.status,
                 su.reserved_at,
                 su.reserved_by_order_id,
@@ -97,6 +99,8 @@ router.get('/admin/stock', authenticateToken, requireAdmin, async (req, res) => 
             token_pk: row.token_pk,
             token: maskToken(row.token), // 마스킹 처리
             token_full: row.token, // 전체 토큰 (필요시 사용)
+            size: row.size, // size 추가
+            color: row.color, // color 추가
             internal_code: row.internal_code,
             serial_number: row.serial_number,
             status: row.status,
@@ -579,6 +583,8 @@ router.get('/admin/stock/:stockUnitId', authenticateToken, requireAdmin, async (
                 su.stock_unit_id,
                 su.product_id,
                 su.token_pk,
+                su.size,
+                su.color,
                 su.status,
                 su.reserved_at,
                 su.reserved_by_order_id,
@@ -620,6 +626,8 @@ router.get('/admin/stock/:stockUnitId', authenticateToken, requireAdmin, async (
                 product_name: stock.product_name,
                 token_pk: stock.token_pk,
                 token: stock.token, // 상세 화면에서는 전체 토큰 표시
+                size: stock.size, // size 추가
+                color: stock.color, // color 추가
                 internal_code: stock.internal_code,
                 serial_number: stock.serial_number,
                 rot_code: stock.rot_code,

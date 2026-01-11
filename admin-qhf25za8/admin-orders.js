@@ -224,6 +224,49 @@
   }
 
   // ============================================
+  // 유닛 상태 배지 렌더링 (order_item_units용)
+  // ============================================
+  function renderUnitStatusBadge(unitStatus) {
+    const statusMap = {
+      'reserved': { label: '예약됨', class: 'badge-warning' },
+      'shipped': { label: '출고됨', class: 'badge-primary' },
+      'delivered': { label: '배송완료', class: 'badge-success' },
+      'refunded': { label: '환불됨', class: 'badge-danger' }
+    };
+
+    const { label, class: className } = statusMap[unitStatus] || { label: unitStatus, class: 'badge-secondary' };
+    return `<span class="badge ${className}">${label}</span>`;
+  }
+
+  // ============================================
+  // 토큰 마스킹 (앞 4자 + ... + 뒤 4자)
+  // ============================================
+  function maskToken(token) {
+    if (!token || token.length < 8) return token;
+    return `${token.substring(0, 4)}...${token.substring(token.length - 4)}`;
+  }
+
+  // ============================================
+  // 송장번호 추적 링크 생성
+  // ============================================
+  function getTrackingUrl(carrierCode, trackingNumber) {
+    if (!carrierCode || !trackingNumber) return null;
+
+    // 택배사별 추적 URL 템플릿
+    const carrierTemplates = {
+      'CJ': 'https://www.cjlogistics.com/ko/tool/parcel/tracking?param={tracking_number}',
+      'HANJIN': 'https://www.hanjin.co.kr/kor/CMS/DeliveryMgr/WaybillSch?mCode=MN038&schLang=KR&wblnum={tracking_number}',
+      'ILYANG': 'https://ilyanglogis.com/delivery/delivery_search.jsp?dlvry_type=1&dlvry_num={tracking_number}',
+      'KGB': 'https://www.cvsnet.co.kr/invoice/tracking.do?invoice_no={tracking_number}'
+    };
+
+    const template = carrierTemplates[carrierCode];
+    if (!template) return null;
+
+    return template.replace('{tracking_number}', encodeURIComponent(trackingNumber));
+  }
+
+  // ============================================
   // 페이지네이션 렌더링
   // ============================================
   function renderPagination(pagination) {
@@ -338,6 +381,29 @@
           </dl>
         </div>
 
+        ${order.invoice ? `
+        <!-- 인보이스 정보 -->
+        <div class="detail-section">
+          <h4>인보이스 정보</h4>
+          <dl>
+            <dt>인보이스 번호</dt>
+            <dd>${order.invoice.invoice_number}</dd>
+            <dt>발급 일시</dt>
+            <dd>${new Date(order.invoice.issued_at).toLocaleString('ko-KR')}</dd>
+            <dt>총액</dt>
+            <dd><strong>${new Intl.NumberFormat('ko-KR', {
+              style: 'currency',
+              currency: 'KRW',
+              maximumFractionDigits: 0
+            }).format(order.invoice.total_amount)}</strong></dd>
+            ${order.invoice.document_url ? `
+            <dt>인보이스 링크</dt>
+            <dd><a href="${order.invoice.document_url}" target="_blank" rel="noopener noreferrer">인보이스 보기</a></dd>
+            ` : ''}
+          </dl>
+        </div>
+        ` : ''}
+
         <!-- 주문 상태 변경 -->
         <div class="detail-section">
           <h4>주문 상태</h4>
@@ -405,6 +471,90 @@
           </dl>
         </div>
       ` : ''}
+
+      ${order.order_item_units && order.order_item_units.length > 0 ? `
+      <!-- 출고/배송 유닛 테이블 -->
+      <div class="detail-section" style="margin-top: 1.5rem;">
+        <h4>출고/배송 유닛</h4>
+        <table class="detail-table" id="orderItemUnitsTable">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAllUnits" onchange="window.toggleSelectAllUnits()"></th>
+              <th>유닛 ID</th>
+              <th>상품명</th>
+              <th>사이즈</th>
+              <th>색상</th>
+              <th>내부코드</th>
+              <th>토큰</th>
+              <th>시리얼넘버</th>
+              <th>상태</th>
+              <th>택배사</th>
+              <th>송장번호</th>
+              <th>출고일</th>
+              <th>배송완료일</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${order.order_item_units.map(unit => {
+              const isShippedOrDelivered = unit.unit_status === 'shipped' || unit.unit_status === 'delivered';
+              const trackingUrl = getTrackingUrl(unit.carrier_code, unit.tracking_number);
+              const shippedDate = unit.shipped_at ? new Date(unit.shipped_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+              const deliveredDate = unit.delivered_at ? new Date(unit.delivered_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+              
+              return `
+                <tr data-unit-id="${unit.order_item_unit_id}" data-status="${unit.unit_status}">
+                  <td>
+                    <input 
+                      type="checkbox" 
+                      class="unit-checkbox" 
+                      value="${unit.order_item_unit_id}"
+                      ${isShippedOrDelivered ? 'disabled' : ''}
+                      onchange="window.updateActionButtonsState()"
+                    >
+                  </td>
+                  <td>${unit.order_item_unit_id}</td>
+                  <td>${unit.product_name || '-'}</td>
+                  <td>${unit.size || '-'}</td>
+                  <td>${unit.color || '-'}</td>
+                  <td>${unit.internal_code || '-'}</td>
+                  <td style="font-family: monospace; font-size: 0.75rem;">${maskToken(unit.token)}</td>
+                  <td>${unit.serial_number || '-'}</td>
+                  <td>${renderUnitStatusBadge(unit.unit_status)}</td>
+                  <td>${unit.carrier_code || '-'}</td>
+                  <td>
+                    ${trackingUrl && unit.tracking_number 
+                      ? `<a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color: #007bff;">${unit.tracking_number}</a>`
+                      : (unit.tracking_number || '-')}
+                  </td>
+                  <td>${shippedDate}</td>
+                  <td>${deliveredDate}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <!-- 액션 버튼 영역 -->
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+          <button 
+            class="btn-primary" 
+            id="shippedBtn"
+            onclick="window.openShippedModal(${order.order_id})"
+            disabled
+          >
+            출고 처리
+          </button>
+          <button 
+            class="btn-success" 
+            id="deliveredBtn"
+            onclick="window.openDeliveredModal(${order.order_id})"
+            disabled
+          >
+            배송완료 처리
+          </button>
+        </div>
+      </div>
+      ` : ''}
     `;
   }
 
@@ -446,6 +596,165 @@
       alert('상태 변경에 실패했습니다.');
     }
   };
+
+  // ============================================
+  // 전체 선택/해제
+  // ============================================
+  window.toggleSelectAllUnits = function() {
+    const selectAll = document.getElementById('selectAllUnits');
+    const checkboxes = document.querySelectorAll('.unit-checkbox:not(:disabled)');
+    
+    checkboxes.forEach(cb => {
+      cb.checked = selectAll.checked;
+    });
+    
+    updateActionButtonsState();
+  };
+
+  // ============================================
+  // 액션 버튼 상태 업데이트
+  // ============================================
+  window.updateActionButtonsState = function() {
+    const checkboxes = document.querySelectorAll('.unit-checkbox:checked:not(:disabled)');
+    const checkedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (checkedIds.length === 0) {
+      document.getElementById('shippedBtn')?.setAttribute('disabled', '');
+      document.getElementById('deliveredBtn')?.setAttribute('disabled', '');
+      return;
+    }
+    
+    // 선택된 유닛들의 상태 확인
+    const rows = Array.from(document.querySelectorAll('#orderItemUnitsTable tbody tr'));
+    const selectedRows = rows.filter(row => checkedIds.includes(parseInt(row.dataset.unitId)));
+    
+    const hasReserved = selectedRows.some(row => row.dataset.status === 'reserved');
+    const hasShipped = selectedRows.some(row => row.dataset.status === 'shipped');
+    
+    // 출고 처리 버튼: reserved 상태만 선택 가능
+    const shippedBtn = document.getElementById('shippedBtn');
+    if (shippedBtn) {
+      if (hasReserved && selectedRows.every(row => row.dataset.status === 'reserved')) {
+        shippedBtn.removeAttribute('disabled');
+      } else {
+        shippedBtn.setAttribute('disabled', '');
+      }
+    }
+    
+    // 배송완료 처리 버튼: shipped 상태만 선택 가능
+    const deliveredBtn = document.getElementById('deliveredBtn');
+    if (deliveredBtn) {
+      if (hasShipped && selectedRows.every(row => row.dataset.status === 'shipped')) {
+        deliveredBtn.removeAttribute('disabled');
+      } else {
+        deliveredBtn.setAttribute('disabled', '');
+      }
+    }
+  };
+
+  // ============================================
+  // 출고 처리 모달 열기
+  // ============================================
+  window.openShippedModal = function(orderId) {
+    const checkboxes = document.querySelectorAll('.unit-checkbox:checked:not(:disabled)');
+    const unitIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (unitIds.length === 0) {
+      alert('출고할 유닛을 선택해주세요.');
+      return;
+    }
+    
+    const carrierCode = prompt('택배사 코드를 입력하세요 (예: CJ, ILYANG, KGB):');
+    if (!carrierCode) return;
+    
+    const trackingNumber = prompt('송장번호를 입력하세요:');
+    if (!trackingNumber) return;
+    
+    if (!confirm(`${unitIds.length}개 유닛을 출고 처리하시겠습니까?`)) {
+      return;
+    }
+    
+    processShipped(orderId, unitIds, carrierCode.trim(), trackingNumber.trim());
+  };
+
+  // ============================================
+  // 출고 처리 API 호출
+  // ============================================
+  async function processShipped(orderId, unitIds, carrierCode, trackingNumber) {
+    try {
+      const response = await fetch(`${API_BASE}/admin/orders/${orderId}/shipped`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          unitIds: unitIds,
+          carrierCode: carrierCode,
+          trackingNumber: trackingNumber
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+
+      alert('출고 처리가 완료되었습니다.');
+      window.viewOrderDetail(orderId);  // 상세 정보 새로고침
+
+    } catch (error) {
+      console.error('출고 처리 실패:', error.message);
+      alert(`출고 처리에 실패했습니다: ${error.message}`);
+    }
+  }
+
+  // ============================================
+  // 배송완료 처리 모달 열기
+  // ============================================
+  window.openDeliveredModal = function(orderId) {
+    const checkboxes = document.querySelectorAll('.unit-checkbox:checked:not(:disabled)');
+    const unitIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (unitIds.length === 0) {
+      alert('배송완료 처리할 유닛을 선택해주세요.');
+      return;
+    }
+    
+    if (!confirm(`${unitIds.length}개 유닛을 배송완료 처리하시겠습니까?`)) {
+      return;
+    }
+    
+    processDelivered(orderId, unitIds);
+  };
+
+  // ============================================
+  // 배송완료 처리 API 호출
+  // ============================================
+  async function processDelivered(orderId, unitIds) {
+    try {
+      const response = await fetch(`${API_BASE}/admin/orders/${orderId}/delivered`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          unitIds: unitIds
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+
+      alert('배송완료 처리가 완료되었습니다.');
+      window.viewOrderDetail(orderId);  // 상세 정보 새로고침
+
+    } catch (error) {
+      console.error('배송완료 처리 실패:', error.message);
+      alert(`배송완료 처리에 실패했습니다: ${error.message}`);
+    }
+  }
 
   // ============================================
   // 통계 로드
