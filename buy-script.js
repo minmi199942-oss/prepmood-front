@@ -365,15 +365,40 @@
 
     // API에서 받은 사이즈로 옵션 생성 (재고 상태 포함)
     sizes.forEach(sizeObj => {
+      // 디버깅: sizeObj 구조 확인
+      console.log('[generateSizeOptionsFromAPI] sizeObj 원본:', sizeObj, '타입:', typeof sizeObj);
+      
       // sizes가 배열인데 각 요소가 객체인지 문자열인지 확인
-      const size = typeof sizeObj === 'object' ? sizeObj.size : sizeObj;
-      const available = typeof sizeObj === 'object' ? sizeObj.available : true;
+      let size;
+      let available = true;
+      
+      if (typeof sizeObj === 'object' && sizeObj !== null) {
+        // 객체인 경우 size 속성 추출
+        size = sizeObj.size || sizeObj['size'];
+        available = sizeObj.available !== undefined ? sizeObj.available : true;
+      } else {
+        // 문자열인 경우
+        size = sizeObj;
+        available = true;
+      }
+      
+      // size가 유효한지 확인
+      if (!size || size === undefined || size === null) {
+        console.error('[generateSizeOptionsFromAPI] 유효하지 않은 size:', sizeObj);
+        return; // 건너뛰기
+      }
+      
+      console.log('[generateSizeOptionsFromAPI] 추출된 값:', {
+        size: size,
+        available: available,
+        sizeObj: sizeObj
+      });
       
       const option = document.createElement('option');
-      option.value = size;
+      option.value = String(size); // 명시적으로 문자열 변환
       
       // 사이즈 표시명 생성
-      let displayText = size === 'F' ? 'Free' : size;
+      let displayText = String(size) === 'F' ? 'Free' : String(size);
       if (!available) {
         displayText += ' (품절)';
         option.disabled = true; // 품절 옵션은 선택 불가
@@ -383,10 +408,12 @@
       option.textContent = displayText;
       sizeSelect.appendChild(option);
       
-      console.log('[generateSizeOptionsFromAPI] 사이즈 옵션 추가:', {
+      console.log('[generateSizeOptionsFromAPI] 사이즈 옵션 추가 완료:', {
         size: size,
         available: available,
-        displayText: displayText
+        displayText: displayText,
+        option_value: option.value,
+        option_text: option.textContent
       });
     });
     
