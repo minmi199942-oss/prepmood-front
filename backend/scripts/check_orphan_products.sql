@@ -50,12 +50,12 @@ SELECT
     oi.quantity,
     oi.unit_price,
     oi.subtotal,
-    o.created_at as order_date,
+    oi.created_at as order_item_created_at,
     o.status as order_status
 FROM order_items oi
-JOIN orders o ON oi.order_id = o.order_id
+LEFT JOIN orders o ON oi.order_id = o.order_id
 WHERE oi.product_id IN ('bg-002', 'cp-001', 'jk-002')
-ORDER BY oi.product_id, o.created_at DESC;
+ORDER BY oi.product_id, oi.created_at DESC;
 
 -- ============================================================
 -- 4. 해결 방안 제시
