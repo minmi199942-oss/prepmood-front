@@ -23,7 +23,7 @@ SET @col_exists = (
 );
 
 SET @sql = IF(@col_exists = 0,
-    CONCAT('ALTER TABLE admin_products ADD COLUMN canonical_id VARCHAR(128) NULL CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci AFTER id'),
+    'ALTER TABLE admin_products ADD COLUMN canonical_id VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL AFTER id',
     'SELECT \'canonical_id 컬럼이 이미 존재합니다.\' AS info'
 );
 
@@ -51,7 +51,7 @@ SET @col_exists = (
 );
 
 SET @sql = IF(@col_exists = 0,
-    CONCAT('ALTER TABLE stock_units ADD COLUMN product_id_canonical VARCHAR(128) NULL CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci AFTER product_id'),
+    'ALTER TABLE stock_units ADD COLUMN product_id_canonical VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL AFTER product_id',
     'SELECT \'product_id_canonical 컬럼이 이미 존재합니다.\' AS info'
 );
 
