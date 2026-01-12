@@ -17,6 +17,34 @@ const dbConfig = {
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 };
 
+// ============================================================
+// 정규화 함수 (Dual-read 지원)
+// ============================================================
+
+/**
+ * product_id를 canonical_id로 정규화
+ * @param {string} productId - 입력 product_id (legacy 또는 canonical)
+ * @param {Object} connection - MySQL connection
+ * @returns {Promise<string|null>} - canonical_id (없으면 null)
+ */
+async function resolveProductId(productId, connection) {
+    if (!productId) return null;
+    
+    const [products] = await connection.execute(
+        `SELECT id, canonical_id
+         FROM admin_products 
+         WHERE canonical_id = ? OR id = ? 
+         LIMIT 1`,
+        [productId, productId]
+    );
+    
+    if (products.length === 0) {
+        return null;
+    }
+    
+    return products[0].canonical_id || products[0].id;
+}
+
 /**
  * GET /api/admin/stock
  * 재고 목록 조회 (관리자 전용)
@@ -62,17 +90,26 @@ router.get('/admin/stock', authenticateToken, requireAdmin, async (req, res) => 
                 o.order_number,
                 o.order_id
             FROM stock_units su
-            INNER JOIN admin_products ap ON su.product_id = ap.id
+            INNER JOIN admin_products ap ON (su.product_id = ap.id OR su.product_id_canonical = ap.canonical_id)
             INNER JOIN token_master tm ON su.token_pk = tm.token_pk
             LEFT JOIN orders o ON su.reserved_by_order_id = o.order_id
             WHERE 1=1
         `;
         const params = [];
 
-        // 필터링
+        // 필터링: ⚠️ Dual-read 지원
         if (product_id) {
-            query += ' AND su.product_id = ?';
-            params.push(product_id);
+            // product_id를 canonical_id로 정규화
+            const canonicalId = await resolveProductId(product_id, connection);
+            if (canonicalId) {
+                // product_id 또는 product_id_canonical로 조회
+                query += ' AND (su.product_id = ? OR su.product_id_canonical = ?)';
+                params.push(product_id, canonicalId);
+            } else {
+                // 정규화 실패 시 기존 방식으로 조회 (하위 호환)
+                query += ' AND su.product_id = ?';
+                params.push(product_id);
+            }
         }
 
         if (status) {
@@ -154,10 +191,21 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
 
         connection = await mysql.createConnection(dbConfig);
 
-        // 상품 존재 확인 (short_name도 포함)
+        // ⚠️ Dual-read: canonical_id 또는 id로 상품 조회
+        const canonicalId = await resolveProductId(productId, connection);
+        
+        if (!canonicalId) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '상품을 찾을 수 없습니다.'
+            });
+        }
+
+        // 상품 정보 조회 (short_name도 포함)
         const [products] = await connection.execute(
-            'SELECT id, name, short_name FROM admin_products WHERE id = ?',
-            [productId]
+            'SELECT id, name, short_name FROM admin_products WHERE canonical_id = ? OR id = ? LIMIT 1',
+            [canonicalId, productId]
         );
 
         if (products.length === 0) {
@@ -168,7 +216,7 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
             });
         }
 
-        // product_id로 직접 조회 (문자열 매칭 제거)
+        // ⚠️ Dual-read: token_master 조회 (product_id 또는 canonical_id로)
         const [tokens] = await connection.execute(
             `SELECT 
                 tm.token_pk,
@@ -177,13 +225,14 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
                 tm.serial_number,
                 tm.product_name
             FROM token_master tm
-            WHERE tm.product_id = ?
+            WHERE (tm.product_id = ? OR tm.product_id IN (SELECT id FROM admin_products WHERE canonical_id = ?))
               AND tm.token_pk NOT IN (
-                  SELECT COALESCE(token_pk, 0) FROM stock_units WHERE product_id = ?
+                  SELECT COALESCE(token_pk, 0) FROM stock_units 
+                  WHERE product_id = ? OR product_id_canonical = ?
               )
             ORDER BY tm.token_pk
             LIMIT 100`,
-            [productId, productId]
+            [productId, canonicalId, productId, canonicalId]
         );
 
         await connection.end();

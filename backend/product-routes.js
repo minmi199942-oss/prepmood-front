@@ -18,6 +18,108 @@ const dbConfig = {
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 };
 
+// ============================================================
+// 정규화 함수 (Dual-read 지원)
+// ============================================================
+
+/**
+ * product_id를 canonical_id로 정규화
+ * @param {string} productId - 입력 product_id (legacy 또는 canonical)
+ * @param {Object} connection - MySQL connection (트랜잭션 컨텍스트 유지)
+ * @returns {Promise<string|null>} - canonical_id (없으면 null)
+ */
+async function resolveProductId(productId, connection) {
+    if (!productId) return null;
+    
+    const [products] = await connection.execute(
+        `SELECT id, canonical_id
+         FROM admin_products 
+         WHERE canonical_id = ? OR id = ? 
+         LIMIT 1`,
+        [productId, productId]
+    );
+    
+    if (products.length === 0) {
+        return null;
+    }
+    
+    // canonical_id가 있으면 사용, 없으면 id를 canonical로 간주 (신규 상품)
+    return products[0].canonical_id || products[0].id;
+}
+
+/**
+ * product_id를 legacy_id와 canonical_id 둘 다 반환
+ * @param {string} productId - 입력 product_id (legacy 또는 canonical)
+ * @param {Object} connection - MySQL connection
+ * @returns {Promise<Object|null>} - {legacy_id, canonical_id} 또는 null
+ */
+async function resolveProductIdBoth(productId, connection) {
+    if (!productId) return null;
+    
+    const [products] = await connection.execute(
+        `SELECT id AS legacy_id, canonical_id
+         FROM admin_products
+         WHERE canonical_id = ? OR id = ?
+         LIMIT 1`,
+        [productId, productId]
+    );
+    
+    if (products.length === 0) {
+        return null;
+    }
+    
+    const result = products[0];
+    return {
+        legacy_id: result.legacy_id,  // admin_products.id (항상 legacy)
+        canonical_id: result.canonical_id || result.legacy_id  // canonical_id 또는 id
+    };
+}
+
+// 모니터링 카운터
+let legacyHitCount = 0;
+let totalResolveCount = 0;
+
+/**
+ * product_id를 canonical_id로 정규화 (모니터링 포함)
+ * @param {string} productId - 입력 product_id (legacy 또는 canonical)
+ * @param {Object} connection - MySQL connection
+ * @returns {Promise<string|null>} - canonical_id (없으면 null)
+ */
+async function resolveProductIdWithLogging(productId, connection) {
+    totalResolveCount++;
+    
+    if (!productId) return null;
+    
+    const [products] = await connection.execute(
+        `SELECT id, canonical_id
+         FROM admin_products
+         WHERE canonical_id = ? OR id = ?
+         LIMIT 1`,
+        [productId, productId]
+    );
+    
+    if (products.length === 0) {
+        return null;
+    }
+    
+    const result = products[0];
+    const canonicalId = result.canonical_id || result.id;
+    
+    // legacy hit 여부: 입력값이 id로만 매칭되고 canonical_id로는 매칭 안 됐다
+    const isLegacyHit = (productId === result.id && result.canonical_id && result.canonical_id !== result.id);
+    
+    if (isLegacyHit) {
+        legacyHitCount++;
+        // 로그는 주기(1000회마다) + rate limit로만
+        if (legacyHitCount % 1000 === 0) {
+            const rate = ((legacyHitCount / totalResolveCount) * 100).toFixed(2);
+            console.log(`[MONITORING] Legacy hit rate: ${rate}% (${legacyHitCount}/${totalResolveCount})`);
+        }
+    }
+    
+    return canonicalId;
+}
+
 // 이미지 업로드 설정
 const storage = multer.diskStorage({
     destination: async function (req, file, cb) {
@@ -111,13 +213,11 @@ router.get('/products/options', async (req, res) => {
         
         connection = await mysql.createConnection(dbConfig);
         
-        // 상품 존재 확인
-        const [products] = await connection.execute(
-            'SELECT id FROM admin_products WHERE id = ?',
-            [product_id]
-        );
+        // ⚠️ Dual-read: canonical_id 또는 id로 상품 조회
+        const canonicalId = await resolveProductId(product_id, connection);
         
-        if (products.length === 0) {
+        if (!canonicalId) {
+            await connection.end();
             return res.status(404).json({
                 success: false,
                 message: '상품을 찾을 수 없습니다.'
@@ -214,19 +314,20 @@ router.get('/products/options', async (req, res) => {
         // product_id에서 색상 추출
         const extractedColor = extractColorFromProductId(product_id);
         
-        // 재고가 있는 사이즈/색상 조회 (in_stock 상태)
+        // ⚠️ Dual-read: stock_units 조회 (SQL 괄호 버그 수정)
+        // product_id 또는 product_id_canonical로 조회
         const [sizeColorRows] = await connection.execute(
             `SELECT DISTINCT 
                 su.size,
                 su.color,
                 COUNT(*) as stock_count
             FROM stock_units su
-            WHERE su.product_id = ?
+            WHERE (su.product_id = ? OR su.product_id_canonical = ?)
               AND su.status = 'in_stock'
               AND (su.size IS NOT NULL OR su.color IS NOT NULL)
             GROUP BY su.size, su.color
             ORDER BY su.size, su.color`,
-            [product_id]
+            [product_id, canonicalId]
         );
         
         // 재고가 있는 사이즈와 색상 추출
@@ -318,18 +419,21 @@ router.get('/products/:id', async (req, res) => {
         
         connection = await mysql.createConnection(dbConfig);
         
+        // ⚠️ Dual-read: canonical_id 또는 id로 상품 조회
         const [products] = await connection.execute(
-            'SELECT * FROM admin_products WHERE id = ?',
-            [id]
+            'SELECT * FROM admin_products WHERE canonical_id = ? OR id = ? LIMIT 1',
+            [id, id]
         );
         
         if (products.length === 0) {
+            await connection.end();
             return res.status(404).json({
                 success: false,
                 message: '상품을 찾을 수 없습니다.'
             });
         }
         
+        await connection.end();
         res.json({
             success: true,
             product: products[0]
