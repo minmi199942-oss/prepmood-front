@@ -215,7 +215,14 @@
           <div class="form-group">
             <label for="productId">상품 ID</label>
             <input type="text" id="productId" name="id" value="${product.id || ''}" 
-                   ${isEditing ? 'readonly' : 'required'}>
+                   ${isEditing ? 'readonly' : 'required'}
+                   placeholder="예: PM-25-SH-Teneu-Solid-LB"
+                   oninput="validateProductId(this)">
+            <small style="color: #666; display: block; margin-top: 4px;">
+              ⚠️ 슬래시(/) 포함 금지. 사이즈는 재고 관리에서 별도 관리됩니다.<br>
+              형식: PM-25-SH-상품명-색상코드 (예: PM-25-SH-Teneu-Solid-LB)
+            </small>
+            <div id="productIdError" style="color: red; font-size: 0.875rem; margin-top: 4px; display: none;"></div>
           </div>
           <div class="form-group">
             <label for="productName">상품명</label>
@@ -406,6 +413,46 @@
     }
   }
 
+  // 상품 ID 유효성 검증 (Phase 1: 슬래시 제거 규칙)
+  function validateProductId(input) {
+    const productId = input.value.trim();
+    const errorDiv = document.getElementById('productIdError');
+    
+    if (!productId) {
+      errorDiv.style.display = 'none';
+      return true;
+    }
+    
+    // 슬래시(/) 포함 검증
+    if (productId.includes('/')) {
+      errorDiv.textContent = '❌ 상품 ID에 슬래시(/)를 포함할 수 없습니다. 사이즈는 재고 관리에서 별도 관리됩니다.';
+      errorDiv.style.display = 'block';
+      input.style.borderColor = '#dc3545';
+      return false;
+    }
+    
+    // 길이 검증 (128자)
+    if (productId.length > 128) {
+      errorDiv.textContent = '❌ 상품 ID는 최대 128자까지 입력 가능합니다.';
+      errorDiv.style.display = 'block';
+      input.style.borderColor = '#dc3545';
+      return false;
+    }
+    
+    // 형식 검증 (영문 대문자, 숫자, 하이픈만 허용)
+    const validPattern = /^[A-Z0-9-]+$/;
+    if (!validPattern.test(productId)) {
+      errorDiv.textContent = '❌ 상품 ID는 영문 대문자, 숫자, 하이픈(-)만 사용 가능합니다.';
+      errorDiv.style.display = 'block';
+      input.style.borderColor = '#dc3545';
+      return false;
+    }
+    
+    errorDiv.style.display = 'none';
+    input.style.borderColor = '';
+    return true;
+  }
+
   // 상품 저장
   async function saveProduct() {
     try {
@@ -419,6 +466,16 @@
       }
       
       const formData = new FormData(form);
+      
+      // ⚠️ Phase 1: 상품 ID 유효성 검증 (슬래시 제거 규칙)
+      const productId = formData.get('id');
+      if (productId) {
+        const productIdInput = form.querySelector('#productId');
+        if (!validateProductId(productIdInput)) {
+          alert('상품 ID 형식이 올바르지 않습니다. 슬래시(/)를 포함할 수 없습니다.');
+          return;
+        }
+      }
       
       const category = formData.get('category');
       const typeValue = formData.get('type');

@@ -392,6 +392,32 @@ router.post('/admin/products', authenticateToken, requireAdmin, async (req, res)
             });
         }
         
+        // ⚠️ Phase 1: 상품 ID 유효성 검증 (슬래시 제거 규칙)
+        // 슬래시(/) 포함 검증
+        if (id.includes('/')) {
+            return res.status(400).json({
+                success: false,
+                message: '상품 ID에 슬래시(/)를 포함할 수 없습니다. 사이즈는 재고 관리에서 별도 관리됩니다.'
+            });
+        }
+        
+        // 길이 검증 (128자)
+        if (id.length > 128) {
+            return res.status(400).json({
+                success: false,
+                message: '상품 ID는 최대 128자까지 입력 가능합니다.'
+            });
+        }
+        
+        // 형식 검증 (영문 대문자, 숫자, 하이픈만 허용)
+        const validPattern = /^[A-Z0-9-]+$/;
+        if (!validPattern.test(id)) {
+            return res.status(400).json({
+                success: false,
+                message: '상품 ID는 영문 대문자, 숫자, 하이픈(-)만 사용 가능합니다.'
+            });
+        }
+        
         // 카테고리 검증
         const VALID_CATEGORIES = ['tops', 'bottoms', 'outer', 'bags', 'accessories'];
         if (!VALID_CATEGORIES.includes(category)) {
