@@ -577,10 +577,11 @@ router.post('/admin/products', authenticateToken, requireAdmin, async (req, res)
             });
         }
         
-        // 상품 추가
+        // ⚠️ Dual-write: 상품 추가 (canonical_id 자동 설정)
+        // 신규 상품은 슬래시 없으므로 canonical_id = id
         await connection.execute(
-            'INSERT INTO admin_products (id, name, price, image, collection_year, category, type, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, name, price, image || null, collectionYear, category, normalizedType, description || null]
+            'INSERT INTO admin_products (id, canonical_id, name, price, image, collection_year, category, type, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, id, name, price, image || null, collectionYear, category, normalizedType, description || null]
         );
         
         console.log('✅ 상품 추가 성공:', id, name);
