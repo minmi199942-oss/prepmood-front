@@ -46,8 +46,10 @@ SELECT '=== 3. order_items에서 orphan 상품 사용 내역 ===' AS info;
 SELECT 
     oi.order_id,
     oi.product_id,
+    oi.product_name,
     oi.quantity,
-    oi.price,
+    oi.unit_price,
+    oi.subtotal,
     o.created_at as order_date,
     o.status as order_status
 FROM order_items oi
