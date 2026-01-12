@@ -8,6 +8,7 @@ const { verifyCSRF } = require('./csrf-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+const { resolveProductIdBoth } = require('./utils/product-id-resolver');
 
 // 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
 const COUNTRY_RULES = {
@@ -573,13 +574,34 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
 
             const orderId = orderResult.insertId;
 
-            // order_items 테이블에 주문 상품들 저장 (size, color 포함)
+            // ⚠️ Dual-write: order_items 테이블에 주문 상품들 저장 (legacy_id와 canonical_id 둘 다 저장)
             for (const itemData of orderItemsData) {
+                // product_id를 legacy_id와 canonical_id로 확정
+                const productIds = await resolveProductIdBoth(itemData.product_id, connection);
+                
+                if (!productIds) {
+                    Logger.warn('[ORDER] 상품 ID를 찾을 수 없음 (주문 생성)', {
+                        product_id: itemData.product_id,
+                        order_id: orderId
+                    });
+                    // 경고만 하고 계속 진행 (기존 동작 유지)
+                }
+                
                 await connection.execute(
-                    `INSERT INTO order_items (order_id, product_id, product_name, size, color, product_image, quantity, unit_price, subtotal)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [orderId, itemData.product_id, itemData.product_name, itemData.size || null, itemData.color || null,
-                     itemData.product_image, itemData.quantity, itemData.unit_price, itemData.subtotal]
+                    `INSERT INTO order_items (order_id, product_id, product_id_canonical, product_name, size, color, product_image, quantity, unit_price, subtotal)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        orderId,
+                        productIds ? productIds.legacy_id : itemData.product_id,  // legacy_id (fallback: 원본)
+                        productIds ? productIds.canonical_id : null,              // canonical_id (fallback: NULL)
+                        itemData.product_name,
+                        itemData.size || null,
+                        itemData.color || null,
+                        itemData.product_image,
+                        itemData.quantity,
+                        itemData.unit_price,
+                        itemData.subtotal
+                    ]
                 );
             }
 
