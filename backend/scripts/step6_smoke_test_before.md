@@ -63,24 +63,34 @@ curl -H "Authorization: Bearer {TOKEN}" \
   "https://prepmood.kr/api/admin/stock?product_id=PM-26-SH-Teneu-Solid-LB-S%2FM%2FL&limit=10"
 ```
 
-**또는 브라우저에서**:
+**또는 브라우저 Console에서**:
 1. 관리자 페이지 로그인
-2. 재고 관리 페이지 접속
-3. 개발자 도구(F12) → Network 탭 열기
-4. 재고 목록 로드 확인
-5. Console에서 아래 코드 실행:
+2. 개발자 도구(F12) → Console 탭
+3. 아래 코드를 **한 줄로 복사해서 실행**:
 ```javascript
-// 관리자 토큰 가져오기
-const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+const token = localStorage.getItem('token') || sessionStorage.getItem('token'); fetch('https://prepmood.kr/api/admin/stock?product_id=PM-26-SH-Teneu-Solid-LB-S%2FM%2FL&limit=10', { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()).then(data => console.log('✅ 재고 조회 결과:', data)).catch(err => console.error('❌ 오류:', err));
+```
 
-// API 호출
+**또는 단계별로 실행**:
+```javascript
+// 1. 토큰 가져오기
+const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+console.log('토큰:', token ? '존재함' : '없음');
+
+// 2. API 호출
 fetch('https://prepmood.kr/api/admin/stock?product_id=PM-26-SH-Teneu-Solid-LB-S%2FM%2FL&limit=10', {
-  headers: {
-    'Authorization': `Bearer ${token}`
-  }
+  headers: { 'Authorization': `Bearer ${token}` }
 })
-.then(r => r.json())
-.then(data => console.log('재고 조회 결과:', data));
+.then(r => {
+  console.log('응답 상태:', r.status);
+  return r.json();
+})
+.then(data => {
+  console.log('✅ 재고 조회 결과:', data);
+  console.log('재고 개수:', data.stock?.length || 0);
+  console.log('성공 여부:', data.success);
+})
+.catch(err => console.error('❌ 오류:', err));
 ```
 
 **예상 결과**:
