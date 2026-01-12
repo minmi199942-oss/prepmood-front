@@ -130,7 +130,7 @@ SELECT
     COUNT(*) as total_items,
     COUNT(DISTINCT product_id) as unique_product_ids,
     COUNT(DISTINCT CASE WHEN product_id NOT IN (SELECT id FROM admin_products) THEN product_id END) as orphan_product_ids,
-    GROUP_CONCAT(DISTINCT CASE WHEN product_id NOT IN (SELECT id FROM admin_products) THEN product_id END LIMIT 10) as orphan_list
+    SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT CASE WHEN product_id NOT IN (SELECT id FROM admin_products) THEN product_id END SEPARATOR ', '), ',', 10) as orphan_list
 FROM order_items;
 
 -- ============================================================
