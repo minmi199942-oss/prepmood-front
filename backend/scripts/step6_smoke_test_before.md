@@ -52,26 +52,46 @@ curl "https://prepmood.kr/api/products/options?product_id=PM-26-SH-Teneu-Solid-L
 ### 3. 관리자 재고 조회: legacy 필터
 **목적**: 관리자 재고 조회에서 legacy ID 필터가 정상 동작하는지 확인
 
-**테스트 방법**:
+**테스트 방법 (API 직접 호출)**:
+```bash
+# 관리자 토큰 필요 (브라우저 개발자 도구에서 확인)
+# 1. 관리자 페이지 로그인
+# 2. 개발자 도구(F12) → Application → Local Storage → token 확인
+# 3. 아래 명령어 실행 (TOKEN을 실제 토큰으로 교체)
+
+curl -H "Authorization: Bearer {TOKEN}" \
+  "https://prepmood.kr/api/admin/stock?product_id=PM-26-SH-Teneu-Solid-LB-S%2FM%2FL&limit=10"
+```
+
+**또는 브라우저에서**:
 1. 관리자 페이지 로그인
 2. 재고 관리 페이지 접속
-3. 상품 ID 필터에 legacy ID 입력 (예: `PM-26-SH-Teneu-Solid-LB-S/M/L`)
-4. 조회 버튼 클릭
+3. 개발자 도구(F12) → Network 탭 열기
+4. 재고 목록 로드 확인
+5. Console에서 아래 코드 실행:
+```javascript
+// 관리자 토큰 가져오기
+const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-**또는 API 직접 호출**:
-```bash
-# 관리자 토큰 필요
-curl -H "Authorization: Bearer {admin_token}" \
-  "https://prepmood.kr/api/admin/stock?product_id=PM-26-SH-Teneu-Solid-LB-S%2FM%2FL"
+// API 호출
+fetch('https://prepmood.kr/api/admin/stock?product_id=PM-26-SH-Teneu-Solid-LB-S%2FM%2FL&limit=10', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+})
+.then(r => r.json())
+.then(data => console.log('재고 조회 결과:', data));
 ```
 
 **예상 결과**:
-- 재고 목록 정상 반환
+- `success: true`
+- `stock`: 재고 목록 배열
 - 해당 상품의 재고만 필터링됨
 
 **확인 사항**:
-- [ ] 재고 목록 정상 표시
-- [ ] 필터링 정상 동작
+- [ ] HTTP 200 응답
+- [ ] 재고 목록 정상 반환
+- [ ] 필터링 정상 동작 (해당 상품의 재고만 반환)
 - [ ] product_id가 legacy ID인 재고도 조회됨
 
 ---
@@ -79,22 +99,37 @@ curl -H "Authorization: Bearer {admin_token}" \
 ### 4. 토큰 조회(상품별): legacy 입력
 **목적**: 토큰 조회에서 legacy ID로도 정상 조회되는지 확인
 
-**테스트 방법**:
+**테스트 방법 (API 직접 호출)**:
 ```bash
-# 관리자 토큰 필요
-curl -H "Authorization: Bearer {admin_token}" \
+# 관리자 토큰 필요 (브라우저 개발자 도구에서 확인)
+curl -H "Authorization: Bearer {TOKEN}" \
   "https://prepmood.kr/api/admin/stock/products/PM-26-SH-Teneu-Solid-LB-S%2FM%2FL/tokens"
+```
+
+**또는 브라우저 Console에서**:
+```javascript
+// 관리자 토큰 가져오기
+const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+
+// API 호출
+fetch('https://prepmood.kr/api/admin/stock/products/PM-26-SH-Teneu-Solid-LB-S%2FM%2FL/tokens', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+})
+.then(r => r.json())
+.then(data => console.log('토큰 조회 결과:', data));
 ```
 
 **예상 결과**:
 - `success: true`
-- `tokens`: 토큰 목록 반환
-- `product`: 상품 정보 반환
+- `tokens`: 토큰 목록 반환 (배열)
+- `product`: 상품 정보 반환 (id, name, short_name)
 
 **확인 사항**:
 - [ ] HTTP 200 응답
 - [ ] 토큰 목록 정상 반환
-- [ ] 상품 정보 정상 반환
+- [ ] 상품 정보 정상 반환 (legacy ID로도 조회 가능)
 
 ---
 
