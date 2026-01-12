@@ -24,10 +24,56 @@ WHERE id LIKE 'PM-25-%';
 -- 여기서는 FK를 다시 제거하고 업데이트 후 재생성
 
 -- 2-1. FK 제약 조건 제거
+-- ⚠️ MySQL 버전에 따라 IF EXISTS 지원 안 함 → 동적 SQL 사용
 SELECT '=== 2-1. FK 제약 조건 제거 ===' AS info;
-ALTER TABLE order_stock_issues DROP FOREIGN KEY IF EXISTS order_stock_issues_ibfk_3;
-ALTER TABLE stock_units DROP FOREIGN KEY IF EXISTS stock_units_ibfk_1;
-ALTER TABLE token_master DROP FOREIGN KEY IF EXISTS fk_token_master_product_id;
+
+-- order_stock_issues FK 제거
+SET @fk_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.KEY_COLUMN_USAGE 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'order_stock_issues' 
+      AND CONSTRAINT_NAME = 'order_stock_issues_ibfk_3'
+);
+SET @sql = IF(@fk_exists > 0,
+    'ALTER TABLE order_stock_issues DROP FOREIGN KEY order_stock_issues_ibfk_3',
+    'SELECT ''order_stock_issues_ibfk_3 FK가 존재하지 않습니다.'' AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- stock_units FK 제거
+SET @fk_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.KEY_COLUMN_USAGE 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'stock_units' 
+      AND CONSTRAINT_NAME = 'stock_units_ibfk_1'
+);
+SET @sql = IF(@fk_exists > 0,
+    'ALTER TABLE stock_units DROP FOREIGN KEY stock_units_ibfk_1',
+    'SELECT ''stock_units_ibfk_1 FK가 존재하지 않습니다.'' AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- token_master FK 제거
+SET @fk_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.KEY_COLUMN_USAGE 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'token_master' 
+      AND CONSTRAINT_NAME = 'fk_token_master_product_id'
+);
+SET @sql = IF(@fk_exists > 0,
+    'ALTER TABLE token_master DROP FOREIGN KEY fk_token_master_product_id',
+    'SELECT ''fk_token_master_product_id FK가 존재하지 않습니다.'' AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 2-2. admin_products.id 업데이트
 SELECT '=== 2-2. admin_products.id 업데이트 ===' AS info;
