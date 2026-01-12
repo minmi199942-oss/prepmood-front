@@ -197,16 +197,22 @@
 
 **목적**: legacy 입력 hit rate 모니터링, 데이터 수렴 확인
 
-**모니터링**:
+**운영 중인 경우**:
 - DB 기반: orphan/NULL 리포트 (일 단위)
 - 로그 기반: legacy 입력 hit rate (일 단위)
+- 검증 완료 기준: legacy hit rate 0% 수렴 (1주일 동안 0%), orphan_count 0, canonical_null_count 0
+- 예상 시간: 1-2주 (모니터링만)
 
-**검증 완료 기준**:
-- legacy hit rate 0% 수렴 (1주일 동안 0%)
-- orphan_count 0
-- canonical_null_count 0
-
-**예상 시간**: 1-2주 (모니터링만)
+**운영 중이 아닌 경우 (수동 테스트)**:
+- 스모크 테스트 가이드: `backend/scripts/step6_smoke_test_after.md` 참조
+- 테스트 항목:
+  1. 재고 추가 dual-write 확인
+  2. 상품 생성 canonical_id 자동 설정 확인
+  3. 주문 생성 dual-write 확인
+  4. 조회 API dual-read 확인
+  5. 정합성 검증 쿼리 실행
+- 검증 완료 기준: 모든 테스트 통과, 정합성 쿼리 모두 0
+- 예상 시간: 10-15분 (수동 테스트)
 
 ---
 
