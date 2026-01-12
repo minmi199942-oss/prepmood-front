@@ -126,7 +126,14 @@ async function initAdminLayout(currentPage, skipAuthCheck = false) {
   return true;
 }
 
-// 전역으로 export
+// 전역으로 export (브라우저 환경)
+if (typeof window !== 'undefined') {
+  window.initAdminLayout = initAdminLayout;
+  window.checkAdminAccess = checkAdminAccess;
+  window.handleLogout = handleLogout;
+}
+
+// Node.js 환경 (테스트용)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { initAdminLayout, checkAdminAccess, handleLogout };
 }
