@@ -24,52 +24,58 @@ WHERE id LIKE 'PM-25-%';
 -- 여기서는 FK를 다시 제거하고 업데이트 후 재생성
 
 -- 2-1. FK 제약 조건 제거
--- ⚠️ MySQL 버전에 따라 IF EXISTS 지원 안 함 → 동적 SQL 사용
+-- ⚠️ FK 이름을 동적으로 찾아서 제거 (050번과 동일한 방식)
 SELECT '=== 2-1. FK 제약 조건 제거 ===' AS info;
 
 -- order_stock_issues FK 제거
-SET @fk_exists = (
-    SELECT COUNT(*) 
+SET @fk_name = (
+    SELECT CONSTRAINT_NAME 
     FROM information_schema.KEY_COLUMN_USAGE 
     WHERE TABLE_SCHEMA = 'prepmood' 
       AND TABLE_NAME = 'order_stock_issues' 
-      AND CONSTRAINT_NAME = 'order_stock_issues_ibfk_3'
+      AND REFERENCED_TABLE_NAME = 'admin_products'
+      AND REFERENCED_COLUMN_NAME = 'id'
+    LIMIT 1
 );
-SET @sql = IF(@fk_exists > 0,
-    'ALTER TABLE order_stock_issues DROP FOREIGN KEY order_stock_issues_ibfk_3',
-    'SELECT ''order_stock_issues_ibfk_3 FK가 존재하지 않습니다.'' AS info'
+SET @sql = IF(@fk_name IS NOT NULL, 
+    CONCAT('ALTER TABLE order_stock_issues DROP FOREIGN KEY ', @fk_name),
+    'SELECT ''order_stock_issues FK 없음'' AS info'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- stock_units FK 제거
-SET @fk_exists = (
-    SELECT COUNT(*) 
+SET @fk_name = (
+    SELECT CONSTRAINT_NAME 
     FROM information_schema.KEY_COLUMN_USAGE 
     WHERE TABLE_SCHEMA = 'prepmood' 
       AND TABLE_NAME = 'stock_units' 
-      AND CONSTRAINT_NAME = 'stock_units_ibfk_1'
+      AND REFERENCED_TABLE_NAME = 'admin_products'
+      AND REFERENCED_COLUMN_NAME = 'id'
+    LIMIT 1
 );
-SET @sql = IF(@fk_exists > 0,
-    'ALTER TABLE stock_units DROP FOREIGN KEY stock_units_ibfk_1',
-    'SELECT ''stock_units_ibfk_1 FK가 존재하지 않습니다.'' AS info'
+SET @sql = IF(@fk_name IS NOT NULL, 
+    CONCAT('ALTER TABLE stock_units DROP FOREIGN KEY ', @fk_name),
+    'SELECT ''stock_units FK 없음'' AS info'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- token_master FK 제거
-SET @fk_exists = (
-    SELECT COUNT(*) 
+SET @fk_name = (
+    SELECT CONSTRAINT_NAME 
     FROM information_schema.KEY_COLUMN_USAGE 
     WHERE TABLE_SCHEMA = 'prepmood' 
       AND TABLE_NAME = 'token_master' 
-      AND CONSTRAINT_NAME = 'fk_token_master_product_id'
+      AND REFERENCED_TABLE_NAME = 'admin_products'
+      AND REFERENCED_COLUMN_NAME = 'id'
+    LIMIT 1
 );
-SET @sql = IF(@fk_exists > 0,
-    'ALTER TABLE token_master DROP FOREIGN KEY fk_token_master_product_id',
-    'SELECT ''fk_token_master_product_id FK가 존재하지 않습니다.'' AS info'
+SET @sql = IF(@fk_name IS NOT NULL, 
+    CONCAT('ALTER TABLE token_master DROP FOREIGN KEY ', @fk_name),
+    'SELECT ''token_master FK 없음'' AS info'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
@@ -103,17 +109,22 @@ SET product_id = REPLACE(product_id, 'PM-25-', 'PM-26-')
 WHERE product_id LIKE 'PM-25-%';
 
 -- 2-7. FK 제약 조건 재생성
+-- ⚠️ FK 이름은 동적으로 생성되므로, 기본 이름 사용
 SELECT '=== 2-7. FK 제약 조건 재생성 ===' AS info;
+
+-- order_stock_issues FK 재생성
 ALTER TABLE order_stock_issues 
 ADD CONSTRAINT order_stock_issues_ibfk_3 
 FOREIGN KEY (product_id) REFERENCES admin_products(id) ON DELETE RESTRICT;
 
+-- stock_units FK 재생성
 ALTER TABLE stock_units 
 ADD CONSTRAINT stock_units_ibfk_1 
 FOREIGN KEY (product_id) REFERENCES admin_products(id) ON DELETE RESTRICT;
 
+-- token_master FK 재생성 (실제 FK 이름 확인 필요)
 ALTER TABLE token_master 
-ADD CONSTRAINT fk_token_master_product_id 
+ADD CONSTRAINT token_master_ibfk_product_id 
 FOREIGN KEY (product_id) REFERENCES admin_products(id) ON DELETE RESTRICT;
 
 -- ============================================================
