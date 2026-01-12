@@ -32,8 +32,21 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- 임시 인덱스 생성 (UNIQUE 전에, 조회 성능 향상)
-CREATE INDEX IF NOT EXISTS idx_admin_products_canonical_id_temp 
-ON admin_products(canonical_id);
+-- ⚠️ MySQL 버전 호환: IF NOT EXISTS 지원 안 함 → 동적 SQL 사용
+SET @idx_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.STATISTICS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'admin_products' 
+      AND INDEX_NAME = 'idx_admin_products_canonical_id_temp'
+);
+SET @sql = IF(@idx_exists = 0,
+    'CREATE INDEX idx_admin_products_canonical_id_temp ON admin_products(canonical_id)',
+    'SELECT ''idx_admin_products_canonical_id_temp 인덱스가 이미 존재합니다.'' AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 SELECT '=== admin_products.canonical_id 컬럼 추가 완료 ===' AS status;
 
@@ -60,8 +73,21 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- 인덱스 추가 (non-unique)
-CREATE INDEX IF NOT EXISTS idx_stock_units_product_id_canonical 
-ON stock_units(product_id_canonical);
+-- ⚠️ MySQL 버전 호환: IF NOT EXISTS 지원 안 함 → 동적 SQL 사용
+SET @idx_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.STATISTICS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'stock_units' 
+      AND INDEX_NAME = 'idx_stock_units_product_id_canonical'
+);
+SET @sql = IF(@idx_exists = 0,
+    'CREATE INDEX idx_stock_units_product_id_canonical ON stock_units(product_id_canonical)',
+    'SELECT ''idx_stock_units_product_id_canonical 인덱스가 이미 존재합니다.'' AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 SELECT '=== stock_units.product_id_canonical 컬럼 추가 완료 ===' AS status;
 
