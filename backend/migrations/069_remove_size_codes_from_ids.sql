@@ -185,9 +185,60 @@ SET w.product_id = ap.id
 WHERE w.product_id = ap.id_backup;
 
 -- ============================================================
--- 5. FK 제약 조건 재생성
+-- 5. Orphan 확인 및 수정
 -- ============================================================
-SELECT '=== 5. FK 제약 조건 재생성 ===' AS info;
+SELECT '=== 5. Orphan 확인 및 수정 ===' AS info;
+
+-- stock_units orphan 확인
+SELECT 
+    'stock_units orphan' AS check_type,
+    COUNT(*) as orphan_count,
+    GROUP_CONCAT(DISTINCT su.product_id ORDER BY su.product_id SEPARATOR ', ') as orphan_ids
+FROM stock_units su
+LEFT JOIN admin_products ap ON su.product_id = ap.id
+WHERE su.product_id IS NOT NULL AND ap.id IS NULL;
+
+-- stock_units orphan 수정 (id_backup으로 매칭)
+UPDATE stock_units su
+LEFT JOIN admin_products ap ON su.product_id = ap.id
+JOIN admin_products ap2 ON su.product_id = ap2.id_backup
+SET su.product_id = ap2.id
+WHERE ap.id IS NULL AND ap2.id_backup IS NOT NULL;
+
+-- order_items orphan 확인
+SELECT 
+    'order_items orphan' AS check_type,
+    COUNT(*) as orphan_count,
+    GROUP_CONCAT(DISTINCT oi.product_id ORDER BY oi.product_id SEPARATOR ', ') as orphan_ids
+FROM order_items oi
+LEFT JOIN admin_products ap ON oi.product_id = ap.id
+WHERE oi.product_id IS NOT NULL AND ap.id IS NULL;
+
+-- order_items orphan 수정 (id_backup으로 매칭)
+UPDATE order_items oi
+LEFT JOIN admin_products ap ON oi.product_id = ap.id
+JOIN admin_products ap2 ON oi.product_id = ap2.id_backup
+SET oi.product_id = ap2.id
+WHERE ap.id IS NULL AND ap2.id_backup IS NOT NULL;
+
+-- cart_items orphan 확인 및 수정
+UPDATE cart_items ci
+LEFT JOIN admin_products ap ON ci.product_id = ap.id
+JOIN admin_products ap2 ON ci.product_id = ap2.id_backup
+SET ci.product_id = ap2.id
+WHERE ap.id IS NULL AND ap2.id_backup IS NOT NULL;
+
+-- wishlists orphan 확인 및 수정
+UPDATE wishlists w
+LEFT JOIN admin_products ap ON w.product_id = ap.id
+JOIN admin_products ap2 ON w.product_id = ap2.id_backup
+SET w.product_id = ap2.id
+WHERE ap.id IS NULL AND ap2.id_backup IS NOT NULL;
+
+-- ============================================================
+-- 6. FK 제약 조건 재생성
+-- ============================================================
+SELECT '=== 6. FK 제약 조건 재생성 ===' AS info;
 
 -- order_stock_issues FK 재생성
 SET @fk_exists = (
@@ -241,9 +292,9 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- ============================================================
--- 6. 최종 확인
+-- 7. 최종 확인
 -- ============================================================
-SELECT '=== 6. 최종 확인 ===' AS info;
+SELECT '=== 7. 최종 확인 ===' AS info;
 
 -- 사이즈 코드가 남아있는지 확인
 SELECT 
