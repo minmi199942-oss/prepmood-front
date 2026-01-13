@@ -259,38 +259,39 @@ router.get('/products/options', async (req, res) => {
         const extractedColor = extractColorFromProductId(product_id);
         
         // ⚠️ 해당 상품에 존재하는 모든 사이즈/색상 조회 (재고 상태와 관계없이)
-        // status 조건 제거하여 모든 stock_units 조회
+        // GPT 제안: DISTINCT만 사용 (GROUP BY 불필요)
         const [allSizeColorRows] = await connection.execute(
             `SELECT DISTINCT 
                 su.size,
                 su.color
             FROM stock_units su
             WHERE su.product_id = ?
-              AND (su.size IS NOT NULL OR su.color IS NOT NULL)
-            GROUP BY su.size, su.color
+              AND su.size IS NOT NULL 
+              AND su.color IS NOT NULL
             ORDER BY su.size, su.color`,
             [canonicalId]
         );
         
         // 재고가 있는 사이즈/색상 조회 (in_stock만)
+        // GPT 제안: 동일한 구조로 조회하여 비교 용이하게
         const [inStockRows] = await connection.execute(
             `SELECT DISTINCT 
                 su.size,
-                su.color,
-                COUNT(*) as stock_count
+                su.color
             FROM stock_units su
             WHERE su.product_id = ?
               AND su.status = 'in_stock'
-              AND (su.size IS NOT NULL OR su.color IS NOT NULL)
-            GROUP BY su.size, su.color
+              AND su.size IS NOT NULL 
+              AND su.color IS NOT NULL
             ORDER BY su.size, su.color`,
             [canonicalId]
         );
         
         // 색상 정규화 함수 (SIZE_COLOR_STANDARDIZATION_POLICY.md 참고)
+        // GPT 제안: trim 필수 (공백, 대소문자 정규화)
         function normalizeColor(color) {
             if (!color) return null;
-            const normalized = color.trim();
+            const normalized = String(color).trim();
             const colorMap = {
                 'LightBlue': 'Light Blue',
                 'Light-Blue': 'Light Blue',
@@ -309,22 +310,41 @@ router.get('/products/options', async (req, res) => {
             return colorMap[normalized] || normalized;
         }
         
-        // 재고가 있는 사이즈와 색상 추출 (색상 정규화 적용)
-        const availableSizes = new Set();
-        const availableColors = new Set();
+        // GPT 제안: size+color 조합을 키로 사용하여 O(1) 조회
+        const keyOf = (size, color) => `${(size || '').trim()}||${(color || '').trim()}`;
         
+        // in_stock 조합을 Set으로 변환 (정규화 적용)
+        const inStockSet = new Set();
         inStockRows.forEach(row => {
-            if (row.size) availableSizes.add(row.size);
-            if (row.color) {
-                const normalizedColor = normalizeColor(row.color);
-                availableColors.add(normalizedColor);
+            const normalizedSize = (row.size || '').trim();
+            const normalizedColor = normalizeColor(row.color);
+            if (normalizedSize && normalizedColor) {
+                inStockSet.add(keyOf(normalizedSize, normalizedColor));
             }
         });
         
-        // ⚠️ 해당 상품에 존재하는 모든 사이즈 반환 (재고 여부와 관계없이)
+        // ⚠️ 사이즈별 available 계산 (GPT 제안: 사이즈 단위로 하나라도 in_stock이면 true)
         const allSizes = new Set();
+        const sizeAvailableMap = new Map(); // {size: boolean}
+        
         allSizeColorRows.forEach(row => {
-            if (row.size) allSizes.add(row.size);
+            const normalizedSize = (row.size || '').trim();
+            const normalizedColor = normalizeColor(row.color);
+            
+            if (normalizedSize && normalizedColor) {
+                allSizes.add(normalizedSize);
+                
+                // 해당 사이즈+색상 조합이 in_stock인지 확인
+                const isAvailable = inStockSet.has(keyOf(normalizedSize, normalizedColor));
+                
+                // 사이즈별로 하나라도 available이면 true
+                if (isAvailable) {
+                    sizeAvailableMap.set(normalizedSize, true);
+                } else if (!sizeAvailableMap.has(normalizedSize)) {
+                    // 아직 false로 설정되지 않았으면 false로 설정
+                    sizeAvailableMap.set(normalizedSize, false);
+                }
+            }
         });
         
         // 표준 사이즈 순서 정의
@@ -338,23 +358,40 @@ router.get('/products/options', async (req, res) => {
             return a.localeCompare(b);
         }).map(size => ({
             size: size,
-            available: availableSizes.has(size)  // 재고가 있으면 true, 없으면 false
+            available: sizeAvailableMap.get(size) || false
         }));
         
-        // ⚠️ 해당 상품에 존재하는 모든 색상 반환 (재고 여부와 관계없이)
+        // ⚠️ 색상별 available 계산 (GPT 제안: 색상 단위로 하나라도 in_stock이면 true)
         const allColors = new Set();
+        const colorAvailableMap = new Map(); // {color: boolean}
+        
         allSizeColorRows.forEach(row => {
-            if (row.color) {
-                const normalizedColor = normalizeColor(row.color);
-                if (normalizedColor) allColors.add(normalizedColor);
+            const normalizedSize = (row.size || '').trim();
+            const normalizedColor = normalizeColor(row.color);
+            
+            if (normalizedSize && normalizedColor) {
+                allColors.add(normalizedColor);
+                
+                // 해당 사이즈+색상 조합이 in_stock인지 확인
+                const isAvailable = inStockSet.has(keyOf(normalizedSize, normalizedColor));
+                
+                // 색상별로 하나라도 available이면 true
+                if (isAvailable) {
+                    colorAvailableMap.set(normalizedColor, true);
+                } else if (!colorAvailableMap.has(normalizedColor)) {
+                    // 아직 false로 설정되지 않았으면 false로 설정
+                    colorAvailableMap.set(normalizedColor, false);
+                }
             }
         });
         
         // product_id에서 추출한 색상도 포함 (해당 상품에 존재하지 않더라도)
         if (extractedColor) {
             const normalizedExtractedColor = normalizeColor(extractedColor);
-            if (normalizedExtractedColor) {
+            if (normalizedExtractedColor && !allColors.has(normalizedExtractedColor)) {
                 allColors.add(normalizedExtractedColor);
+                // product_id에서 추출한 색상은 available 여부를 확인할 수 없으므로 false
+                colorAvailableMap.set(normalizedExtractedColor, false);
             }
         }
         
@@ -363,11 +400,12 @@ router.get('/products/options', async (req, res) => {
         // GY → Grey 매핑이지만 재고에 Light Grey가 있는 경우 Light Grey로 표시
         if (allColors.has('Grey') && allColors.has('Light Grey')) {
             allColors.delete('Grey'); // Grey 제거하고 Light Grey만 표시
+            colorAvailableMap.delete('Grey');
         }
         
         const colorsWithStock = Array.from(allColors).sort().map(color => ({
             color: color,
-            available: availableColors.has(color)  // 재고가 있으면 true, 없으면 false
+            available: colorAvailableMap.get(color) || false
         }));
         
         // 디버깅: 최종 결과 확인
