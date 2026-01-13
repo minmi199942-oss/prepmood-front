@@ -225,8 +225,8 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
 
         // 상품 정보 조회 (short_name도 포함)
         const [products] = await connection.execute(
-            'SELECT id, name, short_name FROM admin_products WHERE canonical_id = ? OR id = ? LIMIT 1',
-            [canonicalId, productId]
+            'SELECT id, name, short_name FROM admin_products WHERE id = ? LIMIT 1',
+            [productId]
         );
 
         if (products.length === 0) {

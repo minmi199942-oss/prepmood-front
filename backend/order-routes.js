@@ -574,9 +574,9 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
 
             const orderId = orderResult.insertId;
 
-            // ⚠️ Dual-write: order_items 테이블에 주문 상품들 저장 (legacy_id와 canonical_id 둘 다 저장)
+            // order_items 테이블에 주문 상품들 저장
             for (const itemData of orderItemsData) {
-                // product_id를 legacy_id와 canonical_id로 확정
+                // 상품 존재 확인
                 const productIds = await resolveProductIdBoth(itemData.product_id, connection);
                 
                 if (!productIds) {
@@ -588,12 +588,11 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
                 }
                 
                 await connection.execute(
-                    `INSERT INTO order_items (order_id, product_id, product_id_canonical, product_name, size, color, product_image, quantity, unit_price, subtotal)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    `INSERT INTO order_items (order_id, product_id, product_name, size, color, product_image, quantity, unit_price, subtotal)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         orderId,
-                        productIds ? productIds.legacy_id : itemData.product_id,  // legacy_id (fallback: 원본)
-                        productIds ? productIds.canonical_id : null,              // canonical_id (fallback: NULL)
+                        productIds ? productIds.canonical_id : itemData.product_id,  // product_id (cutover 후 id가 canonical)
                         itemData.product_name,
                         itemData.size || null,
                         itemData.color || null,
