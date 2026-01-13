@@ -1,6 +1,10 @@
 # 현재 상태 및 다음 단계 분석
 
-**분석 기준**: `COMPREHENSIVE_IMPLEMENTATION_ROADMAP.md` (2026-01-11 기준)
+**⚠️ 중요**: 데이터베이스 스키마 구조는 `SCHEMA_SSOT.md`를 기준으로 합니다.
+
+**분석 기준**: 
+- `SCHEMA_SSOT.md`: 데이터베이스 스키마 실제 구조 (최종 기준)
+- `COMPREHENSIVE_IMPLEMENTATION_ROADMAP.md`: 구현 로드맵 (2026-01-11 기준)
 
 ## ✅ 완료된 작업
 

@@ -4,7 +4,10 @@
 
 **이 문서는 QR 코드, 디지털 보증서, 인보이스 관련 모든 구현의 단일 진실 원천(SSOT)입니다.**
 
+**⚠️ 중요**: 데이터베이스 스키마 구조는 `SCHEMA_SSOT.md`가 최종 기준입니다. 이 문서의 Phase 2 스펙은 "이상적 목표"이며, 실제 구조와 다를 수 있습니다.
+
 **기준 문서**:
+- `SCHEMA_SSOT.md`: **데이터베이스 스키마 실제 구조 (최종 기준)**
 - `SYSTEM_FLOW_DETAILED.md`: 시스템 전체 흐름 상세 가이드
 - `FINAL_EXECUTION_SPEC_REVIEW.md`: 최종 실행 스펙 검토 보고서
 - `ADMIN_QR_WARRANTY_INVOICE_CONSISTENCY_CHECK.md`: 관리자 페이지 기능 일관성 검토
