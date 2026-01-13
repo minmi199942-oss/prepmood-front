@@ -341,38 +341,34 @@ router.get('/products/options', async (req, res) => {
             available: availableSizes.has(size)  // 재고가 있으면 true, 없으면 false
         }));
         
-        // 색상 처리: product_id에서 추출한 색상은 항상 표시 (재고 여부와 관계없이)
-        const colorsWithStock = [];
-        if (extractedColor) {
-            // product_id에서 추출한 색상도 정규화
-            const normalizedExtractedColor = normalizeColor(extractedColor);
-            
-            // ⚠️ 특수 케이스: GY는 Grey로 매핑되지만, 실제 재고는 Light Grey일 수 있음
-            // Oxford Stripe 같은 경우 GY가 Light Grey를 의미할 수 있음
-            let isAvailable = availableColors.has(normalizedExtractedColor);
-            let displayColor = normalizedExtractedColor;
-            
-            // GY → Grey 매핑이지만 재고에 Light Grey가 있는 경우
-            if (!isAvailable && normalizedExtractedColor === 'Grey' && availableColors.has('Light Grey')) {
-                // product_id에 GY가 있고 재고에 Light Grey가 있으면, Light Grey로 매핑
-                isAvailable = true;
-                displayColor = 'Light Grey';
+        // ⚠️ 해당 상품에 존재하는 모든 색상 반환 (재고 여부와 관계없이)
+        const allColors = new Set();
+        allSizeColorRows.forEach(row => {
+            if (row.color) {
+                const normalizedColor = normalizeColor(row.color);
+                if (normalizedColor) allColors.add(normalizedColor);
             }
-            
-            colorsWithStock.push({
-                color: displayColor,
-                available: isAvailable
-            });
-        } else {
-            // product_id에서 색상을 추출할 수 없으면, 재고가 있는 색상만 반환
-            // (기존 동작 유지 - 색상 정보가 없으면 재고 기반으로만 표시)
-            availableColors.forEach(color => {
-                colorsWithStock.push({
-                    color: color,
-                    available: true
-                });
-            });
+        });
+        
+        // product_id에서 추출한 색상도 포함 (해당 상품에 존재하지 않더라도)
+        if (extractedColor) {
+            const normalizedExtractedColor = normalizeColor(extractedColor);
+            if (normalizedExtractedColor) {
+                allColors.add(normalizedExtractedColor);
+            }
         }
+        
+        // ⚠️ 특수 케이스: GY는 Grey로 매핑되지만, 실제 재고는 Light Grey일 수 있음
+        // Oxford Stripe 같은 경우 GY가 Light Grey를 의미할 수 있음
+        // GY → Grey 매핑이지만 재고에 Light Grey가 있는 경우 Light Grey로 표시
+        if (allColors.has('Grey') && allColors.has('Light Grey')) {
+            allColors.delete('Grey'); // Grey 제거하고 Light Grey만 표시
+        }
+        
+        const colorsWithStock = Array.from(allColors).sort().map(color => ({
+            color: color,
+            available: availableColors.has(color)  // 재고가 있으면 true, 없으면 false
+        }));
         
         // 디버깅: 최종 결과 확인
         console.log('✅ 상품 옵션 조회 완료:', {
