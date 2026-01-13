@@ -1498,6 +1498,40 @@ CREATE TABLE product_options (
 - 옵션 API가 product_options 기반으로 동작
 - 재고가 0인 상품도 옵션 표시
 
+#### 15-3. 관리자 페이지 옵션 관리 기능
+**파일**: `admin-qhf25za8/admin-products.js`, `backend/admin-routes.js`
+
+**작업**:
+1. **옵션 조회 API** (`GET /api/admin/products/:productId/options`)
+   - `product_options` 테이블에서 해당 상품의 모든 옵션 조회
+   - 재고 상태 포함 (각 옵션별 `in_stock` 수량)
+
+2. **옵션 추가 API** (`POST /api/admin/products/:productId/options`)
+   - 새로운 옵션 추가 (사이즈/색상 조합)
+   - `sort_order` 자동 계산 또는 수동 설정
+   - 중복 체크 (UNIQUE 제약)
+
+3. **옵션 수정 API** (`PUT /api/admin/products/:productId/options/:optionId`)
+   - `is_active` 토글
+   - `sort_order` 수정
+
+4. **옵션 삭제 API** (`DELETE /api/admin/products/:productId/options/:optionId`)
+   - 옵션 삭제 (또는 `is_active = 0`으로 비활성화)
+
+5. **관리자 페이지 UI** (`admin-qhf25za8/admin-products.js`)
+   - 상품 상세 페이지에 "옵션 관리" 섹션 추가
+   - 옵션 목록 표시 (사이즈, 색상, 재고 상태, 정렬 순서)
+   - 옵션 추가/수정/삭제 UI
+
+**예상 작업 시간**: 4-6시간
+
+**의존성**: Phase 15-1, Phase 15-2 완료 필수
+
+**완료 조건**:
+- 관리자 페이지에서 옵션 조회/추가/수정/삭제 가능
+- 재고 상태 확인 가능
+- `sort_order` 수정 가능
+
 ---
 
 ### Phase 16: Product ID 구조 개선 (사이즈/색상 코드 제거)
