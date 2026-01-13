@@ -232,158 +232,33 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                 });
             }
         
-            // Case B: 첫 인증 (first_scanned_at이 NULL)
-            const isFirstScan = !tokenMaster.first_scanned_at;
+            // ⚠️ Phase 7: QR 스캔 시 warranty 생성 제거, 조회만 수행
+            // warranty는 paid 처리 시 processPaidOrder()에서 생성되어야 함
+            
             const userId = req.user.userId; // requireAuthForHTML에서 설정됨
             const clientIp = getClientIp(req);
             const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+            const tokenPk = tokenMaster.token_pk;
             
-            if (isFirstScan) {
-                Logger.log('[AUTH] 첫 인증 처리:', token.substring(0, 4) + '...');
-                
-                // 이상 패턴 감지 (첫 인증)
-                detectSuspiciousPattern(token, clientIp, true, false);
-                
-                // ✅ 보증서 자동 발급 로직 추가
-                let warrantyPublicId = null;
-                
-                try {
-                    // 1. token_master 스캔 카운트 업데이트 (먼저 실행)
-                    const [scanUpdateResult] = await connection.execute(
-                        `UPDATE token_master 
-                         SET scan_count = scan_count + 1,
-                             first_scanned_at = ?,
-                             last_scanned_at = ?,
-                             updated_at = ?
-                         WHERE token = ?`,
-                        [now, now, now, token]
-                    );
-                    
-                    if (scanUpdateResult.affectedRows === 0) {
-                        Logger.error('[AUTH] token_master 스캔 카운트 업데이트 실패: affectedRows=0', {
-                            token_prefix: token.substring(0, 4) + '...'
-                        });
-                    }
-                    
-                    // 2. product_name 가져오기 (token_master에서)
-                    const productName = tokenMaster.product_name;
-                    
-                    // 3. 이미 발급된 보증서가 있는지 확인
-                    const [existing] = await connection.execute(
-                        'SELECT public_id FROM warranties WHERE token = ? AND user_id = ?',
-                        [token, userId]
-                    );
-                    
-                    if (existing.length > 0) {
-                        // 이미 발급된 경우
-                        warrantyPublicId = existing[0].public_id;
-                        Logger.log('[AUTH] 기존 보증서 확인:', {
-                            token_prefix: token.substring(0, 4) + '...',
-                            public_id: warrantyPublicId
-                        });
-                    } else {
-                        // 새로 발급
-                        const publicId = uuidv4();
-                        const utcDateTime = now;
-                        
-                        await connection.execute(
-                            'INSERT INTO warranties (user_id, token, public_id, product_name, verified_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                            [userId, token, publicId, productName, utcDateTime, utcDateTime]
-                        );
-                        
-                        // token_master owner 업데이트
-                        try {
-                            const [updateResult] = await connection.execute(
-                                `UPDATE token_master 
-                                 SET owner_user_id = ?,
-                                     owner_warranty_public_id = ?,
-                                     updated_at = ?
-                                 WHERE token = ?`,
-                                [userId, publicId, now, token]
-                            );
-                            
-                            if (updateResult.affectedRows === 0) {
-                                Logger.error('[AUTH] token_master owner 업데이트 실패: affectedRows=0', {
-                                    token_prefix: token.substring(0, 4) + '...',
-                                    user_id: userId,
-                                    public_id: publicId
-                                });
-                            } else {
-                                Logger.log('[AUTH] token_master owner 업데이트 성공:', {
-                                    token_prefix: token.substring(0, 4) + '...',
-                                    user_id: userId,
-                                    public_id: publicId,
-                                    affectedRows: updateResult.affectedRows
-                                });
-                            }
-                        } catch (updateError) {
-                            // token_master 업데이트 실패는 별도 로깅 (중요)
-                            Logger.error('[AUTH] token_master owner 업데이트 실패:', {
-                                message: updateError.message,
-                                code: updateError.code,
-                                errno: updateError.errno,
-                                token_prefix: token.substring(0, 4) + '...',
-                                user_id: userId,
-                                public_id: publicId
-                            });
-                            // 보증서는 이미 발급되었으므로 계속 진행
-                        }
-                        
-                        warrantyPublicId = publicId;
-                        Logger.log('[AUTH] 보증서 자동 발급 성공:', {
-                            token_prefix: token.substring(0, 4) + '...',
-                            public_id: publicId,
-                            user_id: userId
-                        });
-                    }
-                    
-                    // 4. scan_logs INSERT (보증서 생성 후 실행 - warranty_public_id 포함)
-                    const geo = geoip.lookup(clientIp);
-                    const countryCode = geo ? geo.country : null;
-                    const countryName = countryCode ? getCountryName(countryCode) : null;
-                    
-                    await connection.execute(
-                        `INSERT INTO scan_logs 
-                         (token, user_id, warranty_public_id, ip_address, country_code, country_name, user_agent, event_type, created_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [
-                            token,
-                            userId,
-                            warrantyPublicId, // ✅ 보증서 생성 후이므로 항상 값이 있음
-                            clientIp,
-                            countryCode,
-                            countryName, // ✅ 국가명 매핑 사용
-                            req.headers['user-agent'] || null,
-                            'verify_success_first',
-                            now
-                        ]
-                    );
-                } catch (dbError) {
-                    // 보증서 발급 실패해도 정품 인증은 성공으로 처리
-                    Logger.error('[AUTH] 보증서 발급 실패 (인증은 성공):', {
-                        message: dbError.message,
-                        token_prefix: token.substring(0, 4) + '...'
-                    });
-                }
-                
-                return res.render('success', {
-                    title: '정품 인증 성공 - Pre.p Mood',
-                    product: {
-                        product_name: tokenMaster.product_name,
-                        internal_code: tokenMaster.internal_code
-                    },
-                    verified_at: formatDateForTemplate(now),
-                    warranty_public_id: warrantyPublicId
+            // 1. token_pk로 warranties 조회 (paid 처리 시 생성되어야 함)
+            const [warranties] = await connection.execute(
+                `SELECT id, public_id, status, owner_user_id, source_order_item_unit_id, 
+                        activated_at, revoked_at, created_at
+                 FROM warranties 
+                 WHERE token_pk = ?`,
+                [tokenPk]
+            );
+            
+            // 2. warranty가 없으면 에러 (paid 처리 시 생성되어야 함)
+            if (warranties.length === 0) {
+                Logger.warn('[AUTH] warranty 없음 (paid 처리 필요):', {
+                    token_prefix: token.substring(0, 4) + '...',
+                    token_pk: tokenPk
                 });
-            } else {
-                // Case C: 재인증 (first_scanned_at이 이미 있음)
-                Logger.log('[AUTH] 재인증 처리:', token.substring(0, 4) + '...');
                 
-                let warrantyPublicId = null;
-                
+                // token_master 스캔 카운트만 업데이트 (로그용)
                 try {
-                    // 1. token_master 스캔 카운트 업데이트
-                    const [updateResult] = await connection.execute(
+                    await connection.execute(
                         `UPDATE token_master 
                          SET scan_count = scan_count + 1,
                              last_scanned_at = ?,
@@ -391,54 +266,126 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                          WHERE token = ?`,
                         [now, now, token]
                     );
-                    
-                    if (updateResult.affectedRows === 0) {
-                        Logger.error('[AUTH] token_master 스캔 카운트 업데이트 실패: affectedRows=0', {
-                            token_prefix: token.substring(0, 4) + '...'
-                        });
-                    }
-                    
-                    // 2. scan_logs INSERT (GeoIP 포함)
-                    const clientIp = getClientIp(req);
-                    const geo = geoip.lookup(clientIp);
-                    const countryCode = geo ? geo.country : null;
-                    const countryName = countryCode ? getCountryName(countryCode) : null;
-                    
-                    await connection.execute(
-                        `INSERT INTO scan_logs 
-                         (token, user_id, warranty_public_id, ip_address, country_code, country_name, user_agent, event_type, created_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [
-                            token,
-                            userId,
-                            tokenMaster.owner_warranty_public_id || null, // 재인증 시에는 이미 보증서가 있음
-                            clientIp,
-                            countryCode,
-                            countryName, // ✅ 국가명 매핑 사용
-                            req.headers['user-agent'] || null,
-                            'verify_success_repeat',
-                            now
-                        ]
-                    );
-                    
-                    // 3. 기존 보증서 확인
-                    const [existing] = await connection.execute(
-                        'SELECT public_id FROM warranties WHERE token = ? AND user_id = ?',
-                        [token, userId]
-                    );
-                    
-                    if (existing.length > 0) {
-                        warrantyPublicId = existing[0].public_id;
-                    }
-                } catch (dbError) {
-                    Logger.error('[AUTH] 재인증 처리 실패:', {
-                        message: dbError.message,
-                        code: dbError.code,
-                        errno: dbError.errno,
+                } catch (updateError) {
+                    Logger.error('[AUTH] token_master 스캔 카운트 업데이트 실패:', {
+                        message: updateError.message,
                         token_prefix: token.substring(0, 4) + '...'
                     });
                 }
+                
+                return res.status(404).render('error', {
+                    title: '보증서 없음 - Pre.p Mood',
+                    message: '이 제품의 보증서가 아직 발급되지 않았습니다. 주문 완료 후 보증서가 자동으로 발급됩니다.'
+                });
+            }
             
+            const warranty = warranties[0];
+            
+            // 3. warranty 상태 확인 (revoked면 접근 거부)
+            if (warranty.status === 'revoked') {
+                Logger.warn('[AUTH] revoked 상태 보증서 접근 시도:', {
+                    token_prefix: token.substring(0, 4) + '...',
+                    warranty_id: warranty.id,
+                    status: warranty.status,
+                    revoked_at: warranty.revoked_at
+                });
+                
+                // token_master 스캔 카운트만 업데이트 (로그용)
+                try {
+                    await connection.execute(
+                        `UPDATE token_master 
+                         SET scan_count = scan_count + 1,
+                             last_scanned_at = ?,
+                             updated_at = ?
+                         WHERE token = ?`,
+                        [now, now, token]
+                    );
+                } catch (updateError) {
+                    Logger.error('[AUTH] token_master 스캔 카운트 업데이트 실패:', {
+                        message: updateError.message,
+                        token_prefix: token.substring(0, 4) + '...'
+                    });
+                }
+                
+                return res.status(403).render('error', {
+                    title: '보증서 무효 - Pre.p Mood',
+                    message: '이 보증서는 환불 처리되어 더 이상 유효하지 않습니다.'
+                });
+            }
+            
+            // 4. token_master 스캔 카운트 업데이트
+            const isFirstScan = !tokenMaster.first_scanned_at;
+            try {
+                const [scanUpdateResult] = await connection.execute(
+                    `UPDATE token_master 
+                     SET scan_count = scan_count + 1,
+                         ${isFirstScan ? 'first_scanned_at = ?,' : ''}
+                         last_scanned_at = ?,
+                         updated_at = ?
+                     WHERE token = ?`,
+                    isFirstScan ? [now, now, now, token] : [now, now, token]
+                );
+                
+                if (scanUpdateResult.affectedRows === 0) {
+                    Logger.error('[AUTH] token_master 스캔 카운트 업데이트 실패: affectedRows=0', {
+                        token_prefix: token.substring(0, 4) + '...'
+                    });
+                }
+            } catch (updateError) {
+                Logger.error('[AUTH] token_master 스캔 카운트 업데이트 실패:', {
+                    message: updateError.message,
+                    token_prefix: token.substring(0, 4) + '...'
+                });
+            }
+            
+            // 5. 이상 패턴 감지 (첫 스캔인 경우)
+            if (isFirstScan) {
+                detectSuspiciousPattern(token, clientIp, true, false);
+            }
+            
+            // 6. scan_logs INSERT
+            try {
+                const geo = geoip.lookup(clientIp);
+                const countryCode = geo ? geo.country : null;
+                const countryName = countryCode ? getCountryName(countryCode) : null;
+                
+                await connection.execute(
+                    `INSERT INTO scan_logs 
+                     (token, user_id, warranty_public_id, ip_address, country_code, country_name, user_agent, event_type, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        token,
+                        userId,
+                        warranty.public_id,
+                        clientIp,
+                        countryCode,
+                        countryName,
+                        req.headers['user-agent'] || null,
+                        isFirstScan ? 'verify_success_first' : 'verify_success_repeat',
+                        now
+                    ]
+                );
+            } catch (logError) {
+                Logger.error('[AUTH] scan_logs INSERT 실패:', {
+                    message: logError.message,
+                    token_prefix: token.substring(0, 4) + '...'
+                });
+                // 로그 실패는 치명적이지 않으므로 계속 진행
+            }
+            
+            // 7. 응답 렌더링
+            if (isFirstScan) {
+                return res.render('success', {
+                    title: '정품 인증 성공 - Pre.p Mood',
+                    product: {
+                        product_name: tokenMaster.product_name,
+                        internal_code: tokenMaster.internal_code
+                    },
+                    verified_at: formatDateForTemplate(now),
+                    warranty_public_id: warranty.public_id,
+                    warranty_status: warranty.status
+                });
+            } else {
                 return res.render('warning', {
                     title: '이미 인증된 제품 - Pre.p Mood',
                     product: {
@@ -447,7 +394,8 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                         scan_count: tokenMaster.scan_count || 0
                     },
                     first_verified_at: formatDateForTemplate(tokenMaster.first_scanned_at),
-                    warranty_public_id: warrantyPublicId
+                    warranty_public_id: warranty.public_id,
+                    warranty_status: warranty.status
                 });
             }
         } finally {
