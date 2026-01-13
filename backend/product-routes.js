@@ -260,17 +260,18 @@ router.get('/products/options', async (req, res) => {
         
         // ⚠️ Phase 15: product_options 테이블에서 옵션 라인업 조회 (재고 상태와 관계없이)
         // product_options가 없으면 stock_units에서 fallback (하위 호환성)
+        // ⚠️ 옵션 마스터 SSOT: product_options가 진짜 기준
+        // available 계산은 stock_units에서만 수행
         const [optionRows] = await connection.execute(
             `SELECT 
                 po.size,
                 po.color,
+                po.sort_order,
                 po.is_active
             FROM product_options po
             WHERE po.product_id = ?
               AND po.is_active = 1
-              AND po.size IS NOT NULL 
-              AND po.color IS NOT NULL
-            ORDER BY po.size, po.color`,
+            ORDER BY po.sort_order, po.size, po.color`,
             [canonicalId]
         );
         
@@ -366,15 +367,22 @@ router.get('/products/options', async (req, res) => {
             }
         });
         
-        // 표준 사이즈 순서 정의
+        // ⚠️ sort_order 기반 정렬 (product_options의 sort_order가 SSOT)
+        // product_options에서 sort_order를 가져와서 정렬
+        const sizeSortMap = new Map();
+        optionRows.forEach(row => {
+            const normalizedSize = (row.size || '').trim();
+            if (normalizedSize && !sizeSortMap.has(normalizedSize)) {
+                sizeSortMap.set(normalizedSize, row.sort_order || 99);
+            }
+        });
+        
+        // Fallback: sort_order가 없으면 기존 로직 사용
         const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
         const sizesWithStock = Array.from(allSizes).sort((a, b) => {
-            const aIndex = sizeOrder.indexOf(a);
-            const bIndex = sizeOrder.indexOf(b);
-            if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-            if (aIndex !== -1) return -1;
-            if (bIndex !== -1) return 1;
-            return a.localeCompare(b);
+            const aSort = sizeSortMap.get(a) ?? (sizeOrder.indexOf(a) !== -1 ? sizeOrder.indexOf(a) + 1 : 99);
+            const bSort = sizeSortMap.get(b) ?? (sizeOrder.indexOf(b) !== -1 ? sizeOrder.indexOf(b) + 1 : 99);
+            return aSort - bSort;
         }).map(size => ({
             size: size,
             available: sizeAvailableMap.get(size) || false

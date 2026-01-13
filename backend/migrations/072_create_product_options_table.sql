@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS product_options (
     product_id VARCHAR(128) NOT NULL COMMENT '상품 ID (admin_products.id 참조)',
     color VARCHAR(50) NOT NULL DEFAULT '' COMMENT '색상 (표준화된 색상명, 예: Light Blue, Black 등. 없으면 빈 문자열)',
     size VARCHAR(10) NOT NULL DEFAULT '' COMMENT '사이즈 (S, M, L, XL, XXL, F. 없으면 빈 문자열)',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '정렬 순서 (낮을수록 먼저 표시, 사이즈/색상 정렬용)',
     is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT '활성 여부 (1: 활성, 0: 비활성)',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS product_options (
     INDEX idx_product_id (product_id),
     INDEX idx_color (color),
     INDEX idx_is_active (is_active),
+    INDEX idx_product_sort (product_id, sort_order),
     UNIQUE KEY uk_product_color_size (product_id, color, size)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -63,7 +65,7 @@ SELECT '=== 3. 기존 stock_units 데이터에서 옵션 추출 ===' AS info;
 -- stock_units에서 DISTINCT (product_id, size, color) 조합 추출
 -- 색상 정규화: color_standards가 있으면 JOIN, 없으면 CASE fallback
 -- GPT 제안: 한쪽만 있어도 옵션으로 등록 (size 또는 color 중 하나만 있어도 OK)
-INSERT IGNORE INTO product_options (product_id, color, size, is_active)
+INSERT IGNORE INTO product_options (product_id, color, size, sort_order, is_active)
 SELECT DISTINCT
     su.product_id,
     CASE
@@ -89,6 +91,16 @@ SELECT DISTINCT
         WHEN su.size IS NULL OR TRIM(su.size) = '' THEN ''
         ELSE TRIM(su.size)
     END AS normalized_size,
+    -- sort_order 계산: 사이즈 순서 (S=1, M=2, L=3, XL=4, XXL=5, F=6, 기타=99)
+    CASE
+        WHEN TRIM(su.size) = 'S' THEN 1
+        WHEN TRIM(su.size) = 'M' THEN 2
+        WHEN TRIM(su.size) = 'L' THEN 3
+        WHEN TRIM(su.size) = 'XL' THEN 4
+        WHEN TRIM(su.size) = 'XXL' THEN 5
+        WHEN TRIM(su.size) = 'F' THEN 6
+        ELSE 99
+    END AS sort_order,
     1 AS is_active
 FROM stock_units su
 WHERE su.product_id IS NOT NULL
