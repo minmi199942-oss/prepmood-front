@@ -347,15 +347,23 @@ router.get('/products/options', async (req, res) => {
         const allSizes = new Set();
         const sizeAvailableMap = new Map(); // {size: boolean}
         
+        // ⚠️ 옵션 마스터 SSOT: product_options의 모든 옵션을 기준으로 처리
+        // 빈 문자열('') 옵션은 일반 상품에서는 제외 (UI 깔끔함)
         allSizeColorRows.forEach(row => {
             const normalizedSize = (row.size || '').trim();
             const normalizedColor = normalizeColor(row.color);
             
-            if (normalizedSize && normalizedColor) {
+            // 빈 문자열 옵션 제외 (단일 옵션 상품이 아닌 경우)
+            if (!normalizedSize && !normalizedColor) {
+                return; // 둘 다 빈 문자열이면 스킵
+            }
+            
+            // 사이즈가 있으면 추가
+            if (normalizedSize) {
                 allSizes.add(normalizedSize);
                 
                 // 해당 사이즈+색상 조합이 in_stock인지 확인
-                const isAvailable = inStockSet.has(keyOf(normalizedSize, normalizedColor));
+                const isAvailable = inStockSet.has(keyOf(normalizedSize, normalizedColor || ''));
                 
                 // 사이즈별로 하나라도 available이면 true
                 if (isAvailable) {
@@ -392,15 +400,22 @@ router.get('/products/options', async (req, res) => {
         const allColors = new Set();
         const colorAvailableMap = new Map(); // {color: boolean}
         
+        // ⚠️ 색상별 available 계산 (옵션 마스터 SSOT 기준)
         allSizeColorRows.forEach(row => {
             const normalizedSize = (row.size || '').trim();
             const normalizedColor = normalizeColor(row.color);
             
-            if (normalizedSize && normalizedColor) {
+            // 빈 문자열 옵션 제외 (단일 옵션 상품이 아닌 경우)
+            if (!normalizedSize && !normalizedColor) {
+                return; // 둘 다 빈 문자열이면 스킵
+            }
+            
+            // 색상이 있으면 추가
+            if (normalizedColor) {
                 allColors.add(normalizedColor);
                 
                 // 해당 사이즈+색상 조합이 in_stock인지 확인
-                const isAvailable = inStockSet.has(keyOf(normalizedSize, normalizedColor));
+                const isAvailable = inStockSet.has(keyOf(normalizedSize || '', normalizedColor));
                 
                 // 색상별로 하나라도 available이면 true
                 if (isAvailable) {

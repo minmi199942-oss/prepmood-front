@@ -27,13 +27,13 @@ FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = 'prepmood'
   AND TABLE_NAME = 'admin_products';
 
--- stock_units에서 옵션 데이터 확인
+-- stock_units에서 옵션 데이터 확인 (seed 조건과 일치: 하나라도 있으면 옵션)
 SELECT 
     'stock_units 옵션 데이터' AS check_type,
     COUNT(DISTINCT product_id) as unique_products,
     COUNT(DISTINCT CONCAT(product_id, '||', COALESCE(size, ''), '||', COALESCE(color, ''))) as unique_options
 FROM stock_units
-WHERE size IS NOT NULL AND color IS NOT NULL;
+WHERE (size IS NOT NULL OR color IS NOT NULL);
 
 -- ============================================================
 -- 2. product_options 테이블 생성
