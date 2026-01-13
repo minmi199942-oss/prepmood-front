@@ -30,19 +30,20 @@ const dbConfig = {
 async function resolveProductId(productId, connection) {
     if (!productId) return null;
     
+    // ⚠️ Cutover 후: id가 이미 canonical이므로 단순 조회
     const [products] = await connection.execute(
-        `SELECT id, canonical_id
+        `SELECT id
          FROM admin_products 
-         WHERE canonical_id = ? OR id = ? 
+         WHERE id = ? 
          LIMIT 1`,
-        [productId, productId]
+        [productId]
     );
     
     if (products.length === 0) {
         return null;
     }
     
-    return products[0].canonical_id || products[0].id;
+    return products[0].id;
 }
 
 /**
@@ -119,26 +120,17 @@ router.get('/admin/stock', authenticateToken, requireAdmin, async (req, res) => 
                 o.order_number,
                 o.order_id
             FROM stock_units su
-            INNER JOIN admin_products ap ON (su.product_id = ap.id OR su.product_id_canonical = ap.canonical_id)
+            INNER JOIN admin_products ap ON su.product_id = ap.id
             INNER JOIN token_master tm ON su.token_pk = tm.token_pk
             LEFT JOIN orders o ON su.reserved_by_order_id = o.order_id
             WHERE 1=1
         `;
         const params = [];
 
-        // 필터링: ⚠️ Dual-read 지원
+        // 필터링
         if (product_id) {
-            // product_id를 canonical_id로 정규화
-            const canonicalId = await resolveProductId(product_id, connection);
-            if (canonicalId) {
-                // product_id 또는 product_id_canonical로 조회
-                query += ' AND (su.product_id = ? OR su.product_id_canonical = ?)';
-                params.push(product_id, canonicalId);
-            } else {
-                // 정규화 실패 시 기존 방식으로 조회 (하위 호환)
-                query += ' AND su.product_id = ?';
-                params.push(product_id);
-            }
+            query += ' AND su.product_id = ?';
+            params.push(product_id);
         }
 
         if (status) {
@@ -245,7 +237,7 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
             });
         }
 
-        // ⚠️ Dual-read: token_master 조회 (product_id 또는 canonical_id로)
+        // token_master 조회
         const [tokens] = await connection.execute(
             `SELECT 
                 tm.token_pk,
@@ -254,14 +246,14 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
                 tm.serial_number,
                 tm.product_name
             FROM token_master tm
-            WHERE (tm.product_id = ? OR tm.product_id IN (SELECT id FROM admin_products WHERE canonical_id = ?))
+            WHERE tm.product_id = ?
               AND tm.token_pk NOT IN (
                   SELECT COALESCE(token_pk, 0) FROM stock_units 
-                  WHERE product_id = ? OR product_id_canonical = ?
+                  WHERE product_id = ?
               )
             ORDER BY tm.token_pk
             LIMIT 100`,
-            [productId, canonicalId, productId, canonicalId]
+            [productId, productId]
         );
 
         await connection.end();
@@ -345,7 +337,7 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
         await connection.beginTransaction();
 
         try {
-            // ⚠️ Dual-read: 상품 존재 확인 및 legacy_id/canonical_id 확정
+            // 상품 존재 확인
             const productIds = await resolveProductIdBoth(product_id, connection);
             
             if (!productIds) {
@@ -521,15 +513,14 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
                 }
             }
             
-            // ⚠️ Dual-write: 재고 추가 (legacy_id와 canonical_id 둘 다 저장)
+            // 재고 추가
             const insertValues = tokenPkArray.map(tpk => {
                 // 입력값 우선, 없으면 파싱 결과, 둘 다 없으면 NULL
                 const stockSize = finalSize || (tokenSizeColorMap[tpk]?.size || null);
                 const stockColor = finalColor || (tokenSizeColorMap[tpk]?.color || null);
                 
                 return [
-                    productIds.legacy_id,        // product_id (legacy)
-                    productIds.canonical_id,     // product_id_canonical (정규화)
+                    productIds.canonical_id,     // product_id (cutover 후 id가 canonical)
                     stockSize,
                     stockColor,
                     tpk,
@@ -541,7 +532,7 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
 
             await connection.query(
                 `INSERT INTO stock_units 
-                 (product_id, product_id_canonical, size, color, token_pk, status, created_at, updated_at) 
+                 (product_id, size, color, token_pk, status, created_at, updated_at) 
                  VALUES ?`,
                 [insertValues]
             );

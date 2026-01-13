@@ -91,34 +91,20 @@ async function resolveProductIdWithLogging(productId, connection) {
     
     if (!productId) return null;
     
+    // ⚠️ Cutover 후: id가 이미 canonical이므로 단순 조회
     const [products] = await connection.execute(
-        `SELECT id, canonical_id
+        `SELECT id
          FROM admin_products
-         WHERE canonical_id = ? OR id = ?
+         WHERE id = ?
          LIMIT 1`,
-        [productId, productId]
+        [productId]
     );
     
     if (products.length === 0) {
         return null;
     }
     
-    const result = products[0];
-    const canonicalId = result.canonical_id || result.id;
-    
-    // legacy hit 여부: 입력값이 id로만 매칭되고 canonical_id로는 매칭 안 됐다
-    const isLegacyHit = (productId === result.id && result.canonical_id && result.canonical_id !== result.id);
-    
-    if (isLegacyHit) {
-        legacyHitCount++;
-        // 로그는 주기(1000회마다) + rate limit로만
-        if (legacyHitCount % 1000 === 0) {
-            const rate = ((legacyHitCount / totalResolveCount) * 100).toFixed(2);
-            console.log(`[MONITORING] Legacy hit rate: ${rate}% (${legacyHitCount}/${totalResolveCount})`);
-        }
-    }
-    
-    return canonicalId;
+    return products[0].id;
 }
 
 // 이미지 업로드 설정
@@ -223,47 +209,6 @@ router.get('/products/options', async (req, res) => {
                 success: false,
                 message: '상품을 찾을 수 없습니다.'
             });
-        }
-        
-        // product_id에서 가능한 사이즈 추출 (예: PM-25-SH-Teneu-Solid-LB-S/M/L → [S, M, L])
-        function extractSizesFromProductId(productId) {
-            if (!productId) return [];
-            const parts = productId.split('-');
-            const lastPart = parts[parts.length - 1];
-            const validSizes = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
-            const sizes = [];
-            
-            // F 처리
-            if (lastPart.endsWith('F') && !lastPart.endsWith('TF')) {
-                if (lastPart.includes('-F') || lastPart.endsWith('/F')) {
-                    return ['F'];
-                } else if (lastPart === 'F') {
-                    return ['F'];
-                }
-            }
-            
-            // 슬래시/하이픈으로 분리
-            const allParts = lastPart.split(/[-/]/);
-            allParts.forEach(part => {
-                const trimmed = part.trim().toUpperCase();
-                if (validSizes.includes(trimmed)) {
-                    sizes.push(trimmed);
-                }
-            });
-            
-            // 중복 제거 및 정렬
-            const uniqueSizes = [...new Set(sizes)];
-            const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
-            uniqueSizes.sort((a, b) => {
-                const aIndex = sizeOrder.indexOf(a);
-                const bIndex = sizeOrder.indexOf(b);
-                if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-                if (aIndex !== -1) return -1;
-                if (bIndex !== -1) return 1;
-                return a.localeCompare(b);
-            });
-            
-            return uniqueSizes;
         }
         
         // product_id에서 색상 추출 (예: PM-25-SH-Teneu-Solid-LB-S/M/L → Light Blue)
