@@ -258,9 +258,22 @@ router.get('/products/options', async (req, res) => {
         // product_id에서 색상 추출
         const extractedColor = extractColorFromProductId(product_id);
         
-        // ⚠️ Cutover 후: stock_units에서 실제 재고가 있는 사이즈 조회
-        // product_id는 이미 canonical이므로 직접 조회
-        const [sizeColorRows] = await connection.execute(
+        // ⚠️ 해당 상품에 존재하는 모든 사이즈/색상 조회 (재고 상태와 관계없이)
+        // status 조건 제거하여 모든 stock_units 조회
+        const [allSizeColorRows] = await connection.execute(
+            `SELECT DISTINCT 
+                su.size,
+                su.color
+            FROM stock_units su
+            WHERE su.product_id = ?
+              AND (su.size IS NOT NULL OR su.color IS NOT NULL)
+            GROUP BY su.size, su.color
+            ORDER BY su.size, su.color`,
+            [canonicalId]
+        );
+        
+        // 재고가 있는 사이즈/색상 조회 (in_stock만)
+        const [inStockRows] = await connection.execute(
             `SELECT DISTINCT 
                 su.size,
                 su.color,
@@ -299,39 +312,36 @@ router.get('/products/options', async (req, res) => {
         // 재고가 있는 사이즈와 색상 추출 (색상 정규화 적용)
         const availableSizes = new Set();
         const availableColors = new Set();
-        const stockMap = {}; // {size: {color: count}} 형태로 재고 저장
         
-        sizeColorRows.forEach(row => {
+        inStockRows.forEach(row => {
             if (row.size) availableSizes.add(row.size);
             if (row.color) {
-                // 재고의 색상도 정규화하여 저장
                 const normalizedColor = normalizeColor(row.color);
                 availableColors.add(normalizedColor);
-                
-                if (!stockMap[row.size]) stockMap[row.size] = {};
-                stockMap[row.size][normalizedColor] = (stockMap[row.size][normalizedColor] || 0) + row.stock_count;
             }
         });
         
-        // ⚠️ Cutover 후: stock_units에서 조회한 사이즈를 사용
+        // ⚠️ 해당 상품에 존재하는 모든 사이즈 반환 (재고 여부와 관계없이)
+        const allSizes = new Set();
+        allSizeColorRows.forEach(row => {
+            if (row.size) allSizes.add(row.size);
+        });
+        
         // 표준 사이즈 순서 정의
         const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
-        const allPossibleSizes = Array.from(availableSizes).sort((a, b) => {
+        const sizesWithStock = Array.from(allSizes).sort((a, b) => {
             const aIndex = sizeOrder.indexOf(a);
             const bIndex = sizeOrder.indexOf(b);
             if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
             if (aIndex !== -1) return -1;
             if (bIndex !== -1) return 1;
             return a.localeCompare(b);
-        });
-        
-        // 모든 가능한 사이즈에 대해 재고 상태 포함하여 반환
-        const sizesWithStock = allPossibleSizes.map(size => ({
+        }).map(size => ({
             size: size,
-            available: true  // stock_units에서 조회한 사이즈는 모두 재고 있음
+            available: availableSizes.has(size)  // 재고가 있으면 true, 없으면 false
         }));
         
-        // 색상 처리: product_id에서 추출한 색상과 재고 상태 결합
+        // 색상 처리: product_id에서 추출한 색상은 항상 표시 (재고 여부와 관계없이)
         const colorsWithStock = [];
         if (extractedColor) {
             // product_id에서 추출한 색상도 정규화
@@ -340,24 +350,22 @@ router.get('/products/options', async (req, res) => {
             // ⚠️ 특수 케이스: GY는 Grey로 매핑되지만, 실제 재고는 Light Grey일 수 있음
             // Oxford Stripe 같은 경우 GY가 Light Grey를 의미할 수 있음
             let isAvailable = availableColors.has(normalizedExtractedColor);
+            let displayColor = normalizedExtractedColor;
             
             // GY → Grey 매핑이지만 재고에 Light Grey가 있는 경우
             if (!isAvailable && normalizedExtractedColor === 'Grey' && availableColors.has('Light Grey')) {
                 // product_id에 GY가 있고 재고에 Light Grey가 있으면, Light Grey로 매핑
                 isAvailable = true;
-                colorsWithStock.push({
-                    color: 'Light Grey',  // 실제 재고 색상으로 표시
-                    available: true
-                });
-            } else {
-                colorsWithStock.push({
-                    color: normalizedExtractedColor,
-                    available: isAvailable
-                });
+                displayColor = 'Light Grey';
             }
+            
+            colorsWithStock.push({
+                color: displayColor,
+                available: isAvailable
+            });
         } else {
             // product_id에서 색상을 추출할 수 없으면, 재고가 있는 색상만 반환
-            // (기존 동작 유지)
+            // (기존 동작 유지 - 색상 정보가 없으면 재고 기반으로만 표시)
             availableColors.forEach(color => {
                 colorsWithStock.push({
                     color: color,
