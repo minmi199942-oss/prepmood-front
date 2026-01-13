@@ -16,20 +16,20 @@
 async function resolveProductId(productId, connection) {
     if (!productId) return null;
     
+    // ⚠️ Cutover 후: id가 이미 canonical_id이므로 단순 조회
     const [products] = await connection.execute(
-        `SELECT id, canonical_id
+        `SELECT id
          FROM admin_products 
-         WHERE canonical_id = ? OR id = ? 
+         WHERE id = ? 
          LIMIT 1`,
-        [productId, productId]
+        [productId]
     );
     
     if (products.length === 0) {
         return null;
     }
     
-    // canonical_id가 있으면 사용, 없으면 id를 canonical로 간주 (신규 상품)
-    return products[0].canonical_id || products[0].id;
+    return products[0].id;
 }
 
 /**

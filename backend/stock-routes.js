@@ -54,22 +54,23 @@ async function resolveProductId(productId, connection) {
 async function resolveProductIdBoth(productId, connection) {
     if (!productId) return null;
     
+    // ⚠️ Cutover 후: id가 이미 canonical_id이므로 둘 다 같은 값
     const [products] = await connection.execute(
-        `SELECT id AS legacy_id, canonical_id
+        `SELECT id
          FROM admin_products
-         WHERE canonical_id = ? OR id = ?
+         WHERE id = ?
          LIMIT 1`,
-        [productId, productId]
+        [productId]
     );
     
     if (products.length === 0) {
         return null;
     }
     
-    const result = products[0];
+    const canonicalId = products[0].id;
     return {
-        legacy_id: result.legacy_id,  // admin_products.id (항상 legacy)
-        canonical_id: result.canonical_id || result.legacy_id  // canonical_id 또는 id
+        legacy_id: canonicalId,  // cutover 후 id가 canonical
+        canonical_id: canonicalId  // cutover 후 id가 canonical
     };
 }
 

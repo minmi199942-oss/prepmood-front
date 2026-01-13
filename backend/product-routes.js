@@ -31,20 +31,20 @@ const dbConfig = {
 async function resolveProductId(productId, connection) {
     if (!productId) return null;
     
+    // ⚠️ Cutover 후: id가 이미 canonical_id이므로 단순 조회
     const [products] = await connection.execute(
-        `SELECT id, canonical_id
+        `SELECT id
          FROM admin_products 
-         WHERE canonical_id = ? OR id = ? 
+         WHERE id = ? 
          LIMIT 1`,
-        [productId, productId]
+        [productId]
     );
     
     if (products.length === 0) {
         return null;
     }
     
-    // canonical_id가 있으면 사용, 없으면 id를 canonical로 간주 (신규 상품)
-    return products[0].canonical_id || products[0].id;
+    return products[0].id;
 }
 
 /**
@@ -56,22 +56,23 @@ async function resolveProductId(productId, connection) {
 async function resolveProductIdBoth(productId, connection) {
     if (!productId) return null;
     
+    // ⚠️ Cutover 후: id가 이미 canonical_id이므로 둘 다 같은 값
     const [products] = await connection.execute(
-        `SELECT id AS legacy_id, canonical_id
+        `SELECT id
          FROM admin_products
-         WHERE canonical_id = ? OR id = ?
+         WHERE id = ?
          LIMIT 1`,
-        [productId, productId]
+        [productId]
     );
     
     if (products.length === 0) {
         return null;
     }
     
-    const result = products[0];
+    const canonicalId = products[0].id;
     return {
-        legacy_id: result.legacy_id,  // admin_products.id (항상 legacy)
-        canonical_id: result.canonical_id || result.legacy_id  // canonical_id 또는 id
+        legacy_id: canonicalId,  // cutover 후 id가 canonical
+        canonical_id: canonicalId  // cutover 후 id가 canonical
     };
 }
 
