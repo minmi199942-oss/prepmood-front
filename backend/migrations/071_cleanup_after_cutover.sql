@@ -50,14 +50,67 @@ FROM product_id_mapping;
 SELECT '=== 2. 인덱스 제거 ===' AS info;
 
 -- admin_products.canonical_id 인덱스 제거
-DROP INDEX IF EXISTS uk_admin_products_canonical_id ON admin_products;
-DROP INDEX IF EXISTS idx_admin_products_canonical_id_temp ON admin_products;
+SET @idx_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.STATISTICS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'admin_products' 
+      AND INDEX_NAME = 'uk_admin_products_canonical_id'
+);
+SET @sql = IF(@idx_exists > 0,
+    'ALTER TABLE admin_products DROP INDEX uk_admin_products_canonical_id',
+    'SELECT "uk_admin_products_canonical_id 인덱스가 존재하지 않습니다." AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @idx_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.STATISTICS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'admin_products' 
+      AND INDEX_NAME = 'idx_admin_products_canonical_id_temp'
+);
+SET @sql = IF(@idx_exists > 0,
+    'ALTER TABLE admin_products DROP INDEX idx_admin_products_canonical_id_temp',
+    'SELECT "idx_admin_products_canonical_id_temp 인덱스가 존재하지 않습니다." AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- stock_units.product_id_canonical 인덱스 제거
-DROP INDEX IF EXISTS idx_stock_units_product_id_canonical ON stock_units;
+SET @idx_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.STATISTICS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'stock_units' 
+      AND INDEX_NAME = 'idx_stock_units_product_id_canonical'
+);
+SET @sql = IF(@idx_exists > 0,
+    'ALTER TABLE stock_units DROP INDEX idx_stock_units_product_id_canonical',
+    'SELECT "idx_stock_units_product_id_canonical 인덱스가 존재하지 않습니다." AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- order_items.product_id_canonical 인덱스 제거
-DROP INDEX IF EXISTS idx_order_items_product_id_canonical ON order_items;
+SET @idx_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.STATISTICS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'order_items' 
+      AND INDEX_NAME = 'idx_order_items_product_id_canonical'
+);
+SET @sql = IF(@idx_exists > 0,
+    'ALTER TABLE order_items DROP INDEX idx_order_items_product_id_canonical',
+    'SELECT "idx_order_items_product_id_canonical 인덱스가 존재하지 않습니다." AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- ============================================================
 -- 3. 컬럼 제거
@@ -65,16 +118,68 @@ DROP INDEX IF EXISTS idx_order_items_product_id_canonical ON order_items;
 SELECT '=== 3. 컬럼 제거 ===' AS info;
 
 -- admin_products.canonical_id 제거
-ALTER TABLE admin_products DROP COLUMN IF EXISTS canonical_id;
+SET @col_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'admin_products' 
+      AND COLUMN_NAME = 'canonical_id'
+);
+SET @sql = IF(@col_exists > 0,
+    'ALTER TABLE admin_products DROP COLUMN canonical_id',
+    'SELECT "admin_products.canonical_id 컬럼이 존재하지 않습니다." AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- admin_products.id_backup 제거
-ALTER TABLE admin_products DROP COLUMN IF EXISTS id_backup;
+SET @col_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'admin_products' 
+      AND COLUMN_NAME = 'id_backup'
+);
+SET @sql = IF(@col_exists > 0,
+    'ALTER TABLE admin_products DROP COLUMN id_backup',
+    'SELECT "admin_products.id_backup 컬럼이 존재하지 않습니다." AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- stock_units.product_id_canonical 제거
-ALTER TABLE stock_units DROP COLUMN IF EXISTS product_id_canonical;
+SET @col_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'stock_units' 
+      AND COLUMN_NAME = 'product_id_canonical'
+);
+SET @sql = IF(@col_exists > 0,
+    'ALTER TABLE stock_units DROP COLUMN product_id_canonical',
+    'SELECT "stock_units.product_id_canonical 컬럼이 존재하지 않습니다." AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- order_items.product_id_canonical 제거
-ALTER TABLE order_items DROP COLUMN IF EXISTS product_id_canonical;
+SET @col_exists = (
+    SELECT COUNT(*) 
+    FROM information_schema.COLUMNS 
+    WHERE TABLE_SCHEMA = 'prepmood' 
+      AND TABLE_NAME = 'order_items' 
+      AND COLUMN_NAME = 'product_id_canonical'
+);
+SET @sql = IF(@col_exists > 0,
+    'ALTER TABLE order_items DROP COLUMN product_id_canonical',
+    'SELECT "order_items.product_id_canonical 컬럼이 존재하지 않습니다." AS info'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- ============================================================
 -- 4. 테이블 제거
