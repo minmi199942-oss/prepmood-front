@@ -310,26 +310,23 @@ router.get('/products/options', async (req, res) => {
             return null;
         }
         
-        // product_id에서 가능한 사이즈 추출
-        const allPossibleSizes = extractSizesFromProductId(product_id);
-        
         // product_id에서 색상 추출
         const extractedColor = extractColorFromProductId(product_id);
         
-        // ⚠️ Dual-read: stock_units 조회 (SQL 괄호 버그 수정)
-        // product_id 또는 product_id_canonical로 조회
+        // ⚠️ Cutover 후: stock_units에서 실제 재고가 있는 사이즈 조회
+        // product_id는 이미 canonical이므로 직접 조회
         const [sizeColorRows] = await connection.execute(
             `SELECT DISTINCT 
                 su.size,
                 su.color,
                 COUNT(*) as stock_count
             FROM stock_units su
-            WHERE (su.product_id = ? OR su.product_id_canonical = ?)
+            WHERE su.product_id = ?
               AND su.status = 'in_stock'
               AND (su.size IS NOT NULL OR su.color IS NOT NULL)
             GROUP BY su.size, su.color
             ORDER BY su.size, su.color`,
-            [product_id, canonicalId]
+            [canonicalId]
         );
         
         // 색상 정규화 함수 (SIZE_COLOR_STANDARDIZATION_POLICY.md 참고)
@@ -342,12 +339,13 @@ router.get('/products/options', async (req, res) => {
                 'LB': 'Light Blue',
                 'LightGrey': 'Light Grey',
                 'Light-Grey': 'Light Grey',
+                'LG': 'Light Grey',  // Oxford Stripe 등에서 사용
                 'LGY': 'Light Grey',
                 'BK': 'Black',
                 'NV': 'Navy',
                 'WH': 'White',
                 'WT': 'White',
-                'GY': 'Grey',  // GY는 Grey로 매핑, 하지만 실제 재고는 Light Grey일 수 있음
+                'GY': 'Grey',
                 'Gray': 'Grey'
             };
             return colorMap[normalized] || normalized;
@@ -370,10 +368,22 @@ router.get('/products/options', async (req, res) => {
             }
         });
         
+        // ⚠️ Cutover 후: stock_units에서 조회한 사이즈를 사용
+        // 표준 사이즈 순서 정의
+        const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', 'F'];
+        const allPossibleSizes = Array.from(availableSizes).sort((a, b) => {
+            const aIndex = sizeOrder.indexOf(a);
+            const bIndex = sizeOrder.indexOf(b);
+            if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+            return a.localeCompare(b);
+        });
+        
         // 모든 가능한 사이즈에 대해 재고 상태 포함하여 반환
         const sizesWithStock = allPossibleSizes.map(size => ({
             size: size,
-            available: availableSizes.has(size)
+            available: true  // stock_units에서 조회한 사이즈는 모두 재고 있음
         }));
         
         // 색상 처리: product_id에서 추출한 색상과 재고 상태 결합
