@@ -200,6 +200,22 @@ JOIN admin_products ap ON oi.product_id = ap.id_backup
 SET oi.product_id = ap.id
 WHERE oi.product_id_canonical IS NULL;
 
+SELECT '=== 4-5. cart_items.product_id 업데이트 ===' AS info;
+
+-- cart_items는 product_id_canonical이 없으므로 admin_products의 새 id로 업데이트
+UPDATE cart_items ci
+JOIN admin_products ap ON ci.product_id = ap.id_backup
+SET ci.product_id = ap.id
+WHERE ci.product_id = ap.id_backup;
+
+SELECT '=== 4-6. wishlists.product_id 업데이트 ===' AS info;
+
+-- wishlists는 product_id_canonical이 없으므로 admin_products의 새 id로 업데이트
+UPDATE wishlists w
+JOIN admin_products ap ON w.product_id = ap.id_backup
+SET w.product_id = ap.id
+WHERE w.product_id = ap.id_backup;
+
 -- ============================================================
 -- 5. FK 제약 조건 재생성 (동적)
 -- ============================================================
@@ -316,6 +332,24 @@ SELECT
 FROM token_master tm
 LEFT JOIN admin_products ap ON tm.product_id = ap.id
 WHERE tm.product_id IS NOT NULL AND ap.id IS NULL;
+
+-- cart_items orphan 확인
+SELECT 
+    'cart_items' AS table_name,
+    COUNT(*) as orphan_count,
+    GROUP_CONCAT(DISTINCT ci.product_id ORDER BY ci.product_id SEPARATOR ', ') as orphan_ids
+FROM cart_items ci
+LEFT JOIN admin_products ap ON ci.product_id = ap.id
+WHERE ci.product_id IS NOT NULL AND ap.id IS NULL;
+
+-- wishlists orphan 확인
+SELECT 
+    'wishlists' AS table_name,
+    COUNT(*) as orphan_count,
+    GROUP_CONCAT(DISTINCT w.product_id ORDER BY w.product_id SEPARATOR ', ') as orphan_ids
+FROM wishlists w
+LEFT JOIN admin_products ap ON w.product_id = ap.id
+WHERE w.product_id IS NOT NULL AND ap.id IS NULL;
 
 -- 샘플 데이터 확인
 SELECT 
