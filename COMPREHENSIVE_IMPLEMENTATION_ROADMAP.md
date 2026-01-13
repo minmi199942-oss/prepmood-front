@@ -99,12 +99,12 @@
 - ❌ `warranty_transfers` 테이블
 - ❌ `guest_order_access_tokens` 테이블
 - ❌ `claim_tokens` 테이블
-- ❌ `product_options` 테이블 (중기 개선)
+- ✅ `product_options` 테이블 (Phase 15-1 완료)
 
 #### 2. 백엔드 로직
 - ❌ 선예약형 재고 관리 (주문 생성 시 재고 예약)
-- ❌ 옵션 API 개선 (availability_map, in_stock_qty 추가)
-- ❌ 색상 데이터 소스 개선 (stock_units 기반 조회)
+- ✅ 옵션 API 개선 (product_options 기반, 재고 없는 옵션도 표시 - Phase 15-2 완료)
+- ✅ 색상 데이터 소스 개선 (product_options 기반 SSOT - Phase 15-2 완료)
 - ❌ 보증서 활성화 API (`POST /api/warranties/:warrantyId/activate`)
 - ❌ Claim API (`POST /api/orders/:orderId/claim`)
 - ❌ 양도 요청/수락 API
@@ -118,6 +118,7 @@
 - ❌ 비회원 주문 조회 페이지
 - ❌ Claim 페이지
 - ❌ 관리자 페이지 개선 (주문 상세 3단 구조, 보증서 상세)
+- ❌ 관리자 페이지 옵션 관리 기능 (Phase 15-3)
 
 ---
 
@@ -1678,6 +1679,9 @@ Phase 2: PM-25-SH-Teneu-Solid  (색상도 제거, product_options 활용)
 
 ### 중기 개선 (선택적)
 15. **Phase 15**: product_options 테이블
+    - ✅ 15-1: 테이블 생성 (완료)
+    - ✅ 15-2: 옵션 API 수정 (완료)
+    - ❌ 15-3: 관리자 페이지 옵션 관리 기능
 
 ### 장기 리팩토링 (선택적)
 16. **Phase 16**: product_id 슬래시 제거
