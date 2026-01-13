@@ -115,8 +115,16 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- ⚠️ 추가 FK가 있는지 확인 (1-3에서 확인한 목록과 비교 필요)
-SELECT '=== 2-2. 남은 FK 확인 ===' AS info;
+-- ⚠️ 추가 FK가 있는지 확인하고 남아있으면 중단
+SELECT '=== 2-2. 남은 FK 확인 및 검증 ===' AS info;
+SET @remain_fk = (
+    SELECT COUNT(*)
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = 'prepmood'
+      AND REFERENCED_TABLE_NAME = 'admin_products'
+      AND REFERENCED_COLUMN_NAME = 'id'
+);
+
 SELECT
     TABLE_NAME,
     CONSTRAINT_NAME
@@ -124,6 +132,35 @@ FROM information_schema.KEY_COLUMN_USAGE
 WHERE TABLE_SCHEMA = 'prepmood'
   AND REFERENCED_TABLE_NAME = 'admin_products'
   AND REFERENCED_COLUMN_NAME = 'id';
+
+-- 남은 FK가 있으면 SIGNAL로 중단 (중간 깨짐 방지)
+SET @sql = IF(@remain_fk = 0,
+    'SELECT "OK: FK 모두 제거됨" AS info',
+    CONCAT('SIGNAL SQLSTATE "45000" SET MESSAGE_TEXT="FK가 ', @remain_fk, '개 남아있어서 중단합니다. 1-3 목록 확인 후 DROP을 추가하세요."')
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ============================================================
+-- 2.5. 참조 테이블 product_id 컬럼 길이 확장 (사전 작업)
+-- ============================================================
+SELECT '=== 2.5. 참조 테이블 product_id 컬럼 길이 확장 ===' AS info;
+
+-- cart_items.product_id 확장
+ALTER TABLE cart_items 
+MODIFY COLUMN product_id VARCHAR(128)
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- order_items.product_id 확장 (아직 확장 안 된 경우)
+ALTER TABLE order_items 
+MODIFY COLUMN product_id VARCHAR(128)
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;
+
+-- wishlists.product_id 확장
+ALTER TABLE wishlists 
+MODIFY COLUMN product_id VARCHAR(128)
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ============================================================
 -- 3. admin_products.id를 canonical_id로 교체
@@ -266,7 +303,7 @@ SET @fk_exists = (
       AND REFERENCED_COLUMN_NAME = 'id'
 );
 SET @sql = IF(@fk_exists = 0,
-    'ALTER TABLE token_master ADD CONSTRAINT fk_token_master_product_id FOREIGN KEY (product_id) REFERENCES admin_products(id) ON DELETE RESTRICT',
+    'ALTER TABLE token_master ADD CONSTRAINT token_master_ibfk_product_id FOREIGN KEY (product_id) REFERENCES admin_products(id) ON DELETE RESTRICT',
     'SELECT "token_master FK가 이미 존재합니다." AS info'
 );
 PREPARE stmt FROM @sql;
