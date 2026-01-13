@@ -259,7 +259,9 @@ router.get('/products/options', async (req, res) => {
         const extractedColor = extractColorFromProductId(product_id);
         
         // ⚠️ 해당 상품에 존재하는 모든 사이즈/색상 조회 (재고 상태와 관계없이)
+        // stock_units에 한 번이라도 등록된 적이 있는 모든 사이즈/색상 조합 조회
         // GPT 제안: DISTINCT만 사용 (GROUP BY 불필요)
+        // status 조건 제거: sold, returned 등 모든 상태 포함
         const [allSizeColorRows] = await connection.execute(
             `SELECT DISTINCT 
                 su.size,
