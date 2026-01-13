@@ -43,12 +43,12 @@ SELECT '=== 2. product_options 테이블 생성 ===' AS info;
 CREATE TABLE IF NOT EXISTS product_options (
     option_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     product_id VARCHAR(128) NOT NULL COMMENT '상품 ID (admin_products.id 참조)',
-    color VARCHAR(50) NULL COMMENT '색상 (표준화된 색상명, 예: Light Blue, Black 등)',
-    size VARCHAR(10) NULL COMMENT '사이즈 (S, M, L, XL, XXL, F)',
+    color VARCHAR(50) NOT NULL DEFAULT '' COMMENT '색상 (표준화된 색상명, 예: Light Blue, Black 등. 없으면 빈 문자열)',
+    size VARCHAR(10) NOT NULL DEFAULT '' COMMENT '사이즈 (S, M, L, XL, XXL, F. 없으면 빈 문자열)',
     is_active TINYINT(1) NOT NULL DEFAULT 1 COMMENT '활성 여부 (1: 활성, 0: 비활성)',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES admin_products(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES admin_products(id) ON DELETE RESTRICT,
     INDEX idx_product_id (product_id),
     INDEX idx_color (color),
     INDEX idx_is_active (is_active),
@@ -61,13 +61,15 @@ CREATE TABLE IF NOT EXISTS product_options (
 SELECT '=== 3. 기존 stock_units 데이터에서 옵션 추출 ===' AS info;
 
 -- stock_units에서 DISTINCT (product_id, size, color) 조합 추출
--- 색상 정규화 함수를 SQL로 구현 (product-routes.js의 normalizeColor 함수와 동일한 로직)
+-- 색상 정규화: color_standards가 있으면 JOIN, 없으면 CASE fallback
+-- GPT 제안: 한쪽만 있어도 옵션으로 등록 (size 또는 color 중 하나만 있어도 OK)
 INSERT IGNORE INTO product_options (product_id, color, size, is_active)
 SELECT DISTINCT
     su.product_id,
     CASE
-        -- 색상 정규화 (normalizeColor 함수와 동일한 로직)
-        -- 주의: LIKE 패턴은 대소문자 구분하지 않음 (MySQL 기본 설정)
+        -- color_standards 테이블이 있으면 JOIN으로 표준화 (장기적으로 이 방식 사용)
+        -- 현재는 CASE fallback 사용 (임시)
+        WHEN su.color IS NULL OR TRIM(su.color) = '' THEN ''
         WHEN UPPER(TRIM(su.color)) = 'LIGHTBLUE' 
              OR su.color LIKE '%LightBlue%' 
              OR su.color LIKE '%Light-Blue%' 
@@ -83,14 +85,14 @@ SELECT DISTINCT
         WHEN UPPER(TRIM(su.color)) = 'GRAY' THEN 'Grey'
         ELSE TRIM(su.color)
     END AS normalized_color,
-    TRIM(su.size) AS normalized_size,
+    CASE
+        WHEN su.size IS NULL OR TRIM(su.size) = '' THEN ''
+        ELSE TRIM(su.size)
+    END AS normalized_size,
     1 AS is_active
 FROM stock_units su
 WHERE su.product_id IS NOT NULL
-  AND su.size IS NOT NULL 
-  AND su.color IS NOT NULL
-  AND TRIM(su.size) != ''
-  AND TRIM(su.color) != '';
+  AND (su.size IS NOT NULL OR su.color IS NOT NULL);
 
 -- 삽입된 옵션 수 확인
 SELECT 
@@ -116,8 +118,9 @@ SELECT
 FROM product_options po
 LEFT JOIN admin_products ap ON po.product_id = ap.id
 LEFT JOIN stock_units su ON po.product_id = su.product_id 
-    AND TRIM(po.size) = TRIM(COALESCE(su.size, ''))
+    AND TRIM(COALESCE(po.size, '')) = TRIM(COALESCE(su.size, ''))
     AND po.color = CASE
+        WHEN su.color IS NULL OR TRIM(su.color) = '' THEN ''
         WHEN UPPER(TRIM(su.color)) = 'LIGHTBLUE' 
              OR su.color LIKE '%LightBlue%' 
              OR su.color LIKE '%Light-Blue%' 
