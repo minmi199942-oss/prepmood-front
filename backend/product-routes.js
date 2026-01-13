@@ -258,24 +258,41 @@ router.get('/products/options', async (req, res) => {
         // product_id에서 색상 추출
         const extractedColor = extractColorFromProductId(product_id);
         
-        // ⚠️ 해당 상품에 존재하는 모든 사이즈/색상 조회 (재고 상태와 관계없이)
-        // stock_units에 한 번이라도 등록된 적이 있는 모든 사이즈/색상 조합 조회
-        // GPT 제안: DISTINCT만 사용 (GROUP BY 불필요)
-        // status 조건 제거: sold, returned 등 모든 상태 포함
-        const [allSizeColorRows] = await connection.execute(
-            `SELECT DISTINCT 
-                su.size,
-                su.color
-            FROM stock_units su
-            WHERE su.product_id = ?
-              AND su.size IS NOT NULL 
-              AND su.color IS NOT NULL
-            ORDER BY su.size, su.color`,
+        // ⚠️ Phase 15: product_options 테이블에서 옵션 라인업 조회 (재고 상태와 관계없이)
+        // product_options가 없으면 stock_units에서 fallback (하위 호환성)
+        const [optionRows] = await connection.execute(
+            `SELECT 
+                po.size,
+                po.color,
+                po.is_active
+            FROM product_options po
+            WHERE po.product_id = ?
+              AND po.is_active = 1
+              AND po.size IS NOT NULL 
+              AND po.color IS NOT NULL
+            ORDER BY po.size, po.color`,
             [canonicalId]
         );
         
+        // Fallback: product_options가 없으면 stock_units에서 조회
+        let allSizeColorRows = optionRows;
+        if (optionRows.length === 0) {
+            const [fallbackRows] = await connection.execute(
+                `SELECT DISTINCT 
+                    su.size,
+                    su.color
+                FROM stock_units su
+                WHERE su.product_id = ?
+                  AND su.size IS NOT NULL 
+                  AND su.color IS NOT NULL
+                ORDER BY su.size, su.color`,
+                [canonicalId]
+            );
+            allSizeColorRows = fallbackRows;
+        }
+        
         // 재고가 있는 사이즈/색상 조회 (in_stock만)
-        // GPT 제안: 동일한 구조로 조회하여 비교 용이하게
+        // stock_units에서 재고 상태만 조회
         const [inStockRows] = await connection.execute(
             `SELECT DISTINCT 
                 su.size,
@@ -411,14 +428,16 @@ router.get('/products/options', async (req, res) => {
         }));
         
         // 디버깅: 최종 결과 확인
-        console.log('✅ 상품 옵션 조회 완료:', {
+        console.log('✅ 상품 옵션 조회 완료 (product_options 기반):', {
             product_id: product_id,
             canonical_id: canonicalId,
             extracted_color: extractedColor,
             sizes_with_stock: sizesWithStock,
             colors_with_stock: colorsWithStock,
+            product_options_count: optionRows.length,
             all_size_color_rows_count: allSizeColorRows.length,
-            in_stock_rows_count: inStockRows.length
+            in_stock_rows_count: inStockRows.length,
+            using_fallback: optionRows.length === 0
         });
         
         await connection.end();
