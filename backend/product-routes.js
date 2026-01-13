@@ -411,12 +411,12 @@ router.get('/products/options', async (req, res) => {
         // 디버깅: 최종 결과 확인
         console.log('✅ 상품 옵션 조회 완료:', {
             product_id: product_id,
+            canonical_id: canonicalId,
             extracted_color: extractedColor,
-            all_possible_sizes: allPossibleSizes,
             sizes_with_stock: sizesWithStock,
             colors_with_stock: colorsWithStock,
-            available_colors: Array.from(availableColors),
-            stock_map: stockMap
+            all_size_color_rows_count: allSizeColorRows.length,
+            in_stock_rows_count: inStockRows.length
         });
         
         await connection.end();
