@@ -38,12 +38,19 @@ if [ -n "$(git status --porcelain)" ]; then
   echo "  📋 변경된 파일:"
   git status --short
   
-  # 로컬 변경사항을 stash에 백업 (나중에 복구 가능)
-  echo "  💾 로컬 변경사항을 stash에 백업 중..."
-  git stash push -m "Auto-deploy backup $(date +%Y%m%d_%H%M%S)"
+  # deploy.sh 파일이 변경된 경우 특별 처리
+  if git diff --name-only HEAD | grep -q "^deploy.sh$"; then
+    echo "  ⚠️  deploy.sh 파일이 로컬에서 수정되었습니다."
+    echo "  💾 deploy.sh 변경사항을 stash에 백업 중..."
+    git stash push -m "Auto-deploy backup deploy.sh $(date +%Y%m%d_%H%M%S)" -- deploy.sh 2>/dev/null || {
+      echo "  ⚠️  deploy.sh stash 실패, 원격 버전으로 강제 복원"
+      git checkout -- deploy.sh
+    }
+  fi
   
-  # stash가 성공했는지 확인
-  if [ $? -eq 0 ]; then
+  # 나머지 로컬 변경사항을 stash에 백업 (나중에 복구 가능)
+  echo "  💾 나머지 로컬 변경사항을 stash에 백업 중..."
+  if git stash push -m "Auto-deploy backup $(date +%Y%m%d_%H%M%S)" 2>/dev/null; then
     echo "  ✅ 로컬 변경사항이 stash에 백업되었습니다."
     echo "  💡 복구 방법: cd $REPO_DIR && git stash list && git stash pop"
   else
@@ -53,9 +60,18 @@ if [ -n "$(git status --porcelain)" ]; then
   fi
 fi
 
+# git pull 전에 원격 변경사항 fetch
+echo "  📥 원격 변경사항 확인 중..."
+git fetch origin main || {
+  echo "  ⚠️  git fetch 실패, 계속 진행"
+}
+
+# pull 시도 (충돌 발생 시 자동 해결)
 if ! git pull origin main; then
-  echo "❌ Git pull 실패 - 배포 중단"
-  exit 1
+  echo "  ⚠️  Git pull 충돌 발생, 원격 버전으로 강제 업데이트"
+  git reset --hard origin/main
+  git clean -fd
+  echo "  ✅ 원격 버전으로 강제 업데이트 완료"
 fi
 
 # 2. 백업 생성 (tar 압축)
