@@ -33,6 +33,7 @@ const crypto = require('crypto');
 const { createInvoiceFromOrder } = require('./utils/invoice-creator');
 const { processPaidOrder } = require('./utils/paid-order-processor');
 const { createPaidEvent } = require('./utils/paid-event-creator');
+const { updateOrderStatus } = require('./utils/order-status-aggregator');
 require('dotenv').config();
 
 // MySQL 연결 설정 (order-routes.js와 동일)
@@ -189,6 +190,7 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     const paidEventId = paidEventResult.eventId;
 
                     // processPaidOrder() 실행
+                    // ⚠️ 중요: orders.status는 집계 함수로만 갱신 (직접 업데이트 금지)
                     const paidResult = await processPaidOrder({
                         connection,
                         paidEventId: paidEventId,
@@ -199,6 +201,10 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                         eventSource: 'redirect',
                         rawPayload: null
                     });
+
+                    // orders.status 집계 함수 호출 (processPaidOrder 후)
+                    // ⚠️ 중요: orders.status는 order_item_units.unit_status와 paid_events 기반으로 집계
+                    await updateOrderStatus(connection, order.order_id);
 
                     // ⚠️ 수정: processPaidOrder() 내부 작업을 커밋해야 함
                     await connection.commit();
@@ -325,6 +331,14 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             paymentStatus = 'captured';
             orderStatus = 'confirmed';
 
+            // ⚠️ 디버깅: MOCK 모드 paymentStatus 로깅
+            Logger.log('[payments][mode=MOCK] 결제 상태 결정', {
+                orderNumber,
+                paymentStatus,
+                orderStatus,
+                willCreatePaidEvent: paymentStatus === 'captured'
+            });
+
         } else {
             // TOSS 모드: 실제 토스페이먼츠 API 호출
             const tossApiBase = process.env.TOSS_API_BASE || 'https://api.tosspayments.com';
@@ -391,6 +405,15 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 orderStatus = paymentStatus === 'captured' ? 'processing' : 
                              paymentStatus === 'authorized' ? 'confirmed' : 'failed';
 
+                // ⚠️ 디버깅: paymentStatus 결정 로깅
+                Logger.log('[payments][mode=TOSS] 결제 상태 결정', {
+                    orderNumber,
+                    tossStatus: confirmData.status,
+                    paymentStatus,
+                    orderStatus,
+                    willCreatePaidEvent: paymentStatus === 'captured'
+                });
+
             } catch (fetchError) {
                 await connection.rollback();
                 await connection.end();
@@ -433,6 +456,14 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
         let paidProcessError = null;
         let paidEventId = null;
         
+        // ⚠️ 디버깅: paymentStatus 로깅
+        Logger.log('[payments][confirm] Paid 처리 시작', {
+            order_id: order.order_id,
+            order_number: orderNumber,
+            paymentStatus,
+            willCreatePaidEvent: paymentStatus === 'captured'
+        });
+        
         if (paymentStatus === 'captured') {
             try {
                 // 5-1. paid_events 생성 (별도 커넥션, autocommit - 항상 남김)
@@ -460,14 +491,8 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     });
                 }
 
-                // 5-2. 주문 상태 업데이트 (paid_events 생성 성공 후에만)
-                // 주의: orders 테이블에 paid_at 컬럼이 없으므로 status만 업데이트
-                await connection.execute(
-                    'UPDATE orders SET status = ? WHERE order_number = ?',
-                    [orderStatus, orderNumber]
-                );
-
-                // 5-3. 주문 처리 트랜잭션 (기존 connection 사용)
+                // 5-2. 주문 처리 트랜잭션 (기존 connection 사용)
+                // ⚠️ 중요: orders.status는 집계 함수로만 갱신 (직접 업데이트 금지)
                 const paidResult = await processPaidOrder({
                     connection,
                     paidEventId: paidEventId,
@@ -478,6 +503,10 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     eventSource: isMockMode ? 'redirect' : 'redirect',
                     rawPayload: confirmData
                 });
+                
+                // 5-3. orders.status 집계 함수 호출 (processPaidOrder 후)
+                // ⚠️ 중요: orders.status는 order_item_units.unit_status와 paid_events 기반으로 집계
+                await updateOrderStatus(connection, order.order_id);
                 
                 paidProcessed = true;
                 invoiceCreated = paidResult.data.invoiceNumber !== null;
@@ -512,11 +541,18 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 // 나중에 수동으로 재처리 가능 (payments 테이블에 결제 정보는 보존됨)
             }
         } else {
-            // paymentStatus가 'captured'가 아닌 경우 주문 상태만 업데이트
-            await connection.execute(
-                'UPDATE orders SET status = ? WHERE order_number = ?',
-                [orderStatus, orderNumber]
-            );
+            // ⚠️ 디버깅: paymentStatus가 'captured'가 아닌 경우 로깅
+            Logger.warn('[payments][confirm] Paid 처리 건너뜀 (paymentStatus가 captured가 아님)', {
+                order_id: order.order_id,
+                order_number: orderNumber,
+                paymentStatus,
+                orderStatus,
+                reason: 'paymentStatus !== "captured"'
+            });
+            
+            // ⚠️ 중요: paymentStatus가 'captured'가 아닌 경우에도 orders.status는 집계 함수로만 갱신
+            // (paid_events가 없으면 pending 상태로 계산됨)
+            await updateOrderStatus(connection, order.order_id);
         }
 
         let cartCleared = false;
@@ -939,7 +975,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                     paymentKey: tid,
                     amount: serverAmount,
                     currency: 'KRW',
-                    eventSource: 'inicis_return',
+                    eventSource: 'redirect', // ⚠️ 수정: 'inicis_return' → 'redirect' (ENUM에 없음)
                     rawPayload: req.body
                 });
 
@@ -957,13 +993,8 @@ router.post('/payments/inicis/return', async (req, res) => {
                     });
                 }
 
-                // 주문 상태 업데이트 (paid_events 생성 성공 후에만)
-                await connection.execute(
-                    'UPDATE orders SET status = ? WHERE order_number = ?',
-                    [orderStatus, orderNumber]
-                );
-
                 // 주문 처리 트랜잭션 (기존 connection 사용)
+                // ⚠️ 중요: orders.status는 집계 함수로만 갱신 (직접 업데이트 금지)
                 const paidResult = await processPaidOrder({
                     connection,
                     paidEventId: paidEventId,
@@ -971,9 +1002,13 @@ router.post('/payments/inicis/return', async (req, res) => {
                     paymentKey: tid,
                     amount: serverAmount,
                     currency: 'KRW',
-                    eventSource: 'inicis_return',
+                    eventSource: 'redirect', // ⚠️ 수정: 'inicis_return' → 'redirect' (일관성)
                     rawPayload: req.body
                 });
+                
+                // orders.status 집계 함수 호출 (processPaidOrder 후)
+                // ⚠️ 중요: orders.status는 order_item_units.unit_status와 paid_events 기반으로 집계
+                await updateOrderStatus(connection, order.order_id);
                 
                 Logger.log('[payments][inicis] Paid 처리 완료', {
                     order_id: order.order_id,
@@ -1002,11 +1037,9 @@ router.post('/payments/inicis/return', async (req, res) => {
                 // 나중에 수동으로 재처리 가능 (payments 테이블에 결제 정보는 보존됨)
             }
         } else {
-            // paymentStatus가 'captured'가 아닌 경우 주문 상태만 업데이트
-            await connection.execute(
-                'UPDATE orders SET status = ? WHERE order_number = ?',
-                [orderStatus, orderNumber]
-            );
+            // ⚠️ 중요: paymentStatus가 'captured'가 아닌 경우에도 orders.status는 집계 함수로만 갱신
+            // (paid_events가 없으면 pending 상태로 계산됨)
+            await updateOrderStatus(connection, order.order_id);
         }
 
         // 장바구니 정리
@@ -1379,6 +1412,7 @@ async function handlePaymentStatusChange(connection, data) {
                 }
 
                 // 주문 처리 트랜잭션 (기존 connection 사용)
+                // ⚠️ 중요: orders.status는 집계 함수로만 갱신 (직접 업데이트 금지)
                 const paidResult = await processPaidOrder({
                     connection,
                     paidEventId: paidEventId,
@@ -1389,6 +1423,10 @@ async function handlePaymentStatusChange(connection, data) {
                     eventSource: 'webhook',
                     rawPayload: verifiedPayment
                 });
+                
+                // orders.status 집계 함수 호출 (processPaidOrder 후)
+                // ⚠️ 중요: orders.status는 order_item_units.unit_status와 paid_events 기반으로 집계
+                await updateOrderStatus(connection, orderIdForPaidProcess);
                 
                 Logger.log('[payments][webhook] Paid 처리 완료', {
                     order_id: orderIdForPaidProcess,

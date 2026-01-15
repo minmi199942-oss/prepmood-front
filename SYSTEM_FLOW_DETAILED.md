@@ -187,9 +187,12 @@ order_id: 2
 7. **orders 업데이트**
    ```sql
    UPDATE orders 
-   SET paid_at = NOW(), status = 'paid' 
+   SET paid_at = NOW()  -- ⚠️ status는 집계 함수로만 갱신 (직접 업데이트 금지)
    WHERE order_id = ?
    ```
+   - **주의**: `orders.status`는 `order_item_units.unit_status`와 `paid_events` 기반으로 집계 함수로만 갱신
+   - 집계 함수는 트랜잭션 외부에서 호출하거나 별도 배치 작업으로 처리
+   - 집계 규칙: `paid_events` 존재 + `unit_status` 기반으로 `pending`, `paid`, `partial_shipped`, `shipped`, `partial_delivered`, `delivered`, `refunded` 계산
 
 8. **COMMIT**
 
