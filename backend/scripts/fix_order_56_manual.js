@@ -101,6 +101,27 @@ async function fixOrder56() {
             console.log('✅ 기존 paid_events 사용:', paidEventId);
         }
 
+        // 3-1. paid_event_processing 확인 및 생성
+        const [processing] = await connection.execute(
+            `SELECT event_id, status, last_error 
+             FROM paid_event_processing 
+             WHERE event_id = ?`,
+            [paidEventId]
+        );
+
+        if (processing.length === 0) {
+            console.log('📝 paid_event_processing 생성 중...');
+            await connection.execute(
+                `INSERT INTO paid_event_processing 
+                 (event_id, status, created_at, updated_at) 
+                 VALUES (?, 'pending', NOW(), NOW())`,
+                [paidEventId]
+            );
+            console.log('✅ paid_event_processing 생성 완료');
+        } else {
+            console.log('✅ 기존 paid_event_processing 사용:', processing[0].status);
+        }
+
         // 4. 트랜잭션 시작
         await connection.beginTransaction();
 
