@@ -58,12 +58,24 @@ async function createPaidEvent({
                 orderId,
                 attempt,
                 maxRetries,
-                paymentKey: paymentKey?.substring(0, 20) + '...'
+                paymentKey: paymentKey?.substring(0, 20) + '...',
+                amount,
+                currency,
+                eventSource
             });
 
             try {
                 // INSERT ... ON DUPLICATE KEY UPDATE 사용하여 중복 시 업데이트
                 // 이렇게 하면 락 경합을 줄이고 중복 체크도 자동으로 처리됨
+                Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 실행', {
+                    orderId,
+                    paymentKey: paymentKey?.substring(0, 20) + '...',
+                    eventSource,
+                    amount,
+                    currency,
+                    hasRawPayload: !!rawPayload
+                });
+                
                 const [paidEventResult] = await connection.execute(
                     `INSERT INTO paid_events 
                     (order_id, payment_key, event_source, amount, currency, raw_payload_json, confirmed_at, created_at) 
@@ -73,6 +85,12 @@ async function createPaidEvent({
                         confirmed_at = NOW()`,
                     [orderId, paymentKey, eventSource, amount, currency, rawPayload ? JSON.stringify(rawPayload) : null]
                 );
+                
+                Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 결과', {
+                    orderId,
+                    insertId: paidEventResult.insertId,
+                    affectedRows: paidEventResult.affectedRows
+                });
 
                 const eventId = paidEventResult.insertId || (await connection.execute(
                     `SELECT event_id FROM paid_events 
@@ -107,6 +125,18 @@ async function createPaidEvent({
 
             } catch (error) {
                 await connection.end();
+                
+                // ⚠️ 디버깅: 에러 상세 로깅
+                Logger.error('[PAID_EVENT_CREATOR] paid_events INSERT 실패 (내부 catch)', {
+                    orderId,
+                    attempt,
+                    maxRetries,
+                    error: error.message,
+                    error_code: error.code,
+                    error_sql_state: error.sqlState,
+                    error_sql_message: error.sqlMessage,
+                    stack: error.stack
+                });
                 
                 // ER_LOCK_WAIT_TIMEOUT 또는 ER_LOCK_DEADLOCK인 경우 재시도
                 if ((error.code === 'ER_LOCK_WAIT_TIMEOUT' || error.code === 'ER_LOCK_DEADLOCK') && attempt < maxRetries) {

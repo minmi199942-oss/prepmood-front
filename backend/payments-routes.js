@@ -576,6 +576,26 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
         await connection.commit();
         await connection.end();
 
+        // ⚠️ 중요: paid_events 생성 실패 시 사용자에게 에러 응답
+        if (paidProcessError) {
+            Logger.error(`[payments][mode=${paymentMode}] 결제는 성공했지만 주문 처리 실패`, {
+                orderNumber,
+                paymentKey,
+                amount: serverAmount,
+                error: paidProcessError.message,
+                error_code: paidProcessError.code
+            });
+            
+            return res.status(500).json({
+                code: 'ORDER_PROCESSING_FAILED',
+                details: {
+                    message: '결제는 완료되었지만 주문 처리가 완료되지 않았습니다. 잠시 후 다시 시도해주세요.',
+                    order_number: orderNumber,
+                    payment_key: paymentKey
+                }
+            });
+        }
+
         Logger.log(`[payments][mode=${paymentMode}] 결제 확정 성공`, {
             orderNumber,
             paymentKey,
@@ -966,6 +986,7 @@ router.post('/payments/inicis/return', async (req, res) => {
         // 중요: paid_events는 별도 커넥션(autocommit)으로 먼저 생성 (결제 증거 보존)
         // 그 다음 processPaidOrder()는 재고 배정, 주문 단위 생성, 보증서 생성, 인보이스 생성을 처리
         // ⚠️ 중요: paid_events 생성 실패 시 주문 상태를 processing으로 업데이트하지 않음
+        let paidProcessError = null;
         if (paymentStatus === 'captured') {
             try {
                 // paid_events 생성 (별도 커넥션, autocommit - 항상 남김)
@@ -1022,6 +1043,7 @@ router.post('/payments/inicis/return', async (req, res) => {
             } catch (err) {
                 // ⚠️ 중요: paid_events 생성 실패 시 주문 상태를 processing으로 업데이트하지 않음
                 // 결제는 성공했지만 paid_events가 없으면 주문 처리를 완료할 수 없음
+                paidProcessError = err;
                 Logger.error('[payments][inicis] Paid 처리 실패 (결제는 성공, 주문 상태는 업데이트 안 됨)', {
                     order_id: order.order_id,
                     order_number: orderNumber,
@@ -1061,6 +1083,19 @@ router.post('/payments/inicis/return', async (req, res) => {
 
         await connection.commit();
         await connection.end();
+
+        // ⚠️ 중요: paid_events 생성 실패 시 사용자에게 에러 응답
+        if (paidProcessError) {
+            Logger.error('[payments][inicis] 결제는 성공했지만 주문 처리 실패', {
+                orderNumber,
+                tid,
+                amount: serverAmount,
+                error: paidProcessError.message,
+                error_code: paidProcessError.code
+            });
+            
+            return res.redirect(`/checkout-payment.html?status=fail&code=ORDER_PROCESSING_FAILED&message=${encodeURIComponent('결제는 완료되었지만 주문 처리가 완료되지 않았습니다. 잠시 후 다시 시도해주세요.')}`);
+        }
 
         Logger.log('[payments][inicis] 결제 완료', {
             orderNumber,
