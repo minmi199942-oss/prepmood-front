@@ -1,15 +1,786 @@
-# 실제 DB 구조 스냅샷
-# 이 파일은 VPS에서 show_db_structure.sql 실행 결과입니다.
-# 업데이트: VPS에서 실행 후 이 파일을 업데이트하세요.
-
-# 업데이트 명령어 (VPS에서):
-# mysql -u prepmood_user -p prepmood < scripts/show_db_structure.sql > /tmp/db_structure.txt 2>&1
-# 
-# 그 다음 로컬로 다운로드:
-# scp root@prepmood.kr:/tmp/db_structure.txt backend/scripts/db_structure_actual.txt
-
-# 또는 파일 내용을 직접 복사하여 이 파일에 붙여넣기
-
-# ============================================================
-# 파일이 비어있습니다. VPS에서 실행 후 내용을 업데이트하세요.
-# ============================================================
+info
+=== 1. 모든 테이블 목록 ===
+TABLE_NAME	TABLE_TYPE	ENGINE	TABLE_ROWS	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+admin_products	BASE TABLE	InnoDB	10	16384	65536	2026-01-13 08:20:58	NULL
+admin_products_backup	BASE TABLE	InnoDB	10	16384	0	2026-01-01 09:42:17	NULL
+carriers	BASE TABLE	InnoDB	10	16384	16384	2026-01-10 10:00:11	2026-01-10 10:29:02
+cart_items	BASE TABLE	InnoDB	5	16384	49152	2026-01-13 07:25:40	2026-01-13 13:18:46
+carts	BASE TABLE	InnoDB	8	16384	16384	2025-10-24 09:05:29	NULL
+claim_tokens	BASE TABLE	InnoDB	0	16384	81920	2026-01-13 10:55:12	NULL
+color_standards	BASE TABLE	InnoDB	6	16384	16384	2026-01-10 19:26:04	2026-01-10 19:26:04
+email_verifications	BASE TABLE	InnoDB	0	16384	0	2025-10-01 15:20:20	NULL
+guest_order_access_tokens	BASE TABLE	InnoDB	0	16384	65536	2026-01-13 10:55:04	NULL
+inquiries	BASE TABLE	InnoDB	4	16384	131072	2026-01-08 07:38:21	2026-01-10 16:02:55
+inquiry_replies	BASE TABLE	InnoDB	5	16384	49152	2026-01-01 16:25:43	2026-01-10 16:02:57
+invoices	BASE TABLE	InnoDB	0	16384	98304	2026-01-09 07:48:24	NULL
+order_item_units	BASE TABLE	InnoDB	0	16384	147456	2026-01-13 10:55:24	NULL
+order_items	BASE TABLE	InnoDB	59	16384	49152	2026-01-13 08:20:58	2026-01-13 12:08:28
+order_stock_issues	BASE TABLE	InnoDB	0	16384	81920	2026-01-13 08:05:05	NULL
+orders	BASE TABLE	InnoDB	56	16384	131072	2026-01-09 14:15:06	2026-01-13 12:09:51
+orders_idempotency	BASE TABLE	InnoDB	16	16384	32768	2026-01-08 10:13:33	2026-01-14 12:16:28
+ownerships	BASE TABLE	InnoDB	0	16384	32768	2025-10-07 09:41:14	NULL
+paid_event_processing	BASE TABLE	InnoDB	0	16384	49152	2026-01-09 16:45:14	NULL
+paid_events	BASE TABLE	InnoDB	0	16384	65536	2026-01-09 12:49:27	NULL
+payments	BASE TABLE	InnoDB	18	49152	32768	2025-10-31 07:55:58	2026-01-13 12:09:51
+product_history	BASE TABLE	InnoDB	0	16384	16384	2025-10-01 11:31:07	NULL
+product_options	BASE TABLE	InnoDB	5	16384	81920	2026-01-13 10:05:44	2026-01-13 10:07:33
+product_qr	BASE TABLE	InnoDB	12	16384	32768	2025-10-07 09:41:14	NULL
+products	BASE TABLE	InnoDB	0	16384	32768	2025-10-01 11:28:58	NULL
+qr_audit_logs	BASE TABLE	InnoDB	8	16384	49152	2025-10-07 09:41:14	NULL
+qr_products	BASE TABLE	InnoDB	8	16384	0	2025-10-07 09:38:16	NULL
+scan_logs	BASE TABLE	InnoDB	32	16384	98304	2025-12-30 18:05:26	NULL
+schema_migrations	BASE TABLE	InnoDB	7	16384	49152	2025-12-29 16:19:16	NULL
+shipment_units	BASE TABLE	InnoDB	0	16384	32768	2026-01-13 10:55:24	NULL
+shipments	BASE TABLE	InnoDB	0	16384	81920	2026-01-13 10:55:18	NULL
+stock_units	BASE TABLE	InnoDB	3	16384	147456	2026-01-13 08:20:58	NULL
+token_master	BASE TABLE	InnoDB	42	16384	196608	2026-01-13 08:05:05	2026-01-13 11:45:13
+token_master_backup	BASE TABLE	InnoDB	42	16384	147456	2026-01-08 18:59:56	NULL
+transfer_logs	BASE TABLE	InnoDB	0	16384	98304	2025-12-30 18:05:26	NULL
+user_addresses	BASE TABLE	InnoDB	0	16384	16384	2025-10-01 11:28:58	NULL
+users	BASE TABLE	InnoDB	11	16384	65536	2026-01-07 18:31:08	NULL
+warranties	BASE TABLE	InnoDB	0	16384	147456	2026-01-13 10:54:40	NULL
+warranty_events	BASE TABLE	InnoDB	0	16384	81920	2026-01-09 16:45:32	NULL
+warranty_transfers	BASE TABLE	InnoDB	0	16384	131072	2026-01-13 10:54:48	NULL
+wishlists	BASE TABLE	InnoDB	1	16384	49152	2026-01-13 07:25:40	NULL
+info
+=== 2. 각 테이블의 컬럼 구조 ===
+TABLE_NAME	COLUMN_NAME	COLUMN_TYPE	IS_NULLABLE	COLUMN_KEY	COLUMN_DEFAULT	EXTRA	COLUMN_COMMENT	ORDINAL_POSITION
+admin_products	id	varchar(128)	NO	PRI	NULL			1
+admin_products	name	varchar(255)	NO		NULL			2
+admin_products	short_name	varchar(100)	YES	UNI	NULL		xlsx product_name 매칭용 (예: SH Teneu Solid)	3
+admin_products	price	int	NO		NULL			4
+admin_products	image	varchar(500)	YES		NULL			5
+admin_products	collection_year	int	NO	MUL	2026			6
+admin_products	category	varchar(100)	NO		NULL			7
+admin_products	type	varchar(100)	YES		NULL			8
+admin_products	description	text	YES		NULL			9
+admin_products	created_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		10
+admin_products	updated_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		11
+admin_products_backup	id	varchar(50)	NO		NULL			1
+admin_products_backup	name	varchar(255)	NO		NULL			2
+admin_products_backup	price	int	NO		NULL			3
+admin_products_backup	image	varchar(500)	YES		NULL			4
+admin_products_backup	category	varchar(100)	NO		NULL			5
+admin_products_backup	type	varchar(100)	NO		NULL			6
+admin_products_backup	description	text	YES		NULL			7
+admin_products_backup	created_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		8
+admin_products_backup	updated_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		9
+carriers	code	varchar(20)	NO	PRI	NULL		택배사 코드 (예: CJ, ILYANG, VALEX)	1
+carriers	name	varchar(100)	NO		NULL		택배사 이름 (예: CJ대한통운, 일양택배, 한진택배)	2
+carriers	name_en	varchar(100)	YES		NULL		택배사 영문 이름	3
+carriers	is_active	tinyint(1)	NO	MUL	1		활성 여부 (1: 활성, 0: 비활성)	4
+carriers	tracking_url_template	varchar(500)	YES		NULL		송장 추적 URL 템플릿 (예: https://www.cjlogistics.com/ko/tool/parcel/tracking?param={tracking_number})	5
+carriers	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		6
+carriers	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		7
+cart_items	item_id	int	NO	PRI	NULL	auto_increment		1
+cart_items	cart_id	int	NO	MUL	NULL			2
+cart_items	product_id	varchar(128)	YES	MUL	NULL			3
+cart_items	quantity	int	NO		1			4
+cart_items	size	varchar(10)	YES		NULL			5
+cart_items	color	varchar(50)	YES		NULL			6
+cart_items	created_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		7
+cart_items	updated_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		8
+carts	cart_id	int	NO	PRI	NULL	auto_increment		1
+carts	user_id	int	NO	MUL	NULL			2
+carts	created_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		3
+carts	updated_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		4
+claim_tokens	token_id	bigint	NO	PRI	NULL	auto_increment		1
+claim_tokens	order_id	int	NO	MUL	NULL		주문 ID	2
+claim_tokens	token	varchar(100)	NO	UNI	NULL		claim 토큰 (15분 유효)	3
+claim_tokens	expires_at	datetime	NO	MUL	NULL		만료 시각 (15분 후)	4
+claim_tokens	used_at	datetime	YES	MUL	NULL		사용 시각 (1회성)	5
+claim_tokens	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		6
+color_standards	color_code	varchar(50)	NO	PRI	NULL		표준 색상값 (SSOT)	1
+color_standards	display_name	varchar(100)	NO		NULL		화면 표시명	2
+color_standards	is_active	tinyint(1)	NO	MUL	1		활성 여부	3
+color_standards	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		4
+color_standards	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		5
+email_verifications	email	varchar(255)	NO	PRI	NULL			1
+email_verifications	code	varchar(10)	NO		NULL			2
+email_verifications	expires_at	datetime	NO		NULL			3
+email_verifications	verified	tinyint(1)	NO		0			4
+email_verifications	created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		5
+email_verifications	updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		6
+guest_order_access_tokens	token_id	bigint	NO	PRI	NULL	auto_increment		1
+guest_order_access_tokens	order_id	int	NO	MUL	NULL		주문 ID	2
+guest_order_access_tokens	token	varchar(100)	NO	UNI	NULL		접근 토큰 (90일 유효)	3
+guest_order_access_tokens	expires_at	datetime	NO	MUL	NULL		만료 시각 (90일 후)	4
+guest_order_access_tokens	revoked_at	datetime	YES		NULL		회수 시각 (claim 시 회수)	5
+guest_order_access_tokens	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		6
+inquiries	id	bigint	NO	PRI	NULL	auto_increment		1
+inquiries	inquiry_number	varchar(20)	YES	UNI	NULL			2
+inquiries	user_id	int	YES	MUL	NULL			3
+inquiries	salutation	varchar(10)	NO		NULL			4
+inquiries	name	varchar(100)	NO	MUL	NULL		이름 (단일 필드)	5
+inquiries	email	varchar(120)	NO	MUL	NULL			6
+inquiries	region	varchar(10)	NO		NULL			7
+inquiries	city	varchar(80)	YES		NULL			8
+inquiries	country_code	varchar(10)	YES		NULL			9
+inquiries	phone	varchar(30)	YES		NULL			10
+inquiries	category	varchar(80)	NO	MUL	NULL			11
+inquiries	topic	varchar(120)	NO		NULL			12
+inquiries	message	text	NO		NULL			13
+inquiries	privacy_consent	tinyint(1)	NO		0			14
+inquiries	age_consent	tinyint(1)	NO		0			15
+inquiries	status	enum('new','in_progress','answered','closed')	NO	MUL	new			16
+inquiries	admin_memo	text	YES		NULL			17
+inquiries	created_at	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED		18
+inquiries	updated_at	datetime	YES		NULL	on update CURRENT_TIMESTAMP		19
+inquiry_replies	id	bigint	NO	PRI	NULL	auto_increment		1
+inquiry_replies	inquiry_id	bigint	NO	MUL	NULL			2
+inquiry_replies	admin_user_id	int	NO	MUL	NULL			3
+inquiry_replies	message	text	NO		NULL			4
+inquiry_replies	email_status	enum('pending','sent','failed')	YES		pending			5
+inquiry_replies	email_error	text	YES		NULL			6
+inquiry_replies	created_at	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED		7
+invoices	invoice_id	bigint	NO	PRI	NULL	auto_increment		1
+invoices	order_id	int	NO	MUL	NULL			2
+invoices	invoice_number	varchar(50)	NO	UNI	NULL		PM-INV-YYMMDD-HHmm-{랜덤4자} 형식	3
+invoices	type	enum('invoice','credit_note')	YES		invoice			4
+invoices	status	enum('issued','void','refunded')	YES	MUL	issued			5
+invoices	currency	varchar(3)	NO		KRW			6
+invoices	total_amount	decimal(12,2)	NO		NULL			7
+invoices	tax_amount	decimal(12,2)	YES		0.00			8
+invoices	net_amount	decimal(12,2)	NO		NULL			9
+invoices	billing_name	varchar(100)	NO		NULL			10
+invoices	billing_email	varchar(255)	NO		NULL			11
+invoices	billing_phone	varchar(30)	YES		NULL			12
+invoices	billing_address_json	json	YES		NULL		발급 시점 주소 고정	13
+invoices	shipping_name	varchar(100)	NO		NULL			14
+invoices	shipping_email	varchar(255)	YES		NULL			15
+invoices	shipping_phone	varchar(30)	YES		NULL			16
+invoices	shipping_address_json	json	YES		NULL		발급 시점 주소 고정	17
+invoices	payload_json	json	YES		NULL		전체 인보이스 데이터 스냅샷 (라인 아이템 포함)	18
+invoices	order_snapshot_hash	char(64)	YES		NULL		payload_json 해시 (위변조/동일문서 판별)	19
+invoices	version	int	YES		1		인보이스 템플릿/렌더링 버전	20
+invoices	issued_by	enum('system','admin')	YES		system			21
+invoices	issued_by_id	int	YES		NULL		관리자 발급 시 admin_user_id	22
+invoices	related_invoice_id	bigint	YES	MUL	NULL		credit_note가 취소하는 invoice_id (1:N 허용)	23
+invoices	document_url	text	YES		NULL		PDF URL 또는 링크	24
+invoices	document_key	varchar(255)	YES		NULL		S3 키 등	25
+invoices	issued_at	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED		26
+invoices	emailed_at	datetime	YES		NULL			27
+invoices	voided_at	datetime	YES		NULL			28
+invoices	void_reason	text	YES		NULL			29
+order_item_units	order_item_unit_id	bigint	NO	PRI	NULL	auto_increment		1
+order_item_units	order_item_id	int	NO	MUL	NULL			2
+order_item_units	order_id	int	NO	MUL	NULL		orders.order_id 참조 (FK 추가 예정)	3
+order_item_units	unit_seq	int	NO		NULL		같은 order_item_id 내 순서 (1부터 시작)	4
+order_item_units	stock_unit_id	bigint	YES	MUL	NULL		재고 단위 연결 (재고 배정 후 설정)	5
+order_item_units	token_pk	int	NO	MUL	NULL		token_master.token_pk 참조	6
+order_item_units	unit_status	enum('reserved','shipped','delivered','refunded')	NO	MUL	reserved			7
+order_item_units	carrier_code	varchar(20)	YES		NULL		택배사 코드 (carriers.code 참조 예정)	8
+order_item_units	tracking_number	varchar(100)	YES	MUL	NULL		송장번호	9
+order_item_units	shipped_at	datetime	YES		NULL		출고 시점	10
+order_item_units	delivered_at	datetime	YES		NULL		배송완료 시점	11
+order_item_units	current_shipment_id	bigint	YES	MUL	NULL		현재 유효 송장 (shipments 테이블 생성 후 FK 추가)	12
+order_item_units	active_lock	int	YES		NULL	VIRTUAL GENERATED	Active 상태 집합 (이중 판매 방지용)	13
+order_item_units	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		14
+order_item_units	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		15
+order_items	order_item_id	int	NO	PRI	NULL	auto_increment		1
+order_items	order_id	int	NO	MUL	NULL			2
+order_items	product_id	varchar(128)	NO	MUL	NULL			3
+order_items	product_name	varchar(255)	NO		NULL			4
+order_items	size	varchar(10)	YES		NULL			5
+order_items	color	varchar(20)	YES	MUL	NULL			6
+order_items	product_image	varchar(500)	YES		NULL			7
+order_items	quantity	int	NO		1			8
+order_items	unit_price	decimal(10,2)	NO		NULL			9
+order_items	subtotal	decimal(10,2)	NO		NULL			10
+order_items	created_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		11
+order_stock_issues	issue_id	bigint	NO	PRI	NULL	auto_increment		1
+order_stock_issues	order_id	int	NO	MUL	NULL			2
+order_stock_issues	event_id	bigint	NO	MUL	NULL		paid_events.event_id (어떤 결제 증거에서 파생)	3
+order_stock_issues	product_id	varchar(128)	NO	MUL	NULL			4
+order_stock_issues	required_qty	int	NO		NULL		필요 수량	5
+order_stock_issues	available_qty	int	NO		NULL		가용 수량	6
+order_stock_issues	status	enum('open','resolved','cancelled')	YES	MUL	open			7
+order_stock_issues	resolved_at	datetime	YES		NULL			8
+order_stock_issues	resolution_note	text	YES		NULL		해결 메모	9
+order_stock_issues	created_at	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED		10
+order_stock_issues	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		11
+orders	order_id	int	NO	PRI	NULL	auto_increment		1
+orders	user_id	int	YES	MUL	NULL		회원 주문: user_id, 비회원 주문: NULL	2
+orders	guest_id	varchar(20)	YES	MUL	NULL		비회원 주문 ID (G-{YYYYMMDD}-{랜덤6자})	3
+orders	serial_number	varchar(50)	YES	MUL	NULL		DEPRECATED: use order_number (FK dropped; will be removed later)	4
+orders	quantity	int	NO		1			5
+orders	total_price	decimal(10,2)	NO		0.00		총 금액	6
+orders	order_date	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		7
+orders	status	varchar(50)	NO	MUL	pending		주문 상태: pending, confirmed, processing, shipped, delivered, cancelled, refunded	8
+orders	paid_at	datetime	YES	MUL	NULL		결제 완료 시점 (paid_events 기반, 캐시/파생 필드)	9
+orders	shipping_email	varchar(255)	YES		NULL		배송지 이메일	10
+orders	shipping_name	varchar(100)	NO		NULL		배송지 수령인 이름 (단일 필드)	11
+orders	shipping_phone	varchar(20)	YES		NULL		배송지 전화번호	12
+orders	shipping_address	text	YES		NULL		배송지 주소	13
+orders	shipping_city	varchar(100)	YES		NULL		배송지 도시	14
+orders	shipping_postal_code	varchar(20)	YES		NULL		배송지 우편번호	15
+orders	shipping_country	varchar(50)	YES		NULL		배송지 국가	16
+orders	shipping_method	varchar(50)	NO	MUL	standard		배송 방법: standard, express, overnight, pickup	17
+orders	shipping_cost	decimal(10,2)	NO		0.00		배송비	18
+orders	estimated_delivery	date	YES	MUL	NULL		예상 배송일	19
+orders	order_number	varchar(32)	NO	UNI	NULL			20
+orders_idempotency	id	bigint	NO	PRI	NULL	auto_increment		1
+orders_idempotency	user_id	int	NO		NULL			2
+orders_idempotency	owner_key	varchar(100)	NO	MUL	NULL		u:{user_id} 또는 g:{guest_id}	3
+orders_idempotency	idem_key	varchar(64)	NO		NULL			4
+orders_idempotency	order_number	varchar(32)	NO	MUL	NULL			5
+orders_idempotency	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		6
+ownerships	id	int	NO	PRI	NULL	auto_increment		1
+ownerships	serial	varchar(100)	NO	MUL	NULL			2
+ownerships	user_email	varchar(255)	NO	MUL	NULL			3
+ownerships	registered_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		4
+ownerships	is_active	tinyint(1)	YES		1			5
+paid_event_processing	event_id	bigint	NO	PRI	NULL			1
+paid_event_processing	status	enum('pending','processing','success','failed')	NO	MUL	pending			2
+paid_event_processing	last_error	text	YES		NULL		마지막 에러 메시지	3
+paid_event_processing	processed_at	datetime	YES	MUL	NULL		처리 완료 시각	4
+paid_event_processing	retry_count	int	YES		0		재시도 횟수	5
+paid_event_processing	created_at	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED		6
+paid_event_processing	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		7
+paid_events	event_id	bigint	NO	PRI	NULL	auto_increment		1
+paid_events	order_id	int	NO	MUL	NULL			2
+paid_events	payment_key	varchar(255)	NO	MUL	NULL			3
+paid_events	event_source	enum('webhook','redirect','manual_verify')	NO		NULL			4
+paid_events	amount	decimal(12,2)	NO		NULL			5
+paid_events	currency	varchar(3)	NO		KRW			6
+paid_events	raw_payload_json	json	YES		NULL		원본 결제 응답	7
+paid_events	confirmed_at	datetime	YES		NULL		확정 시각	8
+paid_events	created_at	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED		9
+payments	payment_id	bigint	NO	PRI	NULL	auto_increment		1
+payments	order_number	varchar(32)	NO	MUL	NULL			2
+payments	gateway	varchar(32)	NO		NULL			3
+payments	payment_key	varchar(128)	NO	UNI	NULL			4
+payments	status	enum('initiated','authorized','captured','failed','cancelled','refunded')	NO		initiated			5
+payments	amount	decimal(12,2)	NO		NULL			6
+payments	currency	char(3)	NO		KRW			7
+payments	failure_reason	varchar(255)	YES		NULL			8
+payments	payload_json	json	YES		NULL			9
+payments	created_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		10
+payments	updated_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		11
+product_history	history_id	int	NO	PRI	NULL	auto_increment		1
+product_history	serial_number	varchar(50)	YES	MUL	NULL			2
+product_history	old_owner_id	int	YES		NULL			3
+product_history	new_owner_id	int	YES		NULL			4
+product_history	changed_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		5
+product_options	option_id	bigint	NO	PRI	NULL	auto_increment		1
+product_options	product_id	varchar(128)	NO	MUL	NULL		상품 ID (admin_products.id 참조)	2
+product_options	color	varchar(50)	NO	MUL			색상 (표준화된 색상명, 예: Light Blue, Black 등. 없으면 빈 문자열)	3
+product_options	size	varchar(10)	NO				사이즈 (S, M, L, XL, XXL, F. 없으면 빈 문자열)	4
+product_options	sort_order	int	NO		0		정렬 순서 (낮을수록 먼저 표시, 사이즈/색상 정렬용)	5
+product_options	is_active	tinyint(1)	NO	MUL	1		활성 여부 (1: 활성, 0: 비활성)	6
+product_options	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		7
+product_options	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		8
+product_qr	id	int	NO	PRI	NULL	auto_increment		1
+product_qr	serial	varchar(100)	NO	MUL	NULL			2
+product_qr	nonce	varchar(32)	NO		NULL			3
+product_qr	signature	varchar(64)	NO		NULL			4
+product_qr	qr_code	varchar(255)	NO		NULL			5
+product_qr	is_valid	tinyint(1)	YES		1			6
+product_qr	created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		7
+products	serial_number	varchar(50)	NO	PRI	NULL			1
+products	qr_code	varchar(150)	YES	UNI	NULL			2
+products	owner_id	int	YES	MUL	NULL			3
+products	is_verified	tinyint(1)	YES		0			4
+products	verified_at	datetime	YES		NULL			5
+products	created_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		6
+qr_audit_logs	id	int	NO	PRI	NULL	auto_increment		1
+qr_audit_logs	serial	varchar(100)	NO	MUL	NULL			2
+qr_audit_logs	action	varchar(50)	NO		NULL			3
+qr_audit_logs	user_email	varchar(255)	YES	MUL	NULL			4
+qr_audit_logs	ip_address	varchar(45)	YES		NULL			5
+qr_audit_logs	user_agent	text	YES		NULL			6
+qr_audit_logs	details	json	YES		NULL			7
+qr_audit_logs	created_at	timestamp	YES	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED		8
+qr_products	serial	varchar(100)	NO	PRI	NULL			1
+qr_products	name	varchar(255)	NO		NULL			2
+qr_products	category	varchar(100)	YES		NULL			3
+qr_products	price	decimal(10,2)	YES		NULL			4
+qr_products	description	text	YES		NULL			5
+qr_products	created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		6
+qr_products	updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		7
+scan_logs	id	int	NO	PRI	NULL	auto_increment		1
+scan_logs	token	varchar(20)	NO	MUL	NULL			2
+scan_logs	user_id	int	YES	MUL	NULL			3
+scan_logs	warranty_public_id	char(36)	YES	MUL	NULL			4
+scan_logs	ip_address	varchar(45)	YES		NULL			5
+scan_logs	country_code	varchar(2)	YES	MUL	NULL			6
+scan_logs	country_name	varchar(100)	YES		NULL			7
+scan_logs	user_agent	text	YES		NULL			8
+scan_logs	event_type	varchar(50)	NO	MUL	NULL			9
+scan_logs	created_at	datetime	NO	MUL	NULL			10
+schema_migrations	id	int	NO	PRI	NULL	auto_increment		1
+schema_migrations	migration_file	varchar(255)	NO	UNI	NULL			2
+schema_migrations	file_hash	varchar(64)	NO		NULL		SHA256 해시 (파일 변경 감지용)	3
+schema_migrations	executed_at	datetime	NO	MUL	NULL			4
+schema_migrations	execution_time_ms	int	YES		NULL			5
+schema_migrations	status	enum('success','failed')	NO		NULL			6
+schema_migrations	error_message	text	YES		NULL			7
+shipment_units	shipment_id	bigint	NO	PRI	NULL		송장 ID	1
+shipment_units	order_item_unit_id	bigint	NO	PRI	NULL		주문 항목 단위 ID	2
+shipment_units	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		3
+shipments	shipment_id	bigint	NO	PRI	NULL	auto_increment		1
+shipments	order_id	int	NO	MUL	NULL		주문 ID	2
+shipments	carrier_code	varchar(20)	NO	MUL	NULL		택배사 코드	3
+shipments	tracking_number	varchar(100)	NO	MUL	NULL		송장번호	4
+shipments	active_key	varchar(150)	YES	UNI	NULL	VIRTUAL GENERATED	유효 송장 키	5
+shipments	shipped_at	datetime	YES		NULL		발송 시각	6
+shipments	created_by_admin_id	int	YES		NULL		생성한 관리자 ID	7
+shipments	voided_at	datetime	YES	MUL	NULL		무효화 시각	8
+shipments	void_reason	varchar(500)	YES		NULL		무효화 사유	9
+shipments	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		10
+shipments	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		11
+stock_units	stock_unit_id	bigint	NO	PRI	NULL	auto_increment		1
+stock_units	product_id	varchar(128)	NO	MUL	NULL			2
+stock_units	size	varchar(10)	YES	MUL	NULL		사이즈 (S, M, L, XL, XXL, F 등)	3
+stock_units	color	varchar(50)	YES	MUL	NULL		색상 (예: Black, Light Blue 등)	4
+stock_units	token_pk	int	NO	UNI	NULL		token_master.token_pk 참조	5
+stock_units	status	enum('in_stock','reserved','sold','returned')	NO	MUL	in_stock			6
+stock_units	reserved_at	datetime	YES		NULL			7
+stock_units	reserved_by_order_id	int	YES	MUL	NULL			8
+stock_units	sold_at	datetime	YES		NULL			9
+stock_units	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		10
+stock_units	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		11
+token_master	token_pk	int	NO	PRI	NULL	auto_increment		1
+token_master	token	varchar(20)	NO	UNI	NULL			2
+token_master	internal_code	varchar(100)	NO	MUL	NULL			3
+token_master	product_name	varchar(255)	NO		NULL			4
+token_master	product_id	varchar(128)	YES	MUL	NULL			5
+token_master	serial_number	varchar(100)	YES	MUL	NULL			6
+token_master	rot_code	varchar(100)	YES	MUL	NULL			7
+token_master	warranty_bottom_code	varchar(100)	YES	MUL	NULL			8
+token_master	digital_warranty_code	varchar(100)	YES	MUL	NULL			9
+token_master	digital_warranty_collection	varchar(100)	YES	MUL	NULL			10
+token_master	is_blocked	tinyint(1)	YES	MUL	0			11
+token_master	owner_user_id	int	YES	MUL	NULL			12
+token_master	scan_count	int	YES		0			13
+token_master	first_scanned_at	datetime	YES	MUL	NULL			14
+token_master	last_scanned_at	datetime	YES		NULL			15
+token_master	created_at	datetime	NO		NULL			16
+token_master	updated_at	datetime	NO		NULL			17
+token_master_backup	token	varchar(20)	NO	PRI	NULL			1
+token_master_backup	internal_code	varchar(100)	NO	MUL	NULL			2
+token_master_backup	product_name	varchar(255)	NO		NULL			3
+token_master_backup	serial_number	varchar(100)	YES	MUL	NULL		시리얼 넘버	4
+token_master_backup	rot_code	varchar(100)	YES	MUL	NULL		ROT 코드	5
+token_master_backup	warranty_bottom_code	varchar(100)	YES	MUL	NULL		보증서 하단 코드	6
+token_master_backup	digital_warranty_code	varchar(100)	YES	MUL	NULL		디지털 보증서 코드	7
+token_master_backup	digital_warranty_collection	varchar(100)	YES	MUL	NULL		디지털 보증서 컬렉션명	8
+token_master_backup	is_blocked	tinyint(1)	YES	MUL	0			9
+token_master_backup	owner_user_id	int	YES	MUL	NULL			10
+token_master_backup	scan_count	int	YES		0			11
+token_master_backup	first_scanned_at	datetime	YES	MUL	NULL			12
+token_master_backup	last_scanned_at	datetime	YES		NULL			13
+token_master_backup	created_at	datetime	NO		NULL			14
+token_master_backup	updated_at	datetime	NO		NULL			15
+transfer_logs	id	int	NO	PRI	NULL	auto_increment		1
+transfer_logs	warranty_public_id	char(36)	NO	MUL	NULL			2
+transfer_logs	token	varchar(20)	NO	MUL	NULL			3
+transfer_logs	from_user_id	int	YES	MUL	NULL			4
+transfer_logs	to_user_id	int	NO	MUL	NULL			5
+transfer_logs	admin_user_id	int	NO	MUL	NULL			6
+transfer_logs	reason	text	YES		NULL			7
+transfer_logs	created_at	datetime	NO	MUL	NULL			8
+user_addresses	address_id	int	NO	PRI	NULL	auto_increment		1
+user_addresses	user_id	int	NO	MUL	NULL			2
+user_addresses	address_line	varchar(255)	NO		NULL			3
+user_addresses	city	varchar(100)	YES		NULL			4
+user_addresses	zipcode	varchar(20)	YES		NULL			5
+user_addresses	created_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		6
+users	user_id	int	NO	PRI	NULL	auto_increment		1
+users	membership_id	varchar(20)	YES	UNI	NULL		외부 노출용 회원 ID (PM.{년도}.{랜덤6자})	2
+users	email	varchar(100)	NO	UNI	NULL			3
+users	password_hash	varchar(255)	NO		NULL			4
+users	name	varchar(100)	NO		NULL		이름 (단일 필드)	5
+users	created_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		6
+users	phone	varchar(30)	NO				전화번호 (필수)	7
+users	verification_code	varchar(10)	YES		NULL			8
+users	verified	tinyint(1)	YES		0			9
+users	google_id	varchar(255)	YES	UNI	NULL			10
+users	profile_picture	text	YES		NULL			11
+users	email_verified	tinyint(1)	YES		0			12
+users	privacy_consent	tinyint(1)	NO		0		개인정보 수집 및 이용 동의 (필수)	13
+users	marketing_consent	tinyint(1)	NO		0		마케팅 정보 수신 동의 (선택, 체크 여부 기록)	14
+users	terms_consent	tinyint(1)	NO		0		이용약관 동의 (필수)	15
+users	privacy_policy_consent	tinyint(1)	NO		0		개인정보 처리 방침 동의 (필수)	16
+warranties	id	int	NO	PRI	NULL	auto_increment		1
+warranties	status	enum('issued_unassigned','issued','active','suspended','revoked')	NO	MUL	issued_unassigned		보증서 상태 (SSOT)	2
+warranties	public_id	char(36)	NO	UNI	NULL			3
+warranties	owner_user_id	int	YES	MUL	NULL		보증서 소유자 (NULL이면 issued_unassigned)	4
+warranties	source_order_item_unit_id	bigint	YES	MUL	NULL		주문 항목 단위 연결 (order_item_units 테이블 생성 후 FK 추가)	5
+warranties	activated_at	datetime	YES		NULL		활성화 시점	6
+warranties	revoked_at	datetime	YES		NULL		환불 시점 (재판매 시에도 유지, 이력)	7
+warranties	active_key	varchar(50)	YES	UNI	NULL	VIRTUAL GENERATED	유효 보증서 키 (active_key 패턴)	8
+warranties	token	varchar(20)	YES	UNI	NULL		DEPRECATED: Use token_pk instead. Keep for backward compatibility.	9
+warranties	token_pk	int	NO	UNI	NULL			10
+warranties	product_name	varchar(255)	YES		NULL			11
+warranties	verified_at	datetime	NO		NULL			12
+warranties	deleted_at	datetime	YES	MUL	NULL			13
+warranties	deleted_by	int	YES	MUL	NULL			14
+warranties	delete_reason	text	YES		NULL			15
+warranties	created_at	datetime	NO		NULL			16
+warranty_events	event_id	bigint	NO	PRI	NULL	auto_increment		1
+warranty_events	warranty_id	int	NO	MUL	NULL			2
+warranty_events	event_type	enum('status_change','owner_change','suspend','unsuspend','revoke')	NO	MUL	NULL			3
+warranty_events	old_value	json	YES		NULL		변경 전 값 (status, owner_user_id 등)	4
+warranty_events	new_value	json	NO		NULL		변경 후 값	5
+warranty_events	changed_by	enum('user','admin','system')	NO	MUL	NULL			6
+warranty_events	changed_by_id	int	YES	MUL	NULL		user_id 또는 admin_user_id (changed_by에 따라)	7
+warranty_events	reason	text	YES		NULL		변경 사유	8
+warranty_events	created_at	datetime	NO	MUL	CURRENT_TIMESTAMP	DEFAULT_GENERATED		9
+warranty_transfers	transfer_id	bigint	NO	PRI	NULL	auto_increment		1
+warranty_transfers	warranty_id	int	NO	MUL	NULL		양도 대상 보증서	2
+warranty_transfers	from_user_id	int	NO	MUL	NULL		양도 요청자 (현재 소유자)	3
+warranty_transfers	to_email	varchar(255)	NO	MUL	NULL		수령자 이메일	4
+warranty_transfers	to_user_id	int	YES	MUL	NULL		수령자 user_id (수락 시점에 설정)	5
+warranty_transfers	transfer_code	varchar(7)	NO	UNI	NULL		랜덤 7자 코드	6
+warranty_transfers	status	enum('requested','accepted','completed','cancelled','expired')	YES	MUL	requested			7
+warranty_transfers	expires_at	datetime	NO	MUL	NULL		72시간 후 만료 시각	8
+warranty_transfers	requested_at	datetime	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		9
+warranty_transfers	accepted_at	datetime	YES		NULL			10
+warranty_transfers	completed_at	datetime	YES		NULL			11
+warranty_transfers	cancelled_at	datetime	YES		NULL			12
+warranty_transfers	cancelled_by_user_id	int	YES		NULL		취소한 사용자 (요청자 또는 수령자)	13
+wishlists	id	int	NO	PRI	NULL	auto_increment		1
+wishlists	user_email	varchar(255)	NO	MUL	NULL			2
+wishlists	product_id	varchar(128)	YES	MUL	NULL			3
+wishlists	added_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED		4
+info
+=== 3. 모든 인덱스 정보 ===
+TABLE_NAME	INDEX_NAME	COLUMN_NAME	SEQ_IN_INDEX	NON_UNIQUE	INDEX_TYPE	INDEX_COMMENT
+admin_products	idx_collection_category	collection_year	1	1	BTREE	
+admin_products	idx_collection_category	category	2	1	BTREE	
+admin_products	idx_collection_category_type	collection_year	1	1	BTREE	
+admin_products	idx_collection_category_type	category	2	1	BTREE	
+admin_products	idx_collection_category_type	type	3	1	BTREE	
+admin_products	idx_collection_year	collection_year	1	1	BTREE	
+admin_products	PRIMARY	id	1	0	BTREE	
+admin_products	uk_admin_products_short_name	short_name	1	0	BTREE	
+carriers	idx_is_active	is_active	1	1	BTREE	
+carriers	PRIMARY	code	1	0	BTREE	
+cart_items	idx_cart_id	cart_id	1	1	BTREE	
+cart_items	idx_product_id	product_id	1	1	BTREE	
+cart_items	PRIMARY	item_id	1	0	BTREE	
+cart_items	unique_cart_item	cart_id	1	0	BTREE	
+cart_items	unique_cart_item	product_id	2	0	BTREE	
+cart_items	unique_cart_item	size	3	0	BTREE	
+cart_items	unique_cart_item	color	4	0	BTREE	
+carts	idx_user_id	user_id	1	1	BTREE	
+carts	PRIMARY	cart_id	1	0	BTREE	
+claim_tokens	idx_expires_at	expires_at	1	1	BTREE	
+claim_tokens	idx_order_id	order_id	1	1	BTREE	
+claim_tokens	idx_token	token	1	1	BTREE	
+claim_tokens	idx_used_at	used_at	1	1	BTREE	
+claim_tokens	PRIMARY	token_id	1	0	BTREE	
+claim_tokens	token	token	1	0	BTREE	
+color_standards	idx_is_active	is_active	1	1	BTREE	
+color_standards	PRIMARY	color_code	1	0	BTREE	
+email_verifications	PRIMARY	email	1	0	BTREE	
+guest_order_access_tokens	idx_expires_at	expires_at	1	1	BTREE	
+guest_order_access_tokens	idx_order_id	order_id	1	1	BTREE	
+guest_order_access_tokens	idx_token	token	1	1	BTREE	
+guest_order_access_tokens	PRIMARY	token_id	1	0	BTREE	
+guest_order_access_tokens	token	token	1	0	BTREE	
+inquiries	idx_category	category	1	1	BTREE	
+inquiries	idx_created_at	created_at	1	1	BTREE	
+inquiries	idx_email	email	1	1	BTREE	
+inquiries	idx_inquiry_number	inquiry_number	1	1	BTREE	
+inquiries	idx_name	name	1	1	BTREE	
+inquiries	idx_status	status	1	1	BTREE	
+inquiries	idx_user_id	user_id	1	1	BTREE	
+inquiries	inquiry_number	inquiry_number	1	0	BTREE	
+inquiries	PRIMARY	id	1	0	BTREE	
+inquiry_replies	admin_user_id	admin_user_id	1	1	BTREE	
+inquiry_replies	idx_created_at	created_at	1	1	BTREE	
+inquiry_replies	idx_inquiry_id	inquiry_id	1	1	BTREE	
+inquiry_replies	PRIMARY	id	1	0	BTREE	
+invoices	idx_invoice_number	invoice_number	1	1	BTREE	
+invoices	idx_issued_at	issued_at	1	1	BTREE	
+invoices	idx_order_id	order_id	1	1	BTREE	
+invoices	idx_related_invoice_id	related_invoice_id	1	1	BTREE	
+invoices	idx_status	status	1	1	BTREE	
+invoices	invoice_number	invoice_number	1	0	BTREE	
+invoices	PRIMARY	invoice_id	1	0	BTREE	
+order_item_units	idx_current_shipment_id	current_shipment_id	1	1	BTREE	
+order_item_units	idx_oiu_orderid_unitstatus	order_id	1	1	BTREE	
+order_item_units	idx_oiu_orderid_unitstatus	unit_status	2	1	BTREE	
+order_item_units	idx_oiu_tracking_number	tracking_number	1	1	BTREE	
+order_item_units	idx_order_item_id	order_item_id	1	1	BTREE	
+order_item_units	idx_stock_unit_id	stock_unit_id	1	1	BTREE	
+order_item_units	idx_token_pk	token_pk	1	1	BTREE	
+order_item_units	idx_unit_status	unit_status	1	1	BTREE	
+order_item_units	PRIMARY	order_item_unit_id	1	0	BTREE	
+order_item_units	uk_order_item_unit_seq	order_item_id	1	0	BTREE	
+order_item_units	uk_order_item_unit_seq	unit_seq	2	0	BTREE	
+order_item_units	uk_stock_unit_active	stock_unit_id	1	0	BTREE	
+order_item_units	uk_stock_unit_active	active_lock	2	0	BTREE	
+order_items	fk_order_items_color_standard	color	1	1	BTREE	
+order_items	order_id	order_id	1	1	BTREE	
+order_items	PRIMARY	order_item_id	1	0	BTREE	
+order_items	product_id	product_id	1	1	BTREE	
+order_stock_issues	idx_created_at	created_at	1	1	BTREE	
+order_stock_issues	idx_event_id	event_id	1	1	BTREE	
+order_stock_issues	idx_order_id	order_id	1	1	BTREE	
+order_stock_issues	idx_product_id	product_id	1	1	BTREE	
+order_stock_issues	idx_status	status	1	1	BTREE	
+order_stock_issues	PRIMARY	issue_id	1	0	BTREE	
+orders	idx_orders_delivery_date	estimated_delivery	1	1	BTREE	
+orders	idx_orders_guest_id	guest_id	1	1	BTREE	
+orders	idx_orders_shipping_method	shipping_method	1	1	BTREE	
+orders	idx_orders_status	status	1	1	BTREE	
+orders	idx_orders_user_date	user_id	1	1	BTREE	
+orders	idx_orders_user_date	order_date	2	1	BTREE	
+orders	idx_paid_at	paid_at	1	1	BTREE	
+orders	order_number	order_number	1	0	BTREE	
+orders	PRIMARY	order_id	1	0	BTREE	
+orders	serial_number	serial_number	1	1	BTREE	
+orders_idempotency	idx_order_number	order_number	1	1	BTREE	
+orders_idempotency	PRIMARY	id	1	0	BTREE	
+orders_idempotency	uniq_owner_idem	owner_key	1	0	BTREE	
+orders_idempotency	uniq_owner_idem	idem_key	2	0	BTREE	
+ownerships	idx_ownerships_serial	serial	1	1	BTREE	
+ownerships	idx_ownerships_user	user_email	1	1	BTREE	
+ownerships	PRIMARY	id	1	0	BTREE	
+ownerships	unique_ownership	serial	1	0	BTREE	
+ownerships	unique_ownership	user_email	2	0	BTREE	
+paid_event_processing	idx_created_at	created_at	1	1	BTREE	
+paid_event_processing	idx_processed_at	processed_at	1	1	BTREE	
+paid_event_processing	idx_status	status	1	1	BTREE	
+paid_event_processing	PRIMARY	event_id	1	0	BTREE	
+paid_events	idx_created_at	created_at	1	1	BTREE	
+paid_events	idx_order_id	order_id	1	1	BTREE	
+paid_events	idx_payment_key	payment_key	1	1	BTREE	
+paid_events	PRIMARY	event_id	1	0	BTREE	
+paid_events	uk_paid_events_order_payment	order_id	1	0	BTREE	
+paid_events	uk_paid_events_order_payment	payment_key	2	0	BTREE	
+payments	idx_payments_order	order_number	1	1	BTREE	
+payments	PRIMARY	payment_id	1	0	BTREE	
+payments	uk_payment_key	payment_key	1	0	BTREE	
+product_history	PRIMARY	history_id	1	0	BTREE	
+product_history	serial_number	serial_number	1	1	BTREE	
+product_options	idx_color	color	1	1	BTREE	
+product_options	idx_is_active	is_active	1	1	BTREE	
+product_options	idx_product_id	product_id	1	1	BTREE	
+product_options	idx_product_sort	product_id	1	1	BTREE	
+product_options	idx_product_sort	sort_order	2	1	BTREE	
+product_options	PRIMARY	option_id	1	0	BTREE	
+product_options	uk_product_color_size	product_id	1	0	BTREE	
+product_options	uk_product_color_size	color	2	0	BTREE	
+product_options	uk_product_color_size	size	3	0	BTREE	
+product_qr	idx_product_qr_serial	serial	1	1	BTREE	
+product_qr	PRIMARY	id	1	0	BTREE	
+product_qr	unique_qr	serial	1	0	BTREE	
+product_qr	unique_qr	nonce	2	0	BTREE	
+products	owner_id	owner_id	1	1	BTREE	
+products	PRIMARY	serial_number	1	0	BTREE	
+products	qr_code	qr_code	1	0	BTREE	
+qr_audit_logs	idx_qr_audit_created	created_at	1	1	BTREE	
+qr_audit_logs	idx_qr_audit_serial	serial	1	1	BTREE	
+qr_audit_logs	PRIMARY	id	1	0	BTREE	
+qr_audit_logs	user_email	user_email	1	1	BTREE	
+qr_products	PRIMARY	serial	1	0	BTREE	
+scan_logs	idx_country_code	country_code	1	1	BTREE	
+scan_logs	idx_created_at	created_at	1	1	BTREE	
+scan_logs	idx_event_type	event_type	1	1	BTREE	
+scan_logs	idx_token	token	1	1	BTREE	
+scan_logs	idx_user_id	user_id	1	1	BTREE	
+scan_logs	idx_warranty_public_id	warranty_public_id	1	1	BTREE	
+scan_logs	PRIMARY	id	1	0	BTREE	
+schema_migrations	idx_executed_at	executed_at	1	1	BTREE	
+schema_migrations	idx_migration_file	migration_file	1	1	BTREE	
+schema_migrations	migration_file	migration_file	1	0	BTREE	
+schema_migrations	PRIMARY	id	1	0	BTREE	
+shipment_units	idx_order_item_unit_id	order_item_unit_id	1	1	BTREE	
+shipment_units	idx_shipment_id	shipment_id	1	1	BTREE	
+shipment_units	PRIMARY	shipment_id	1	0	BTREE	
+shipment_units	PRIMARY	order_item_unit_id	2	0	BTREE	
+shipments	idx_carrier_code	carrier_code	1	1	BTREE	
+shipments	idx_order_id	order_id	1	1	BTREE	
+shipments	idx_tracking_number	tracking_number	1	1	BTREE	
+shipments	idx_voided_at	voided_at	1	1	BTREE	
+shipments	PRIMARY	shipment_id	1	0	BTREE	
+shipments	uk_shipments_active_key	active_key	1	0	BTREE	
+stock_units	idx_product_id	product_id	1	1	BTREE	
+stock_units	idx_reserved_by_order_id	reserved_by_order_id	1	1	BTREE	
+stock_units	idx_status	status	1	1	BTREE	
+stock_units	idx_stock_reserved_order_status	reserved_by_order_id	1	1	BTREE	
+stock_units	idx_stock_reserved_order_status	status	2	1	BTREE	
+stock_units	idx_stock_units_color	color	1	1	BTREE	
+stock_units	idx_stock_units_product_status_size_color_stockid	product_id	1	1	BTREE	
+stock_units	idx_stock_units_product_status_size_color_stockid	status	2	1	BTREE	
+stock_units	idx_stock_units_product_status_size_color_stockid	size	3	1	BTREE	
+stock_units	idx_stock_units_product_status_size_color_stockid	color	4	1	BTREE	
+stock_units	idx_stock_units_product_status_size_color_stockid	stock_unit_id	5	1	BTREE	
+stock_units	idx_stock_units_size	size	1	1	BTREE	
+stock_units	idx_token_pk	token_pk	1	1	BTREE	
+stock_units	PRIMARY	stock_unit_id	1	0	BTREE	
+stock_units	uk_stock_units_token_pk	token_pk	1	0	BTREE	
+token_master	idx_digital_warranty_code	digital_warranty_code	1	1	BTREE	
+token_master	idx_digital_warranty_collection	digital_warranty_collection	1	1	BTREE	
+token_master	idx_first_scanned_at	first_scanned_at	1	1	BTREE	
+token_master	idx_internal_code	internal_code	1	1	BTREE	
+token_master	idx_is_blocked	is_blocked	1	1	BTREE	
+token_master	idx_owner_user_id	owner_user_id	1	1	BTREE	
+token_master	idx_product_id	product_id	1	1	BTREE	
+token_master	idx_rot_code	rot_code	1	1	BTREE	
+token_master	idx_serial_number	serial_number	1	1	BTREE	
+token_master	idx_token	token	1	1	BTREE	
+token_master	idx_warranty_bottom_code	warranty_bottom_code	1	1	BTREE	
+token_master	PRIMARY	token_pk	1	0	BTREE	
+token_master	token	token	1	0	BTREE	
+token_master_backup	idx_digital_warranty_code	digital_warranty_code	1	1	BTREE	
+token_master_backup	idx_digital_warranty_collection	digital_warranty_collection	1	1	BTREE	
+token_master_backup	idx_first_scanned_at	first_scanned_at	1	1	BTREE	
+token_master_backup	idx_internal_code	internal_code	1	1	BTREE	
+token_master_backup	idx_is_blocked	is_blocked	1	1	BTREE	
+token_master_backup	idx_owner_user_id	owner_user_id	1	1	BTREE	
+token_master_backup	idx_rot_code	rot_code	1	1	BTREE	
+token_master_backup	idx_serial_number	serial_number	1	1	BTREE	
+token_master_backup	idx_warranty_bottom_code	warranty_bottom_code	1	1	BTREE	
+token_master_backup	PRIMARY	token	1	0	BTREE	
+transfer_logs	idx_admin_user_id	admin_user_id	1	1	BTREE	
+transfer_logs	idx_created_at	created_at	1	1	BTREE	
+transfer_logs	idx_from_user_id	from_user_id	1	1	BTREE	
+transfer_logs	idx_to_user_id	to_user_id	1	1	BTREE	
+transfer_logs	idx_token	token	1	1	BTREE	
+transfer_logs	idx_warranty_public_id	warranty_public_id	1	1	BTREE	
+transfer_logs	PRIMARY	id	1	0	BTREE	
+user_addresses	PRIMARY	address_id	1	0	BTREE	
+user_addresses	user_id	user_id	1	1	BTREE	
+users	email	email	1	0	BTREE	
+users	google_id	google_id	1	0	BTREE	
+users	idx_users_google_id	google_id	1	1	BTREE	
+users	idx_users_membership_id	membership_id	1	0	BTREE	
+users	PRIMARY	user_id	1	0	BTREE	
+warranties	idx_deleted_at	deleted_at	1	1	BTREE	
+warranties	idx_deleted_by	deleted_by	1	1	BTREE	
+warranties	idx_public_id_unique	public_id	1	0	BTREE	
+warranties	idx_user_id	owner_user_id	1	1	BTREE	
+warranties	idx_warranties_owner_user_id	owner_user_id	1	1	BTREE	
+warranties	idx_warranties_source_order_item_unit_id	source_order_item_unit_id	1	1	BTREE	
+warranties	idx_warranties_status	status	1	1	BTREE	
+warranties	PRIMARY	id	1	0	BTREE	
+warranties	token	token	1	0	BTREE	
+warranties	uk_warranties_active_key	active_key	1	0	BTREE	
+warranties	uk_warranties_token_pk	token_pk	1	0	BTREE	
+warranty_events	idx_changed_by	changed_by	1	1	BTREE	
+warranty_events	idx_changed_by_id	changed_by_id	1	1	BTREE	
+warranty_events	idx_created_at	created_at	1	1	BTREE	
+warranty_events	idx_event_type	event_type	1	1	BTREE	
+warranty_events	idx_warranty_id	warranty_id	1	1	BTREE	
+warranty_events	PRIMARY	event_id	1	0	BTREE	
+warranty_transfers	idx_expires_at	expires_at	1	1	BTREE	
+warranty_transfers	idx_from_user_id	from_user_id	1	1	BTREE	
+warranty_transfers	idx_status	status	1	1	BTREE	
+warranty_transfers	idx_to_email	to_email	1	1	BTREE	
+warranty_transfers	idx_transfer_code	transfer_code	1	1	BTREE	
+warranty_transfers	idx_warranty_id	warranty_id	1	1	BTREE	
+warranty_transfers	PRIMARY	transfer_id	1	0	BTREE	
+warranty_transfers	to_user_id	to_user_id	1	1	BTREE	
+warranty_transfers	transfer_code	transfer_code	1	0	BTREE	
+wishlists	idx_product_id	product_id	1	1	BTREE	
+wishlists	idx_user_email	user_email	1	1	BTREE	
+wishlists	PRIMARY	id	1	0	BTREE	
+wishlists	unique_wishlist	user_email	1	0	BTREE	
+wishlists	unique_wishlist	product_id	2	0	BTREE	
+info
+=== 4. 모든 외래키 정보 ===
+TABLE_NAME	CONSTRAINT_NAME	COLUMN_NAME	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	UPDATE_RULE	DELETE_RULE
+claim_tokens	claim_tokens_ibfk_1	order_id	orders	order_id	NO ACTION	RESTRICT
+guest_order_access_tokens	guest_order_access_tokens_ibfk_1	order_id	orders	order_id	NO ACTION	RESTRICT
+inquiries	inquiries_ibfk_1	user_id	users	user_id	NO ACTION	SET NULL
+inquiry_replies	inquiry_replies_ibfk_1	inquiry_id	inquiries	id	NO ACTION	CASCADE
+inquiry_replies	inquiry_replies_ibfk_2	admin_user_id	users	user_id	NO ACTION	CASCADE
+invoices	invoices_ibfk_1	order_id	orders	order_id	NO ACTION	RESTRICT
+invoices	invoices_ibfk_2	related_invoice_id	invoices	invoice_id	NO ACTION	SET NULL
+order_item_units	fk_order_item_units_current_shipment	current_shipment_id	shipments	shipment_id	NO ACTION	RESTRICT
+order_item_units	fk_order_item_units_order_id	order_id	orders	order_id	NO ACTION	RESTRICT
+order_item_units	order_item_units_ibfk_1	order_item_id	order_items	order_item_id	NO ACTION	RESTRICT
+order_item_units	order_item_units_ibfk_2	stock_unit_id	stock_units	stock_unit_id	NO ACTION	SET NULL
+order_item_units	order_item_units_ibfk_3	token_pk	token_master	token_pk	NO ACTION	RESTRICT
+order_items	fk_order_items_color_standard	color	color_standards	color_code	NO ACTION	RESTRICT
+order_stock_issues	order_stock_issues_ibfk_1	order_id	orders	order_id	NO ACTION	RESTRICT
+order_stock_issues	order_stock_issues_ibfk_2	event_id	paid_events	event_id	NO ACTION	RESTRICT
+order_stock_issues	order_stock_issues_ibfk_3	product_id	admin_products	id	NO ACTION	RESTRICT
+orders	orders_ibfk_1	user_id	users	user_id	NO ACTION	CASCADE
+orders_idempotency	fk_idem_order	order_number	orders	order_number	NO ACTION	CASCADE
+ownerships	ownerships_ibfk_1	serial	qr_products	serial	NO ACTION	CASCADE
+ownerships	ownerships_ibfk_2	user_email	users	email	NO ACTION	CASCADE
+paid_event_processing	paid_event_processing_ibfk_1	event_id	paid_events	event_id	NO ACTION	RESTRICT
+paid_events	paid_events_ibfk_1	order_id	orders	order_id	NO ACTION	RESTRICT
+payments	payments_ibfk_1	order_number	orders	order_number	NO ACTION	CASCADE
+product_history	product_history_ibfk_1	serial_number	products	serial_number	NO ACTION	CASCADE
+product_options	product_options_ibfk_1	product_id	admin_products	id	NO ACTION	RESTRICT
+product_qr	product_qr_ibfk_1	serial	qr_products	serial	NO ACTION	CASCADE
+products	products_ibfk_1	owner_id	users	user_id	NO ACTION	SET NULL
+qr_audit_logs	qr_audit_logs_ibfk_1	serial	qr_products	serial	NO ACTION	CASCADE
+qr_audit_logs	qr_audit_logs_ibfk_2	user_email	users	email	NO ACTION	SET NULL
+scan_logs	scan_logs_ibfk_1	user_id	users	user_id	NO ACTION	SET NULL
+scan_logs	scan_logs_ibfk_2	warranty_public_id	warranties	public_id	NO ACTION	SET NULL
+shipment_units	shipment_units_ibfk_1	shipment_id	shipments	shipment_id	NO ACTION	RESTRICT
+shipment_units	shipment_units_ibfk_2	order_item_unit_id	order_item_units	order_item_unit_id	NO ACTION	RESTRICT
+shipments	shipments_ibfk_1	order_id	orders	order_id	NO ACTION	RESTRICT
+shipments	shipments_ibfk_2	carrier_code	carriers	code	NO ACTION	RESTRICT
+stock_units	fk_stock_units_color_standard	color	color_standards	color_code	NO ACTION	RESTRICT
+stock_units	stock_units_ibfk_1	product_id	admin_products	id	NO ACTION	RESTRICT
+stock_units	stock_units_ibfk_2	token_pk	token_master	token_pk	NO ACTION	RESTRICT
+stock_units	stock_units_ibfk_3	reserved_by_order_id	orders	order_id	NO ACTION	SET NULL
+token_master	token_master_ibfk_1	owner_user_id	users	user_id	NO ACTION	SET NULL
+token_master	token_master_ibfk_product_id	product_id	admin_products	id	NO ACTION	RESTRICT
+token_master_backup	token_master_backup_ibfk_1	owner_user_id	users	user_id	NO ACTION	SET NULL
+transfer_logs	transfer_logs_ibfk_1	warranty_public_id	warranties	public_id	NO ACTION	RESTRICT
+transfer_logs	transfer_logs_ibfk_2	from_user_id	users	user_id	NO ACTION	SET NULL
+transfer_logs	transfer_logs_ibfk_3	to_user_id	users	user_id	NO ACTION	RESTRICT
+transfer_logs	transfer_logs_ibfk_4	admin_user_id	users	user_id	NO ACTION	RESTRICT
+user_addresses	user_addresses_ibfk_1	user_id	users	user_id	NO ACTION	CASCADE
+warranties	fk_warranties_owner_user_id	owner_user_id	users	user_id	NO ACTION	RESTRICT
+warranties	fk_warranties_source_order_item_unit	source_order_item_unit_id	order_item_units	order_item_unit_id	NO ACTION	RESTRICT
+warranties	fk_warranties_token_pk	token_pk	token_master	token_pk	NO ACTION	RESTRICT
+warranty_events	warranty_events_ibfk_1	warranty_id	warranties	id	NO ACTION	RESTRICT
+warranty_transfers	warranty_transfers_ibfk_1	warranty_id	warranties	id	NO ACTION	RESTRICT
+warranty_transfers	warranty_transfers_ibfk_2	from_user_id	users	user_id	NO ACTION	RESTRICT
+warranty_transfers	warranty_transfers_ibfk_3	to_user_id	users	user_id	NO ACTION	SET NULL
+wishlists	wishlists_ibfk_1	user_email	users	email	NO ACTION	CASCADE
+info
+=== 5. 테이블별 요약 ===
+TABLE_NAME	column_count	index_count	fk_count	row_count
+admin_products	11	5	0	10
+admin_products_backup	9	0	0	10
+carriers	7	2	0	10
+cart_items	8	4	0	5
+carts	4	2	0	8
+claim_tokens	6	6	1	0
+color_standards	5	2	0	6
+email_verifications	6	1	0	0
+guest_order_access_tokens	6	5	1	0
+inquiries	19	9	1	4
+inquiry_replies	7	4	2	5
+invoices	29	7	2	0
+order_item_units	15	10	5	0
+order_items	11	4	1	59
+order_stock_issues	11	6	3	0
+orders	20	9	1	56
+orders_idempotency	6	3	1	16
+ownerships	5	4	2	0
+paid_event_processing	7	4	1	0
+paid_events	9	5	1	0
+payments	11	3	1	18
+product_history	5	2	1	0
+product_options	8	6	1	5
+product_qr	7	3	1	12
+products	6	3	1	0
+qr_audit_logs	8	4	2	8
+qr_products	7	1	0	8
+scan_logs	10	7	2	32
+schema_migrations	7	4	0	7
+shipment_units	3	3	2	0
+shipments	11	6	2	0
+stock_units	11	10	4	3
+token_master	17	13	2	42
+token_master_backup	15	10	1	42
+transfer_logs	8	7	4	0
+user_addresses	6	2	1	0
+users	16	5	0	11
+warranties	16	11	3	0
+warranty_events	9	6	1	0
+warranty_transfers	13	9	3	0
+wishlists	4	4	1	1
