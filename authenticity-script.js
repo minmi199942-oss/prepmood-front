@@ -148,7 +148,7 @@ async function verifyCode(code) {
         loadingState.style.display = 'none';
         
         if (data.success) {
-            displayResult(data);
+            await displayResult(data);
         } else {
             displayError(data.error || '유효하지 않은 QR 코드입니다.');
         }
@@ -160,7 +160,7 @@ async function verifyCode(code) {
 }
 
 // 결과 표시
-function displayResult(data) {
+async function displayResult(data) {
     const { product, status, ownership } = data;
     
     let statusHTML = '';
