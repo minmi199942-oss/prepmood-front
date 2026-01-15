@@ -139,7 +139,7 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
 
         if (alreadyProcessedStatuses.has(normalizedStatus)) {
             const [existingPaymentRows] = await connection.execute(
-                `SELECT status, amount, currency FROM payments
+                `SELECT status, amount, currency, payment_key FROM payments
                  WHERE order_number = ?
                  ORDER BY created_at DESC
                  LIMIT 1`,
@@ -150,6 +150,64 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             const existingCurrency = existingPaymentRows.length && existingPaymentRows[0].currency
                 ? existingPaymentRows[0].currency
                 : currency;
+            const existingPaymentKey = existingPaymentRows.length ? existingPaymentRows[0].payment_key : paymentKey;
+
+            // ⚠️ 버그 수정: 이미 처리된 주문이어도 paid_events가 없으면 생성 필요
+            const [existingPaidEvents] = await connection.execute(
+                `SELECT event_id FROM paid_events WHERE order_id = ?`,
+                [order.order_id]
+            );
+
+            if (existingPaidEvents.length === 0 && existingPaymentStatus === 'captured') {
+                // paid_events가 없고 결제는 완료된 경우 → 생성 필요
+                Logger.log('[payments][confirm] 이미 처리된 주문이지만 paid_events 없음, 생성 시도', {
+                    order_id: order.order_id,
+                    order_number: orderNumber
+                });
+
+                try {
+                    const paidEventResult = await createPaidEvent({
+                        orderId: order.order_id,
+                        paymentKey: existingPaymentKey,
+                        amount: serverAmount,
+                        currency: existingCurrency,
+                        eventSource: 'redirect',
+                        rawPayload: null
+                    });
+
+                    const paidEventId = paidEventResult.eventId;
+
+                    // processPaidOrder() 실행
+                    const paidResult = await processPaidOrder({
+                        connection,
+                        paidEventId: paidEventId,
+                        orderId: order.order_id,
+                        paymentKey: existingPaymentKey,
+                        amount: serverAmount,
+                        currency: existingCurrency,
+                        eventSource: 'redirect',
+                        rawPayload: null
+                    });
+
+                    Logger.log('[payments][confirm] 이미 처리된 주문의 paid_events 생성 및 처리 완료', {
+                        order_id: order.order_id,
+                        order_number: orderNumber,
+                        paidEventId,
+                        stockUnitsReserved: paidResult.data.stockUnitsReserved,
+                        orderItemUnitsCreated: paidResult.data.orderItemUnitsCreated,
+                        warrantiesCreated: paidResult.data.warrantiesCreated,
+                        invoiceNumber: paidResult.data.invoiceNumber
+                    });
+                } catch (err) {
+                    // 에러는 로깅만 (이미 결제는 완료됨)
+                    Logger.error('[payments][confirm] 이미 처리된 주문의 paid_events 생성 실패', {
+                        order_id: order.order_id,
+                        order_number: orderNumber,
+                        error: err.message,
+                        error_code: err.code
+                    });
+                }
+            }
 
             const [cartCountRows] = await connection.execute(
                 `SELECT COUNT(*) AS itemCount
