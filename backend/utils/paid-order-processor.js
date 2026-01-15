@@ -203,11 +203,10 @@ async function processPaidOrder({
             }
             
             // stock_unit_id 순서 정렬 (인덱스 커버)
+            // 주의: LIMIT 절에는 플레이스홀더 대신 직접 값을 사용해야 함
             stockQuery += ` ORDER BY stock_unit_id
-                LIMIT ?
+                LIMIT ${parseInt(needQty)}
                 FOR UPDATE SKIP LOCKED`;
-            
-            stockParams.push(needQty);
             
             const [availableStock] = await connection.execute(stockQuery, stockParams);
 
