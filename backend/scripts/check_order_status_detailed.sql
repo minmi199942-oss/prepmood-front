@@ -20,8 +20,7 @@ SELECT
     o.user_id,
     o.guest_id,
     o.total_price,
-    o.order_date,
-    o.created_at
+    o.order_date
 FROM orders o
 WHERE o.order_number = @order_number;
 
@@ -169,8 +168,11 @@ SELECT
     osi.event_id,
     osi.order_id,
     osi.product_id,
-    osi.required_quantity,
-    osi.available_quantity,
+    osi.required_qty,
+    osi.available_qty,
+    osi.status,
+    osi.resolved_at,
+    osi.resolution_note,
     osi.created_at
 FROM order_stock_issues osi
 WHERE osi.order_id = (
