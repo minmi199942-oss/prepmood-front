@@ -65,10 +65,33 @@ EXCLUDE_ARGS=(
 cd "$LIVE_BACKEND" || { echo "❌ $LIVE_BACKEND 디렉토리 접근 실패"; exit 1; }
 [ -f "prep.db" ] && EXCLUDE_ARGS+=("--exclude=prep.db")
 
-if ! rsync -av --delete "${EXCLUDE_ARGS[@]}" "$REPO_DIR/backend/" "$LIVE_BACKEND/"; then
+# rsync 실행 전 소스와 타겟 확인
+echo "  소스: $REPO_DIR/backend/"
+echo "  타겟: $LIVE_BACKEND/"
+echo "  제외 패턴: ${EXCLUDE_ARGS[*]}"
+
+# rsync 실행 (상세 로그 포함)
+if ! rsync -av --delete "${EXCLUDE_ARGS[@]}" "$REPO_DIR/backend/" "$LIVE_BACKEND/" 2>&1 | tee -a "$BACKUP_DIR/deploy-rsync.log"; then
   echo "❌ backend 동기화 실패 - 배포 중단"
   exit 1
 fi
+
+# 동기화 검증: 특정 파일이 제대로 복사되었는지 확인
+VERIFY_FILE="$LIVE_BACKEND/utils/paid-event-creator.js"
+if [ -f "$VERIFY_FILE" ]; then
+  # 180번 라인에 catch 블록이 있으면 구문 오류
+  if sed -n '180p' "$VERIFY_FILE" | grep -q "catch"; then
+    echo "⚠️  경고: $VERIFY_FILE 180번 라인에 catch 블록 발견 (구문 오류 가능성)"
+    echo "  rsync가 실행되었지만 파일이 제대로 동기화되지 않았을 수 있습니다."
+    echo "  수동 확인 필요: diff $REPO_DIR/backend/utils/paid-event-creator.js $VERIFY_FILE"
+  else
+    echo "  ✅ $VERIFY_FILE 동기화 검증 완료"
+  fi
+else
+  echo "⚠️  경고: $VERIFY_FILE 파일이 없습니다."
+fi
+
+echo "  ✅ backend 동기화 완료"
 
 # 3-2. 루트 HTML/JS 파일 동기화 (허용 목록 기반 - 보안 강화)
 echo "📦 루트 HTML/JS 파일 동기화 중..."
