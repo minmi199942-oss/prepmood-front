@@ -31,6 +31,15 @@ echo ""
 # 1. Git 업데이트
 cd "$REPO_DIR" || { echo "❌ $REPO_DIR 디렉토리 접근 실패"; exit 1; }
 echo "📥 Git pull 중..."
+
+# 로컬 변경사항이 있으면 무시하고 원격 최신 버전으로 강제 업데이트
+# (배포 스크립트는 항상 원격 저장소의 최신 버전을 사용해야 함)
+if [ -n "$(git status --porcelain)" ]; then
+  echo "  ⚠️  로컬 변경사항 발견, 원격 버전으로 강제 업데이트"
+  git reset --hard HEAD
+  git clean -fd
+fi
+
 if ! git pull origin main; then
   echo "❌ Git pull 실패 - 배포 중단"
   exit 1
