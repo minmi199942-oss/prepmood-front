@@ -294,6 +294,7 @@ router.get('/products/options', async (req, res) => {
         
         // 재고가 있는 사이즈/색상 조회 (in_stock만)
         // stock_units에서 재고 상태만 조회
+        // ⚠️ 수정: size가 NULL인 액세서리도 포함 (size IS NULL 허용)
         const [inStockRows] = await connection.execute(
             `SELECT DISTINCT 
                 su.size,
@@ -301,7 +302,6 @@ router.get('/products/options', async (req, res) => {
             FROM stock_units su
             WHERE su.product_id = ?
               AND su.status = 'in_stock'
-              AND su.size IS NOT NULL 
               AND su.color IS NOT NULL
             ORDER BY su.size, su.color`,
             [canonicalId]
@@ -334,11 +334,13 @@ router.get('/products/options', async (req, res) => {
         const keyOf = (size, color) => `${(size || '').trim()}||${(color || '').trim()}`;
         
         // in_stock 조합을 Set으로 변환 (정규화 적용)
+        // ⚠️ 수정: size가 없어도 color만으로 재고 확인 가능 (액세서리 등)
         const inStockSet = new Set();
         inStockRows.forEach(row => {
             const normalizedSize = (row.size || '').trim();
             const normalizedColor = normalizeColor(row.color);
-            if (normalizedSize && normalizedColor) {
+            if (normalizedColor) {
+                // size가 없어도 color만으로 재고 확인
                 inStockSet.add(keyOf(normalizedSize, normalizedColor));
             }
         });
@@ -415,6 +417,7 @@ router.get('/products/options', async (req, res) => {
                 allColors.add(normalizedColor);
                 
                 // 해당 사이즈+색상 조합이 in_stock인지 확인
+                // ⚠️ 수정: size가 없어도 color만으로 재고 확인 (액세서리 등)
                 const isAvailable = inStockSet.has(keyOf(normalizedSize || '', normalizedColor));
                 
                 // 색상별로 하나라도 available이면 true
@@ -460,6 +463,7 @@ router.get('/products/options', async (req, res) => {
             product_options_count: optionRows.length,
             all_size_color_rows_count: allSizeColorRows.length,
             in_stock_rows_count: inStockRows.length,
+            in_stock_rows_detail: inStockRows.map(r => ({ size: r.size, color: r.color })),
             using_fallback: optionRows.length === 0
         });
         
