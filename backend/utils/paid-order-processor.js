@@ -337,6 +337,10 @@ async function processPaidOrder({
         // 회원/비회원 구분
         const warrantyStatus = order.user_id ? 'issued' : 'issued_unassigned';
         const ownerUserId = order.user_id || null;
+        
+        // verified_at 생성 (UTC 시간, 'YYYY-MM-DD HH:MM:SS' 형식)
+        const now = new Date();
+        const utcDateTime = now.toISOString().replace('T', ' ').substring(0, 19);
 
         for (const unit of createdOrderItemUnits) {
             try {
@@ -364,12 +368,14 @@ async function processPaidOrder({
                         `UPDATE warranties
                          SET status = ?,
                              source_order_item_unit_id = ?,
-                             owner_user_id = ?
+                             owner_user_id = ?,
+                             verified_at = ?
                          WHERE token_pk = ? AND status = 'revoked'`,
                         [
                             warrantyStatus,
                             unit.order_item_unit_id,
                             ownerUserId,
+                            utcDateTime,
                             unit.token_pk
                         ]
                     );
@@ -393,17 +399,20 @@ async function processPaidOrder({
                 } else {
                     // 신규 생성: revoked 상태 warranty가 없으면 INSERT
                     // ⚠️ public_id 필수: UUID v4 생성
+                    // ⚠️ verified_at 필수: UTC 시간 ('YYYY-MM-DD HH:MM:SS' 형식)
                     const publicId = uuidv4();
                     const [insertResult] = await connection.execute(
                         `INSERT INTO warranties
-                        (source_order_item_unit_id, token_pk, owner_user_id, status, public_id, created_at)
-                        VALUES (?, ?, ?, ?, ?, NOW())`,
+                        (source_order_item_unit_id, token_pk, owner_user_id, status, public_id, verified_at, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)`,
                         [
                             unit.order_item_unit_id,
                             unit.token_pk,
                             ownerUserId,
                             warrantyStatus,
-                            publicId
+                            publicId,
+                            utcDateTime,
+                            utcDateTime
                         ]
                     );
 
