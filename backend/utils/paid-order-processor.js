@@ -16,6 +16,7 @@
 const Logger = require('../logger');
 const { createInvoiceFromOrder } = require('./invoice-creator');
 const { updateProcessingStatus, recordStockIssue } = require('./paid-event-creator');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * Paid 주문 처리
@@ -391,15 +392,18 @@ async function processPaidOrder({
                     });
                 } else {
                     // 신규 생성: revoked 상태 warranty가 없으면 INSERT
+                    // ⚠️ public_id 필수: UUID v4 생성
+                    const publicId = uuidv4();
                     const [insertResult] = await connection.execute(
                         `INSERT INTO warranties
-                        (source_order_item_unit_id, token_pk, owner_user_id, status, created_at)
-                        VALUES (?, ?, ?, ?, NOW())`,
+                        (source_order_item_unit_id, token_pk, owner_user_id, status, public_id, created_at)
+                        VALUES (?, ?, ?, ?, ?, NOW())`,
                         [
                             unit.order_item_unit_id,
                             unit.token_pk,
                             ownerUserId,
-                            warrantyStatus
+                            warrantyStatus,
+                            publicId
                         ]
                     );
 

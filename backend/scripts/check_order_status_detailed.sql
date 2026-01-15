@@ -150,8 +150,7 @@ SELECT
     inv.order_id,
     inv.invoice_number,
     inv.status,
-    inv.issued_at,
-    inv.created_at
+    inv.issued_at
 FROM invoices inv
 WHERE inv.order_id = (
     SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number
