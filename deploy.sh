@@ -32,12 +32,25 @@ echo ""
 cd "$REPO_DIR" || { echo "❌ $REPO_DIR 디렉토리 접근 실패"; exit 1; }
 echo "📥 Git pull 중..."
 
-# 로컬 변경사항이 있으면 무시하고 원격 최신 버전으로 강제 업데이트
-# (배포 스크립트는 항상 원격 저장소의 최신 버전을 사용해야 함)
+# 로컬 변경사항 확인 및 처리
 if [ -n "$(git status --porcelain)" ]; then
-  echo "  ⚠️  로컬 변경사항 발견, 원격 버전으로 강제 업데이트"
-  git reset --hard HEAD
-  git clean -fd
+  echo "  ⚠️  로컬 변경사항 발견"
+  echo "  📋 변경된 파일:"
+  git status --short
+  
+  # 로컬 변경사항을 stash에 백업 (나중에 복구 가능)
+  echo "  💾 로컬 변경사항을 stash에 백업 중..."
+  git stash push -m "Auto-deploy backup $(date +%Y%m%d_%H%M%S)"
+  
+  # stash가 성공했는지 확인
+  if [ $? -eq 0 ]; then
+    echo "  ✅ 로컬 변경사항이 stash에 백업되었습니다."
+    echo "  💡 복구 방법: cd $REPO_DIR && git stash list && git stash pop"
+  else
+    echo "  ⚠️  stash 실패, 원격 버전으로 강제 업데이트 (변경사항 손실 가능)"
+    git reset --hard HEAD
+    git clean -fd
+  fi
 fi
 
 if ! git pull origin main; then
