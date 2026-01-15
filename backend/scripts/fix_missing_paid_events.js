@@ -11,6 +11,8 @@
 const mysql = require('mysql2/promise');
 const { createPaidEvent } = require('../utils/paid-event-creator');
 const { processPaidOrder } = require('../utils/paid-order-processor');
+const { updateOrderStatus } = require('../utils/order-status-aggregator');
+const Logger = require('../logger');
 require('dotenv').config();
 
 const dbConfig = {
@@ -81,24 +83,38 @@ async function fixMissingPaidEvents(orderId) {
                 paymentKey: payment.payment_key,
                 amount: parseFloat(payment.amount),
                 currency: payment.currency || 'KRW',
-                eventSource: 'manual_fix',
+                eventSource: 'manual_verify', // ⚠️ 수정: 'manual_fix' → 'manual_verify' (ENUM에 맞춤)
                 rawPayload: payment.payload_json ? JSON.parse(payment.payload_json) : null
             });
 
+            // orders.status 집계 함수 호출
+            await updateOrderStatus(connection, order.order_id);
+
             await connection.commit();
             console.log('✅ processPaidOrder() 재실행 완료:', paidResult);
+            Logger.log('[FIX_MISSING_PAID_EVENTS] processPaidOrder 재실행 완료', {
+                order_id: orderId,
+                paidEventId,
+                result: paidResult
+            });
             return;
         }
 
         // 4. paid_events 생성
         console.log(`📝 주문 ${orderId}에 대한 paid_events 생성 중...`);
+        Logger.log('[FIX_MISSING_PAID_EVENTS] paid_events 생성 시작', {
+            order_id: orderId,
+            order_number: order.order_number,
+            payment_key: payment.payment_key,
+            amount: payment.amount
+        });
         
         const paidEventResult = await createPaidEvent({
             orderId: order.order_id,
             paymentKey: payment.payment_key,
             amount: parseFloat(payment.amount),
             currency: payment.currency || 'KRW',
-            eventSource: 'manual_fix',
+            eventSource: 'manual_verify', // ⚠️ 수정: 'manual_fix' → 'manual_verify' (ENUM에 맞춤)
             rawPayload: payment.payload_json ? JSON.parse(payment.payload_json) : null
         });
 
@@ -111,6 +127,10 @@ async function fixMissingPaidEvents(orderId) {
 
         // 5. processPaidOrder() 실행
         console.log(`🔄 processPaidOrder() 실행 중...`);
+        Logger.log('[FIX_MISSING_PAID_EVENTS] processPaidOrder 시작', {
+            order_id: orderId,
+            paidEventId
+        });
         
         const paidResult = await processPaidOrder({
             connection,
@@ -119,20 +139,26 @@ async function fixMissingPaidEvents(orderId) {
             paymentKey: payment.payment_key,
             amount: parseFloat(payment.amount),
             currency: payment.currency || 'KRW',
-            eventSource: 'manual_fix',
+            eventSource: 'manual_verify', // ⚠️ 수정: 'manual_fix' → 'manual_verify' (ENUM에 맞춤)
             rawPayload: payment.payload_json ? JSON.parse(payment.payload_json) : null
         });
 
+        // orders.status 집계 함수 호출
+        await updateOrderStatus(connection, order.order_id);
+
         await connection.commit();
         
-        console.log('✅ 주문 처리 완료:', {
+        const resultSummary = {
             order_id: orderId,
             paidEventId,
             stockUnitsReserved: paidResult.data.stockUnitsReserved,
             orderItemUnitsCreated: paidResult.data.orderItemUnitsCreated,
             warrantiesCreated: paidResult.data.warrantiesCreated,
             invoiceNumber: paidResult.data.invoiceNumber
-        });
+        };
+        
+        console.log('✅ 주문 처리 완료:', resultSummary);
+        Logger.log('[FIX_MISSING_PAID_EVENTS] 주문 처리 완료', resultSummary);
 
     } catch (error) {
         if (connection) {
@@ -140,6 +166,12 @@ async function fixMissingPaidEvents(orderId) {
         }
         console.error('❌ 오류 발생:', error.message);
         console.error(error.stack);
+        Logger.error('[FIX_MISSING_PAID_EVENTS] 오류 발생', {
+            order_id: orderId,
+            error: error.message,
+            error_code: error.code,
+            stack: error.stack
+        });
         process.exit(1);
     } finally {
         if (connection) {
