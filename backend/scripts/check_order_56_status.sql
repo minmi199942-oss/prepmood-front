@@ -15,11 +15,19 @@ SELECT
     status,
     paid_at,
     user_id,
-    total_price,
-    created_at,
-    updated_at
+    total_price
 FROM orders
 WHERE order_id = 56;
+
+-- orders 테이블 실제 구조 확인
+SELECT 
+    COLUMN_NAME,
+    COLUMN_TYPE,
+    IS_NULLABLE
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'prepmood'
+  AND TABLE_NAME = 'orders'
+ORDER BY ORDINAL_POSITION;
 
 -- ============================================================
 -- 2. 결제 정보 확인
