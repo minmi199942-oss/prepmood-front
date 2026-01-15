@@ -523,19 +523,36 @@ async function processPaidOrder({
 
     } catch (error) {
         const duration = Date.now() - startTime;
-        Logger.error('[PAID_PROCESSOR] Paid 처리 실패', {
+        
+        // ⚠️ 상세 에러 정보 로깅 (디버깅용)
+        const errorDetails = {
             orderId,
             paidEventId,
             duration,
-            error: error.message,
-            error_code: error.code,
-            error_sql_state: error.sqlState,
-            error_sql_message: error.sqlMessage,
-            stack: error.stack
-        });
+            error_message: error.message || '에러 메시지 없음',
+            error_code: error.code || '에러 코드 없음',
+            error_sql_state: error.sqlState || 'SQL 상태 없음',
+            error_sql_message: error.sqlMessage || 'SQL 메시지 없음',
+            error_name: error.name || '에러 이름 없음',
+            error_stack: error.stack || '스택 트레이스 없음'
+        };
+        
+        // JSON 문자열로 변환하여 전체 에러 정보 출력
+        Logger.error('[PAID_PROCESSOR] Paid 처리 실패 - 상세 정보', errorDetails);
+        
+        // 콘솔에도 출력 (PM2 로그에서 확인 가능)
+        console.error('[PAID_PROCESSOR] Paid 처리 실패 - 전체 에러 객체:', JSON.stringify(errorDetails, null, 2));
+        console.error('[PAID_PROCESSOR] 에러 원본:', error);
 
         // 처리 상태를 'failed'로 업데이트 (별도 커넥션, 트랜잭션과 분리)
-        await updateProcessingStatus(paidEventId, 'failed', error.message);
+        try {
+            await updateProcessingStatus(paidEventId, 'failed', error.message || '알 수 없는 에러');
+        } catch (statusError) {
+            Logger.error('[PAID_PROCESSOR] updateProcessingStatus 실패 (무시하고 계속 진행)', {
+                paidEventId,
+                statusError: statusError.message
+            });
+        }
 
         throw error;
     }

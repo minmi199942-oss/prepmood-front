@@ -525,16 +525,25 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 // ⚠️ 중요: paid_events 생성 실패 시 주문 상태를 processing으로 업데이트하지 않음
                 // 결제는 성공했지만 paid_events가 없으면 주문 처리를 완료할 수 없음
                 paidProcessError = err;
-                Logger.error('[payments][confirm] Paid 처리 실패 (결제는 성공, 주문 상태는 업데이트 안 됨)', {
+                
+                // ⚠️ 상세 에러 정보 로깅 (디버깅용)
+                const errorDetails = {
                     order_id: order.order_id,
                     order_number: orderNumber,
                     paidEventId,
-                    error: err.message,
-                    error_code: err.code,
-                    error_sql_state: err.sqlState,
-                    error_sql_message: err.sqlMessage,
-                    stack: err.stack
-                });
+                    error_message: err.message || '에러 메시지 없음',
+                    error_code: err.code || '에러 코드 없음',
+                    error_sql_state: err.sqlState || 'SQL 상태 없음',
+                    error_sql_message: err.sqlMessage || 'SQL 메시지 없음',
+                    error_name: err.name || '에러 이름 없음',
+                    error_stack: err.stack || '스택 트레이스 없음'
+                };
+                
+                Logger.error('[payments][confirm] Paid 처리 실패 (결제는 성공, 주문 상태는 업데이트 안 됨)', errorDetails);
+                
+                // 콘솔에도 출력 (PM2 로그에서 확인 가능)
+                console.error('[payments][confirm] Paid 처리 실패 - 전체 에러 객체:', JSON.stringify(errorDetails, null, 2));
+                console.error('[payments][confirm] 에러 원본:', err);
                 
                 // ⚠️ 주문 상태를 processing으로 업데이트하지 않음
                 // paid_events가 없으면 주문 처리를 완료할 수 없으므로 주문 상태는 그대로 유지
