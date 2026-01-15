@@ -5,7 +5,7 @@
 USE prepmood;
 
 -- 주문 번호 입력 (예: 'ORD-20260115-272164-5M1IMA')
-SET @order_number = 'ORD-20260115-272164-5M1IMA';
+SET @order_number = 'ORD-20260115-272164-5M1IMA' COLLATE utf8mb4_unicode_ci;
 
 -- ============================================================
 -- 1. 주문 기본 정보
@@ -22,7 +22,7 @@ SELECT
     o.total_price,
     o.order_date
 FROM orders o
-WHERE o.order_number = @order_number;
+WHERE o.order_number COLLATE utf8mb4_unicode_ci = @order_number;
 
 -- ============================================================
 -- 2. paid_events 확인 (결제 증거)
@@ -39,7 +39,7 @@ SELECT
     pe.confirmed_at,
     pe.created_at
 FROM paid_events pe
-WHERE pe.order_id = (SELECT order_id FROM orders WHERE order_number = @order_number);
+WHERE pe.order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number);
 
 -- ============================================================
 -- 3. paid_event_processing 상태 확인
@@ -57,7 +57,7 @@ SELECT
 FROM paid_event_processing pep
 WHERE pep.event_id IN (
     SELECT event_id FROM paid_events 
-    WHERE order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)
+    WHERE order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)
 );
 
 -- ============================================================
@@ -76,7 +76,7 @@ SELECT
     su.token_pk
 FROM stock_units su
 WHERE su.reserved_by_order_id = (
-    SELECT order_id FROM orders WHERE order_number = @order_number
+    SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number
 )
 ORDER BY su.stock_unit_id;
 
@@ -96,7 +96,7 @@ SELECT
     oi.subtotal
 FROM order_items oi
 WHERE oi.order_id = (
-    SELECT order_id FROM orders WHERE order_number = @order_number
+    SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number
 )
 ORDER BY oi.order_item_id;
 
@@ -116,7 +116,7 @@ SELECT
     oiu.created_at
 FROM order_item_units oiu
 WHERE oiu.order_id = (
-    SELECT order_id FROM orders WHERE order_number = @order_number
+    SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number
 )
 ORDER BY oiu.order_item_id, oiu.unit_seq;
 
@@ -136,7 +136,7 @@ SELECT
 FROM warranties w
 WHERE w.source_order_item_unit_id IN (
     SELECT order_item_unit_id FROM order_item_units 
-    WHERE order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)
+    WHERE order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)
 )
 ORDER BY w.id;
 
@@ -154,7 +154,7 @@ SELECT
     inv.created_at
 FROM invoices inv
 WHERE inv.order_id = (
-    SELECT order_id FROM orders WHERE order_number = @order_number
+    SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number
 )
 ORDER BY inv.invoice_id;
 
@@ -176,7 +176,7 @@ SELECT
     osi.created_at
 FROM order_stock_issues osi
 WHERE osi.order_id = (
-    SELECT order_id FROM orders WHERE order_number = @order_number
+    SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number
 )
 ORDER BY osi.issue_id;
 
@@ -189,23 +189,23 @@ SELECT
     '재고 차감' AS step,
     CASE 
         WHEN (SELECT COUNT(*) FROM stock_units 
-              WHERE reserved_by_order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)) > 0 
+              WHERE reserved_by_order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)) > 0 
         THEN '✅ 성공' 
         ELSE '❌ 실패' 
     END AS status,
     (SELECT COUNT(*) FROM stock_units 
-     WHERE reserved_by_order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)) AS count
+     WHERE reserved_by_order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)) AS count
 UNION ALL
 SELECT 
     'order_item_units 생성' AS step,
     CASE 
         WHEN (SELECT COUNT(*) FROM order_item_units 
-              WHERE order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)) > 0 
+              WHERE order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)) > 0 
         THEN '✅ 성공' 
         ELSE '❌ 실패' 
     END AS status,
     (SELECT COUNT(*) FROM order_item_units 
-     WHERE order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)) AS count
+     WHERE order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)) AS count
 UNION ALL
 SELECT 
     'warranties 생성' AS step,
@@ -213,7 +213,7 @@ SELECT
         WHEN (SELECT COUNT(*) FROM warranties 
               WHERE source_order_item_unit_id IN (
                   SELECT order_item_unit_id FROM order_item_units 
-                  WHERE order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)
+                  WHERE order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)
               )) > 0 
         THEN '✅ 성공' 
         ELSE '❌ 실패' 
@@ -221,24 +221,24 @@ SELECT
     (SELECT COUNT(*) FROM warranties 
      WHERE source_order_item_unit_id IN (
          SELECT order_item_unit_id FROM order_item_units 
-         WHERE order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)
+         WHERE order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)
      )) AS count
 UNION ALL
 SELECT 
     'invoices 생성' AS step,
     CASE 
         WHEN (SELECT COUNT(*) FROM invoices 
-              WHERE order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)) > 0 
+              WHERE order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)) > 0 
         THEN '✅ 성공' 
         ELSE '❌ 실패' 
     END AS status,
     (SELECT COUNT(*) FROM invoices 
-     WHERE order_id = (SELECT order_id FROM orders WHERE order_number = @order_number)) AS count
+     WHERE order_id = (SELECT order_id FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number)) AS count
 UNION ALL
 SELECT 
     'orders.paid_at 업데이트' AS step,
     CASE 
-        WHEN (SELECT paid_at FROM orders WHERE order_number = @order_number) IS NOT NULL 
+        WHEN (SELECT paid_at FROM orders WHERE order_number COLLATE utf8mb4_unicode_ci = @order_number) IS NOT NULL 
         THEN '✅ 성공' 
         ELSE '❌ 실패' 
     END AS status,
