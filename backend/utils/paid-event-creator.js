@@ -44,72 +44,138 @@ async function createPaidEvent({
     eventSource = 'redirect',
     rawPayload = null
 }) {
-    let connection;
-    try {
-        // 별도 커넥션 생성 (autocommit)
-        connection = await mysql.createConnection(dbConfig);
-        connection.config.autocommit = true;
-
-        Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 시도', {
-            orderId,
-            paymentKey: paymentKey?.substring(0, 20) + '...'
-        });
-
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1초
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        let connection;
         try {
-            const [paidEventResult] = await connection.execute(
-                `INSERT INTO paid_events 
-                (order_id, payment_key, event_source, amount, currency, raw_payload_json, confirmed_at, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                [orderId, paymentKey, eventSource, amount, currency, rawPayload ? JSON.stringify(rawPayload) : null]
-            );
+            // 별도 커넥션 생성 (autocommit)
+            connection = await mysql.createConnection(dbConfig);
+            connection.config.autocommit = true;
 
-            const eventId = paidEventResult.insertId;
-
-            // paid_event_processing 초기 상태 기록
-            await connection.execute(
-                `INSERT INTO paid_event_processing 
-                (event_id, status, created_at, updated_at) 
-                VALUES (?, 'pending', NOW(), NOW())`,
-                [eventId]
-            );
-
-            Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 성공', {
+            Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 시도', {
                 orderId,
-                eventId
+                attempt,
+                maxRetries,
+                paymentKey: paymentKey?.substring(0, 20) + '...'
             });
 
-            await connection.end();
+            try {
+                // INSERT ... ON DUPLICATE KEY UPDATE 사용하여 중복 시 업데이트
+                // 이렇게 하면 락 경합을 줄이고 중복 체크도 자동으로 처리됨
+                const [paidEventResult] = await connection.execute(
+                    `INSERT INTO paid_events 
+                    (order_id, payment_key, event_source, amount, currency, raw_payload_json, confirmed_at, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                    ON DUPLICATE KEY UPDATE
+                        event_id = LAST_INSERT_ID(event_id),
+                        confirmed_at = NOW()`,
+                    [orderId, paymentKey, eventSource, amount, currency, rawPayload ? JSON.stringify(rawPayload) : null]
+                );
 
-            return {
-                eventId,
-                alreadyExists: false
-            };
-
-        } catch (error) {
-            if (error.code === 'ER_DUP_ENTRY') {
-                // 이미 존재하는 경우 event_id 조회
-                Logger.log('[PAID_EVENT_CREATOR] 이미 존재하는 paid_events', {
-                    orderId,
-                    paymentKey: paymentKey?.substring(0, 20) + '...'
-                });
-
-                const [existing] = await connection.execute(
+                const eventId = paidEventResult.insertId || (await connection.execute(
                     `SELECT event_id FROM paid_events 
                      WHERE order_id = ? AND payment_key = ?`,
                     [orderId, paymentKey]
+                ))[0][0]?.event_id;
+
+                if (!eventId) {
+                    throw new Error('paid_events INSERT 후 event_id를 가져올 수 없습니다.');
+                }
+
+                // paid_event_processing 초기 상태 기록 (중복 시 무시)
+                await connection.execute(
+                    `INSERT IGNORE INTO paid_event_processing 
+                    (event_id, status, created_at, updated_at) 
+                    VALUES (?, 'pending', NOW(), NOW())`,
+                    [eventId]
                 );
+
+                Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 성공', {
+                    orderId,
+                    eventId,
+                    attempt
+                });
 
                 await connection.end();
 
-                if (existing.length > 0) {
-                    return {
-                        eventId: existing[0].event_id,
-                        alreadyExists: true
-                    };
+                return {
+                    eventId,
+                    alreadyExists: paidEventResult.affectedRows === 0 // ON DUPLICATE KEY UPDATE 시 affectedRows는 0
+                };
+
+            } catch (error) {
+                await connection.end();
+                
+                // ER_LOCK_WAIT_TIMEOUT 또는 ER_LOCK_DEADLOCK인 경우 재시도
+                if ((error.code === 'ER_LOCK_WAIT_TIMEOUT' || error.code === 'ER_LOCK_DEADLOCK') && attempt < maxRetries) {
+                    const delay = retryDelay * attempt; // 지수 백오프
+                    Logger.warn('[PAID_EVENT_CREATOR] 락 대기 시간 초과, 재시도 예정', {
+                        orderId,
+                        attempt,
+                        maxRetries,
+                        error_code: error.code,
+                        delay_ms: delay
+                    });
+                    
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue; // 재시도
                 }
+                
+                // ER_DUP_ENTRY인 경우 기존 레코드 조회
+                if (error.code === 'ER_DUP_ENTRY') {
+                    Logger.log('[PAID_EVENT_CREATOR] 이미 존재하는 paid_events (ER_DUP_ENTRY)', {
+                        orderId,
+                        paymentKey: paymentKey?.substring(0, 20) + '...'
+                    });
+
+                    // 별도 커넥션으로 기존 레코드 조회
+                    const checkConnection = await mysql.createConnection(dbConfig);
+                    checkConnection.config.autocommit = true;
+                    
+                    const [existing] = await checkConnection.execute(
+                        `SELECT event_id FROM paid_events 
+                         WHERE order_id = ? AND payment_key = ?`,
+                        [orderId, paymentKey]
+                    );
+
+                    await checkConnection.end();
+
+                    if (existing.length > 0) {
+                        return {
+                            eventId: existing[0].event_id,
+                            alreadyExists: true
+                        };
+                    }
+                }
+                
+                throw error;
             }
+
+        } catch (error) {
+            // 마지막 시도에서도 실패한 경우
+            if (attempt === maxRetries) {
+                Logger.error('[PAID_EVENT_CREATOR] paid_events 생성 실패 (모든 재시도 실패)', {
+                    orderId,
+                    attempt,
+                    maxRetries,
+                    error: error.message,
+                    error_code: error.code,
+                    stack: error.stack
+                });
+                throw error;
+            }
+            
+            // 재시도 가능한 에러인 경우 계속
+            if (error.code === 'ER_LOCK_WAIT_TIMEOUT' || error.code === 'ER_LOCK_DEADLOCK') {
+                continue;
+            }
+            
+            // 재시도 불가능한 에러인 경우 즉시 throw
             throw error;
         }
+    }
 
     } catch (error) {
         Logger.error('[PAID_EVENT_CREATOR] paid_events 생성 실패', {
