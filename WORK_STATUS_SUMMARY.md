@@ -65,6 +65,41 @@
 
 ## 🎯 QR/디지털 인보이스/디지털 보증서 구현을 위한 다음 단계
 
+### Step 0: 🔴 주문 후처리 파이프라인 복구 (최우선 - 장애 해결)
+
+**목적**: 주문 완료 후 보증서/인보이스/재고 배정이 안 되는 문제 해결
+
+**확인 사항**:
+1. `paid_events` 생성 여부 확인
+2. `paid_event_processing` 상태 확인 (`pending`/`failed`)
+3. `order_item_units` 생성 여부 확인
+4. `stock_units.status`/`reserved_by_order_id` 변화 여부 확인
+5. `invoices`/`warranties` 생성 여부 확인
+6. `order_stock_issues`에 기록 남는지 확인
+
+**VPS에서 실행할 쿼리**:
+```sql
+-- 주문 후처리 파이프라인 상태 확인
+SELECT 
+    o.order_id,
+    o.order_number,
+    o.status,
+    o.paid_at,
+    (SELECT COUNT(*) FROM paid_events WHERE order_id = o.order_id) as paid_events_count,
+    (SELECT status FROM paid_event_processing WHERE event_id = (SELECT event_id FROM paid_events WHERE order_id = o.order_id LIMIT 1)) as processing_status,
+    (SELECT COUNT(*) FROM order_item_units WHERE order_id = o.order_id) as order_item_units_count,
+    (SELECT COUNT(*) FROM warranties WHERE source_order_item_unit_id IN (SELECT order_item_unit_id FROM order_item_units WHERE order_id = o.order_id)) as warranties_count,
+    (SELECT COUNT(*) FROM invoices WHERE order_id = o.order_id) as invoices_count
+FROM orders o
+WHERE o.status = 'processing' AND o.paid_at IS NULL
+ORDER BY o.order_id DESC
+LIMIT 10;
+```
+
+**참조 문서**: `GPT_OPINIONS_INTEGRATED_ANALYSIS.md` (8. 우선순위 최종 정리)
+
+---
+
 ### Step 1: DB 상태 확인 (즉시)
 **목적**: 실제로 무엇이 실행되었는지 확인
 
@@ -169,6 +204,22 @@ mysql -u prepmood_user -p prepmood < migrations/078_create_shipment_units_table.
   - [x] revoked_at 유지 (이력 보존)
 - [ ] 테스트 및 검증 필요
 
+### 🔴 즉시 (장애 해결)
+- [ ] 주문 후처리 파이프라인 복구
+  - [ ] `paid_events` 생성 여부 확인
+  - [ ] `paid_event_processing` 상태 확인
+  - [ ] `order_item_units`, `warranties`, `invoices` 생성 여부 확인
+  - [ ] `order_stock_issues` 기록 확인
+
+### 🟡 단기 (1-2주)
+- [ ] orders.created_at/updated_at 추가
+  - 현재 `orders.order_date`만 있어서 마지막 갱신 시각 추적 불가
+  - 장애/정산/CS에 즉효
+- [ ] 스냅샷 컬럼 주석 명확화
+  - `token_master.product_name`
+  - `order_items.product_name`
+  - `warranties.product_name`
+
 ### Phase 5, 7 (Phase 2, 3 완료 후)
 - [ ] 보증서 활성화 API 구현
 - [ ] QR 스캔 로직 수정
@@ -211,4 +262,8 @@ mysql -u prepmood_user -p prepmood < migrations/078_create_shipment_units_table.
 - ✅ 금액 검증 유지
 - ✅ 멱등성 체크 유지
 
-**다음 액션**: Phase 5, 7 - 보증서 활성화 API, QR 스캔 로직 수정
+**다음 액션**: 
+1. **🔴 주문 후처리 파이프라인 복구** (즉시 - 장애 해결)
+   - 참조: `GPT_OPINIONS_INTEGRATED_ANALYSIS.md` (8. 우선순위 최종 정리)
+2. **🟡 orders.created_at/updated_at 추가** (단기)
+3. Phase 5, 7 - 보증서 활성화 API, QR 스캔 로직 수정

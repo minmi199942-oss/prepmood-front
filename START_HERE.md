@@ -65,6 +65,7 @@
 - `SCHEMA_DECISION_GUIDE.md` ← 스키마 결정 방법론
 
 ### Level 3: 분석/참고 문서 (필요 시만)
+- `GPT_OPINIONS_INTEGRATED_ANALYSIS.md` ← GPT 의견 통합 분석 (우선순위, 장애 원인 등)
 - `DATABASE_SCHEMA_ACTUAL_STATE.md` ← 상세 분석
 - `DOCUMENT_CONSISTENCY_ANALYSIS.md` ← 일관성 분석
 - `DOCUMENT_CONSISTENCY_CHECK.md` ← 일관성 체크 가이드
@@ -150,16 +151,18 @@
 - ✅ Phase 15 (product_options) 완료
 
 **다음 단계 (최우선)**:
-1. **VPS에서 DB 상태 확인** (실제로 무엇이 실행되었는지)
-2. **Phase 2 마이그레이션 실행** (073~078)
-   - warranties.active_key 추가
-   - warranty_transfers 테이블
-   - guest_order_access_tokens 테이블
-   - claim_tokens 테이블
-   - shipments 테이블
-   - shipment_units 테이블
-3. **Phase 3**: processPaidOrder() 업데이트
-4. **Phase 5, 7**: 보증서 활성화 API, QR 스캔 로직 수정
+1. **🔴 주문 후처리 파이프라인 복구** (즉시 - 장애 해결)
+   - `paid_events` 생성 여부 확인
+   - `paid_event_processing` 상태 확인 (`pending`/`failed`)
+   - `order_item_units`, `warranties`, `invoices` 생성 여부 확인
+   - `order_stock_issues` 기록 확인
+   - 참조: `GPT_OPINIONS_INTEGRATED_ANALYSIS.md` (8. 우선순위 최종 정리)
+2. **🟡 orders.created_at/updated_at 추가** (단기 - 장애/정산/CS에 즉효)
+   - 현재 `orders.order_date`만 있어서 마지막 갱신 시각 추적 불가
+   - 마이그레이션 파일 작성 필요
+3. **Phase 2 마이그레이션 실행** (073~078) - ✅ 이미 완료
+4. **Phase 3**: processPaidOrder() 업데이트 - ✅ 이미 완료
+5. **Phase 5, 7**: 보증서 활성화 API, QR 스캔 로직 수정
 
 ### 예시: Phase 2 마이그레이션 실행
 ```
