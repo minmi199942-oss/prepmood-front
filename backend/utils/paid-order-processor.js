@@ -64,7 +64,6 @@ async function processPaidOrder({
             `SELECT 
                 order_id, 
                 total_price, 
-                currency, 
                 user_id, 
                 guest_id, 
                 status 
@@ -80,8 +79,9 @@ async function processPaidOrder({
 
         const order = orderRows[0];
 
-        // 금액/통화 검증 (서버 확정값과 일치 확인)
+        // 금액 검증 (서버 확정값과 일치 확인)
         // 주의: paid_events는 이미 별도 커넥션에서 생성되어 있음
+        // 주의: orders 테이블에는 currency 컬럼이 없음 (paid_events에만 있음)
         if (parseFloat(order.total_price) != parseFloat(amount)) {
             Logger.error('[PAID_PROCESSOR] 결제 금액 불일치', {
                 orderId,
@@ -93,15 +93,22 @@ async function processPaidOrder({
             throw new Error(`결제 금액 불일치: 주문=${order.total_price}, 결제=${amount}`);
         }
 
-        if (order.currency !== currency) {
+        // 통화 검증: paid_events에서 가져온 currency와 파라미터 currency 비교
+        // (orders 테이블에는 currency 컬럼이 없으므로 paid_events 기준으로 검증)
+        const [paidEventRows] = await connection.execute(
+            `SELECT currency FROM paid_events WHERE event_id = ?`,
+            [paidEventId]
+        );
+
+        if (paidEventRows.length > 0 && paidEventRows[0].currency !== currency) {
             Logger.error('[PAID_PROCESSOR] 통화 불일치', {
                 orderId,
                 paidEventId,
-                orderCurrency: order.currency,
+                paidEventCurrency: paidEventRows[0].currency,
                 paymentCurrency: currency
             });
             
-            throw new Error(`통화 불일치: 주문=${order.currency}, 결제=${currency}`);
+            throw new Error(`통화 불일치: paid_events=${paidEventRows[0].currency}, 결제=${currency}`);
         }
 
         // ============================================================
@@ -315,9 +322,9 @@ async function processPaidOrder({
         });
 
         // ============================================================
-        // 6. warranties 생성 (락 순서 3단계: warranties)
+        // 6. warranties 생성/업데이트 (락 순서 3단계: warranties)
         // ============================================================
-        Logger.log('[PAID_PROCESSOR] warranties 생성 시작', {
+        Logger.log('[PAID_PROCESSOR] warranties 생성/업데이트 시작', {
             orderId,
             unitCount: createdOrderItemUnits.length,
             isMember: !!order.user_id
@@ -331,26 +338,80 @@ async function processPaidOrder({
 
         for (const unit of createdOrderItemUnits) {
             try {
-                const [insertResult] = await connection.execute(
-                    `INSERT INTO warranties
-                    (source_order_item_unit_id, token_pk, owner_user_id, status, created_at)
-                    VALUES (?, ?, ?, ?, NOW())`,
-                    [
-                        unit.order_item_unit_id,
-                        unit.token_pk,
-                        ownerUserId,
-                        warrantyStatus
-                    ]
+                // 재판매 처리: revoked 상태 warranty가 있는지 확인
+                const [revokedWarranty] = await connection.execute(
+                    `SELECT id as warranty_id, status
+                     FROM warranties 
+                     WHERE token_pk = ? AND status = 'revoked'
+                     FOR UPDATE`,
+                    [unit.token_pk]
                 );
 
-                createdWarranties.push({
-                    warranty_id: insertResult.insertId,
-                    order_item_unit_id: unit.order_item_unit_id,
-                    token_pk: unit.token_pk,
-                    status: warrantyStatus
-                });
+                if (revokedWarranty.length > 0) {
+                    // 재판매 처리: revoked → issued/issued_unassigned 전이
+                    // ⚠️ 원자적 조건: WHERE token_pk = ? AND status = 'revoked' + affectedRows=1 검증
+                    // ⚠️ revoked_at 유지: 재판매 시에도 revoked_at은 그대로 유지 (A안 확정, 이력)
+                    Logger.log('[PAID_PROCESSOR] 재판매 처리 (revoked → issued)', {
+                        orderId,
+                        token_pk: unit.token_pk,
+                        warranty_id: revokedWarranty[0].warranty_id,
+                        new_status: warrantyStatus
+                    });
+
+                    const [updateResult] = await connection.execute(
+                        `UPDATE warranties
+                         SET status = ?,
+                             source_order_item_unit_id = ?,
+                             owner_user_id = ?
+                         WHERE token_pk = ? AND status = 'revoked'`,
+                        [
+                            warrantyStatus,
+                            unit.order_item_unit_id,
+                            ownerUserId,
+                            unit.token_pk
+                        ]
+                    );
+
+                    // ⚠️ 원자적 조건 검증: affected rows가 정확히 1이어야 함
+                    if (updateResult.affectedRows !== 1) {
+                        throw new Error(
+                            `재판매 처리 실패: affectedRows=${updateResult.affectedRows}, ` +
+                            `token_pk=${unit.token_pk}. ` +
+                            `이미 issued/active인 토큰이거나 동시성 경합이 발생했을 수 있습니다.`
+                        );
+                    }
+
+                    createdWarranties.push({
+                        warranty_id: revokedWarranty[0].warranty_id,
+                        order_item_unit_id: unit.order_item_unit_id,
+                        token_pk: unit.token_pk,
+                        status: warrantyStatus,
+                        is_resale: true
+                    });
+                } else {
+                    // 신규 생성: revoked 상태 warranty가 없으면 INSERT
+                    const [insertResult] = await connection.execute(
+                        `INSERT INTO warranties
+                        (source_order_item_unit_id, token_pk, owner_user_id, status, created_at)
+                        VALUES (?, ?, ?, ?, NOW())`,
+                        [
+                            unit.order_item_unit_id,
+                            unit.token_pk,
+                            ownerUserId,
+                            warrantyStatus
+                        ]
+                    );
+
+                    createdWarranties.push({
+                        warranty_id: insertResult.insertId,
+                        order_item_unit_id: unit.order_item_unit_id,
+                        token_pk: unit.token_pk,
+                        status: warrantyStatus,
+                        is_resale: false
+                    });
+                }
             } catch (error) {
-                // UNIQUE(token_pk) 제약 위반 시 이미 생성된 것으로 간주
+                // UNIQUE(token_pk) 제약 위반 시 이미 생성된 것으로 간주 (동시성 경합)
                 if (error.code === 'ER_DUP_ENTRY') {
                     Logger.log('[PAID_PROCESSOR] warranties 중복 (이미 생성됨)', {
                         orderId,
@@ -358,9 +419,9 @@ async function processPaidOrder({
                     });
                     // 기존 레코드 조회
                     const [existing] = await connection.execute(
-                        `SELECT id as warranty_id 
-                        FROM warranties 
-                        WHERE token_pk = ?`,
+                        `SELECT id as warranty_id, status
+                         FROM warranties 
+                         WHERE token_pk = ?`,
                         [unit.token_pk]
                     );
                     if (existing.length > 0) {
@@ -368,7 +429,8 @@ async function processPaidOrder({
                             warranty_id: existing[0].warranty_id,
                             order_item_unit_id: unit.order_item_unit_id,
                             token_pk: unit.token_pk,
-                            status: warrantyStatus
+                            status: existing[0].status,
+                            is_resale: existing[0].status !== 'revoked'
                         });
                     }
                 } else {
@@ -377,9 +439,14 @@ async function processPaidOrder({
             }
         }
 
-        Logger.log('[PAID_PROCESSOR] warranties 생성 완료', {
+        const resaleCount = createdWarranties.filter(w => w.is_resale).length;
+        const newCount = createdWarranties.filter(w => !w.is_resale).length;
+
+        Logger.log('[PAID_PROCESSOR] warranties 생성/업데이트 완료', {
             orderId,
-            createdCount: createdWarranties.length,
+            totalCount: createdWarranties.length,
+            newCount,
+            resaleCount,
             status: warrantyStatus
         });
 
