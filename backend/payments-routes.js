@@ -165,6 +165,17 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     order_number: orderNumber
                 });
 
+                // 장바구니 상태 확인 (트랜잭션 내에서)
+                const [cartCountRows] = await connection.execute(
+                    `SELECT COUNT(*) AS itemCount
+                     FROM cart_items ci
+                     INNER JOIN carts c ON ci.cart_id = c.cart_id
+                     WHERE c.user_id = ?`,
+                    [userId]
+                );
+
+                const cartCleared = (cartCountRows[0]?.itemCount || 0) === 0;
+
                 try {
                     const paidEventResult = await createPaidEvent({
                         orderId: order.order_id,
@@ -189,6 +200,10 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                         rawPayload: null
                     });
 
+                    // ⚠️ 수정: processPaidOrder() 내부 작업을 커밋해야 함
+                    await connection.commit();
+                    await connection.end();
+
                     Logger.log('[payments][confirm] 이미 처리된 주문의 paid_events 생성 및 처리 완료', {
                         order_id: order.order_id,
                         order_number: orderNumber,
@@ -198,17 +213,45 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                         warrantiesCreated: paidResult.data.warrantiesCreated,
                         invoiceNumber: paidResult.data.invoiceNumber
                     });
+
+                    return res.json({
+                        success: true,
+                        data: {
+                            order_number: orderNumber,
+                            amount: serverAmount,
+                            currency: existingCurrency,
+                            payment_status: existingPaymentStatus,
+                            alreadyConfirmed: true,
+                            cartCleared
+                        }
+                    });
                 } catch (err) {
-                    // 에러는 로깅만 (이미 결제는 완료됨)
+                    // 에러 발생 시 롤백
+                    await connection.rollback();
+                    await connection.end();
                     Logger.error('[payments][confirm] 이미 처리된 주문의 paid_events 생성 실패', {
                         order_id: order.order_id,
                         order_number: orderNumber,
                         error: err.message,
                         error_code: err.code
                     });
+
+                    // 에러 발생해도 결제는 완료되었으므로 성공 응답 반환
+                    return res.json({
+                        success: true,
+                        data: {
+                            order_number: orderNumber,
+                            amount: serverAmount,
+                            currency: existingCurrency,
+                            payment_status: existingPaymentStatus,
+                            alreadyConfirmed: true,
+                            cartCleared
+                        }
+                    });
                 }
             }
 
+            // paid_events가 이미 있거나 결제가 완료되지 않은 경우
             const [cartCountRows] = await connection.execute(
                 `SELECT COUNT(*) AS itemCount
                  FROM cart_items ci
@@ -875,6 +918,68 @@ router.post('/payments/inicis/return', async (req, res) => {
             'UPDATE orders SET status = ? WHERE order_number = ?',
             [orderStatus, orderNumber]
         );
+
+        // Paid 처리 (결제 성공 시에만)
+        // 중요: paid_events는 별도 커넥션(autocommit)으로 먼저 생성 (결제 증거 보존)
+        // 그 다음 processPaidOrder()는 재고 배정, 주문 단위 생성, 보증서 생성, 인보이스 생성을 처리
+        // 주의: Paid 처리 실패는 결제 성공을 막지 않아야 함
+        if (paymentStatus === 'captured') {
+            try {
+                // paid_events 생성 (별도 커넥션, autocommit - 항상 남김)
+                const paidEventResult = await createPaidEvent({
+                    orderId: order.order_id,
+                    paymentKey: tid,
+                    amount: serverAmount,
+                    currency: 'KRW',
+                    eventSource: 'redirect',
+                    rawPayload: req.body
+                });
+
+                const paidEventId = paidEventResult.eventId;
+
+                if (paidEventResult.alreadyExists) {
+                    Logger.log('[payments][inicis] 이미 존재하는 paid_events (재처리 가능)', {
+                        order_id: order.order_id,
+                        order_number: orderNumber,
+                        paidEventId
+                    });
+                }
+
+                // 주문 처리 트랜잭션 (기존 connection 사용)
+                const paidResult = await processPaidOrder({
+                    connection,
+                    paidEventId: paidEventId,
+                    orderId: order.order_id,
+                    paymentKey: tid,
+                    amount: serverAmount,
+                    currency: 'KRW',
+                    eventSource: 'redirect',
+                    rawPayload: req.body
+                });
+                
+                Logger.log('[payments][inicis] Paid 처리 완료', {
+                    order_id: order.order_id,
+                    order_number: orderNumber,
+                    paidEventId,
+                    stockUnitsReserved: paidResult.data.stockUnitsReserved,
+                    orderItemUnitsCreated: paidResult.data.orderItemUnitsCreated,
+                    warrantiesCreated: paidResult.data.warrantiesCreated,
+                    invoiceNumber: paidResult.data.invoiceNumber
+                });
+            } catch (err) {
+                // Paid 처리 실패는 결제 성공을 막지 않음 (로깅만)
+                // paid_events는 이미 생성되어 있음 (증거 보존)
+                Logger.error('[payments][inicis] Paid 처리 실패 (결제는 성공, paid_events는 보존됨)', {
+                    order_id: order.order_id,
+                    order_number: orderNumber,
+                    error: err.message,
+                    error_code: err.code,
+                    error_sql_state: err.sqlState,
+                    error_sql_message: err.sqlMessage
+                });
+                // 에러를 다시 throw하지 않음 (결제는 성공 처리)
+            }
+        }
 
         // 장바구니 정리
         if (order.user_id) {
