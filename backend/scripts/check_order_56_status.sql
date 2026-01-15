@@ -61,8 +61,8 @@ SELECT
     amount,
     currency,
     event_source,
-    processing_status,
-    error_message,
+    confirmed_at,
+    raw_payload_json,
     created_at
 FROM paid_events
 WHERE order_id = 56
