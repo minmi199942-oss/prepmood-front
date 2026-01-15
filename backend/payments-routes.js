@@ -423,17 +423,10 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             ]
         );
 
-        // 5. 주문 상태 업데이트 (MOCK/TOSS 공통)
-        // 주의: orders 테이블에 paid_at 컬럼이 없으므로 status만 업데이트
-        await connection.execute(
-            'UPDATE orders SET status = ? WHERE order_number = ?',
-            [orderStatus, orderNumber]
-        );
-
-        // 6. Paid 처리 (결제 성공 시에만)
+        // 5. Paid 처리 (결제 성공 시에만)
         // 중요: paid_events는 별도 커넥션(autocommit)으로 먼저 생성 (결제 증거 보존)
         // 그 다음 processPaidOrder()는 재고 배정, 주문 단위 생성, 보증서 생성, 인보이스 생성을 처리
-        // 주의: Paid 처리 실패는 결제 성공을 막지 않아야 함
+        // ⚠️ 중요: paid_events 생성 실패 시 주문 상태를 processing으로 업데이트하지 않음
         let paidProcessed = false;
         let invoiceCreated = false;
         let invoiceNumber = null;
@@ -442,7 +435,8 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
         
         if (paymentStatus === 'captured') {
             try {
-                // 6-1. paid_events 생성 (별도 커넥션, autocommit - 항상 남김)
+                // 5-1. paid_events 생성 (별도 커넥션, autocommit - 항상 남김)
+                // ⚠️ 중요: 이 단계가 실패하면 주문 상태를 processing으로 업데이트하지 않음
                 const paidEventResult = await createPaidEvent({
                     orderId: order.order_id,
                     paymentKey: paymentKey,
@@ -454,6 +448,10 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
 
                 paidEventId = paidEventResult.eventId;
 
+                if (!paidEventId) {
+                    throw new Error('paid_events 생성 실패: eventId가 null입니다.');
+                }
+
                 if (paidEventResult.alreadyExists) {
                     Logger.log('[payments][confirm] 이미 존재하는 paid_events (재처리 가능)', {
                         order_id: order.order_id,
@@ -462,7 +460,14 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     });
                 }
 
-                // 6-2. 주문 처리 트랜잭션 (기존 connection 사용)
+                // 5-2. 주문 상태 업데이트 (paid_events 생성 성공 후에만)
+                // 주의: orders 테이블에 paid_at 컬럼이 없으므로 status만 업데이트
+                await connection.execute(
+                    'UPDATE orders SET status = ? WHERE order_number = ?',
+                    [orderStatus, orderNumber]
+                );
+
+                // 5-3. 주문 처리 트랜잭션 (기존 connection 사용)
                 const paidResult = await processPaidOrder({
                     connection,
                     paidEventId: paidEventId,
@@ -488,10 +493,10 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     invoiceNumber: paidResult.data.invoiceNumber
                 });
             } catch (err) {
-                // Paid 처리 실패는 결제 성공을 막지 않음 (로깅만)
-                // paid_events는 이미 생성되어 있음 (증거 보존)
+                // ⚠️ 중요: paid_events 생성 실패 시 주문 상태를 processing으로 업데이트하지 않음
+                // 결제는 성공했지만 paid_events가 없으면 주문 처리를 완료할 수 없음
                 paidProcessError = err;
-                Logger.error('[payments][confirm] Paid 처리 실패 (결제는 성공, paid_events는 보존됨)', {
+                Logger.error('[payments][confirm] Paid 처리 실패 (결제는 성공, 주문 상태는 업데이트 안 됨)', {
                     order_id: order.order_id,
                     order_number: orderNumber,
                     paidEventId,
@@ -501,9 +506,17 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     error_sql_message: err.sqlMessage,
                     stack: err.stack
                 });
-                // 에러를 다시 throw하지 않음 (결제는 성공 처리)
-                // Paid 처리 실패는 나중에 수동으로 재처리 가능 (paidEventId로 추적)
+                
+                // ⚠️ 주문 상태를 processing으로 업데이트하지 않음
+                // paid_events가 없으면 주문 처리를 완료할 수 없으므로 주문 상태는 그대로 유지
+                // 나중에 수동으로 재처리 가능 (payments 테이블에 결제 정보는 보존됨)
             }
+        } else {
+            // paymentStatus가 'captured'가 아닌 경우 주문 상태만 업데이트
+            await connection.execute(
+                'UPDATE orders SET status = ? WHERE order_number = ?',
+                [orderStatus, orderNumber]
+            );
         }
 
         let cartCleared = false;
@@ -913,29 +926,28 @@ router.post('/payments/inicis/return', async (req, res) => {
             ]
         );
 
-        // 주문 상태 업데이트
-        await connection.execute(
-            'UPDATE orders SET status = ? WHERE order_number = ?',
-            [orderStatus, orderNumber]
-        );
-
         // Paid 처리 (결제 성공 시에만)
         // 중요: paid_events는 별도 커넥션(autocommit)으로 먼저 생성 (결제 증거 보존)
         // 그 다음 processPaidOrder()는 재고 배정, 주문 단위 생성, 보증서 생성, 인보이스 생성을 처리
-        // 주의: Paid 처리 실패는 결제 성공을 막지 않아야 함
+        // ⚠️ 중요: paid_events 생성 실패 시 주문 상태를 processing으로 업데이트하지 않음
         if (paymentStatus === 'captured') {
             try {
                 // paid_events 생성 (별도 커넥션, autocommit - 항상 남김)
+                // ⚠️ 중요: 이 단계가 실패하면 주문 상태를 processing으로 업데이트하지 않음
                 const paidEventResult = await createPaidEvent({
                     orderId: order.order_id,
                     paymentKey: tid,
                     amount: serverAmount,
                     currency: 'KRW',
-                    eventSource: 'redirect',
+                    eventSource: 'inicis_return',
                     rawPayload: req.body
                 });
 
                 const paidEventId = paidEventResult.eventId;
+
+                if (!paidEventId) {
+                    throw new Error('paid_events 생성 실패: eventId가 null입니다.');
+                }
 
                 if (paidEventResult.alreadyExists) {
                     Logger.log('[payments][inicis] 이미 존재하는 paid_events (재처리 가능)', {
@@ -945,6 +957,12 @@ router.post('/payments/inicis/return', async (req, res) => {
                     });
                 }
 
+                // 주문 상태 업데이트 (paid_events 생성 성공 후에만)
+                await connection.execute(
+                    'UPDATE orders SET status = ? WHERE order_number = ?',
+                    [orderStatus, orderNumber]
+                );
+
                 // 주문 처리 트랜잭션 (기존 connection 사용)
                 const paidResult = await processPaidOrder({
                     connection,
@@ -953,7 +971,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                     paymentKey: tid,
                     amount: serverAmount,
                     currency: 'KRW',
-                    eventSource: 'redirect',
+                    eventSource: 'inicis_return',
                     rawPayload: req.body
                 });
                 
@@ -967,18 +985,28 @@ router.post('/payments/inicis/return', async (req, res) => {
                     invoiceNumber: paidResult.data.invoiceNumber
                 });
             } catch (err) {
-                // Paid 처리 실패는 결제 성공을 막지 않음 (로깅만)
-                // paid_events는 이미 생성되어 있음 (증거 보존)
-                Logger.error('[payments][inicis] Paid 처리 실패 (결제는 성공, paid_events는 보존됨)', {
+                // ⚠️ 중요: paid_events 생성 실패 시 주문 상태를 processing으로 업데이트하지 않음
+                // 결제는 성공했지만 paid_events가 없으면 주문 처리를 완료할 수 없음
+                Logger.error('[payments][inicis] Paid 처리 실패 (결제는 성공, 주문 상태는 업데이트 안 됨)', {
                     order_id: order.order_id,
                     order_number: orderNumber,
                     error: err.message,
                     error_code: err.code,
                     error_sql_state: err.sqlState,
-                    error_sql_message: err.sqlMessage
+                    error_sql_message: err.sqlMessage,
+                    stack: err.stack
                 });
-                // 에러를 다시 throw하지 않음 (결제는 성공 처리)
+                
+                // ⚠️ 주문 상태를 processing으로 업데이트하지 않음
+                // paid_events가 없으면 주문 처리를 완료할 수 없으므로 주문 상태는 그대로 유지
+                // 나중에 수동으로 재처리 가능 (payments 테이블에 결제 정보는 보존됨)
             }
+        } else {
+            // paymentStatus가 'captured'가 아닌 경우 주문 상태만 업데이트
+            await connection.execute(
+                'UPDATE orders SET status = ? WHERE order_number = ?',
+                [orderStatus, orderNumber]
+            );
         }
 
         // 장바구니 정리
