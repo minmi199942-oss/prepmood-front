@@ -247,6 +247,7 @@ async function processPaidOrder({
 
                 // order_item_units 생성 준비
                 orderItemUnitsToCreate.push({
+                    order_id: orderId, // order_item_units 테이블에 필수 컬럼
                     order_item_id: item.order_item_id,
                     unit_seq: i + 1, // 1부터 시작
                     stock_unit_id: stockUnit.stock_unit_id,
@@ -274,9 +275,10 @@ async function processPaidOrder({
             try {
                 const [insertResult] = await connection.execute(
                     `INSERT INTO order_item_units
-                    (order_item_id, unit_seq, stock_unit_id, token_pk, unit_status, created_at)
-                    VALUES (?, ?, ?, ?, 'reserved', NOW())`,
+                    (order_id, order_item_id, unit_seq, stock_unit_id, token_pk, unit_status, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'reserved', NOW())`,
                     [
+                        unit.order_id,
                         unit.order_item_id,
                         unit.unit_seq,
                         unit.stock_unit_id,
