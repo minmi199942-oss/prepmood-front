@@ -41,6 +41,22 @@ async function updateOrderStatus(connection, orderId) {
 
         const stats = units[0];
         
+        // NULL 값 처리 (SUM이 NULL을 반환할 수 있음)
+        const total = stats.total || 0;
+        const shipped_count = stats.shipped_count || 0;
+        const delivered_count = stats.delivered_count || 0;
+        const refunded_count = stats.refunded_count || 0;
+        const reserved_count = stats.reserved_count || 0;
+        
+        Logger.log('[ORDER_STATUS_AGGREGATOR] 통계 조회 완료', {
+            orderId,
+            total,
+            shipped_count,
+            delivered_count,
+            refunded_count,
+            reserved_count
+        });
+        
         // 2. paid_events 존재 여부 확인
         const [paidEvents] = await connection.execute(
             'SELECT event_id FROM paid_events WHERE order_id = ? LIMIT 1',
@@ -53,8 +69,12 @@ async function updateOrderStatus(connection, orderId) {
             [orderId]
         );
 
+        if (orders.length === 0) {
+            throw new Error(`주문을 찾을 수 없습니다: order_id=${orderId}`);
+        }
+
         const hasPaidEvent = paidEvents.length > 0;
-        const hasPaidAt = orders.length > 0 && orders[0].paid_at !== null;
+        const hasPaidAt = orders[0].paid_at !== null;
 
         // 4. 상태 계산 (집계 규칙)
         let newStatus;
@@ -62,22 +82,23 @@ async function updateOrderStatus(connection, orderId) {
         if (!hasPaidEvent && !hasPaidAt) {
             // 결제 전
             newStatus = 'pending';
-        } else if (stats.total === 0) {
+        } else if (total === 0) {
             // unit이 없는 경우 (이론적으로 발생하지 않아야 함)
+            // paid_events가 있으면 paid, 없으면 pending
             newStatus = hasPaidEvent || hasPaidAt ? 'paid' : 'pending';
-        } else if (stats.refunded_count === stats.total) {
+        } else if (refunded_count === total && total > 0) {
             // 모든 unit 환불
             newStatus = 'refunded';
-        } else if (stats.delivered_count === stats.total) {
+        } else if (delivered_count === total && total > 0) {
             // 모든 unit 배송 완료
             newStatus = 'delivered';
-        } else if (stats.delivered_count > 0) {
+        } else if (delivered_count > 0) {
             // 일부 delivered, 일부 shipped
             newStatus = 'partial_delivered';
-        } else if (stats.shipped_count === stats.total) {
+        } else if (shipped_count === total && total > 0) {
             // 모든 unit 배송 중
             newStatus = 'shipped';
-        } else if (stats.shipped_count > 0) {
+        } else if (shipped_count > 0) {
             // 일부 shipped, 일부 reserved
             newStatus = 'partial_shipped';
         } else {
@@ -92,22 +113,24 @@ async function updateOrderStatus(connection, orderId) {
         );
 
         if (updateResult.affectedRows !== 1) {
-            Logger.warn('[ORDER_STATUS_AGGREGATOR] orders.status 업데이트 실패', {
+            // ⚠️ 주문이 없거나 이미 삭제된 경우
+            Logger.error('[ORDER_STATUS_AGGREGATOR] orders.status 업데이트 실패 - 주문이 없거나 이미 삭제됨', {
                 orderId,
                 newStatus,
                 affectedRows: updateResult.affectedRows
             });
+            throw new Error(`orders.status 업데이트 실패: order_id=${orderId}, affectedRows=${updateResult.affectedRows}`);
         }
 
         Logger.log('[ORDER_STATUS_AGGREGATOR] orders.status 집계 완료', {
             orderId,
             newStatus,
             stats: {
-                total: stats.total,
-                shipped_count: stats.shipped_count,
-                delivered_count: stats.delivered_count,
-                refunded_count: stats.refunded_count,
-                reserved_count: stats.reserved_count
+                total,
+                shipped_count,
+                delivered_count,
+                refunded_count,
+                reserved_count
             },
             hasPaidEvent,
             hasPaidAt
