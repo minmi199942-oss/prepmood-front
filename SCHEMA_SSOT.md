@@ -4,8 +4,8 @@
 
 **🚀 작업 시작**: 작업할 때는 **`START_HERE.md`**를 먼저 보세요.
 
-**최종 업데이트**: 2026-01-11  
-**검증 기준**: VPS 실제 DB 구조 + 마이그레이션 파일 전체 분석
+**최종 업데이트**: 2026-01-15  
+**검증 기준**: VPS 실제 DB 구조 (`backend/scripts/db_structure_actual.txt`) + 마이그레이션 파일 전체 분석
 
 ---
 
@@ -40,7 +40,9 @@ CREATE TABLE warranties (
 )
 ```
 
-**누락**: `active_key` generated column (073 마이그레이션으로 추가 예정)
+**✅ 확인**: `active_key` generated column 존재 (073 마이그레이션 완료)
+- `active_key VARCHAR(50) GENERATED ALWAYS AS (...) VIRTUAL`
+- UNIQUE KEY `uk_warranties_active_key` 존재
 
 ---
 
@@ -104,86 +106,118 @@ CREATE TABLE warranty_events (
 ---
 
 ### guest_order_access_tokens 테이블
-**마이그레이션**: `031_create_guest_order_access_tokens_table.sql`  
-**VPS 확인**: ❌ 테이블 없음 (생성 필요)
+**마이그레이션**: `075_create_guest_order_access_tokens_table.sql`  
+**VPS 확인**: ✅ 테이블 존재 (2026-01-13 생성)
 
 ```sql
 CREATE TABLE guest_order_access_tokens (
     token_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     order_id INT NOT NULL,
-    token_hash VARCHAR(64) NOT NULL UNIQUE,  -- 해시 방식 (문서는 평문)
+    token VARCHAR(100) NOT NULL UNIQUE,  -- 평문 토큰 (90일 유효)
     expires_at DATETIME NOT NULL,
     revoked_at DATETIME NULL,
-    last_access_at DATETIME NULL,  -- 추가 컬럼
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE RESTRICT
 )
 ```
 
-**문서와의 차이**:
-- 문서: `token VARCHAR(100)` (평문)
-- 실제: `token_hash VARCHAR(64)` (해시, 보안 강화)
-- **결정**: 실제 구조 유지 (보안상 우수)
+**실제 구조**:
+- `token VARCHAR(100)` (평문) - 해시 아님
+- `last_access_at` 컬럼 없음
+- FK: `ON DELETE RESTRICT` (CASCADE 아님)
 
 ---
 
 ### claim_tokens 테이블
-**마이그레이션**: `032_create_claim_tokens_table.sql`  
-**VPS 확인**: ❌ 테이블 없음 (생성 필요)
+**마이그레이션**: `076_create_claim_tokens_table.sql`  
+**VPS 확인**: ✅ 테이블 존재 (2026-01-13 생성)
 
 ```sql
 CREATE TABLE claim_tokens (
-    claim_token_id BIGINT PRIMARY KEY AUTO_INCREMENT,  -- 문서는 token_id
+    token_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     order_id INT NOT NULL,
-    user_id INT NOT NULL,  -- 문서에 없음 (보안 강화)
-    token_hash VARCHAR(64) NOT NULL UNIQUE,  -- 해시 방식
+    token VARCHAR(100) NOT NULL UNIQUE,  -- 평문 토큰 (15분 유효)
     expires_at DATETIME NOT NULL,
     used_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE RESTRICT
 )
 ```
 
-**문서와의 차이**:
-- 문서: `token VARCHAR(100)` (평문)
-- 실제: `token_hash VARCHAR(64)` + `user_id` (보안 강화)
-- **결정**: 실제 구조 유지 (보안상 우수)
+**실제 구조**:
+- `token VARCHAR(100)` (평문) - 해시 아님
+- `user_id` 컬럼 없음
+- FK: `ON DELETE RESTRICT` (CASCADE 아님)
 
 ---
 
 ### warranty_transfers 테이블
-**마이그레이션**: `074_create_warranty_transfers_table.sql` (새로 생성)  
-**VPS 확인**: ❌ 테이블 없음
+**마이그레이션**: `074_create_warranty_transfers_table.sql`  
+**VPS 확인**: ✅ 테이블 존재 (2026-01-13 생성)
 
-**문서 스펙 그대로 생성** (차이 없음)
+**문서 스펙과 일치** (차이 없음)
 
 ---
 
 ### shipments 테이블
-**마이그레이션**: `077_create_shipments_table.sql` (새로 생성)  
-**VPS 확인**: ❌ 테이블 없음
+**마이그레이션**: `077_create_shipments_table.sql`  
+**VPS 확인**: ✅ 테이블 존재 (2026-01-13 생성)
 
-**⚠️ 중요 결정 필요**:
-- **현재**: `order_item_units`에 `carrier_code`, `tracking_number` 직접 포함 (039)
-- **문서**: `shipments` 테이블 분리 (정규화, 송장 교체/이력 관리)
+```sql
+CREATE TABLE shipments (
+    shipment_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT NOT NULL,
+    carrier_code VARCHAR(20) NOT NULL,
+    tracking_number VARCHAR(100) NOT NULL,
+    active_key VARCHAR(150) GENERATED ALWAYS AS (
+        CASE WHEN voided_at IS NULL THEN CONCAT(carrier_code, ':', tracking_number) ELSE NULL END
+    ) VIRTUAL,
+    shipped_at DATETIME NULL,
+    created_by_admin_id INT NULL,
+    voided_at DATETIME NULL,
+    void_reason VARCHAR(500) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE RESTRICT,
+    FOREIGN KEY (carrier_code) REFERENCES carriers(code) ON DELETE RESTRICT,
+    UNIQUE KEY uk_shipments_active_key (active_key)
+)
+```
 
-**선택**:
-- A안: 039 방식 유지 (단순, 현재 작동)
-- B안: 077 실행 (정규화, 향후 확장성)
+**참고**: `order_item_units`에도 `carrier_code`, `tracking_number`가 직접 포함되어 있음 (039). 두 방식 병행 사용.
 
 ---
 
 ### shipment_units 테이블
-**마이그레이션**: `078_create_shipment_units_table.sql` (새로 생성)  
-**VPS 확인**: ❌ 테이블 없음
+**마이그레이션**: `078_create_shipment_units_table.sql`  
+**VPS 확인**: ✅ 테이블 존재 (2026-01-13 생성)
 
-**의존성**: shipments 테이블 생성 후
+```sql
+CREATE TABLE shipment_units (
+    shipment_id BIGINT NOT NULL,
+    order_item_unit_id BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (shipment_id, order_item_unit_id),
+    FOREIGN KEY (shipment_id) REFERENCES shipments(shipment_id) ON DELETE RESTRICT,
+    FOREIGN KEY (order_item_unit_id) REFERENCES order_item_units(order_item_unit_id) ON DELETE RESTRICT
+)
+```
 
 ---
 
 ### orders 테이블
-**VPS 확인**: ✅ `paid_at` 컬럼 있음
+**VPS 확인**: ✅ 완료
+
+**주요 컬럼**:
+- `order_id INT PRIMARY KEY AUTO_INCREMENT`
+- `user_id INT NULL` (회원 주문)
+- `guest_id VARCHAR(20) NULL` (비회원 주문)
+- `status VARCHAR(50) NOT NULL DEFAULT 'pending'`
+- `paid_at DATETIME NULL` ✅ 존재
+- `order_number VARCHAR(32) NOT NULL UNIQUE`
+- `total_price DECIMAL(10,2) NOT NULL DEFAULT 0.00`
+
+**⚠️ 중요**: `created_at`, `updated_at` 컬럼 **없음**
 
 ---
 
@@ -200,14 +234,16 @@ CREATE TABLE claim_tokens (
 
 ## 📋 마이그레이션 실행 순서
 
-### Phase 2 완성 (우선순위)
+### Phase 2 완성 (✅ 모두 완료)
 
-1. ✅ **073**: warranties.active_key 추가
-2. ✅ **074**: warranty_transfers 테이블 생성
-3. ✅ **075**: guest_order_access_tokens 테이블 생성 (실제 구조 사용)
-4. ✅ **076**: claim_tokens 테이블 생성 (실제 구조 사용)
-5. ⚠️ **077**: shipments 테이블 생성 (선택 필요)
-6. ⚠️ **078**: shipment_units 테이블 생성 (077 의존)
+1. ✅ **073**: warranties.active_key 추가 (완료)
+2. ✅ **074**: warranty_transfers 테이블 생성 (완료)
+3. ✅ **075**: guest_order_access_tokens 테이블 생성 (완료)
+4. ✅ **076**: claim_tokens 테이블 생성 (완료)
+5. ✅ **077**: shipments 테이블 생성 (완료)
+6. ✅ **078**: shipment_units 테이블 생성 (완료)
+
+**완료일**: 2026-01-13
 
 ---
 

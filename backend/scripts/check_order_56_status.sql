@@ -122,3 +122,61 @@ WHERE reserved_by_order_id = 56
            SELECT order_item_id FROM order_items WHERE order_id = 56
        )
    );
+
+-- ============================================================
+-- 7. warranties 확인 (보증서 생성 여부)
+-- ============================================================
+SELECT '=== 7. warranties 확인 ===' AS info;
+
+SELECT 
+    w.id as warranty_id,
+    w.public_id,
+    w.status,
+    w.owner_user_id,
+    w.source_order_item_unit_id,
+    w.token_pk,
+    w.created_at,
+    tm.token
+FROM warranties w
+JOIN token_master tm ON w.token_pk = tm.token_pk
+WHERE w.source_order_item_unit_id IN (
+    SELECT order_item_unit_id 
+    FROM order_item_units 
+    WHERE order_item_id IN (
+        SELECT order_item_id FROM order_items WHERE order_id = 56
+    )
+);
+
+-- ============================================================
+-- 8. invoices 확인 (인보이스 생성 여부)
+-- ============================================================
+SELECT '=== 8. invoices 확인 ===' AS info;
+
+SELECT 
+    invoice_id,
+    invoice_number,
+    order_id,
+    status,
+    total_amount,
+    issued_at
+FROM invoices
+WHERE order_id = 56;
+
+-- ============================================================
+-- 9. paid_event_processing 확인 (처리 상태)
+-- ============================================================
+SELECT '=== 9. paid_event_processing 확인 ===' AS info;
+
+SELECT 
+    pep.event_id,
+    pep.status as processing_status,
+    pep.last_error,
+    pep.processed_at,
+    pep.retry_count,
+    pep.created_at,
+    pe.order_id,
+    pe.payment_key
+FROM paid_event_processing pep
+JOIN paid_events pe ON pep.event_id = pe.event_id
+WHERE pe.order_id = 56
+ORDER BY pep.created_at DESC;
