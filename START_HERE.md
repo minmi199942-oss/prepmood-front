@@ -136,22 +136,44 @@
 ## 🎯 다음 작업 시작하기
 
 ### 지금 바로 시작하려면:
-1. **`CURRENT_STATUS_AND_NEXT_STEPS.md`** 열기
+1. **`WORK_STATUS_SUMMARY.md`** 열기 ← **현재 상태 및 다음 단계 요약**
 2. "다음 단계" 섹션 확인
 3. 해당 Phase의 작업 시작
 
+### 현재 상태 요약
+**완료된 것**:
+- ✅ 기본 인프라 (orders, warranties 기본 구조, order_item_units 등)
+- ✅ processPaidOrder() 함수 구현
+- ✅ QR 코드 다운로드 API
+- ✅ 인보이스 생성 로직
+- ✅ Product ID 리팩토링 완료
+- ✅ Phase 15 (product_options) 완료
+
+**다음 단계 (최우선)**:
+1. **VPS에서 DB 상태 확인** (실제로 무엇이 실행되었는지)
+2. **Phase 2 마이그레이션 실행** (073~078)
+   - warranties.active_key 추가
+   - warranty_transfers 테이블
+   - guest_order_access_tokens 테이블
+   - claim_tokens 테이블
+   - shipments 테이블
+   - shipment_units 테이블
+3. **Phase 3**: processPaidOrder() 업데이트
+4. **Phase 5, 7**: 보증서 활성화 API, QR 스캔 로직 수정
+
 ### 예시: Phase 2 마이그레이션 실행
 ```
-1. CURRENT_STATUS_AND_NEXT_STEPS.md 확인
-   → "Phase 2 완성 (최우선)" 확인
+1. WORK_STATUS_SUMMARY.md 확인
+   → "Step 1: DB 상태 확인" 실행
 
-2. COMPREHENSIVE_IMPLEMENTATION_ROADMAP.md 확인
-   → Phase 2 작업 목록 확인
+2. VPS에서 DB 상태 확인 쿼리 실행
+   → 무엇이 이미 실행되었는지 확인
 
-3. SCHEMA_SSOT.md 확인
-   → 실제 DB 구조 확인 (이미 있는지 확인)
+3. Phase 2 마이그레이션 실행 (073~078)
+   → 실행 명령어는 WORK_STATUS_SUMMARY.md에 있음
 
-4. 마이그레이션 파일 실행
+4. 검증
+   → 테이블 생성 확인
 ```
 
 ---
