@@ -176,21 +176,9 @@ async function createPaidEvent({
             throw error;
         }
     }
-
-    } catch (error) {
-        Logger.error('[PAID_EVENT_CREATOR] paid_events 생성 실패', {
-            orderId,
-            error: error.message,
-            error_code: error.code,
-            stack: error.stack
-        });
-
-        if (connection) {
-            await connection.end();
-        }
-
-        throw error;
-    }
+    
+    // 모든 재시도 실패 (이 코드는 도달하지 않아야 하지만 방어 코드)
+    throw new Error('paid_events 생성 실패: 모든 재시도 실패');
 }
 
 /**
