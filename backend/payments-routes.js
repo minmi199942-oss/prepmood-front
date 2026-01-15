@@ -539,6 +539,16 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 // ⚠️ 주문 상태를 processing으로 업데이트하지 않음
                 // paid_events가 없으면 주문 처리를 완료할 수 없으므로 주문 상태는 그대로 유지
                 // 나중에 수동으로 재처리 가능 (payments 테이블에 결제 정보는 보존됨)
+                
+                // 에러 발생 시에도 orders.status 집계 함수 호출 (paid_events가 있으면 paid, 없으면 pending)
+                try {
+                    await updateOrderStatus(connection, order.order_id);
+                } catch (statusError) {
+                    Logger.error('[payments][confirm] updateOrderStatus 실패 (치명적이지 않음)', {
+                        order_id: order.order_id,
+                        error: statusError.message
+                    });
+                }
             }
         } else {
             // ⚠️ 디버깅: paymentStatus가 'captured'가 아닌 경우 로깅
@@ -1057,6 +1067,16 @@ router.post('/payments/inicis/return', async (req, res) => {
                 // ⚠️ 주문 상태를 processing으로 업데이트하지 않음
                 // paid_events가 없으면 주문 처리를 완료할 수 없으므로 주문 상태는 그대로 유지
                 // 나중에 수동으로 재처리 가능 (payments 테이블에 결제 정보는 보존됨)
+                
+                // 에러 발생 시에도 orders.status 집계 함수 호출 (paid_events가 있으면 paid, 없으면 pending)
+                try {
+                    await updateOrderStatus(connection, order.order_id);
+                } catch (statusError) {
+                    Logger.error('[payments][inicis] updateOrderStatus 실패 (치명적이지 않음)', {
+                        order_id: order.order_id,
+                        error: statusError.message
+                    });
+                }
             }
         } else {
             // ⚠️ 중요: paymentStatus가 'captured'가 아닌 경우에도 orders.status는 집계 함수로만 갱신

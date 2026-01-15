@@ -26,7 +26,7 @@ const Logger = require('../logger');
  */
 async function updateOrderStatus(connection, orderId) {
     try {
-        // 1. order_item_units 통계 조회
+        // 1. order_item_units 통계 조회 (order_id로 직접 조회 - 더 효율적)
         const [units] = await connection.execute(
             `SELECT 
                 COUNT(*) as total,
@@ -34,9 +34,8 @@ async function updateOrderStatus(connection, orderId) {
                 SUM(CASE WHEN unit_status = 'delivered' THEN 1 ELSE 0 END) as delivered_count,
                 SUM(CASE WHEN unit_status = 'refunded' THEN 1 ELSE 0 END) as refunded_count,
                 SUM(CASE WHEN unit_status = 'reserved' THEN 1 ELSE 0 END) as reserved_count
-            FROM order_item_units oiu
-            JOIN order_items oi ON oiu.order_item_id = oi.order_item_id
-            WHERE oi.order_id = ?`,
+            FROM order_item_units
+            WHERE order_id = ?`,
             [orderId]
         );
 
