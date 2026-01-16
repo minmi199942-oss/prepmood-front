@@ -1,4 +1,4 @@
-// guest-order-detail.js - 비회원 주문 조회 페이지 스크립트
+// guest/orders.js - 비회원 주문 조회 페이지 스크립트
 const API_BASE = window.API_BASE || 
   ((window.location && window.location.origin)
     ? window.location.origin.replace(/\/$/, '') + '/api'
