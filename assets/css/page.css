@@ -3406,6 +3406,168 @@
   font-size: clamp(0.9rem, 2vw, 1rem);
 }
 
+/* ===== 보증서 양도 수락 페이지 ===== */
+.transfer-accept-main {
+  min-height: calc(100vh - var(--header-height, 72px));
+  padding-top: clamp(30px, 5vw, 40px);
+  background-color: #ffffff;
+}
+
+.transfer-accept-section {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 30px);
+}
+
+.transfer-form {
+  background-color: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 0;
+  padding: clamp(24px, 5vw, 32px);
+}
+
+.form-group {
+  margin-bottom: clamp(20px, 4vw, 24px);
+}
+
+.form-label {
+  display: block;
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  font-weight: 500;
+  color: #111;
+  margin-bottom: clamp(8px, 1.5vw, 12px);
+  letter-spacing: 0.1px;
+}
+
+.form-input {
+  width: 100%;
+  padding: clamp(12px, 2.5vw, 16px);
+  font-size: clamp(1rem, 2.2vw, 1.1rem);
+  border: 1px solid #111;
+  border-radius: 0;
+  background-color: #fff;
+  color: #111;
+  letter-spacing: 0.2px;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #111;
+}
+
+.form-hint {
+  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  color: #666;
+  margin-top: clamp(6px, 1.2vw, 8px);
+  letter-spacing: 0.1px;
+}
+
+.form-actions {
+  display: flex;
+  gap: clamp(12px, 2.5vw, 16px);
+  margin-top: clamp(24px, 5vw, 32px);
+}
+
+.btn-primary {
+  flex: 1;
+  padding: clamp(12px, 2.5vw, 16px);
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  font-weight: 500;
+  color: #fff;
+  background-color: #111;
+  border: 1px solid #111;
+  border-radius: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.btn-primary:hover {
+  background-color: #333;
+  border-color: #333;
+}
+
+.btn-primary:active {
+  background-color: #000;
+  border-color: #000;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  flex: 1;
+  padding: clamp(12px, 2.5vw, 16px);
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  font-weight: 500;
+  color: #111;
+  background-color: transparent;
+  border: 1px solid #111;
+  border-radius: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.btn-secondary:hover {
+  background-color: #111;
+  color: #fff;
+}
+
+.loading-state,
+.success-message,
+.error-message {
+  text-align: center;
+  padding: clamp(40px, 8vw, 60px) clamp(20px, 4vw, 30px);
+  background-color: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 0;
+}
+
+.loading-state {
+  color: #666;
+  font-size: clamp(0.9rem, 2vw, 1rem);
+}
+
+.success-message h2 {
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  font-weight: 500;
+  color: #111;
+  margin-bottom: clamp(12px, 2.5vw, 16px);
+  letter-spacing: 0.2px;
+}
+
+.success-message p {
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  color: #666;
+  margin-bottom: clamp(24px, 5vw, 32px);
+  letter-spacing: 0.1px;
+}
+
+.error-message h2 {
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  font-weight: 500;
+  color: #dc3545;
+  margin-bottom: clamp(12px, 2.5vw, 16px);
+  letter-spacing: 0.2px;
+}
+
+.error-message p {
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  color: #666;
+  margin-bottom: clamp(24px, 5vw, 32px);
+  letter-spacing: 0.1px;
+}
+
 /* ===== 보증서 상세 페이지 ===== */
 .warranty-detail-main {
   min-height: calc(100vh - var(--header-height, 72px));
