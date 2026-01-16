@@ -247,6 +247,32 @@
   }
 
   // ============================================
+  // HTML 이스케이프 (XSS 방지)
+  // ============================================
+  function escapeHtml(text) {
+    if (text == null) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // ============================================
+  // 보증서 상태 배지 생성
+  // ============================================
+  function getWarrantyStatusBadge(status) {
+    const statusMap = {
+      'issued_unassigned': { label: '미할당', class: 'badge-secondary' },
+      'issued': { label: '발급됨', class: 'badge-info' },
+      'active': { label: '활성화', class: 'badge-success' },
+      'suspended': { label: '제재', class: 'badge-warning' },
+      'revoked': { label: '환불됨', class: 'badge-danger' }
+    };
+
+    const { label, class: className } = statusMap[status] || { label: status, class: 'badge-secondary' };
+    return `<span class="badge ${className}">${label}</span>`;
+  }
+
+  // ============================================
   // 송장번호 추적 링크 생성
   // ============================================
   function getTrackingUrl(carrierCode, trackingNumber) {
@@ -315,7 +341,13 @@
       }
 
       const data = await response.json();
-      renderOrderDetailModal(data.order);
+      
+      if (!data.success) {
+        throw new Error(data.message || '조회 실패');
+      }
+
+      // 새로운 3단 구조: { order, invoice, credit_notes, order_items }
+      renderOrderDetailModal(data);
 
       elements.orderDetailModal.classList.add('show');
 
@@ -327,103 +359,61 @@
   };
 
   // ============================================
-  // 주문 상세 모달 렌더링
+  // 주문 상세 모달 렌더링 (3단 구조)
   // ============================================
-  function renderOrderDetailModal(order) {
+  function renderOrderDetailModal(data) {
+    const { order, invoice, credit_notes, order_items } = data;
+    
     elements.modalOrderTitle.textContent = `주문 상세 - ${order.order_number || `#${order.order_id}`}`;
 
-    const customerName = order.shipping_name || order.customer_name || '-';
+    const customerName = order.customer_info?.name || order.shipping_info?.name || '-';
+    const customerEmail = order.customer_info?.email || order.shipping_info?.email || '-';
+    const customerPhone = order.customer_info?.phone || order.shipping_info?.phone || '-';
     
     const priceFormatted = new Intl.NumberFormat('ko-KR', {
       style: 'currency',
       currency: 'KRW',
       maximumFractionDigits: 0
-    }).format(order.total_price);
+    }).format(order.total_amount);
 
-    elements.orderDetailContent.innerHTML = `
-      <div class="order-detail-grid">
-        <!-- 고객 정보 -->
-        <div class="detail-section">
-          <h4>고객 정보</h4>
-          <dl>
-            <dt>이름</dt>
-            <dd>${customerName}</dd>
-            <dt>이메일</dt>
-            <dd>${order.customer_email || '-'}</dd>
-            <dt>전화번호</dt>
-            <dd>${order.shipping_phone || order.customer_phone || '-'}</dd>
-          </dl>
-        </div>
-
-        <!-- 배송지 정보 -->
-        <div class="detail-section">
-          <h4>배송지 정보</h4>
-          <dl>
-            <dt>주소</dt>
-            <dd>${order.shipping_address || '-'}</dd>
-            <dt>우편번호</dt>
-            <dd>${order.shipping_zipcode || '-'}</dd>
-            <dt>국가</dt>
-            <dd>${order.shipping_country || 'KR'}</dd>
-          </dl>
-        </div>
-
-        <!-- 주문 정보 -->
-        <div class="detail-section">
-          <h4>주문 정보</h4>
-          <dl>
-            <dt>주문번호</dt>
-            <dd>${order.order_number || `#${order.order_id}`}</dd>
-            <dt>주문일시</dt>
-            <dd>${new Date(order.created_at).toLocaleString('ko-KR')}</dd>
-            <dt>총 금액</dt>
-            <dd><strong>${priceFormatted}</strong></dd>
-          </dl>
-        </div>
-
-        ${order.invoice ? `
-        <!-- 인보이스 정보 -->
-        <div class="detail-section">
-          <h4>인보이스 정보</h4>
-          <dl>
-            <dt>인보이스 번호</dt>
-            <dd>${order.invoice.invoice_number}</dd>
-            <dt>발급 일시</dt>
-            <dd>${new Date(order.invoice.issued_at).toLocaleString('ko-KR')}</dd>
-            <dt>총액</dt>
-            <dd><strong>${new Intl.NumberFormat('ko-KR', {
-              style: 'currency',
-              currency: 'KRW',
-              maximumFractionDigits: 0
-            }).format(order.invoice.total_amount)}</strong></dd>
-            ${order.invoice.document_url ? `
-            <dt>인보이스 링크</dt>
-            <dd><a href="${order.invoice.document_url}" target="_blank" rel="noopener noreferrer">인보이스 보기</a></dd>
-            ` : ''}
-          </dl>
-        </div>
-        ` : ''}
-
-        <!-- 주문 상태 변경 -->
-        <div class="detail-section">
-          <h4>주문 상태</h4>
-          <dl>
-            <dt>현재 상태</dt>
-            <dd>${renderOrderStatusBadge(order.status)}</dd>
-          </dl>
-          <!-- ⚠️ 주문 상태 직접 변경 기능 제거됨 -->
-          <!-- orders.status는 집계 결과(뷰/표시용)이며, 직접 정책 판단 기준으로 사용하지 않습니다. -->
-          <!-- 상태 변경은 order_item_units.unit_status나 paid_events 변경으로만 가능합니다. -->
-          <div style="padding: 0.5rem; background-color: #f5f5f5; border-radius: 4px; font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
-            <strong>※ 주문 상태는 자동으로 집계됩니다.</strong><br>
-            <small>배송/환불 처리를 통해 상태를 변경하세요.</small>
-          </div>
-        </div>
+    // 1단: 주문 정보 카드 (인보이스 정보 포함)
+    const invoiceHtml = invoice ? `
+      <div class="detail-section">
+        <h4>인보이스 정보</h4>
+        <dl>
+          <dt>인보이스 번호</dt>
+          <dd>${escapeHtml(invoice.invoice_number)}</dd>
+          <dt>발급 일시</dt>
+          <dd>${new Date(invoice.issued_at).toLocaleString('ko-KR')}</dd>
+          <dt>총액</dt>
+          <dd><strong>${new Intl.NumberFormat('ko-KR', {
+            style: 'currency',
+            currency: 'KRW',
+            maximumFractionDigits: 0
+          }).format(invoice.total_amount)}</strong></dd>
+          ${invoice.document_url ? `
+          <dt>인보이스 링크</dt>
+          <dd><a href="${escapeHtml(invoice.document_url)}" target="_blank" rel="noopener noreferrer">인보이스 보기</a></dd>
+          ` : ''}
+        </dl>
       </div>
+      ${credit_notes && credit_notes.length > 0 ? `
+      <div class="detail-section">
+        <h4>Credit Note</h4>
+        <dl>
+          ${credit_notes.map(cn => `
+            <dt>Credit Note 번호</dt>
+            <dd>${escapeHtml(cn.invoice_number)} (${new Date(cn.issued_at).toLocaleDateString('ko-KR')})</dd>
+          `).join('')}
+        </dl>
+      </div>
+      ` : ''}
+    ` : '';
 
-      <!-- 주문 상품 -->
+    // 2단: 주문 항목 리스트
+    const orderItemsHtml = order_items && order_items.length > 0 ? `
       <div class="detail-section" style="margin-top: 1.5rem;">
-        <h4>주문 상품</h4>
+        <h4>주문 항목</h4>
         <table class="detail-table">
           <thead>
             <tr>
@@ -434,7 +424,7 @@
             </tr>
           </thead>
           <tbody>
-            ${order.items.map(item => {
+            ${order_items.map(item => {
               const itemPrice = new Intl.NumberFormat('ko-KR', {
                 style: 'currency',
                 currency: 'KRW',
@@ -443,8 +433,8 @@
               
               return `
                 <tr>
-                  <td>${item.product_name}</td>
-                  <td>${item.color || '-'} / ${item.size || '-'}</td>
+                  <td>${escapeHtml(item.product_name || '-')}</td>
+                  <td>${escapeHtml(item.color || '-')} / ${escapeHtml(item.size || '-')}</td>
                   <td>${item.quantity}</td>
                   <td>${itemPrice}</td>
                 </tr>
@@ -453,37 +443,32 @@
           </tbody>
         </table>
       </div>
+    ` : '';
 
-      ${order.payment ? `
-        <div class="detail-section" style="margin-top: 1.5rem;">
-          <h4>결제 정보</h4>
-          <dl>
-            <dt>결제 수단</dt>
-            <dd>${order.payment.gateway === 'mock' ? '모의 결제 (테스트)' : '토스페이먼츠'}</dd>
-            <dt>결제 상태</dt>
-            <dd>${order.payment.status}</dd>
-            <dt>결제 키</dt>
-            <dd><code style="font-size: 0.75rem;">${order.payment.payment_key}</code></dd>
-          </dl>
-        </div>
-      ` : ''}
+    // 3단: 주문 항목 단위 테이블 (시리얼 넘버, 토큰, 배송 상태, 보증서 상태)
+    // 모든 units를 수집
+    const allUnits = [];
+    order_items.forEach(item => {
+      if (item.units && item.units.length > 0) {
+        item.units.forEach(unit => {
+          allUnits.push({ ...unit, item_product_name: item.product_name, item_size: item.size, item_color: item.color });
+        });
+      }
+    });
 
-      ${order.order_item_units && order.order_item_units.length > 0 ? `
-      <!-- 출고/배송 유닛 테이블 -->
+    const unitsTableHtml = allUnits.length > 0 ? `
       <div class="detail-section" style="margin-top: 1.5rem;">
-        <h4>출고/배송 유닛</h4>
+        <h4>주문 항목 단위 (출고/배송 관리)</h4>
         <table class="detail-table" id="orderItemUnitsTable">
           <thead>
             <tr>
               <th><input type="checkbox" id="selectAllUnits" onchange="window.toggleSelectAllUnits()"></th>
-              <th>유닛 ID</th>
+              <th>순번</th>
               <th>상품명</th>
-              <th>사이즈</th>
-              <th>색상</th>
-              <th>내부코드</th>
+              <th>시리얼 넘버</th>
               <th>토큰</th>
-              <th>시리얼넘버</th>
-              <th>상태</th>
+              <th>배송 상태</th>
+              <th>보증서 상태</th>
               <th>택배사</th>
               <th>송장번호</th>
               <th>출고일</th>
@@ -491,11 +476,26 @@
             </tr>
           </thead>
           <tbody>
-            ${order.order_item_units.map(unit => {
+            ${allUnits.map(unit => {
               const isShippedOrDelivered = unit.unit_status === 'shipped' || unit.unit_status === 'delivered';
-              const trackingUrl = getTrackingUrl(unit.carrier_code, unit.tracking_number);
-              const shippedDate = unit.shipped_at ? new Date(unit.shipped_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
-              const deliveredDate = unit.delivered_at ? new Date(unit.delivered_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-';
+              const carrierCode = unit.current_shipment?.carrier_code || unit.carrier_code;
+              const trackingNumber = unit.current_shipment?.tracking_number || unit.tracking_number;
+              const trackingUrl = getTrackingUrl(carrierCode, trackingNumber);
+              const shippedDate = unit.current_shipment?.shipped_at || unit.shipped_at 
+                ? new Date(unit.current_shipment?.shipped_at || unit.shipped_at).toLocaleString('ko-KR', { 
+                    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' 
+                  }) 
+                : '-';
+              const deliveredDate = unit.delivered_at 
+                ? new Date(unit.delivered_at).toLocaleString('ko-KR', { 
+                    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' 
+                  }) 
+                : '-';
+              
+              // 보증서 상태 배지
+              const warrantyBadge = unit.warranty_status 
+                ? getWarrantyStatusBadge(unit.warranty_status)
+                : '<span class="badge badge-secondary">없음</span>';
               
               return `
                 <tr data-unit-id="${unit.order_item_unit_id}" data-status="${unit.unit_status}">
@@ -508,19 +508,19 @@
                       onchange="window.updateActionButtonsState()"
                     >
                   </td>
-                  <td>${unit.order_item_unit_id}</td>
-                  <td>${unit.product_name || '-'}</td>
-                  <td>${unit.size || '-'}</td>
-                  <td>${unit.color || '-'}</td>
-                  <td>${unit.internal_code || '-'}</td>
-                  <td style="font-family: monospace; font-size: 0.75rem;">${maskToken(unit.token)}</td>
-                  <td>${unit.serial_number || '-'}</td>
+                  <td>${unit.unit_seq || '-'}</td>
+                  <td>${escapeHtml(unit.item_product_name || '-')}</td>
+                  <td>${escapeHtml(unit.serial_number || '-')}</td>
+                  <td style="font-family: monospace; font-size: 0.75rem;">
+                    <code title="전체 토큰: ${escapeHtml(unit.token || '-')}">${escapeHtml(unit.token || '-')}</code>
+                  </td>
                   <td>${renderUnitStatusBadge(unit.unit_status)}</td>
-                  <td>${unit.carrier_code || '-'}</td>
+                  <td>${warrantyBadge}</td>
+                  <td>${escapeHtml(carrierCode || '-')}</td>
                   <td>
-                    ${trackingUrl && unit.tracking_number 
-                      ? `<a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color: #007bff;">${unit.tracking_number}</a>`
-                      : (unit.tracking_number || '-')}
+                    ${trackingUrl && trackingNumber 
+                      ? `<a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color: #007bff;">${escapeHtml(trackingNumber)}</a>`
+                      : (trackingNumber ? escapeHtml(trackingNumber) : '-')}
                   </td>
                   <td>${shippedDate}</td>
                   <td>${deliveredDate}</td>
@@ -550,7 +550,64 @@
           </button>
         </div>
       </div>
-      ` : ''}
+    ` : '';
+
+    elements.orderDetailContent.innerHTML = `
+      <!-- 1단: 주문 정보 카드 -->
+      <div class="order-detail-grid">
+        <!-- 고객 정보 -->
+        <div class="detail-section">
+          <h4>고객 정보</h4>
+          <dl>
+            <dt>이름</dt>
+            <dd>${escapeHtml(customerName)}</dd>
+            <dt>이메일</dt>
+            <dd>${escapeHtml(customerEmail)}</dd>
+            <dt>전화번호</dt>
+            <dd>${escapeHtml(customerPhone)}</dd>
+          </dl>
+        </div>
+
+        <!-- 배송지 정보 -->
+        <div class="detail-section">
+          <h4>배송지 정보</h4>
+          <dl>
+            <dt>주소</dt>
+            <dd>${escapeHtml(order.shipping_info?.address || '-')}</dd>
+            <dt>우편번호</dt>
+            <dd>${escapeHtml(order.shipping_info?.postal_code || '-')}</dd>
+            <dt>국가</dt>
+            <dd>${escapeHtml(order.shipping_info?.country || 'KR')}</dd>
+          </dl>
+        </div>
+
+        <!-- 주문 정보 -->
+        <div class="detail-section">
+          <h4>주문 정보</h4>
+          <dl>
+            <dt>주문번호</dt>
+            <dd>${escapeHtml(order.order_number || `#${order.order_id}`)}</dd>
+            <dt>주문일시</dt>
+            <dd>${new Date(order.created_at).toLocaleString('ko-KR')}</dd>
+            <dt>결제일시</dt>
+            <dd>${order.paid_at ? new Date(order.paid_at).toLocaleString('ko-KR') : '-'}</dd>
+            <dt>총 금액</dt>
+            <dd><strong>${priceFormatted}</strong></dd>
+            <dt>주문 상태</dt>
+            <dd>${renderOrderStatusBadge(order.status)}</dd>
+          </dl>
+          <div style="padding: 0.5rem; background-color: #f5f5f5; border-radius: 4px; font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
+            <strong>※ 주문 상태는 자동으로 집계됩니다.</strong><br>
+            <small>배송/환불 처리를 통해 상태를 변경하세요.</small>
+          </div>
+        </div>
+
+        ${invoiceHtml}
+      </div>
+
+      ${orderItemsHtml}
+
+      ${unitsTableHtml}
     `;
   }
 
