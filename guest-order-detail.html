@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주문 상세 - Pre.p Mood</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/assets/css/layout-system.css">
+    <link rel="stylesheet" href="/assets/css/header.css">
+    <link rel="stylesheet" href="/assets/css/page.css">
+    <link rel="stylesheet" href="/assets/css/responsive.css">
+    <script defer src="/utils.js"></script>
+    <script defer src="/header-loader.js"></script>
+    <script defer src="/header-scroll.js"></script>
+    <script defer src="/footer-loader.js"></script>
+    <script defer src="/guest-order-detail.js"></script>
+</head>
+<body>
+    <!-- 헤더 컨테이너 -->
+    <div id="header-container"></div>
+
+    <!-- 메인 컨텐츠 -->
+    <main class="guest-order-detail-main">
+        <!-- 로고 섹션 -->
+        <div class="logo-section">
+            <img src="/image/prepmoodlogo.jpg" alt="Pre.p Mood" class="main-logo">
+        </div>
+
+        <!-- 메인 레이아웃 -->
+        <div class="main-layout">
+            <!-- 우측 메인 영역 -->
+            <section class="main-content">
+                <div class="content-container">
+                    <!-- 페이지 제목 -->
+                    <div class="page-header">
+                        <h1 class="page-title">주문 상세</h1>
+                        <p class="page-subtitle">주문 정보를 확인하세요</p>
+                        <p class="page-english">Order Detail</p>
+                    </div>
+
+                    <!-- 주문 상세 영역 -->
+                    <div class="order-detail-section">
+                        <!-- 로딩 상태 -->
+                        <div id="loading-state" class="loading-state" style="display: none;">
+                            <p>주문 정보를 불러오는 중...</p>
+                        </div>
+
+                        <!-- 주문 정보 -->
+                        <div id="order-content" class="order-content" style="display: none;">
+                            <!-- 주문 기본 정보 -->
+                            <div class="order-info-card">
+                                <h2>주문 정보</h2>
+                                <dl id="order-info-list"></dl>
+                            </div>
+
+                            <!-- 배송지 정보 -->
+                            <div class="order-info-card">
+                                <h2>배송지 정보</h2>
+                                <dl id="shipping-info-list"></dl>
+                            </div>
+
+                            <!-- 주문 항목 -->
+                            <div class="order-info-card">
+                                <h2>주문 항목</h2>
+                                <table class="order-items-table" id="order-items-table">
+                                    <thead>
+                                        <tr>
+                                            <th>상품명</th>
+                                            <th>옵션</th>
+                                            <th>수량</th>
+                                            <th>가격</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="order-items-tbody"></tbody>
+                                </table>
+                            </div>
+
+                            <!-- 배송 정보 -->
+                            <div class="order-info-card" id="shipments-card" style="display: none;">
+                                <h2>배송 정보</h2>
+                                <div id="shipments-list"></div>
+                            </div>
+
+                            <!-- Claim 버튼 (비회원인 경우) -->
+                            <div class="claim-section" id="claim-section" style="display: none;">
+                                <div class="claim-info">
+                                    <h3>내 계정에 연동하기</h3>
+                                    <p>이 주문을 회원 계정에 연동하면 보증서를 활성화하고 관리할 수 있습니다.</p>
+                                </div>
+                                <button id="claim-btn" class="btn-primary" onclick="handleClaim()">
+                                    내 계정에 연동하기
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 에러 메시지 -->
+                        <div id="error-message" class="error-message" style="display: none;">
+                            <h2>주문 정보를 불러올 수 없습니다</h2>
+                            <p id="error-text"></p>
+                            <button onclick="location.reload()" class="btn-primary">
+                                다시 시도
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 푸터 컨테이너 -->
+    <div id="footer-container"></div>
+</body>
+</html>

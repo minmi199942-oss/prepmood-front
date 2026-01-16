@@ -1676,6 +1676,7 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
         // 11. 응답 데이터 구성
         const responseData = {
             order: {
+                order_id: order.order_id, // Phase 14-4: Claim API 호출용
                 order_number: order.order_number,
                 order_date: order.order_date,
                 total_price: parseFloat(order.total_price),
