@@ -163,18 +163,67 @@ async function processPaidOrder({
             itemCount: orderItems.length
         });
 
-        const reservedStockUnits = [];
-        const orderItemUnitsToCreate = [];
-
+        // ⚠️ 중요: 모든 상품의 재고를 먼저 검증 (사전 검증)
+        // 부분 예약 방지: 전부 가능할 때만 예약 시작
+        const stockValidationResults = [];
         for (const item of orderItems) {
             const needQty = item.quantity;
             const productId = item.product_id;
             const size = item.size || null;
             const color = item.color || null;
 
-            // 재고 조회 (정석: product_id, status, size, color로 정확히 매칭)
-            // 정책: size/color가 주문에 있으면 정확히 매칭만 허용 (NULL 재고는 배정 제외)
-            // 이유: 사이즈별 정확 배정이 목표이므로, 레거시(NULL) 재고는 명시적으로만 처리
+            // 재고 조회 쿼리 구성 (FOR UPDATE 없이 먼저 검증)
+            let stockQuery = `SELECT COUNT(*) as available_count
+                FROM stock_units
+                WHERE product_id = ? 
+                  AND status = 'in_stock'`;
+            
+            const stockParams = [productId];
+            
+            if (size !== null && size !== undefined && size !== '') {
+                stockQuery += ` AND size = ?`;
+                stockParams.push(size);
+            } else {
+                stockQuery += ` AND size IS NULL`;
+            }
+            
+            if (color !== null && color !== undefined && color !== '') {
+                stockQuery += ` AND color = ?`;
+                stockParams.push(color);
+            } else {
+                stockQuery += ` AND color IS NULL`;
+            }
+            
+            const [countResult] = await connection.execute(stockQuery, stockParams);
+            const availableCount = countResult[0]?.available_count || 0;
+
+            if (availableCount < needQty) {
+                // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)
+                await recordStockIssue(paidEventId, orderId, productId, needQty, availableCount);
+                
+                throw new Error(
+                    `재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableCount}`
+                );
+            }
+
+            stockValidationResults.push({
+                item,
+                needQty,
+                productId,
+                size,
+                color,
+                availableCount
+            });
+        }
+
+        // ⚠️ 모든 상품 재고 검증 완료 후 예약 시작
+        const reservedStockUnits = [];
+        const orderItemUnitsToCreate = [];
+
+        for (const validation of stockValidationResults) {
+            const { item, needQty, productId, size, color } = validation;
+
+            // 재고 조회 및 잠금 (FOR UPDATE SKIP LOCKED)
             let stockQuery = `SELECT stock_unit_id, token_pk, product_id, size, color
                 FROM stock_units
                 WHERE product_id = ? 
@@ -182,41 +231,33 @@ async function processPaidOrder({
             
             const stockParams = [productId];
             
-            // size 정책 (정석): 주문에 size가 있으면 정확 매칭, 없으면 NULL 재고만 배정
-            // 핵심: 타이/액세서리처럼 size 없는 상품은 size IS NULL 재고만 배정
-            // 이유: "S가 품절인데 NULL 재고가 대신 배정되는" 사고 방지
             if (size !== null && size !== undefined && size !== '') {
                 stockQuery += ` AND size = ?`;
                 stockParams.push(size);
             } else {
-                // 주문에 size가 NULL이면 NULL 재고만 배정 (정책: size 없는 상품 처리)
                 stockQuery += ` AND size IS NULL`;
             }
             
-            // color 정책 (정석): 주문에 color가 있으면 정확 매칭, 없으면 NULL 재고만 배정
-            // (현재는 모든 상품에 color가 있어야 하므로, NULL 케이스는 드뭅지만 정책 일관성 유지)
             if (color !== null && color !== undefined && color !== '') {
                 stockQuery += ` AND color = ?`;
                 stockParams.push(color);
             } else {
-                // 주문에 color가 NULL이면 NULL 재고만 배정 (정책 일관성)
                 stockQuery += ` AND color IS NULL`;
             }
             
-            // stock_unit_id 순서 정렬 (인덱스 커버)
-            // 주의: LIMIT 절에는 플레이스홀더 대신 직접 값을 사용해야 함
             stockQuery += ` ORDER BY stock_unit_id
                 LIMIT ${parseInt(needQty)}
                 FOR UPDATE SKIP LOCKED`;
             
             const [availableStock] = await connection.execute(stockQuery, stockParams);
 
+            // ⚠️ 재검증: 잠금 중에 재고가 변경되었을 수 있음
             if (availableStock.length < needQty) {
                 // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)
                 await recordStockIssue(paidEventId, orderId, productId, needQty, availableStock.length);
                 
                 throw new Error(
-                    `재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableStock.length}`
+                    `재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableStock.length} (잠금 중 재고 변경)`
                 );
             }
 
@@ -229,13 +270,13 @@ async function processPaidOrder({
                     SET status = 'reserved',
                         reserved_at = NOW(),
                         reserved_by_order_id = ?
-                    WHERE stock_unit_id = ?`,
+                    WHERE stock_unit_id = ? AND status = 'in_stock'`,
                     [orderId, stockUnit.stock_unit_id]
                 );
 
                 if (updateResult.affectedRows !== 1) {
                     throw new Error(
-                        `재고 상태 업데이트 실패: stock_unit_id=${stockUnit.stock_unit_id}, affectedRows=${updateResult.affectedRows}`
+                        `재고 상태 업데이트 실패: stock_unit_id=${stockUnit.stock_unit_id}, affectedRows=${updateResult.affectedRows} (동시성 경합 가능)`
                     );
                 }
 
@@ -248,9 +289,9 @@ async function processPaidOrder({
 
                 // order_item_units 생성 준비
                 orderItemUnitsToCreate.push({
-                    order_id: orderId, // order_item_units 테이블에 필수 컬럼
+                    order_id: orderId,
                     order_item_id: item.order_item_id,
-                    unit_seq: i + 1, // 1부터 시작
+                    unit_seq: i + 1,
                     stock_unit_id: stockUnit.stock_unit_id,
                     token_pk: stockUnit.token_pk
                 });
@@ -339,8 +380,13 @@ async function processPaidOrder({
         const ownerUserId = order.user_id || null;
         
         // verified_at 생성 (UTC 시간, 'YYYY-MM-DD HH:MM:SS' 형식)
+        // ⚠️ 중요: verified_at은 NOT NULL 필드이므로 반드시 값이 있어야 함
         const now = new Date();
         const utcDateTime = now.toISOString().replace('T', ' ').substring(0, 19);
+        
+        if (!utcDateTime || utcDateTime.length !== 19) {
+            throw new Error(`verified_at 생성 실패: utcDateTime=${utcDateTime}`);
+        }
 
         for (const unit of createdOrderItemUnits) {
             try {
@@ -556,6 +602,45 @@ async function processPaidOrder({
         // 콘솔에도 출력 (PM2 로그에서 확인 가능)
         console.error('[PAID_PROCESSOR] Paid 처리 실패 - 전체 에러 객체:', JSON.stringify(errorDetails, null, 2));
         console.error('[PAID_PROCESSOR] 에러 원본:', error);
+
+        // ⚠️ 안전망: 예약된 재고가 있으면 명시적으로 해제 (트랜잭션 롤백 실패 대비)
+        // 주의: connection이 트랜잭션 내이므로 롤백되면 자동 해제되지만, 안전을 위해 명시적 해제
+        try {
+            const [reservedStock] = await connection.execute(
+                `SELECT stock_unit_id, product_id 
+                 FROM stock_units 
+                 WHERE reserved_by_order_id = ? AND status = 'reserved'`,
+                [orderId]
+            );
+
+            if (reservedStock.length > 0) {
+                Logger.warn('[PAID_PROCESSOR] 예약된 재고 발견 - 명시적 해제 시도', {
+                    orderId,
+                    reservedCount: reservedStock.length
+                });
+
+                // 예약 해제 (트랜잭션 롤백 전에 명시적 해제)
+                await connection.execute(
+                    `UPDATE stock_units
+                     SET status = 'in_stock',
+                         reserved_at = NULL,
+                         reserved_by_order_id = NULL
+                     WHERE reserved_by_order_id = ? AND status = 'reserved'`,
+                    [orderId]
+                );
+
+                Logger.log('[PAID_PROCESSOR] 예약된 재고 해제 완료', {
+                    orderId,
+                    releasedCount: reservedStock.length
+                });
+            }
+        } catch (cleanupError) {
+            // 재고 해제 실패는 로깅만 (트랜잭션 롤백으로 처리될 것)
+            Logger.error('[PAID_PROCESSOR] 예약된 재고 해제 실패 (롤백으로 처리될 것)', {
+                orderId,
+                error: cleanupError.message
+            });
+        }
 
         // 처리 상태를 'failed'로 업데이트 (별도 커넥션, 트랜잭션과 분리)
         try {

@@ -522,8 +522,8 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     invoiceNumber: paidResult.data.invoiceNumber
                 });
             } catch (err) {
-                // ⚠️ 중요: paid_events 생성 실패 시 주문 상태를 processing으로 업데이트하지 않음
-                // 결제는 성공했지만 paid_events가 없으면 주문 처리를 완료할 수 없음
+                // ⚠️ 중요: processPaidOrder() 실패 시 트랜잭션 롤백 (에러 무시 금지)
+                // 재고 차감, order_item_units, warranties, invoices 모두 롤백되어야 함
                 paidProcessError = err;
                 
                 // ⚠️ 상세 에러 정보 로깅 (디버깅용)
@@ -539,25 +539,34 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     error_stack: err.stack || '스택 트레이스 없음'
                 };
                 
-                Logger.error('[payments][confirm] Paid 처리 실패 (결제는 성공, 주문 상태는 업데이트 안 됨)', errorDetails);
+                Logger.error('[payments][confirm] Paid 처리 실패 - 트랜잭션 롤백 예정', errorDetails);
                 
                 // 콘솔에도 출력 (PM2 로그에서 확인 가능)
                 console.error('[payments][confirm] Paid 처리 실패 - 전체 에러 객체:', JSON.stringify(errorDetails, null, 2));
                 console.error('[payments][confirm] 에러 원본:', err);
                 
-                // ⚠️ 주문 상태를 processing으로 업데이트하지 않음
-                // paid_events가 없으면 주문 처리를 완료할 수 없으므로 주문 상태는 그대로 유지
-                // 나중에 수동으로 재처리 가능 (payments 테이블에 결제 정보는 보존됨)
+                // ⚠️ 트랜잭션 롤백 (processPaidOrder() 내부 작업 모두 취소)
+                // paid_events는 별도 커넥션(autocommit)으로 생성되어 있으므로 남아있음
+                // 이는 의도된 동작: 결제 증거는 보존하고, 주문 처리는 재시도 가능
+                
+                // 트랜잭션 롤백 (아래 commit() 전에 처리됨)
+                await connection.rollback();
                 
                 // 에러 발생 시에도 orders.status 집계 함수 호출 (paid_events가 있으면 paid, 없으면 pending)
+                // 롤백 후 별도 커넥션으로 호출
                 try {
-                    await updateOrderStatus(connection, order.order_id);
+                    const statusConnection = await mysql.createConnection(dbConfig);
+                    await updateOrderStatus(statusConnection, order.order_id);
+                    await statusConnection.end();
                 } catch (statusError) {
                     Logger.error('[payments][confirm] updateOrderStatus 실패 (치명적이지 않음)', {
                         order_id: order.order_id,
                         error: statusError.message
                     });
                 }
+                
+                // ⚠️ 에러를 다시 던지지 않고 플래그만 설정
+                // 아래 paidProcessError 체크에서 처리됨
             }
         } else {
             // ⚠️ 디버깅: paymentStatus가 'captured'가 아닌 경우 로깅
@@ -574,6 +583,30 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             await updateOrderStatus(connection, order.order_id);
         }
 
+        // ⚠️ 중요: processPaidOrder() 성공 시에만 트랜잭션 커밋
+        // paidProcessError가 있으면 이미 롤백되었으므로 여기서는 커밋하지 않음
+        if (paidProcessError) {
+            await connection.end();
+            
+            Logger.error(`[payments][mode=${paymentMode}] 결제는 성공했지만 주문 처리 실패`, {
+                orderNumber,
+                paymentKey,
+                amount: serverAmount,
+                error: paidProcessError.message,
+                error_code: paidProcessError.code
+            });
+            
+            return res.status(500).json({
+                code: 'ORDER_PROCESSING_FAILED',
+                details: {
+                    message: '결제는 완료되었지만 주문 처리가 완료되지 않았습니다. 잠시 후 다시 시도해주세요.',
+                    order_number: orderNumber,
+                    payment_key: paymentKey
+                }
+            });
+        }
+
+        // 장바구니 정리 (트랜잭션 내에서)
         let cartCleared = false;
         if (userId) {
             try {
@@ -592,28 +625,9 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             }
         }
 
+        // 모든 작업 성공 시 트랜잭션 커밋
         await connection.commit();
         await connection.end();
-
-        // ⚠️ 중요: paid_events 생성 실패 시 사용자에게 에러 응답
-        if (paidProcessError) {
-            Logger.error(`[payments][mode=${paymentMode}] 결제는 성공했지만 주문 처리 실패`, {
-                orderNumber,
-                paymentKey,
-                amount: serverAmount,
-                error: paidProcessError.message,
-                error_code: paidProcessError.code
-            });
-            
-            return res.status(500).json({
-                code: 'ORDER_PROCESSING_FAILED',
-                details: {
-                    message: '결제는 완료되었지만 주문 처리가 완료되지 않았습니다. 잠시 후 다시 시도해주세요.',
-                    order_number: orderNumber,
-                    payment_key: paymentKey
-                }
-            });
-        }
 
         Logger.log(`[payments][mode=${paymentMode}] 결제 확정 성공`, {
             orderNumber,
@@ -1060,10 +1074,10 @@ router.post('/payments/inicis/return', async (req, res) => {
                     invoiceNumber: paidResult.data.invoiceNumber
                 });
             } catch (err) {
-                // ⚠️ 중요: paid_events 생성 실패 시 주문 상태를 processing으로 업데이트하지 않음
-                // 결제는 성공했지만 paid_events가 없으면 주문 처리를 완료할 수 없음
+                // ⚠️ 중요: processPaidOrder() 실패 시 트랜잭션 롤백 (에러 무시 금지)
                 paidProcessError = err;
-                Logger.error('[payments][inicis] Paid 처리 실패 (결제는 성공, 주문 상태는 업데이트 안 됨)', {
+                
+                Logger.error('[payments][inicis] Paid 처리 실패 - 트랜잭션 롤백 예정', {
                     order_id: order.order_id,
                     order_number: orderNumber,
                     error: err.message,
@@ -1073,19 +1087,24 @@ router.post('/payments/inicis/return', async (req, res) => {
                     stack: err.stack
                 });
                 
-                // ⚠️ 주문 상태를 processing으로 업데이트하지 않음
-                // paid_events가 없으면 주문 처리를 완료할 수 없으므로 주문 상태는 그대로 유지
-                // 나중에 수동으로 재처리 가능 (payments 테이블에 결제 정보는 보존됨)
+                // ⚠️ 트랜잭션 롤백 (processPaidOrder() 내부 작업 모두 취소)
+                await connection.rollback();
                 
                 // 에러 발생 시에도 orders.status 집계 함수 호출 (paid_events가 있으면 paid, 없으면 pending)
+                // 롤백 후 별도 커넥션으로 호출
                 try {
-                    await updateOrderStatus(connection, order.order_id);
+                    const statusConnection = await mysql.createConnection(dbConfig);
+                    await updateOrderStatus(statusConnection, order.order_id);
+                    await statusConnection.end();
                 } catch (statusError) {
                     Logger.error('[payments][inicis] updateOrderStatus 실패 (치명적이지 않음)', {
                         order_id: order.order_id,
                         error: statusError.message
                     });
                 }
+                
+                // ⚠️ 에러를 다시 던지지 않고 플래그만 설정
+                // 아래 paidProcessError 체크에서 처리됨
             }
         } else {
             // ⚠️ 중요: paymentStatus가 'captured'가 아닌 경우에도 orders.status는 집계 함수로만 갱신
@@ -1093,7 +1112,29 @@ router.post('/payments/inicis/return', async (req, res) => {
             await updateOrderStatus(connection, order.order_id);
         }
 
-        // 장바구니 정리
+        // ⚠️ 중요: processPaidOrder() 성공 시에만 트랜잭션 커밋
+        // paidProcessError가 있으면 이미 롤백되었으므로 여기서는 커밋하지 않음
+        if (paidProcessError) {
+            await connection.end();
+            
+            Logger.error('[payments][inicis] 결제는 성공했지만 주문 처리 실패', {
+                orderNumber,
+                tid,
+                amount: serverAmount,
+                error: paidProcessError.message,
+                error_code: paidProcessError.code
+            });
+            
+            return res.status(500).json({
+                code: 'ORDER_PROCESSING_FAILED',
+                details: {
+                    message: '결제는 완료되었지만 주문 처리가 완료되지 않았습니다. 잠시 후 다시 시도해주세요.',
+                    order_number: orderNumber
+                }
+            });
+        }
+
+        // 장바구니 정리 (트랜잭션 내에서)
         if (order.user_id) {
             try {
                 await connection.execute(
@@ -1110,21 +1151,9 @@ router.post('/payments/inicis/return', async (req, res) => {
             }
         }
 
+        // 모든 작업 성공 시 트랜잭션 커밋
         await connection.commit();
         await connection.end();
-
-        // ⚠️ 중요: paid_events 생성 실패 시 사용자에게 에러 응답
-        if (paidProcessError) {
-            Logger.error('[payments][inicis] 결제는 성공했지만 주문 처리 실패', {
-                orderNumber,
-                tid,
-                amount: serverAmount,
-                error: paidProcessError.message,
-                error_code: paidProcessError.code
-            });
-            
-            return res.redirect(`/checkout-payment.html?status=fail&code=ORDER_PROCESSING_FAILED&message=${encodeURIComponent('결제는 완료되었지만 주문 처리가 완료되지 않았습니다. 잠시 후 다시 시도해주세요.')}`);
-        }
 
         Logger.log('[payments][inicis] 결제 완료', {
             orderNumber,
@@ -1502,9 +1531,8 @@ async function handlePaymentStatusChange(connection, data) {
                     invoiceNumber: paidResult.data.invoiceNumber
                 });
             } catch (err) {
-                // Paid 처리 실패는 로깅만 (웹훅 처리는 계속 진행)
-                // paid_events는 이미 생성되어 있음 (증거 보존)
-                Logger.error('[payments][webhook] Paid 처리 실패 (웹훅은 성공, paid_events는 보존됨)', {
+                // ⚠️ 중요: processPaidOrder() 실패 시 트랜잭션 롤백 (에러 무시 금지)
+                Logger.error('[payments][webhook] Paid 처리 실패 - 트랜잭션 롤백 예정', {
                     order_id: orderIdForPaidProcess,
                     order_number: finalOrderId,
                     error: err.message,
@@ -1513,6 +1541,14 @@ async function handlePaymentStatusChange(connection, data) {
                     error_sql_message: err.sqlMessage,
                     stack: err.stack
                 });
+                
+                // ⚠️ 트랜잭션 롤백 (processPaidOrder() 내부 작업 모두 취소)
+                // paid_events는 별도 커넥션(autocommit)으로 생성되어 있으므로 남아있음
+                await connection.rollback();
+                
+                // ⚠️ 에러를 다시 던지지 않고 로깅만 함
+                // 웹훅은 성공 응답을 반환하되, 주문 처리는 실패 상태로 남음
+                // 나중에 재처리 가능 (paid_events는 보존됨)
             }
         }
 
