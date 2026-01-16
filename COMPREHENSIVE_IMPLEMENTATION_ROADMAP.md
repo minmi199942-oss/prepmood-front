@@ -1474,21 +1474,52 @@ async function releaseExpiredReservations() {
 **파일**: `admin-qhf25za8/warranties.html` (신규), `admin-qhf25za8/admin-warranties.js` (신규)
 
 **작업**:
-1. 보증서 검색 화면 (토큰, 내부 코드, 시리얼 넘버, ROT 코드, 보증서 하단 코드)
+1. 보증서 검색 화면
+   - **검색 키 (SSOT 기준)**:
+     - 토큰 (20자): `token_master.token` → `token_master.token_pk` → `warranties.token_pk`
+     - 내부 코드 (UUID): `warranties.public_id`
+     - 시리얼 넘버: `token_master.serial_number` → `token_master.token_pk` → `warranties.token_pk`
+     - ROT 코드: `token_master.rot_code` → `token_master.token_pk` → `warranties.token_pk`
+     - 보증서 하단 코드: `token_master.warranty_bottom_code` → `token_master.token_pk` → `warranties.token_pk`
+   - **검색 결과 UX**: 단건이면 상세 바로 이동, 다건이면 리스트 표시
 2. 보증서 상세 화면:
-   - 보증서 상태 카드 (상태, 활성화 일시, 환불 일시)
-   - 소유자 정보 카드 (현재 소유자, 소유자 변경 이력)
-   - 연결 정보 카드 (연결 주문, 연결 재고, 인보이스 정보)
-   - 보증서 이력 타임라인
-   - QR 코드 다운로드 버튼
+   - **보증서 상태 카드**:
+     - 상태: `warranties.status` (issued_unassigned, issued, active, suspended, revoked)
+     - 활성화 일시: `warranties.activated_at`
+     - 환불 일시: `warranties.revoked_at` (재판매 시에도 유지, 이력 보존)
+     - **재판매 여부 표시**: `revoked_at IS NOT NULL AND status != 'revoked'` → "재판매됨" 배지
+     - **정책 경고 배지**:
+       - `active`: "양도 가능 / 환불 불가(정책)"
+       - `issued`: "활성화 전 / 환불 가능"
+       - `revoked`: "QR 접근 차단 대상"
+   - **소유자 정보 카드**:
+     - 현재 소유자: `warranties.owner_user_id` → `users.email`, `users.name`
+     - 소유자 변경 이력: `warranty_events`에서 `event_type IN ('owner_change', 'ownership_transferred')` 조회
+   - **연결 정보 카드** (단위 기준 체인 표시):
+     - 연결 주문: `warranties.source_order_item_unit_id` → `order_item_units.order_item_id` → `order_items.order_id` → `orders.order_number`, `orders.order_id`
+     - 연결 재고: `order_item_units.stock_unit_id` → `stock_units` (시리얼 넘버, ROT 코드, 보증서 하단 코드)
+     - 인보이스 정보:
+       - 원본 invoice: `invoices.type = 'invoice'` AND `invoices.order_id = orders.order_id`
+       - Credit note 리스트: `invoices.type = 'credit_note'` AND `invoices.related_invoice_id = 원본_invoice_id`
+       - 시간 필드: `invoices.issued_at` 사용
+   - **보증서 이력 타임라인**:
+     - `warranty_events` 테이블 조회 (최신순)
+     - 이벤트 타입: `status_change`, `owner_change`, `ownership_transferred`, `suspend`, `unsuspend`, `revoke`
+     - 변경 전/후 값, 변경자, 변경 사유, 변경 시각 표시
+   - **QR 코드 다운로드 버튼**:
+     - 기존 QR 코드 다운로드 API 활용 (`/api/admin/qrcode/download`)
+     - **감사 로그**: 누가 언제 어떤 warranty의 QR을 다운로드했는지 기록 (권장)
 
 **예상 작업 시간**: 8-10시간
 
-**의존성**: Phase 2 완료 필수
+**의존성**: Phase 2 완료 필수, 마이그레이션 081 완료 필수
 
 **완료 조건**:
-- 보증서 검색 화면 정상 동작
-- 보증서 상세 화면 정상 표시
+- 보증서 검색 화면 정상 동작 (SSOT 기준 검색 경로)
+- 보증서 상세 화면 정상 표시 (모든 카드 포함)
+- 소유자 변경 이력 정상 표시 (`owner_change`, `ownership_transferred` 모두 포함)
+- 인보이스 정보 구분 표시 (원본 invoice / credit_note)
+- 재판매 여부 표시
 - QR 코드 다운로드 정상
 
 ---

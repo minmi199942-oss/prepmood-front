@@ -31,7 +31,7 @@ const dbConfig = {
  * 보증서 이벤트 생성 (관리자 전용)
  * 
  * Body:
- * - type: 'status_change', 'owner_change', 'suspend', 'unsuspend', 'revoke'
+ * - type: 'status_change', 'owner_change', 'suspend', 'unsuspend', 'revoke', 'ownership_transferred'
  * - params: 변경 파라미터 (JSON)
  *   - status_change: { status: 'suspended' }
  *   - owner_change: { owner_user_id: 123 }
@@ -62,7 +62,7 @@ router.post('/admin/warranties/:id/events', authenticateToken, requireAdmin, asy
             });
         }
 
-        const allowedTypes = ['status_change', 'owner_change', 'suspend', 'unsuspend', 'revoke'];
+        const allowedTypes = ['status_change', 'owner_change', 'suspend', 'unsuspend', 'revoke', 'ownership_transferred'];
         if (!allowedTypes.includes(type)) {
             return res.status(400).json({
                 success: false,
