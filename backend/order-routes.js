@@ -9,6 +9,7 @@ const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { resolveProductIdBoth } = require('./utils/product-id-resolver');
+const crypto = require('crypto');
 
 // 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
 const COUNTRY_RULES = {
@@ -912,6 +913,829 @@ router.get('/orders/:orderId', authenticateToken, async (req, res) => {
         if (connection) {
             await connection.end();
         }
+    }
+});
+
+/**
+ * POST /api/orders/:orderId/claim-token
+ * Claim Token 발급 API (비회원 → 회원 전환)
+ * 
+ * 처리 흐름 (SYSTEM_FLOW_DETAILED.md 3-2절, COMPREHENSIVE_IMPLEMENTATION_ROADMAP.md Phase 6-1):
+ * 1. 로그인 상태 확인
+ * 2. 주문이 비회원 주문인지 확인 (user_id IS NULL)
+ * 3. guest_order_access_token 검증 (쿠키 또는 세션) - TODO: 구현 필요
+ * 4. claim_token 생성 (30분 유효)
+ * 5. claim_tokens 테이블에 저장
+ * 6. 토큰 반환
+ */
+router.post('/orders/:orderId/claim-token', authenticateToken, async (req, res) => {
+    let connection;
+    try {
+        const { orderId } = req.params;
+        const userId = req.user.userId || req.user.id;
+
+        connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        });
+
+        // 1. 주문 확인 및 비회원 주문 확인
+        const [orders] = await connection.execute(
+            'SELECT order_id, user_id, guest_id FROM orders WHERE order_id = ?',
+            [orderId]
+        );
+
+        if (orders.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '주문을 찾을 수 없습니다.'
+            });
+        }
+
+        const order = orders[0];
+
+        // 2. 비회원 주문 확인 (user_id IS NULL)
+        if (order.user_id !== null) {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: '이미 회원 계정에 연동된 주문입니다.'
+            });
+        }
+
+        // 3. guest_order_access_token 검증 (TODO: 쿠키/세션에서 확인)
+        // 현재는 주문이 비회원 주문이면 통과
+
+        // 4. claim_token 생성 (30분 유효)
+        const claimToken = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30분 후
+
+        // 5. claim_tokens 테이블에 저장
+        try {
+            await connection.execute(
+                `INSERT INTO claim_tokens (order_id, token, expires_at)
+                 VALUES (?, ?, ?)`,
+                [orderId, claimToken, expiresAt]
+            );
+        } catch (insertError) {
+            await connection.end();
+            if (insertError.code === 'ER_DUP_ENTRY') {
+                Logger.error('[CLAIM_TOKEN] claim_token 중복 생성 시도', {
+                    orderId,
+                    userId
+                });
+                return res.status(500).json({
+                    success: false,
+                    message: '토큰 생성에 실패했습니다. 잠시 후 다시 시도해주세요.'
+                });
+            }
+            throw insertError;
+        }
+
+        await connection.end();
+
+        Logger.log('[CLAIM_TOKEN] Claim token 발급 완료', {
+            orderId,
+            userId,
+            expiresAt: expiresAt.toISOString()
+        });
+
+        res.json({
+            success: true,
+            message: 'Claim token이 발급되었습니다.',
+            data: {
+                claim_token: claimToken,
+                expires_at: expiresAt.toISOString(),
+                expires_in: 30 * 60 // 30분 (초 단위)
+            }
+        });
+
+    } catch (error) {
+        if (connection) {
+            try {
+                await connection.end();
+            } catch (endError) {
+                Logger.error('[CLAIM_TOKEN] 연결 종료 실패', {
+                    error: endError.message
+                });
+            }
+        }
+
+        Logger.error('[CLAIM_TOKEN] Claim token 발급 실패', {
+            orderId: req.params.orderId,
+            userId: req.user?.userId || req.user?.id,
+            error: error.message,
+            stack: error.stack
+        });
+
+        res.status(500).json({
+            success: false,
+            message: 'Claim token 발급 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+/**
+ * POST /api/orders/:orderId/claim
+ * Claim API (비회원 → 회원 전환 실행)
+ * 
+ * 요청 본문:
+ * - claim_token: string (필수) - Claim token
+ * 
+ * 처리 흐름 (SYSTEM_FLOW_DETAILED.md 3-2절, COMPREHENSIVE_IMPLEMENTATION_ROADMAP.md Phase 6-2):
+ * 1. 3-Factor Atomic Check (token, order_id, used_at IS NULL, expires_at > NOW())
+ * 2. orders.user_id 업데이트
+ * 3. orders.guest_id 유지
+ * 4. warranties 상태 전이 (issued_unassigned → issued)
+ * 5. warranties.owner_user_id 업데이트
+ * 6. guest_order_access_token 회수 (revoked_at 설정)
+ * 7. warranty_events 이벤트 기록
+ */
+router.post('/orders/:orderId/claim', authenticateToken, async (req, res) => {
+    let connection;
+    try {
+        const { orderId } = req.params;
+        const { claim_token } = req.body;
+        const userId = req.user.userId || req.user.id;
+
+        // claim_token 필수 확인
+        if (!claim_token || typeof claim_token !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'claim_token이 필요합니다.'
+            });
+        }
+
+        connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        });
+
+        await connection.beginTransaction();
+
+        try {
+            // 1. 주문 확인
+            const [orders] = await connection.execute(
+                'SELECT order_id, user_id, guest_id FROM orders WHERE order_id = ? FOR UPDATE',
+                [orderId]
+            );
+
+            if (orders.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(404).json({
+                    success: false,
+                    message: '주문을 찾을 수 없습니다.'
+                });
+            }
+
+            const order = orders[0];
+
+            // 이미 회원 계정에 연동된 주문인지 확인
+            if (order.user_id !== null) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: '이미 회원 계정에 연동된 주문입니다.'
+                });
+            }
+
+            // 2. 3-Factor Atomic Check
+            // ⚠️ 핵심: token, order_id, used_at IS NULL, expires_at > NOW() 모두 한 번에 검증
+            const [updateResult] = await connection.execute(
+                `UPDATE claim_tokens
+                 SET used_at = NOW()
+                 WHERE token = ?
+                   AND order_id = ?
+                   AND used_at IS NULL
+                   AND expires_at > NOW()`,
+                [claim_token, orderId]
+            );
+
+            // ⚠️ affectedRows=1 검증 필수
+            if (updateResult.affectedRows !== 1) {
+                await connection.rollback();
+                await connection.end();
+
+                // 실패 원인 확인 (별도 커넥션 사용 - 트랜잭션 롤백 후)
+                const checkConnection = await mysql.createConnection({
+                    host: process.env.DB_HOST,
+                    user: process.env.DB_USER,
+                    password: process.env.DB_PASSWORD,
+                    database: process.env.DB_NAME,
+                    port: process.env.DB_PORT || 3306,
+                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+                });
+                
+                const [tokenCheck] = await checkConnection.execute(
+                    'SELECT * FROM claim_tokens WHERE token = ? AND order_id = ?',
+                    [claim_token, orderId]
+                );
+                
+                await checkConnection.end();
+
+                let message = '유효하지 않거나 만료된 claim_token입니다.';
+                if (tokenCheck.length === 0) {
+                    message = 'claim_token을 찾을 수 없습니다.';
+                } else if (tokenCheck[0].used_at !== null) {
+                    message = '이미 사용된 claim_token입니다.';
+                } else if (new Date(tokenCheck[0].expires_at) <= new Date()) {
+                    message = '만료된 claim_token입니다.';
+                }
+
+                Logger.error('[CLAIM] 3-Factor Atomic Check 실패', {
+                    orderId,
+                    userId,
+                    claimToken: claim_token.substring(0, 10) + '...',
+                    affectedRows: updateResult.affectedRows
+                });
+
+                return res.status(400).json({
+                    success: false,
+                    message
+                });
+            }
+
+            // 3. orders.user_id 업데이트
+            const [orderUpdateResult] = await connection.execute(
+                `UPDATE orders
+                 SET user_id = ?
+                 WHERE order_id = ? AND user_id IS NULL`,
+                [userId, orderId]
+            );
+
+            if (orderUpdateResult.affectedRows !== 1) {
+                await connection.rollback();
+                await connection.end();
+                Logger.error('[CLAIM] orders.user_id 업데이트 실패', {
+                    orderId,
+                    userId,
+                    affectedRows: orderUpdateResult.affectedRows
+                });
+                return res.status(500).json({
+                    success: false,
+                    message: '주문 연동에 실패했습니다.'
+                });
+            }
+
+            // 4. orders.guest_id는 유지 (감사 로그)
+
+            // 5. 해당 주문의 모든 warranties 상태 전이 (issued_unassigned → issued)
+            //    및 owner_user_id 업데이트
+            // ⚠️ MySQL에서는 UPDATE와 서브쿼리를 함께 사용할 때 제한이 있으므로 JOIN 사용
+            const [warrantiesUpdateResult] = await connection.execute(
+                `UPDATE warranties w
+                 INNER JOIN order_item_units oiu ON w.source_order_item_unit_id = oiu.order_item_unit_id
+                 SET w.status = 'issued',
+                     w.owner_user_id = ?
+                 WHERE oiu.order_id = ?
+                   AND w.status = 'issued_unassigned'
+                   AND w.owner_user_id IS NULL`,
+                [userId, orderId]
+            );
+
+            Logger.log('[CLAIM] warranties 상태 전이 완료', {
+                orderId,
+                userId,
+                updatedWarranties: warrantiesUpdateResult.affectedRows
+            });
+
+            // 6. warranty_events에 이벤트 기록 (각 warranty별로)
+            const [warranties] = await connection.execute(
+                `SELECT w.id as warranty_id
+                 FROM warranties w
+                 INNER JOIN order_item_units oiu ON w.source_order_item_unit_id = oiu.order_item_unit_id
+                 WHERE oiu.order_id = ?
+                   AND w.status = 'issued'
+                   AND w.owner_user_id = ?`,
+                [orderId, userId]
+            );
+
+            for (const warranty of warranties) {
+                try {
+                    await connection.execute(
+                        `INSERT INTO warranty_events
+                         (warranty_id, event_type, old_value, new_value, changed_by, changed_by_id, reason)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            warranty.warranty_id,
+                            'status_change',
+                            JSON.stringify({ status: 'issued_unassigned', owner_user_id: null }),
+                            JSON.stringify({ status: 'issued', owner_user_id: userId }),
+                            'user',
+                            userId,
+                            'Claim (비회원 → 회원 전환)'
+                        ]
+                    );
+                } catch (eventError) {
+                    // 이벤트 INSERT 실패 시 전이도 롤백 (Outbox 패턴)
+                    await connection.rollback();
+                    await connection.end();
+                    Logger.error('[CLAIM] warranty_events INSERT 실패 - 트랜잭션 롤백', {
+                        orderId,
+                        userId,
+                        warrantyId: warranty.warranty_id,
+                        error: eventError.message
+                    });
+                    return res.status(500).json({
+                        success: false,
+                        message: '보증서 연동 이벤트 기록에 실패했습니다.'
+                    });
+                }
+            }
+
+            // 7. guest_order_access_token 회수 (revoked_at 설정)
+            const [revokeResult] = await connection.execute(
+                `UPDATE guest_order_access_tokens
+                 SET revoked_at = NOW()
+                 WHERE order_id = ?
+                   AND revoked_at IS NULL`,
+                [orderId]
+            );
+
+            Logger.log('[CLAIM] guest_order_access_token 회수 완료', {
+                orderId,
+                userId,
+                revokedTokens: revokeResult.affectedRows
+            });
+
+            await connection.commit();
+            await connection.end();
+
+            Logger.log('[CLAIM] Claim 완료', {
+                orderId,
+                userId,
+                updatedWarranties: warrantiesUpdateResult.affectedRows,
+                revokedTokens: revokeResult.affectedRows
+            });
+
+            res.json({
+                success: true,
+                message: '주문이 계정에 연동되었습니다.',
+                data: {
+                    order_id: orderId,
+                    user_id: userId,
+                    warranties_updated: warrantiesUpdateResult.affectedRows
+                }
+            });
+
+        } catch (error) {
+            await connection.rollback();
+            await connection.end();
+            throw error;
+        }
+
+    } catch (error) {
+        if (connection) {
+            try {
+                await connection.rollback();
+                await connection.end();
+            } catch (rollbackError) {
+                Logger.error('[CLAIM] 롤백 실패', {
+                    error: rollbackError.message
+                });
+            }
+        }
+
+        Logger.error('[CLAIM] Claim 실패', {
+            orderId: req.params.orderId,
+            userId: req.user?.userId || req.user?.id,
+            error: error.message,
+            stack: error.stack
+        });
+
+        res.status(500).json({
+            success: false,
+            message: '주문 연동 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+/**
+ * ============================================================
+ * Phase 10: 비회원 주문 조회 API (옵션 B: 세션 토큰 교환 방식)
+ * ============================================================
+ */
+
+/**
+ * GET /api/guest/orders/session
+ * 게스트 세션 발급/검증 엔드포인트
+ * 
+ * Query Parameters:
+ * - token: string (필수) - guest_order_access_token
+ * 
+ * 처리 흐름:
+ * 1. guest_order_access_tokens에서 token 조회
+ * 2. expires_at, revoked_at, orders.user_id IS NULL 확인
+ * 3. 통과하면 세션 토큰 발급 (24시간 TTL)
+ * 4. guest_order_sessions 테이블에 저장
+ * 5. httpOnly Cookie로 세션 토큰 설정
+ * 6. 302 Redirect (/guest/orders.html?order=ORD-...)
+ */
+router.get('/guest/orders/session', async (req, res) => {
+    let connection;
+    try {
+        const { token } = req.query;
+
+        if (!token || typeof token !== 'string' || !token.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: '토큰이 필요합니다.',
+                code: 'MISSING_TOKEN'
+            });
+        }
+
+        connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        });
+
+        // 1. guest_order_access_tokens에서 token 조회
+        const [tokens] = await connection.execute(
+            `SELECT 
+                got.token_id,
+                got.order_id,
+                got.token,
+                got.expires_at,
+                got.revoked_at,
+                o.order_number,
+                o.user_id
+            FROM guest_order_access_tokens got
+            INNER JOIN orders o ON got.order_id = o.order_id
+            WHERE got.token = ?`,
+            [token.trim()]
+        );
+
+        if (tokens.length === 0) {
+            await connection.end();
+            return res.status(410).json({
+                success: false,
+                message: '유효하지 않은 토큰입니다.',
+                code: 'INVALID_TOKEN'
+            });
+        }
+
+        const tokenData = tokens[0];
+
+        // 2. expires_at 확인
+        if (new Date(tokenData.expires_at) < new Date()) {
+            await connection.end();
+            return res.status(410).json({
+                success: false,
+                message: '토큰이 만료되었습니다.',
+                code: 'TOKEN_EXPIRED'
+            });
+        }
+
+        // 3. revoked_at 확인
+        if (tokenData.revoked_at !== null) {
+            await connection.end();
+            return res.status(410).json({
+                success: false,
+                message: '토큰이 회수되었습니다.',
+                code: 'TOKEN_REVOKED'
+            });
+        }
+
+        // 4. orders.user_id IS NULL 확인 (Claim 완료된 주문 차단)
+        if (tokenData.user_id !== null) {
+            await connection.end();
+            return res.status(410).json({
+                success: false,
+                message: '이미 회원 계정에 연동된 주문입니다.',
+                code: 'ORDER_CLAIMED'
+            });
+        }
+
+        // 5. 세션 토큰 발급 (24시간 TTL)
+        const sessionToken = crypto.randomBytes(32).toString('hex');
+        const sessionExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24시간 후
+
+        // 6. guest_order_sessions 테이블에 저장
+        const [sessionResult] = await connection.execute(
+            `INSERT INTO guest_order_sessions 
+             (order_id, session_token, access_token_id, expires_at)
+             VALUES (?, ?, ?, ?)`,
+            [tokenData.order_id, sessionToken, tokenData.token_id, sessionExpiresAt]
+        );
+
+        const sessionId = sessionResult.insertId;
+
+        await connection.end();
+
+        Logger.log('[GUEST_SESSION] 세션 발급 완료', {
+            sessionId,
+            orderId: tokenData.order_id,
+            orderNumber: tokenData.order_number,
+            tokenPrefix: token.substring(0, 6) + '...'
+        });
+
+        // 7. httpOnly Cookie로 세션 토큰 설정
+        const isSecure = process.env.NODE_ENV === 'production' || req.get('x-forwarded-proto') === 'https';
+        res.cookie('guest_session_token', sessionToken, {
+            httpOnly: true,
+            secure: isSecure,
+            sameSite: 'lax',
+            maxAge: 24 * 60 * 60 * 1000, // 24시간
+            path: '/'
+        });
+
+        // 8. 302 Redirect
+        res.redirect(302, `/guest/orders.html?order=${encodeURIComponent(tokenData.order_number)}`);
+
+    } catch (error) {
+        if (connection) {
+            await connection.end();
+        }
+        Logger.error('[GUEST_SESSION] 세션 발급 실패', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: '세션 발급에 실패했습니다.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * GET /api/guest/orders/:orderNumber
+ * 비회원 주문 조회 API (읽기 전용)
+ * 
+ * Path Parameters:
+ * - orderNumber: string (필수) - 주문번호 (예: ORD-20250115-123456-ABC)
+ * 
+ * 인증:
+ * - httpOnly Cookie (guest_session_token)로 세션 검증
+ * - 세션 order_number == 요청 order_number 확인 (수평 권한상승 방지)
+ * 
+ * 응답 데이터 (최소 노출 + 배송지 정보 포함):
+ * - order_number, order_date, total_price, status
+ * - items: 상품명/옵션/수량
+ * - shipments: carrier_code, tracking_number, shipped_at, delivered_at
+ * - shipping_address, shipping_phone (원래 계획대로 포함)
+ */
+router.get('/guest/orders/:orderNumber', async (req, res) => {
+    let connection;
+    try {
+        const { orderNumber } = req.params;
+        const sessionToken = req.cookies?.guest_session_token;
+
+        if (!sessionToken || typeof sessionToken !== 'string') {
+            return res.status(401).json({
+                success: false,
+                message: '세션이 만료되었거나 유효하지 않습니다.',
+                code: 'SESSION_REQUIRED'
+            });
+        }
+
+        connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        });
+
+        // 1. 세션 토큰 검증
+        const [sessions] = await connection.execute(
+            `SELECT 
+                gos.session_id,
+                gos.order_id,
+                gos.session_token,
+                gos.expires_at,
+                gos.last_access_at,
+                o.order_number,
+                o.user_id,
+                got.revoked_at
+            FROM guest_order_sessions gos
+            INNER JOIN orders o ON gos.order_id = o.order_id
+            INNER JOIN guest_order_access_tokens got ON gos.access_token_id = got.token_id
+            WHERE gos.session_token = ?`,
+            [sessionToken]
+        );
+
+        if (sessions.length === 0) {
+            await connection.end();
+            return res.status(401).json({
+                success: false,
+                message: '유효하지 않은 세션입니다.',
+                code: 'INVALID_SESSION'
+            });
+        }
+
+        const session = sessions[0];
+
+        // 2. 세션 만료 확인
+        if (new Date(session.expires_at) < new Date()) {
+            await connection.end();
+            return res.status(410).json({
+                success: false,
+                message: '세션이 만료되었습니다.',
+                code: 'SESSION_EXPIRED'
+            });
+        }
+
+        // 3. 수평 권한상승 방지: 세션 order_number == 요청 order_number
+        if (session.order_number !== orderNumber) {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: '접근 권한이 없습니다.',
+                code: 'ACCESS_DENIED'
+            });
+        }
+
+        // 4. Claim 완료 확인 (orders.user_id IS NOT NULL)
+        if (session.user_id !== null) {
+            await connection.end();
+            return res.status(410).json({
+                success: false,
+                message: '이미 회원 계정에 연동된 주문입니다.',
+                code: 'ORDER_CLAIMED'
+            });
+        }
+
+        // 5. revoked_at 확인
+        if (session.revoked_at !== null) {
+            await connection.end();
+            return res.status(410).json({
+                success: false,
+                message: '토큰이 회수되었습니다.',
+                code: 'TOKEN_REVOKED'
+            });
+        }
+
+        // 6. last_access_at 업데이트
+        await connection.execute(
+            `UPDATE guest_order_sessions 
+             SET last_access_at = NOW() 
+             WHERE session_id = ?`,
+            [session.session_id]
+        );
+
+        // 7. 주문 정보 조회
+        const [orders] = await connection.execute(
+            `SELECT 
+                o.order_id,
+                o.order_number,
+                o.created_at AS order_date,
+                o.total_price,
+                o.status,
+                o.shipping_first_name,
+                o.shipping_last_name,
+                o.shipping_email,
+                o.shipping_phone,
+                o.shipping_address,
+                o.shipping_city,
+                o.shipping_postal_code,
+                o.shipping_country,
+                o.paid_at
+            FROM orders o
+            WHERE o.order_number = ?`,
+            [orderNumber]
+        );
+
+        if (orders.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '주문을 찾을 수 없습니다.',
+                code: 'ORDER_NOT_FOUND'
+            });
+        }
+
+        const order = orders[0];
+
+        // 8. 주문 항목 조회
+        const [items] = await connection.execute(
+            `SELECT 
+                oi.order_item_id,
+                oi.product_id,
+                oi.quantity,
+                oi.price,
+                oi.size,
+                oi.color,
+                p.name AS product_name,
+                p.product_id AS product_code
+            FROM order_items oi
+            INNER JOIN products p ON oi.product_id = p.product_id
+            WHERE oi.order_id = ?
+            ORDER BY oi.order_item_id`,
+            [order.order_id]
+        );
+
+        // 9. 배송 정보 조회 (shipments 기반)
+        const [shipments] = await connection.execute(
+            `SELECT 
+                s.shipment_id,
+                s.carrier_code,
+                s.tracking_number,
+                s.shipped_at,
+                c.name AS carrier_name
+            FROM shipments s
+            INNER JOIN carriers c ON s.carrier_code = c.code
+            WHERE s.order_id = ?
+              AND s.voided_at IS NULL
+            ORDER BY s.shipped_at DESC`,
+            [order.order_id]
+        );
+
+        // 10. 배송 완료 정보 조회 (order_item_units 기반)
+        const [deliveredUnits] = await connection.execute(
+            `SELECT 
+                oiu.order_item_unit_id,
+                oiu.delivered_at
+            FROM order_item_units oiu
+            WHERE oiu.order_id = ?
+              AND oiu.unit_status = 'delivered'
+              AND oiu.delivered_at IS NOT NULL
+            ORDER BY oiu.delivered_at DESC
+            LIMIT 1`,
+            [order.order_id]
+        );
+
+        await connection.end();
+
+        // 11. 응답 데이터 구성
+        const responseData = {
+            order: {
+                order_number: order.order_number,
+                order_date: order.order_date,
+                total_price: parseFloat(order.total_price),
+                status: order.status,
+                paid_at: order.paid_at
+            },
+            shipping: {
+                first_name: order.shipping_first_name,
+                last_name: order.shipping_last_name,
+                email: order.shipping_email,
+                phone: order.shipping_phone,
+                address: order.shipping_address,
+                city: order.shipping_city,
+                postal_code: order.shipping_postal_code,
+                country: order.shipping_country
+            },
+            items: items.map(item => ({
+                product_name: item.product_name,
+                product_code: item.product_code,
+                quantity: item.quantity,
+                price: parseFloat(item.price),
+                size: item.size,
+                color: item.color
+            })),
+            shipments: shipments.map(shipment => ({
+                carrier_code: shipment.carrier_code,
+                carrier_name: shipment.carrier_name,
+                tracking_number: shipment.tracking_number,
+                shipped_at: shipment.shipped_at,
+                delivered_at: deliveredUnits.length > 0 ? deliveredUnits[0].delivered_at : null
+            }))
+        };
+
+        Logger.log('[GUEST_ORDER] 주문 조회 완료', {
+            orderNumber,
+            orderId: order.order_id,
+            sessionId: session.session_id,
+            itemsCount: items.length,
+            shipmentsCount: shipments.length
+        });
+
+        res.json({
+            success: true,
+            data: responseData
+        });
+
+    } catch (error) {
+        if (connection) {
+            await connection.end();
+        }
+        Logger.error('[GUEST_ORDER] 주문 조회 실패', {
+            orderNumber: req.params.orderNumber,
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: '주문 조회에 실패했습니다.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 

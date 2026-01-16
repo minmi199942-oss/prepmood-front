@@ -293,13 +293,18 @@ created_at: '2025-01-01 11:05:00'
 
 **상황**: 비회원이 인보이스 링크를 클릭하여 주문 상세 페이지 접근
 
-**흐름**:
-1. 사용자가 이메일의 인보이스 링크 클릭 (URL: `/guest/orders/:orderId?token=xxx`)
-2. 서버 처리 (Landing → Cookie → Redirect):
-   - 토큰 검증 (`guest_order_access_token`)
-   - 검증 성공 시 **httpOnly Cookie**로 설정
-   - **토큰이 제거된 깨끗한 URL로 302 Redirect** (`/guest/orders/:orderId`)
+**흐름** (옵션 B: 세션 토큰 교환 방식):
+1. 사용자가 이메일의 인보이스 링크 클릭 (URL: `/api/guest/orders/session?token=xxx`)
+2. 서버 처리 (세션 발급):
+   - 토큰 검증 (`guest_order_access_token`: `expires_at`, `revoked_at`, `orders.user_id IS NULL`)
+   - 세션 토큰 발급 (24시간 TTL)
+   - `guest_order_sessions` 테이블에 저장
+   - **httpOnly Cookie**로 세션 토큰 설정 (`Secure`, `SameSite=Lax`)
+   - **토큰이 제거된 깨끗한 URL로 302 Redirect** (`/guest/orders.html?order=ORD-...`)
 3. 주문 상세 페이지 표시 (Cookie 기반 인증):
+   - `GET /api/guest/orders/:orderNumber` 호출
+   - 세션 토큰 검증 (`guest_order_sessions`)
+   - 수평 권한상승 방지 (세션 `order_number` == 요청 `order_number`)
    - **인보이스 정보**: 
      - 주문번호
      - 주문일시
