@@ -37,9 +37,25 @@ ORDER BY count DESC;
 -- ============================================================
 SELECT '=== 2. 체크 제약 수정 ===' AS info;
 
--- 기존 체크 제약 삭제
-ALTER TABLE orders
-DROP CONSTRAINT IF EXISTS chk_order_status;
+-- 기존 체크 제약 삭제 (MySQL에서는 DROP CHECK 사용)
+-- IF EXISTS는 지원되지 않으므로 동적 SQL 사용
+SET @constraint_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.TABLE_CONSTRAINTS
+    WHERE TABLE_SCHEMA = 'prepmood'
+      AND TABLE_NAME = 'orders'
+      AND CONSTRAINT_NAME = 'chk_order_status'
+      AND CONSTRAINT_TYPE = 'CHECK'
+);
+
+SET @sql = IF(@constraint_exists > 0,
+    'ALTER TABLE orders DROP CHECK chk_order_status',
+    'SELECT "체크 제약이 존재하지 않습니다. (이미 삭제되었거나 없음)" AS info'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 새로운 체크 제약 추가 (paid, partial_shipped, partial_delivered 포함)
 ALTER TABLE orders
