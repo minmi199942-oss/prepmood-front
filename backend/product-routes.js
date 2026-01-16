@@ -276,6 +276,7 @@ router.get('/products/options', async (req, res) => {
         );
         
         // Fallback: product_options가 없으면 stock_units에서 조회
+        // ⚠️ 수정: size가 NULL인 액세서리도 포함 (size IS NULL 허용)
         let allSizeColorRows = optionRows;
         if (optionRows.length === 0) {
             const [fallbackRows] = await connection.execute(
@@ -284,7 +285,6 @@ router.get('/products/options', async (req, res) => {
                     su.color
                 FROM stock_units su
                 WHERE su.product_id = ?
-                  AND su.size IS NOT NULL 
                   AND su.color IS NOT NULL
                 ORDER BY su.size, su.color`,
                 [canonicalId]
