@@ -712,10 +712,11 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
             // 1. 보증서 목록 조회 (token 제외)
             // 주의: mysql2에서 LIMIT/OFFSET 바인딩이 불안정하므로 검증된 숫자로 문자열 보간 사용
             // limit, offset은 위에서 Number.isInteger()로 검증 완료
+            // Phase 14-1: status 필드 추가 (활성화 버튼 표시용)
             const [warranties] = await connection.execute(
-                `SELECT id, public_id, product_name, created_at, verified_at 
+                `SELECT id, public_id, product_name, status, created_at, verified_at 
                  FROM warranties 
-                 WHERE user_id = ? 
+                 WHERE owner_user_id = ? 
                  ORDER BY created_at DESC 
                  LIMIT ${limit} OFFSET ${offset}`,
                 [userId]
@@ -723,7 +724,7 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
             
             // 2. 총 개수 조회 (COUNT) - 별도 execute, userId만 바인딩
             const [countResult] = await connection.execute(
-                'SELECT COUNT(*) as total FROM warranties WHERE user_id = ?',
+                'SELECT COUNT(*) as total FROM warranties WHERE owner_user_id = ?',
                 [userId]
             );
             const total = countResult[0].total;
@@ -766,6 +767,7 @@ router.get('/api/warranties/me', authenticateToken, async (req, res) => {
                     id: w.id,
                     public_id: w.public_id,
                     product_name: w.product_name,
+                    status: w.status, // Phase 14-1: 활성화 버튼 표시용
                     verified_at: verifiedAtISO,
                     created_at: createdAtISO,
                     detail_url: `/warranty/${w.public_id}`

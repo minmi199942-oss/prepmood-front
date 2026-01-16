@@ -3269,6 +3269,70 @@
 
 .warranty-actions {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.5vw, 12px);
+}
+
+.warranty-status {
+  margin-top: clamp(4px, 1vw, 6px);
+}
+
+.badge {
+  display: inline-block;
+  padding: clamp(4px, 0.8vw, 6px) clamp(8px, 1.5vw, 12px);
+  font-size: clamp(0.75rem, 1.6vw, 0.85rem);
+  font-weight: 500;
+  border-radius: 4px;
+  letter-spacing: 0.1px;
+}
+
+.badge-info {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.badge-success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.badge-danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.badge-secondary {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+.btn-activate {
+  padding: clamp(8px, 1.5vw, 10px) clamp(16px, 3vw, 20px);
+  font-size: clamp(0.85rem, 1.8vw, 0.9rem);
+  font-weight: 500;
+  color: #fff;
+  background-color: #111;
+  border: 1px solid #111;
+  border-radius: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+}
+
+.btn-activate:hover {
+  background-color: #333;
+  border-color: #333;
+}
+
+.btn-activate:active {
+  background-color: #000;
+  border-color: #000;
 }
 
 .warranty-detail-link {

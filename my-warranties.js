@@ -132,15 +132,28 @@ function createWarrantyItem(warranty) {
   const createdDate = formatDate(warranty.created_at);
   const verifiedDate = formatDate(warranty.verified_at);
   const productName = warranty.product_name || '제품명 없음';
+  const status = warranty.status || 'unknown';
+  
+  // 상태 배지 생성
+  const statusBadge = getStatusBadge(status);
+  
+  // 활성화 버튼 (status = 'issued'인 경우만 표시)
+  const activateButton = status === 'issued' ? `
+    <button class="btn-activate" onclick="handleActivate(${warranty.id})">
+      활성화하기
+    </button>
+  ` : '';
   
   item.innerHTML = `
     <div class="warranty-content">
       <div class="warranty-info">
         <h3 class="warranty-product-name">${escapeHtml(productName)}</h3>
         <p class="warranty-date">발급일: ${createdDate}</p>
-        <p class="warranty-verified">검증일: ${verifiedDate}</p>
+        <p class="warranty-verified">검증일: ${verifiedDate || '-'}</p>
+        <div class="warranty-status">${statusBadge}</div>
       </div>
       <div class="warranty-actions">
+        ${activateButton}
         <a href="${warranty.detail_url}" class="warranty-detail-link">
           상세보기 →
         </a>
@@ -150,6 +163,62 @@ function createWarrantyItem(warranty) {
   
   return item;
 }
+
+// 상태 배지 생성
+function getStatusBadge(status) {
+  const statusMap = {
+    'issued': { label: '발급됨', class: 'badge-info' },
+    'issued_unassigned': { label: '미할당', class: 'badge-secondary' },
+    'active': { label: '활성화', class: 'badge-success' },
+    'suspended': { label: '제재', class: 'badge-warning' },
+    'revoked': { label: '환불됨', class: 'badge-danger' }
+  };
+  
+  const { label, class: className } = statusMap[status] || { label: status, class: 'badge-secondary' };
+  return `<span class="badge ${className}">${label}</span>`;
+}
+
+// 활성화 처리 함수
+async function handleActivate(warrantyId) {
+  // 동의 확인
+  const agreeText = `보증서를 활성화하시겠습니까?\n\n활성화된 보증서는 양도 및 환불 정책이 적용됩니다.`;
+  if (!confirm(agreeText)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/warranties/${warrantyId}/activate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        agree: true
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP ${response.status}`);
+    }
+    
+    if (data.success) {
+      alert('보증서가 성공적으로 활성화되었습니다.');
+      // 목록 새로고침
+      await loadWarranties(0, DEFAULT_LIMIT);
+    } else {
+      throw new Error(data.message || '활성화 실패');
+    }
+  } catch (error) {
+    console.error('보증서 활성화 오류:', error);
+    alert(`보증서 활성화에 실패했습니다: ${error.message}`);
+  }
+}
+
+// 전역 함수로 등록 (onclick에서 사용)
+window.handleActivate = handleActivate;
 
 // 날짜 포맷팅 (ISO 8601 → 한국어 형식)
 function formatDate(isoDateString) {
