@@ -411,17 +411,13 @@
             <dt>현재 상태</dt>
             <dd>${renderOrderStatusBadge(order.status)}</dd>
           </dl>
-          <select id="orderStatusSelect" class="filter-input" style="width: 100%; margin-top: 0.5rem;">
-            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>결제 대기</option>
-            <option value="confirmed" ${order.status === 'confirmed' ? 'selected' : ''}>결제 완료</option>
-            <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>상품 준비중</option>
-            <option value="shipping" ${order.status === 'shipping' ? 'selected' : ''}>배송중</option>
-            <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>배송 완료</option>
-            <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>취소됨</option>
-          </select>
-          <button class="btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="window.updateOrderStatus(${order.order_id}, '${order.status}')">
-            상태 변경
-          </button>
+          <!-- ⚠️ 주문 상태 직접 변경 기능 제거됨 -->
+          <!-- orders.status는 집계 결과(뷰/표시용)이며, 직접 정책 판단 기준으로 사용하지 않습니다. -->
+          <!-- 상태 변경은 order_item_units.unit_status나 paid_events 변경으로만 가능합니다. -->
+          <div style="padding: 0.5rem; background-color: #f5f5f5; border-radius: 4px; font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
+            <strong>※ 주문 상태는 자동으로 집계됩니다.</strong><br>
+            <small>배송/환불 처리를 통해 상태를 변경하세요.</small>
+          </div>
         </div>
       </div>
 
@@ -560,42 +556,17 @@
 
   // ============================================
   // 주문 상태 변경
+  // ⚠️ 제거됨: orders.status는 집계 결과(뷰/표시용)이며, 직접 정책 판단 기준으로 사용하지 않습니다.
+  // 
+  // 설계 원칙 (FINAL_EXECUTION_SPEC_REVIEW.md):
+  // - orders.status는 집계 함수로만 갱신되며, 관리자 수동 수정 금지
+  // - 상태 변경은 order_item_units.unit_status나 paid_events 변경으로만 가능
+  // 
+  // 대체 방법:
+  // - 배송 처리: order_item_units.unit_status를 'shipped'로 변경 → orders.status 자동 집계
+  // - 환불 처리: order_item_units.unit_status를 'refunded'로 변경 → orders.status 자동 집계
+  // - 결제 처리: paid_events 생성 → orders.status 자동 집계
   // ============================================
-  window.updateOrderStatus = async function(orderId, currentStatus) {
-    const newStatus = document.getElementById('orderStatusSelect').value;
-
-    if (newStatus === currentStatus) {
-      alert('상태가 변경되지 않았습니다.');
-      return;
-    }
-
-    if (!confirm(`주문 상태를 "${newStatus}"(으)로 변경하시겠습니까?`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/admin/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      alert('주문 상태가 변경되었습니다.');
-      elements.orderDetailModal.classList.remove('show');
-      loadOrders();  // 목록 새로고침
-      loadStats();   // 통계 새로고침
-
-    } catch (error) {
-      // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
-      console.error('상태 변경 실패:', error.message);
-      alert('상태 변경에 실패했습니다.');
-    }
-  };
 
   // ============================================
   // 전체 선택/해제

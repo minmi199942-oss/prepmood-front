@@ -287,8 +287,129 @@ Timeless lines, Refined Vibes
     }
 };
 
+/**
+ * 양도 요청 이메일 발송
+ * @param {String} to - 수신자 이메일
+ * @param {Object} data - { transferCode, transferLink, warrantyPublicId }
+ * @returns {Promise<Object>} { success: boolean, error?: string }
+ */
+const sendTransferRequestEmail = async (to, { transferCode, transferLink, warrantyPublicId }) => {
+    try {
+        console.log('📧 양도 요청 이메일 전송 시작...');
+        console.log(`📬 수신자: ${to}`);
+        console.log(`🔐 양도 코드: ${transferCode}`);
+
+        if (!process.env.MAILERSEND_API_KEY) {
+            console.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            return { 
+                success: false, 
+                error: 'MAILERSEND_API_KEY가 설정되지 않았습니다.',
+                service: 'mailersend'
+            };
+        }
+
+        const sentFrom = new Sender(process.env.MAILERSEND_FROM_EMAIL, "Pre.p Mood");
+        const recipients = [new Recipient(to, to)];
+
+        const emailParams = new EmailParams()
+            .setFrom(sentFrom)
+            .setTo(recipients)
+            .setReplyTo(sentFrom)
+            .setSubject('[Pre.p Mood] 보증서 양도 요청')
+            .setHtml(`
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #333; margin: 0;">Pre.p Mood</h1>
+                        <p style="color: #666; margin: 5px 0;">Timeless lines, Refined Vibes</p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 30px; border-radius: 10px;">
+                        <h2 style="color: #333; margin-bottom: 20px;">보증서 양도 요청</h2>
+                        <p style="color: #666; margin-bottom: 20px;">
+                            보증서 소유자가 귀하에게 보증서를 양도하고자 합니다.
+                        </p>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #007bff;">
+                            <p style="color: #333; margin: 0 0 10px 0; font-weight: bold;">양도 코드:</p>
+                            <h1 style="color: #007bff; font-size: 28px; letter-spacing: 3px; margin: 0; font-family: 'Courier New', monospace;">
+                                ${transferCode}
+                            </h1>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${transferLink}" 
+                               style="display: inline-block; background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                양도 수락하기
+                            </a>
+                        </div>
+                        
+                        <p style="color: #999; font-size: 14px; margin-top: 20px;">
+                            이 링크는 72시간 동안 유효합니다.
+                        </p>
+                        
+                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                            <p style="color: #856404; margin: 0; font-size: 14px;">
+                                <strong>보안 안내:</strong> 이 코드를 다른 사람과 공유하지 마세요. 양도 수락 후 보증서 소유권이 이전됩니다.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
+                        <p>본 메일은 발신전용입니다. 문의사항은 고객센터를 이용해주세요.</p>
+                        <p>&copy; 2025 Pre.p Mood. All rights reserved.</p>
+                    </div>
+                </div>
+            `)
+            .setText(`
+Pre.p Mood - 보증서 양도 요청
+
+안녕하세요!
+
+보증서 소유자가 귀하에게 보증서를 양도하고자 합니다.
+
+양도 코드: ${transferCode}
+
+양도 수락하기: ${transferLink}
+
+이 링크는 72시간 동안 유효합니다.
+
+보안 안내: 이 코드를 다른 사람과 공유하지 마세요. 양도 수락 후 보증서 소유권이 이전됩니다.
+
+Pre.p Mood
+Timeless lines, Refined Vibes
+            `);
+
+        console.log('📤 MailerSend API 호출 중...');
+        const response = await mailerSend.email.send(emailParams);
+
+        if (response.statusCode !== 202) {
+            const errorMessage = `MailerSend API 오류: Status Code ${response.statusCode}`;
+            console.error('❌ MailerSend API 오류 발생:', errorMessage);
+            return { 
+                success: false, 
+                error: errorMessage,
+                service: 'mailersend'
+            };
+        }
+
+        console.log('✅ 양도 요청 이메일 전송 성공!');
+        return { 
+            success: true,
+            service: 'mailersend'
+        };
+    } catch (error) {
+        console.error('❌ 양도 요청 이메일 전송 실패:', error);
+        return { 
+            success: false, 
+            error: error.message || '이메일 전송 중 오류가 발생했습니다.',
+            service: 'mailersend'
+        };
+    }
+};
+
 module.exports = {
     sendVerificationEmail,
     sendInquiryReplyEmail,
-    testConnection
+    testConnection,
+    sendTransferRequestEmail
 };

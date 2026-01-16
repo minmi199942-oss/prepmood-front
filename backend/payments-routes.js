@@ -1354,20 +1354,17 @@ async function handlePaymentStatusChange(connection, data) {
     
     // 토스페이먼츠 상태를 내부 상태로 매핑 (재조회 결과 기준)
     let paymentStatus;
-    let orderStatus;
+    // ⚠️ orderStatus 변수 제거: orders.status는 집계 함수로만 갱신
     
     // 토스페이먼츠 상태: DONE, CANCELED, PARTIAL_CANCELED, ABORTED, EXPIRED
     const statusUpper = String(status || '').toUpperCase();
     
     if (statusUpper === 'DONE' || statusUpper === 'COMPLETED' || statusUpper === 'CONFIRMED') {
         paymentStatus = 'captured';
-        orderStatus = 'processing';
     } else if (statusUpper === 'CANCELED' || statusUpper === 'CANCELLED' || statusUpper === 'PARTIAL_CANCELED') {
         paymentStatus = 'cancelled';
-        orderStatus = 'cancelled';
     } else if (statusUpper === 'ABORTED' || statusUpper === 'EXPIRED' || statusUpper === 'FAILED') {
         paymentStatus = 'failed';
-        orderStatus = 'failed';
     } else {
         Logger.log('[payments][webhook] 알 수 없는 결제 상태 (기본값 사용)', { 
             status,
@@ -1418,6 +1415,7 @@ async function handlePaymentStatusChange(connection, data) {
         }
 
         // orders 테이블 업데이트 (재조회 결과의 orderId 사용)
+        // ⚠️ 중요: orders.status는 집계 함수로만 갱신 (직접 업데이트 금지)
         const finalOrderId = verifiedOrderId || orderId;
         let orderIdForPaidProcess = null;
         
@@ -1431,21 +1429,13 @@ async function handlePaymentStatusChange(connection, data) {
             if (orderRows.length > 0) {
                 orderIdForPaidProcess = orderRows[0].order_id;
                 
-                const [updateResult] = await connection.execute(
-                    `UPDATE orders 
-                     SET status = ?, updated_at = NOW() 
-                     WHERE order_id = ?`,
-                    [orderStatus, orderIdForPaidProcess]
-                );
-
-                if (updateResult.affectedRows > 0) {
-                    Logger.log('✅ [payments][webhook] orders 테이블 업데이트 완료', {
-                        orderId: finalOrderId,
-                        order_id: orderIdForPaidProcess,
-                        status: orderStatus,
-                        affectedRows: updateResult.affectedRows
-                    });
-                }
+                // ✅ 올바른 구현: 집계 함수 호출
+                await updateOrderStatus(connection, orderIdForPaidProcess);
+                
+                Logger.log('✅ [payments][webhook] orders.status 집계 완료', {
+                    orderId: finalOrderId,
+                    order_id: orderIdForPaidProcess
+                });
             }
         } else {
             // orderId가 없으면 payment_key로 orders 조회
@@ -1461,22 +1451,14 @@ async function handlePaymentStatusChange(connection, data) {
                 orderIdForPaidProcess = orderRows[0].order_id;
                 const orderNumber = orderRows[0].order_number;
                 
-                const [updateResult] = await connection.execute(
-                    `UPDATE orders 
-                     SET status = ?, updated_at = NOW() 
-                     WHERE order_id = ?`,
-                    [orderStatus, orderIdForPaidProcess]
-                );
-
-                if (updateResult.affectedRows > 0) {
-                    Logger.log('[payments][webhook] orders 테이블 업데이트 완료 (payment_key로 조회)', {
-                        paymentKey: paymentKey.substring(0, 10) + '...',
-                        order_number: orderNumber,
-                        order_id: orderIdForPaidProcess,
-                        status: orderStatus,
-                        affectedRows: updateResult.affectedRows
-                    });
-                }
+                // ✅ 올바른 구현: 집계 함수 호출
+                await updateOrderStatus(connection, orderIdForPaidProcess);
+                
+                Logger.log('[payments][webhook] orders.status 집계 완료 (payment_key로 조회)', {
+                    paymentKey: paymentKey.substring(0, 10) + '...',
+                    order_number: orderNumber,
+                    order_id: orderIdForPaidProcess
+                });
             }
         }
 

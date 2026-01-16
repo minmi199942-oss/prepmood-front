@@ -10,6 +10,7 @@ const { sendVerificationEmail, testConnection } = require('./mailer');
 const { authenticateToken, optionalAuth, generateToken, setTokenCookie, clearTokenCookie, requireAdmin, isAdminEmail } = require('./auth-middleware');
 const { issueCSRFToken, verifyCSRF } = require('./csrf-middleware');
 const { cleanupIdempotency } = require('./idempotency-cleanup');
+const { cleanupExpiredTransfers } = require('./utils/warranty-transfer-cleanup');
 const Logger = require('./logger');
 const { buildInClause } = require('./utils/query-helpers');
 require('dotenv').config();
@@ -1242,6 +1243,7 @@ const inquiryRoutes = require('./inquiry-routes');
 const invoiceRoutes = require('./invoice-routes');
 const stockRoutes = require('./stock-routes');
 const warrantyEventRoutes = require('./warranty-event-routes');
+const warrantyRoutes = require('./warranty-routes');
 const deployWebhook = require('./deploy-webhook');
 
 app.use('/api', googleAuthRoutes);
@@ -1252,6 +1254,9 @@ app.use('/api', inquiryRoutes);
 app.use('/api', invoiceRoutes);
 app.use('/api', stockRoutes);
 app.use('/api', warrantyEventRoutes);
+app.use('/api', warrantyRoutes);
+app.use('/api', refundRoutes);
+app.use('/api', require('./shipment-routes'));
 
 // 장바구니 라우트
 const cartRoutes = require('./cart-routes');
@@ -1320,6 +1325,20 @@ app.listen(PORT, async () => {
     }, 24 * 60 * 60 * 1000); // 24시간마다 실행
     
     console.log('✅ Idempotency 정리 배치 스케줄러 등록 완료 (24시간마다 실행)');
+
+    // 양도 만료 배치 (1시간마다 실행)
+    setInterval(async () => {
+        try {
+            await cleanupExpiredTransfers();
+        } catch (error) {
+            Logger.error('❌ 양도 만료 배치 실행 오류:', {
+                error: error.message,
+                stack: error.stack
+            });
+        }
+    }, 60 * 60 * 1000); // 1시간마다 실행
+    
+    Logger.log('✅ 양도 만료 배치 스케줄러 등록 완료 (1시간마다 실행)');
 });
 
 // ============================================
@@ -1666,89 +1685,25 @@ app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (re
 
 /**
  * PUT /api/admin/orders/:orderId/status
- * 주문 상태 변경 (관리자 전용)
+ * ⚠️ 제거됨: orders.status는 집계 결과(뷰/표시용)이며, 직접 정책 판단 기준으로 사용하지 않습니다.
  * 
- * Body:
- * - status: 변경할 상태 (pending, confirmed, processing, shipping, delivered, cancelled)
- * - notes: 관리자 메모 (선택사항)
+ * 설계 원칙 (FINAL_EXECUTION_SPEC_REVIEW.md):
+ * - orders.status는 집계 함수로만 갱신되며, 관리자 수동 수정 금지
+ * - 상태 변경은 order_item_units.unit_status나 paid_events 변경으로만 가능
+ * 
+ * 이전 구현: 관리자가 orders.status를 직접 수정할 수 있었음 (설계 원칙 위반)
+ * 
+ * 대체 방법:
+ * - 배송 처리: order_item_units.unit_status를 'shipped'로 변경 → orders.status 자동 집계
+ * - 환불 처리: order_item_units.unit_status를 'refunded'로 변경 → orders.status 자동 집계
+ * - 결제 처리: paid_events 생성 → orders.status 자동 집계
  */
-app.put('/api/admin/orders/:orderId/status', authenticateToken, requireAdmin, async (req, res) => {
-    let connection;
-    try {
-        const { orderId } = req.params;
-        const { status, notes } = req.body;
-        
-        // 허용된 상태 값 검증
-        const allowedStatuses = ['pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled'];
-        if (!status || !allowedStatuses.includes(status)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: '유효하지 않은 상태 값입니다.',
-                allowedStatuses 
-            });
-        }
-        
-        connection = await mysql.createConnection(dbConfig);
-        
-        // 주문 존재 확인
-        const [orders] = await connection.execute(
-            'SELECT order_id, status FROM orders WHERE order_id = ?',
-            [orderId]
-        );
-        
-        if (orders.length === 0) {
-            await connection.end();
-            return res.status(404).json({ 
-                success: false, 
-                message: '주문을 찾을 수 없습니다.' 
-            });
-        }
-        
-        const oldStatus = orders[0].status;
-        
-        // 상태 업데이트
-        await connection.execute(
-            `UPDATE orders 
-             SET status = ?
-             WHERE order_id = ?`,
-            [status, orderId]
-        );
-        
-        await connection.end();
-        
-        Logger.log('[ADMIN] 주문 상태 변경', {
-            orderId,
-            oldStatus,
-            newStatus: status,
-            admin: req.user.email,
-            notes
-        });
-        
-        // TODO: 상태에 따라 고객에게 이메일 발송 (Phase 2)
-        
-        res.json({ 
-            success: true, 
-            message: '주문 상태가 변경되었습니다.',
-            oldStatus,
-            newStatus: status
-        });
-        
-    } catch (error) {
-        if (connection) await connection.end();
-        Logger.error('[ADMIN] 주문 상태 변경 실패', { 
-            orderId: req.params.orderId, 
-            error: error.message 
-        });
-        res.status(500).json({ 
-            success: false, 
-            message: '주문 상태 변경에 실패했습니다.' 
-        });
-    }
-});
 
 /**
  * POST /api/admin/orders/:orderId/shipped
  * 출고 처리 (관리자 전용)
+ * 
+ * ⚠️ Phase 12 수정: shipments/shipment_units 테이블 사용 (SSOT 원칙 준수)
  * 
  * Body:
  * - unitIds: Array<number> - 출고할 order_item_unit_id 배열
@@ -1756,8 +1711,12 @@ app.put('/api/admin/orders/:orderId/status', authenticateToken, requireAdmin, as
  * - trackingNumber: string - 송장번호
  * 
  * 동기화 규칙:
+ * - shipments 테이블에 송장 기록
+ * - shipment_units 테이블에 order_item_unit_id와 연결
+ * - order_item_units.current_shipment_id 업데이트
  * - order_item_units.unit_status = 'shipped'
  * - order_item_units.carrier_code, tracking_number, shipped_at 기록
+ * - orders.status 집계 함수로 자동 업데이트
  * - stock_units.status는 reserved 유지 (delivered 시점에 sold로 변경)
  */
 app.post('/api/admin/orders/:orderId/shipped', authenticateToken, requireAdmin, async (req, res) => {
@@ -1899,29 +1858,66 @@ app.post('/api/admin/orders/:orderId/shipped', authenticateToken, requireAdmin, 
                 });
             }
 
-            // 같은 주문의 기존 shipped 송장번호 조회 (로그용)
-            const [existingShipped] = await connection.execute(
-                `SELECT DISTINCT tracking_number 
-                FROM order_item_units 
-                WHERE order_id = ? 
-                  AND unit_status = 'shipped' 
-                  AND tracking_number IS NOT NULL
-                  AND tracking_number != ''`,
-                [orderId]
+            // ⚠️ Phase 12 수정: shipments/shipment_units 테이블 사용 (SSOT 원칙 준수)
+            // 기존: order_item_units만 직접 업데이트 (SSOT 위반)
+            // 수정: shipments 생성 → shipment_units 연결 → order_item_units 업데이트
+
+            // 5. 기존 유효 송장 확인 (active_key 중복 방지)
+            const [existingShipments] = await connection.execute(
+                `SELECT shipment_id, tracking_number, voided_at
+                 FROM shipments
+                 WHERE carrier_code = ?
+                   AND tracking_number = ?
+                   AND voided_at IS NULL`,
+                [carrierCode, normalizedTrackingNumber]
             );
 
-            // order_item_units 업데이트 (출고 처리)
-            const updateParams = [carrierCode, normalizedTrackingNumber, ...unitIdsParams, orderId];
+            if (existingShipments.length > 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(409).json({
+                    success: false,
+                    message: `이미 사용 중인 송장번호입니다: ${normalizedTrackingNumber}`
+                });
+            }
+
+            // 6. shipments 테이블에 송장 기록
+            const adminUserId = req.user.userId || req.user.id;
+            const [shipmentResult] = await connection.execute(
+                `INSERT INTO shipments 
+                 (order_id, carrier_code, tracking_number, shipped_at, created_by_admin_id)
+                 VALUES (?, ?, ?, NOW(), ?)`,
+                [orderId, carrierCode, normalizedTrackingNumber, adminUserId]
+            );
+
+            const shipmentId = shipmentResult.insertId;
+
+            // 7. shipment_units 테이블에 order_item_unit_id와 연결
+            for (const unitId of uniqueUnitIds) {
+                await connection.execute(
+                    `INSERT INTO shipment_units 
+                     (shipment_id, order_item_unit_id)
+                     VALUES (?, ?)`,
+                    [shipmentId, unitId]
+                );
+            }
+
+            // 8. order_item_units 업데이트 (출고 처리)
+            // - current_shipment_id 업데이트
+            // - unit_status = 'shipped' 업데이트
+            // - carrier_code, tracking_number, shipped_at 업데이트 (기존 컬럼 유지)
+            const updateParams = [shipmentId, carrierCode, normalizedTrackingNumber, ...unitIdsParams, orderId];
             const [updateResult] = await connection.execute(
                 `UPDATE order_item_units
-                SET unit_status = 'shipped',
-                    carrier_code = ?,
-                    tracking_number = ?,
-                    shipped_at = NOW()
-                WHERE order_item_unit_id IN (${placeholders})
-                  AND order_id = ?
-                  AND unit_status = 'reserved'
-                  AND shipped_at IS NULL`,
+                 SET unit_status = 'shipped',
+                     current_shipment_id = ?,
+                     carrier_code = ?,
+                     tracking_number = ?,
+                     shipped_at = NOW()
+                 WHERE order_item_unit_id IN (${placeholders})
+                   AND order_id = ?
+                   AND unit_status = 'reserved'
+                   AND shipped_at IS NULL`,
                 updateParams
             );
 
@@ -1934,15 +1930,19 @@ app.post('/api/admin/orders/:orderId/shipped', authenticateToken, requireAdmin, 
                 });
             }
 
+            // 9. orders.status 집계 함수로 자동 업데이트
+            const { updateOrderStatus } = require('./utils/order-status-aggregator');
+            await updateOrderStatus(connection, orderId);
+
             await connection.commit();
 
             Logger.log('[ADMIN] 출고 처리 완료', {
                 orderId,
+                shipmentId,
                 unitIds: uniqueUnitIds,
                 carrierCode,
                 trackingNumber: normalizedTrackingNumber,
                 affectedRows: updateResult.affectedRows,
-                existingTrackingNumbers: existingShipped.map(r => r.tracking_number),
                 admin: req.user.email
             });
 
@@ -1951,6 +1951,7 @@ app.post('/api/admin/orders/:orderId/shipped', authenticateToken, requireAdmin, 
                 message: '출고 처리가 완료되었습니다.',
                 data: {
                     orderId,
+                    shipmentId,
                     shippedUnitCount: updateResult.affectedRows,
                     carrierCode: carriers[0].name,
                     trackingNumber: normalizedTrackingNumber
@@ -2182,6 +2183,10 @@ app.post('/api/admin/orders/:orderId/delivered', authenticateToken, requireAdmin
                     });
                 }
             }
+
+            // orders.status 집계 함수로 자동 업데이트
+            const { updateOrderStatus } = require('./utils/order-status-aggregator');
+            await updateOrderStatus(connection, orderId);
 
             await connection.commit();
 

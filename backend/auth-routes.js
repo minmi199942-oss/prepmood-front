@@ -428,34 +428,37 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
 
 /**
  * POST /a/:token
- * 디지털 보증서 발급 엔드포인트
+ * 디지털 보증서 조회 엔드포인트 (JSON 응답)
  * 
  * 역할:
- * - 로그인한 사용자가 QR 토큰으로 보증서를 발급받음
- * - warranties 테이블에 INSERT
+ * - 로그인한 사용자가 QR 토큰으로 보증서를 조회함
+ * - warranty는 paid 처리 시 processPaidOrder()에서 생성되어야 함
+ * - Phase 7: warranty 생성 제거, 조회만 수행
  * 
  * 미들웨어 순서:
  * 1. authLimiter (Rate Limiting)
  * 2. authenticateToken (JWT 인증 - JSON 응답용)
- * 3. 실제 보증서 발급 처리
+ * 3. 실제 보증서 조회 처리
  */
 router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
     const token = req.params.token;
     const userId = req.user.userId;
     
+    let connection = null;
+    
     try {
-            // ✅ 토큰 형식 검증 (20자 영숫자)
-            if (!token || !/^[a-zA-Z0-9]{20}$/.test(token)) {
-                Logger.warn('[WARRANTY] 잘못된 토큰 형식:', token ? token.substring(0, 4) + '...' : 'null');
-                return res.status(400).json({
-                    success: false,
-                    message: '잘못된 토큰 형식입니다.',
-                    code: 'INVALID_TOKEN'
-                });
-            }
+        // ✅ 토큰 형식 검증 (20자 영숫자)
+        if (!token || !/^[a-zA-Z0-9]{20}$/.test(token)) {
+            Logger.warn('[WARRANTY] 잘못된 토큰 형식:', token ? token.substring(0, 4) + '...' : 'null');
+            return res.status(400).json({
+                success: false,
+                message: '잘못된 토큰 형식입니다.',
+                code: 'INVALID_TOKEN'
+            });
+        }
         
         // 토큰 일부만 로깅 (보안)
-        Logger.log('[WARRANTY] 보증서 발급 요청:', {
+        Logger.log('[WARRANTY] 보증서 조회 요청:', {
             token_prefix: token.substring(0, 4) + '...',
             user_id: userId
         });
@@ -470,17 +473,18 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         };
         
-        let connection = null;
         connection = await mysql.createConnection(dbConfig);
         
         try {
-            // 1. token_master에서 제품 정보 조회
+            // 1. token_master에서 토큰 정보 조회
             const [tokenMasterRows] = await connection.execute(
-                'SELECT product_name FROM token_master WHERE token = ?',
+                'SELECT * FROM token_master WHERE token = ?',
                 [token]
             );
             
+            // Case A: 토큰이 DB에 없음 → 가품 경고
             if (tokenMasterRows.length === 0) {
+                Logger.warn('[WARRANTY] 등록되지 않은 토큰:', token.substring(0, 4) + '...');
                 return res.status(400).json({
                     success: false,
                     message: '등록되지 않은 토큰입니다.',
@@ -488,181 +492,143 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
                 });
             }
             
-            const productName = tokenMasterRows[0].product_name;
+            const tokenMaster = tokenMasterRows[0];
             
-            // 2. 토큰 중복 확인 (이미 발급된 보증서인지)
-            const [existing] = await connection.execute(
-                'SELECT id, public_id, user_id, product_name, verified_at, created_at FROM warranties WHERE token = ?',
-                [token]
-            );
-            
-            if (existing.length > 0) {
-                const warranty = existing[0];
-                Logger.warn('[WARRANTY] 이미 발급된 토큰:', {
-                    token_prefix: token.substring(0, 4) + '...',
-                    existing_user_id: warranty.user_id,
-                    request_user_id: userId
-                });
-                
-                // 다른 사용자가 이미 발급받은 경우
-                if (warranty.user_id !== userId) {
-                    return res.status(409).json({
-                        success: false,
-                        message: '이미 다른 사용자가 발급받은 토큰입니다.',
-                        code: 'TOKEN_ALREADY_USED'
-                    });
-                }
-                
-                // 같은 사용자가 이미 발급받은 경우 (중복 요청)
-                // ✅ token은 절대 응답에 포함하지 않음 (보안)
-                // TODO: 나중에 utils/datetime-utils.js로 유틸화 권장
-                const formatDateTimeToISO = (datetimeValue) => {
-                    if (!datetimeValue) return null;
-                    
-                    // Date 객체인 경우
-                    if (datetimeValue instanceof Date) {
-                        // 밀리초 제거 (정책: 초 단위)
-                        return datetimeValue.toISOString().replace(/\.\d{3}Z$/, 'Z');
-                    }
-                    
-                    // 문자열인 경우
-                    if (typeof datetimeValue === 'string') {
-                        // 이미 ISO 형식인 경우 (T 포함)
-                        if (datetimeValue.includes('T')) {
-                            // Z가 없으면 추가, 밀리초가 있으면 제거
-                            let iso = datetimeValue.endsWith('Z') ? datetimeValue : datetimeValue + 'Z';
-                            return iso.replace(/\.\d{3}Z$/, 'Z');
-                        }
-                        // MySQL DATETIME 형식 ('YYYY-MM-DD HH:MM:SS')
-                        return datetimeValue.replace(' ', 'T') + 'Z';
-                    }
-                    
-                    return null;
-                };
-                
-                const utcDateTimeISO = formatDateTimeToISO(warranty.verified_at);
-                const createdDateTimeISO = formatDateTimeToISO(warranty.created_at);
-                
-                return res.status(200).json({
-                    success: true,
-                    message: '이미 발급받은 보증서입니다.',
-                    code: 'ALREADY_ISSUED',
-                    warranty: {
-                        id: warranty.id,
-                        public_id: warranty.public_id,
-                        product_name: warranty.product_name,
-                        verified_at: utcDateTimeISO,
-                        created_at: createdDateTimeISO,
-                        detail_url: `/warranty/${warranty.public_id}`
-                    }
+            // Case A-2: 토큰이 차단됨 (is_blocked = 1)
+            if (tokenMaster.is_blocked === 1) {
+                Logger.warn('[WARRANTY] 차단된 토큰:', token.substring(0, 4) + '...');
+                return res.status(400).json({
+                    success: false,
+                    message: '등록되지 않은 토큰입니다.',
+                    code: 'INVALID_TOKEN'
                 });
             }
             
-            // 3. public_id 생성 (UUID v4)
-            const publicId = uuidv4();
+            // ⚠️ Phase 7: QR 스캔 시 warranty 생성 제거, 조회만 수행
+            // warranty는 paid 처리 시 processPaidOrder()에서 생성되어야 함
             
-            // 4. UTC 시간 생성 (정책 준수: 'YYYY-MM-DD HH:MM:SS' 형식)
-            const now = new Date();
-            const utcDateTime = now.toISOString().replace('T', ' ').substring(0, 19); // 'YYYY-MM-DD HH:MM:SS'
+            const tokenPk = tokenMaster.token_pk;
             
-            // 5. warranties 테이블에 INSERT (public_id, product_name 포함)
-            const [result] = await connection.execute(
-                'INSERT INTO warranties (user_id, token, public_id, product_name, verified_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                [userId, token, publicId, productName, utcDateTime, utcDateTime]
+            // 2. token_pk로 warranties 조회 (paid 처리 시 생성되어야 함)
+            const [warranties] = await connection.execute(
+                `SELECT id, public_id, status, owner_user_id, source_order_item_unit_id, 
+                        activated_at, revoked_at, created_at
+                 FROM warranties 
+                 WHERE token_pk = ?`,
+                [tokenPk]
             );
             
-            // 6. token_master owner 업데이트 (POST는 owner만, scan_count는 /a/:token에서만)
-            try {
-                const [updateResult] = await connection.execute(
-                    `UPDATE token_master 
-                     SET owner_user_id = ?,
-                         owner_warranty_public_id = ?,
-                         updated_at = ?
-                     WHERE token = ?`,
-                    [userId, publicId, utcDateTime, token]
-                );
-                
-                if (updateResult.affectedRows === 0) {
-                    Logger.error('[WARRANTY] token_master owner 업데이트 실패: affectedRows=0', {
-                        token_prefix: token.substring(0, 4) + '...',
-                        user_id: userId,
-                        public_id: publicId
-                    });
-                } else {
-                    Logger.log('[WARRANTY] token_master owner 업데이트 성공:', {
-                        token_prefix: token.substring(0, 4) + '...',
-                        user_id: userId,
-                        public_id: publicId,
-                        affectedRows: updateResult.affectedRows
-                    });
-                }
-            } catch (updateError) {
-                // token_master 업데이트 실패는 별도 로깅 (중요)
-                Logger.error('[WARRANTY] token_master owner 업데이트 실패:', {
-                    message: updateError.message,
-                    code: updateError.code,
-                    errno: updateError.errno,
+            // 3. warranty가 없으면 에러 (paid 처리 시 생성되어야 함)
+            if (warranties.length === 0) {
+                Logger.warn('[WARRANTY] warranty 없음 (paid 처리 필요):', {
                     token_prefix: token.substring(0, 4) + '...',
-                    user_id: userId,
-                    public_id: publicId
+                    token_pk: tokenPk
                 });
-                // 보증서는 이미 발급되었으므로 계속 진행
+                
+                return res.status(404).json({
+                    success: false,
+                    message: '이 제품의 보증서가 아직 발급되지 않았습니다. 주문 완료 후 보증서가 자동으로 발급됩니다.',
+                    code: 'WARRANTY_NOT_FOUND'
+                });
             }
             
-            Logger.log('[WARRANTY] 보증서 발급 성공:', {
-                warranty_id: result.insertId,
-                public_id: publicId,
-                token_prefix: token.substring(0, 4) + '...',
-                user_id: userId,
-                product_name: productName,
-                verified_at: utcDateTime
-            });
+            const warranty = warranties[0];
+            
+            // 4. warranty 상태 확인 (revoked면 접근 거부)
+            if (warranty.status === 'revoked') {
+                Logger.warn('[WARRANTY] revoked 상태 보증서 접근 시도:', {
+                    token_prefix: token.substring(0, 4) + '...',
+                    warranty_id: warranty.id,
+                    status: warranty.status,
+                    revoked_at: warranty.revoked_at
+                });
+                
+                return res.status(403).json({
+                    success: false,
+                    message: '이 보증서는 환불 처리되어 더 이상 유효하지 않습니다.',
+                    code: 'WARRANTY_REVOKED'
+                });
+            }
+            
+            // 5. 소유자 확인 (owner_user_id가 있고, 현재 사용자와 일치하는지)
+            if (warranty.owner_user_id && warranty.owner_user_id !== userId) {
+                Logger.warn('[WARRANTY] 다른 사용자의 보증서 접근 시도:', {
+                    token_prefix: token.substring(0, 4) + '...',
+                    warranty_id: warranty.id,
+                    warranty_owner: warranty.owner_user_id,
+                    request_user: userId
+                });
+                
+                return res.status(403).json({
+                    success: false,
+                    message: '이 보증서에 접근할 권한이 없습니다.',
+                    code: 'WARRANTY_ACCESS_DENIED'
+                });
+            }
+            
+            // 6. 날짜 포맷팅 유틸리티 함수
+            const formatDateTimeToISO = (datetimeValue) => {
+                if (!datetimeValue) return null;
+                
+                // Date 객체인 경우
+                if (datetimeValue instanceof Date) {
+                    // 밀리초 제거 (정책: 초 단위)
+                    return datetimeValue.toISOString().replace(/\.\d{3}Z$/, 'Z');
+                }
+                
+                // 문자열인 경우
+                if (typeof datetimeValue === 'string') {
+                    // 이미 ISO 형식인 경우 (T 포함)
+                    if (datetimeValue.includes('T')) {
+                        // Z가 없으면 추가, 밀리초가 있으면 제거
+                        let iso = datetimeValue.endsWith('Z') ? datetimeValue : datetimeValue + 'Z';
+                        return iso.replace(/\.\d{3}Z$/, 'Z');
+                    }
+                    // MySQL DATETIME 형식 ('YYYY-MM-DD HH:MM:SS')
+                    return datetimeValue.replace(' ', 'T') + 'Z';
+                }
+                
+                return null;
+            };
             
             // 7. 성공 응답 (token 제외, public_id 포함)
-            const utcDateTimeISO = now.toISOString(); // 이미 ISO 8601 형식
+            const createdAtISO = formatDateTimeToISO(warranty.created_at);
+            const activatedAtISO = formatDateTimeToISO(warranty.activated_at);
+            const revokedAtISO = formatDateTimeToISO(warranty.revoked_at);
             
-            return res.status(201).json({
+            Logger.log('[WARRANTY] 보증서 조회 성공:', {
+                warranty_id: warranty.id,
+                public_id: warranty.public_id,
+                token_prefix: token.substring(0, 4) + '...',
+                user_id: userId,
+                status: warranty.status
+            });
+            
+            return res.status(200).json({
                 success: true,
-                message: '보증서가 발급되었습니다.',
+                message: '보증서 조회 성공',
                 warranty: {
-                    id: result.insertId,
-                    public_id: publicId,
-                    product_name: productName,
-                    verified_at: utcDateTimeISO,
-                    created_at: utcDateTimeISO
+                    id: warranty.id,
+                    public_id: warranty.public_id,
+                    status: warranty.status,
+                    created_at: createdAtISO,
+                    activated_at: activatedAtISO,
+                    revoked_at: revokedAtISO,
+                    detail_url: warranty.public_id ? `/warranty/${warranty.public_id}` : null
                 }
             });
         } catch (dbError) {
-            // UNIQUE 제약 위반 (동시 요청 등)
-            if (dbError.code === 'ER_DUP_ENTRY' || dbError.errno === 1062) {
-                Logger.warn('[WARRANTY] 토큰 중복 (동시 요청 가능성):', {
-                    token_prefix: token.substring(0, 4) + '...',
-                    message: dbError.message
-                });
-                
-                return res.status(409).json({
-                    success: false,
-                    message: '이미 발급된 토큰입니다.',
-                    code: 'TOKEN_ALREADY_USED'
-                });
-            }
+            Logger.error('[WARRANTY] DB 오류:', {
+                token_prefix: token.substring(0, 4) + '...',
+                message: dbError.message,
+                code: dbError.code
+            });
             
-            // FK 제약 위반 (user_id가 존재하지 않음 - 드문 경우)
-            if (dbError.code === 'ER_NO_REFERENCED_ROW_2' || dbError.errno === 1452) {
-                Logger.error('[WARRANTY] FK 제약 위반 (user_id 없음):', {
-                    user_id: userId,
-                    message: dbError.message
-                });
-                
-                return res.status(400).json({
-                    success: false,
-                    message: '유효하지 않은 사용자입니다.',
-                    code: 'INVALID_USER'
-                });
-            }
-            
-            // 기타 DB 오류
-            throw dbError;
+            return res.status(500).json({
+                success: false,
+                message: '서버 오류가 발생했습니다.',
+                code: 'INTERNAL_ERROR'
+            });
         } finally {
             // connection.end()는 finally에서 한 번만 실행 (방어 코드 포함)
             if (connection) {
@@ -677,7 +643,7 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
         }
         
     } catch (error) {
-        Logger.error('[WARRANTY] 보증서 발급 실패:', {
+        Logger.error('[WARRANTY] 보증서 조회 실패:', {
             message: error.message,
             code: error.code,
             route: req.path,
@@ -689,7 +655,7 @@ router.post('/a/:token', authLimiter, authenticateToken, async (req, res) => {
         
         return res.status(500).json({
             success: false,
-            message: '보증서 발급 중 오류가 발생했습니다.',
+            message: '보증서 조회 중 오류가 발생했습니다.',
             code: 'INTERNAL_ERROR'
         });
     }
