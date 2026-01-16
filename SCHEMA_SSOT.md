@@ -206,7 +206,8 @@ CREATE TABLE shipment_units (
 ---
 
 ### orders 테이블
-**VPS 확인**: ✅ 완료
+**VPS 확인**: ✅ 완료  
+**마이그레이션**: `079_fix_orders_status_check_constraint.sql` (체크 제약 수정)
 
 **주요 컬럼**:
 - `order_id INT PRIMARY KEY AUTO_INCREMENT`
@@ -216,6 +217,10 @@ CREATE TABLE shipment_units (
 - `paid_at DATETIME NULL` ✅ 존재
 - `order_number VARCHAR(32) NOT NULL UNIQUE`
 - `total_price DECIMAL(10,2) NOT NULL DEFAULT 0.00`
+
+**체크 제약**:
+- `chk_order_status`: 허용 값 - `pending`, `confirmed`, `processing`, `paid`, `partial_shipped`, `shipped`, `partial_delivered`, `delivered`, `cancelled`, `refunded`
+- **참고**: 설계 문서(`FINAL_EXECUTION_SPEC_REVIEW.md`) 기준으로 `paid`, `partial_shipped`, `partial_delivered` 포함
 
 **⚠️ 중요**: `created_at`, `updated_at` 컬럼 **없음**
 
