@@ -3335,6 +3335,29 @@
   border-color: #000;
 }
 
+.btn-transfer {
+  padding: clamp(8px, 1.5vw, 10px) clamp(16px, 3vw, 20px);
+  font-size: clamp(0.85rem, 1.8vw, 0.9rem);
+  font-weight: 500;
+  color: #111;
+  background-color: transparent;
+  border: 1px solid #111;
+  border-radius: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+}
+
+.btn-transfer:hover {
+  background-color: #111;
+  color: #fff;
+}
+
+.btn-transfer:active {
+  background-color: #000;
+  border-color: #000;
+}
+
 .warranty-detail-link {
   color: #111;
   text-decoration: none;

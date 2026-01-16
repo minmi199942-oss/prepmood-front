@@ -144,6 +144,13 @@ function createWarrantyItem(warranty) {
     </button>
   ` : '';
   
+  // 양도 버튼 (status = 'active'인 경우만 표시)
+  const transferButton = status === 'active' ? `
+    <button class="btn-transfer" onclick="handleTransfer(${warranty.id})">
+      양도하기
+    </button>
+  ` : '';
+  
   item.innerHTML = `
     <div class="warranty-content">
       <div class="warranty-info">
@@ -154,6 +161,7 @@ function createWarrantyItem(warranty) {
       </div>
       <div class="warranty-actions">
         ${activateButton}
+        ${transferButton}
         <a href="${warranty.detail_url}" class="warranty-detail-link">
           상세보기 →
         </a>
@@ -219,6 +227,61 @@ async function handleActivate(warrantyId) {
 
 // 전역 함수로 등록 (onclick에서 사용)
 window.handleActivate = handleActivate;
+
+// 양도 처리 함수
+async function handleTransfer(warrantyId) {
+  // 양도 모달 표시
+  const email = prompt('수령자 이메일을 입력하세요:');
+  
+  if (!email || !email.trim()) {
+    return;
+  }
+  
+  // 이메일 형식 간단 검증
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    alert('유효하지 않은 이메일 형식입니다.');
+    return;
+  }
+  
+  // 확인
+  if (!confirm(`보증서를 ${escapeHtml(email.trim())}님에게 양도하시겠습니까?\n\n양도 요청이 생성되면 수령자에게 이메일이 발송됩니다.`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/warranties/${warrantyId}/transfer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        to_email: email.trim()
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP ${response.status}`);
+    }
+    
+    if (data.success) {
+      alert('양도 요청이 생성되었습니다.\n수령자에게 이메일이 발송되었습니다.');
+      // 목록 새로고침
+      await loadWarranties(0, DEFAULT_LIMIT);
+    } else {
+      throw new Error(data.message || '양도 요청 실패');
+    }
+  } catch (error) {
+    console.error('보증서 양도 오류:', error);
+    alert(`보증서 양도에 실패했습니다: ${error.message}`);
+  }
+}
+
+// 전역 함수로 등록 (onclick에서 사용)
+window.handleTransfer = handleTransfer;
 
 // 날짜 포맷팅 (ISO 8601 → 한국어 형식)
 function formatDate(isoDateString) {
