@@ -62,9 +62,19 @@ fi
 
 # git pull 전에 원격 변경사항 fetch
 echo "  📥 원격 변경사항 확인 중..."
-git fetch origin main || {
-  echo "  ⚠️  git fetch 실패, 계속 진행"
-}
+if ! git fetch origin main; then
+  echo "  ⚠️  git fetch 실패, 재시도 중..."
+  sleep 2
+  git fetch origin main || {
+    echo "  ❌ git fetch 재시도 실패, 원격 버전으로 강제 업데이트"
+    git reset --hard origin/main
+    git clean -fd
+  }
+fi
+
+# 현재 로컬 커밋 확인
+LOCAL_BEFORE=$(git rev-parse HEAD 2>/dev/null || echo "")
+echo "  📋 현재 로컬 커밋: ${LOCAL_BEFORE:0:7}"
 
 # pull 시도 (충돌 발생 시 자동 해결)
 if ! git pull origin main; then
@@ -72,6 +82,21 @@ if ! git pull origin main; then
   git reset --hard origin/main
   git clean -fd
   echo "  ✅ 원격 버전으로 강제 업데이트 완료"
+fi
+
+# pull 후 커밋 확인
+LOCAL_AFTER=$(git rev-parse HEAD 2>/dev/null || echo "")
+REMOTE_COMMIT=$(git rev-parse origin/main 2>/dev/null || echo "")
+echo "  📋 업데이트 후 로컬 커밋: ${LOCAL_AFTER:0:7}"
+echo "  📋 원격 커밋: ${REMOTE_COMMIT:0:7}"
+
+# 최신 커밋 확인 (로컬과 원격이 다르면 다시 pull)
+if [ -n "$LOCAL_AFTER" ] && [ -n "$REMOTE_COMMIT" ] && [ "$LOCAL_AFTER" != "$REMOTE_COMMIT" ]; then
+  echo "  ⚠️  로컬과 원격이 다름, 강제 동기화 중..."
+  git reset --hard origin/main
+  git clean -fd
+  LOCAL_AFTER=$(git rev-parse HEAD 2>/dev/null || echo "")
+  echo "  ✅ 강제 동기화 완료: ${LOCAL_AFTER:0:7}"
 fi
 
 # 2. 백업 생성 (tar 압축)
