@@ -1552,87 +1552,89 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
 
 /**
  * GET /api/admin/orders/:orderId
- * 주문 상세 조회 (관리자 전용)
+ * 주문 상세 조회 (관리자 전용) - 3단 구조
+ * 
+ * 응답 구조:
+ * {
+ *   "order": { 주문 정보 + customer_info },
+ *   "invoice": { 인보이스 정보 },
+ *   "order_items": [
+ *     {
+ *       "order_item_id": 1,
+ *       "product_name": "...",
+ *       "quantity": 2,
+ *       "price": 50000,
+ *       "units": [
+ *         {
+ *           "order_item_unit_id": 1001,
+ *           "unit_seq": 1,
+ *           "serial_number": "SN-001",
+ *           "token": "ABC12345678901234567",
+ *           "token_masked": "ABC1...5678",
+ *           "unit_status": "reserved",
+ *           "warranty_status": "issued",
+ *           "current_shipment": { ... }
+ *         }
+ *       ]
+ *     }
+ *   ]
+ * }
  */
 app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (req, res) => {
     let connection;
     try {
         const { orderId } = req.params;
+        const orderIdNum = parseInt(orderId, 10);
+        
+        if (isNaN(orderIdNum)) {
+            return res.status(400).json({
+                success: false,
+                message: '잘못된 주문 ID입니다.',
+                code: 'INVALID_ORDER_ID'
+            });
+        }
         
         connection = await mysql.createConnection(dbConfig);
         
-        // 주문 기본 정보
+        // 1. 주문 기본 정보
         const [orders] = await connection.execute(
             `SELECT 
-                o.*,
-                o.shipping_postal_code as shipping_zipcode,
+                o.order_id,
+                o.order_number,
+                o.user_id,
+                o.guest_id,
+                o.status,
+                o.total_price as total_amount,
+                o.paid_at,
+                o.order_date as created_at,
+                o.shipping_name,
+                o.shipping_email,
+                o.shipping_phone,
+                o.shipping_address,
+                o.shipping_postal_code,
+                o.shipping_city,
+                o.shipping_country,
                 u.email as customer_email,
                 u.name as customer_name,
                 u.phone as customer_phone
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.user_id
             WHERE o.order_id = ?`,
-            [orderId]
+            [orderIdNum]
         );
         
         if (orders.length === 0) {
             await connection.end();
             return res.status(404).json({ 
                 success: false, 
-                message: '주문을 찾을 수 없습니다.' 
+                message: '주문을 찾을 수 없습니다.',
+                code: 'ORDER_NOT_FOUND'
             });
         }
         
-        const order = orders[0];
+        const orderRow = orders[0];
         
-        // 주문 상품 정보 (실제 DB 컬럼명 사용)
-        const [items] = await connection.execute(
-            `SELECT 
-                product_id,
-                product_name,
-                size,
-                color,
-                quantity,
-                unit_price as price
-            FROM order_items 
-            WHERE order_id = ?`,
-            [orderId]
-        );
-        
-        order.items = items;
-        
-        // 주문 항목 단위 정보 (order_item_units) - 출고/배송 관점
-        const [orderItemUnits] = await connection.execute(
-            `SELECT 
-                oiu.order_item_unit_id,
-                oiu.order_item_id,
-                oiu.unit_seq,
-                oiu.stock_unit_id,
-                oiu.token_pk,
-                oiu.unit_status,
-                oiu.carrier_code,
-                oiu.tracking_number,
-                oiu.shipped_at,
-                oiu.delivered_at,
-                oiu.created_at,
-                oiu.updated_at,
-                oi.product_name,
-                oi.size,
-                oi.color,
-                tm.token,
-                tm.internal_code,
-                tm.serial_number
-            FROM order_item_units oiu
-            INNER JOIN order_items oi ON oiu.order_item_id = oi.order_item_id
-            INNER JOIN token_master tm ON oiu.token_pk = tm.token_pk
-            WHERE oiu.order_id = ?
-            ORDER BY oiu.order_item_id, oiu.unit_seq`,
-            [orderId]
-        );
-        
-        order.order_item_units = orderItemUnits;
-        
-        // 인보이스 정보 (주문 소속 정보)
+        // 2. 인보이스 정보 (원본 invoice + credit_note 구분)
         const [invoices] = await connection.execute(
             `SELECT 
                 invoice_id,
@@ -1641,41 +1643,186 @@ app.get('/api/admin/orders/:orderId', authenticateToken, requireAdmin, async (re
                 status,
                 total_amount,
                 issued_at,
-                document_url
+                document_url,
+                related_invoice_id
             FROM invoices
             WHERE order_id = ?
-              AND status = 'issued'
-            ORDER BY issued_at DESC
-            LIMIT 1`,
-            [orderId]
+            ORDER BY type ASC, issued_at ASC`,
+            [orderIdNum]
         );
         
-        if (invoices.length > 0) {
-            order.invoice = invoices[0];
-        }
+        const originalInvoice = invoices.find(inv => inv.type === 'invoice') || null;
+        const creditNotes = invoices.filter(inv => inv.type === 'credit_note');
         
-        // 결제 정보
-        const [payments] = await connection.execute(
-            `SELECT * FROM payments WHERE order_number = ? ORDER BY created_at DESC LIMIT 1`,
-            [order.order_number]
+        // 3. 주문 항목 조회
+        const [orderItems] = await connection.execute(
+            `SELECT 
+                oi.order_item_id,
+                oi.product_id,
+                oi.product_name,
+                oi.size,
+                oi.color,
+                oi.quantity,
+                oi.unit_price as price
+            FROM order_items oi
+            WHERE oi.order_id = ?
+            ORDER BY oi.order_item_id`,
+            [orderIdNum]
         );
         
-        if (payments.length > 0) {
-            order.payment = payments[0];
-        }
+        // 4. 주문 항목 단위 정보 (warranties, shipments 포함)
+        const [orderItemUnits] = await connection.execute(
+            `SELECT 
+                oiu.order_item_unit_id,
+                oiu.order_item_id,
+                oiu.unit_seq,
+                oiu.stock_unit_id,
+                oiu.token_pk,
+                oiu.unit_status,
+                oiu.current_shipment_id,
+                oiu.carrier_code,
+                oiu.tracking_number,
+                oiu.shipped_at,
+                oiu.delivered_at,
+                tm.token,
+                tm.serial_number,
+                tm.rot_code,
+                tm.warranty_bottom_code,
+                w.id as warranty_id,
+                w.status as warranty_status,
+                w.public_id as warranty_public_id,
+                s.shipment_id,
+                s.carrier_code as shipment_carrier_code,
+                s.tracking_number as shipment_tracking_number,
+                s.shipped_at as shipment_shipped_at,
+                c.name as carrier_name
+            FROM order_item_units oiu
+            INNER JOIN token_master tm ON oiu.token_pk = tm.token_pk
+            LEFT JOIN warranties w ON oiu.order_item_unit_id = w.source_order_item_unit_id
+            LEFT JOIN shipments s ON oiu.current_shipment_id = s.shipment_id AND s.voided_at IS NULL
+            LEFT JOIN carriers c ON s.carrier_code = c.code
+            WHERE oiu.order_id = ?
+            ORDER BY oiu.order_item_id, oiu.unit_seq`,
+            [orderIdNum]
+        );
+        
+        // 5. units를 order_item_id별로 그룹화
+        const unitsByItemId = {};
+        orderItemUnits.forEach(unit => {
+            if (!unitsByItemId[unit.order_item_id]) {
+                unitsByItemId[unit.order_item_id] = [];
+            }
+            
+            // 토큰 마스킹 (앞 4자/뒤 4자)
+            const token = unit.token || '';
+            const tokenMasked = token.length >= 8 
+                ? `${token.substring(0, 4)}...${token.substring(token.length - 4)}`
+                : token;
+            
+            // 시리얼 넘버 (token_master 또는 stock_units에서)
+            const serialNumber = unit.serial_number || '-';
+            
+            // 배송 정보
+            let currentShipment = null;
+            if (unit.current_shipment_id && unit.shipment_id) {
+                currentShipment = {
+                    shipment_id: unit.shipment_id,
+                    carrier_code: unit.shipment_carrier_code || unit.carrier_code,
+                    carrier_name: unit.carrier_name || null,
+                    tracking_number: unit.shipment_tracking_number || unit.tracking_number,
+                    shipped_at: unit.shipment_shipped_at || unit.shipped_at
+                };
+            } else if (unit.carrier_code && unit.tracking_number) {
+                // order_item_units에 직접 저장된 배송 정보 (레거시)
+                currentShipment = {
+                    shipment_id: null,
+                    carrier_code: unit.carrier_code,
+                    carrier_name: null,
+                    tracking_number: unit.tracking_number,
+                    shipped_at: unit.shipped_at
+                };
+            }
+            
+            unitsByItemId[unit.order_item_id].push({
+                order_item_unit_id: unit.order_item_unit_id,
+                unit_seq: unit.unit_seq,
+                serial_number: serialNumber,
+                token: token, // 전체 토큰 (상세 화면용)
+                token_masked: tokenMasked, // 마스킹된 토큰 (목록 화면용)
+                unit_status: unit.unit_status,
+                warranty_status: unit.warranty_status || null,
+                warranty_id: unit.warranty_id || null,
+                warranty_public_id: unit.warranty_public_id || null,
+                current_shipment: currentShipment,
+                shipped_at: unit.shipped_at,
+                delivered_at: unit.delivered_at
+            });
+        });
+        
+        // 6. order_items에 units 추가
+        const orderItemsWithUnits = orderItems.map(item => ({
+            order_item_id: item.order_item_id,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            size: item.size,
+            color: item.color,
+            quantity: item.quantity,
+            price: item.price,
+            units: unitsByItemId[item.order_item_id] || []
+        }));
         
         await connection.end();
         
-        res.json({ 
-            success: true, 
-            order 
+        // 7. 응답 구성 (3단 구조)
+        res.json({
+            success: true,
+            order: {
+                order_id: orderRow.order_id,
+                order_number: orderRow.order_number,
+                user_id: orderRow.user_id,
+                guest_id: orderRow.guest_id,
+                status: orderRow.status,
+                paid_at: orderRow.paid_at,
+                total_amount: parseFloat(orderRow.total_amount),
+                created_at: orderRow.created_at,
+                customer_info: {
+                    email: orderRow.customer_email || orderRow.shipping_email,
+                    name: orderRow.customer_name || orderRow.shipping_name,
+                    phone: orderRow.customer_phone || orderRow.shipping_phone
+                },
+                shipping_info: {
+                    name: orderRow.shipping_name,
+                    email: orderRow.shipping_email,
+                    phone: orderRow.shipping_phone,
+                    address: orderRow.shipping_address,
+                    postal_code: orderRow.shipping_postal_code,
+                    city: orderRow.shipping_city,
+                    country: orderRow.shipping_country
+                }
+            },
+            invoice: originalInvoice ? {
+                invoice_id: originalInvoice.invoice_id,
+                invoice_number: originalInvoice.invoice_number,
+                issued_at: originalInvoice.issued_at,
+                total_amount: parseFloat(originalInvoice.total_amount),
+                document_url: originalInvoice.document_url
+            } : null,
+            credit_notes: creditNotes.map(cn => ({
+                invoice_id: cn.invoice_id,
+                invoice_number: cn.invoice_number,
+                issued_at: cn.issued_at,
+                total_amount: parseFloat(cn.total_amount),
+                related_invoice_id: cn.related_invoice_id
+            })),
+            order_items: orderItemsWithUnits
         });
         
     } catch (error) {
         if (connection) await connection.end();
         Logger.error('[ADMIN] 주문 상세 조회 실패', { 
             orderId: req.params.orderId, 
-            error: error.message 
+            error: error.message,
+            stack: error.stack
         });
         res.status(500).json({ 
             success: false, 
