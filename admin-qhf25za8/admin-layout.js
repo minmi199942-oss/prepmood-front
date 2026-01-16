@@ -15,6 +15,7 @@ const NAV_MENU = [
   { id: 'products', label: '상품 관리', href: 'products.html' },
   { id: 'stock', label: '재고 관리', href: 'stock.html' },
   { id: 'orders', label: '주문 관리', href: 'orders.html' },
+  { id: 'warranties', label: '보증서 관리', href: 'warranties.html' },
   { id: 'inquiries', label: '고객 문의', href: 'inquiries.html' },
 ];
 

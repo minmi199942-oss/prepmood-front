@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>보증서 관리 | Pre.pMood Admin</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    /* 보증서 관리 전용 스타일 */
+    .search-section {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .search-form {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+
+    .search-form-group {
+      flex: 1;
+    }
+
+    .search-form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      color: #495057;
+      font-weight: 500;
+    }
+
+    .search-form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+
+    .search-form-group small {
+      display: block;
+      margin-top: 0.25rem;
+      color: #6c757d;
+      font-size: 0.75rem;
+    }
+
+    .btn-search {
+      padding: 0.75rem 1.5rem;
+      background: #212529;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .btn-search:hover {
+      background: #343a40;
+    }
+
+    .search-results {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .search-results-header {
+      padding: 1rem 1.5rem;
+      background: #f8f9fa;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .warranties-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .warranties-table thead {
+      background: #f8f9fa;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .warranties-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #495057;
+    }
+
+    .warranties-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #dee2e6;
+      font-size: 0.875rem;
+    }
+
+    .warranties-table tbody tr {
+      cursor: pointer;
+    }
+
+    .warranties-table tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+    .badge-info { background: #d1ecf1; color: #0c5460; }
+    .badge-secondary { background: #e2e3e5; color: #383d41; }
+
+    .badge-resold {
+      background: #e7f3ff;
+      color: #004085;
+      border: 1px solid #b3d7ff;
+    }
+
+    /* 모달 스타일 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      max-width: 1000px;
+      max-height: 90vh;
+      overflow-y: auto;
+      width: 90%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #6c757d;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .detail-card {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+
+    .detail-card h4 {
+      margin: 0 0 1rem 0;
+      font-size: 1rem;
+      color: #212529;
+      border-bottom: 2px solid #dee2e6;
+      padding-bottom: 0.5rem;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-label {
+      font-size: 0.75rem;
+      color: #6c757d;
+      margin-bottom: 0.25rem;
+    }
+
+    .detail-value {
+      font-size: 0.875rem;
+      color: #212529;
+      font-weight: 500;
+    }
+
+    .timeline {
+      margin-top: 1rem;
+    }
+
+    .timeline-item {
+      padding: 1rem;
+      border-left: 3px solid #dee2e6;
+      margin-bottom: 1rem;
+      background: white;
+      border-radius: 4px;
+    }
+
+    .timeline-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .timeline-type {
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .timeline-date {
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #6c757d;
+    }
+
+    .loading-state {
+      text-align: center;
+      padding: 3rem;
+      color: #6c757d;
+    }
+  </style>
+</head>
+<body>
+  <div id="adminLayout"></div>
+
+  <main class="admin-main">
+    <div class="admin-container">
+      <h2>보증서 관리</h2>
+
+      <!-- 검색 섹션 -->
+      <div class="search-section">
+        <form class="search-form" id="searchForm">
+          <div class="search-form-group">
+            <label for="searchInput">검색어</label>
+            <input 
+              type="text" 
+              id="searchInput" 
+              placeholder="토큰, UUID, 시리얼 넘버, ROT 코드, 보증서 하단 코드"
+              autocomplete="off"
+            />
+            <small>토큰(20자), UUID, 시리얼 넘버, ROT 코드, 보증서 하단 코드로 검색 가능</small>
+          </div>
+          <button type="submit" class="btn-search">검색</button>
+        </form>
+      </div>
+
+      <!-- 검색 결과 -->
+      <div class="search-results" id="searchResults" style="display: none;">
+        <div class="search-results-header">
+          <span id="resultsCount">검색 결과: 0개</span>
+        </div>
+        <div id="loadingState" class="loading-state" style="display: none;">
+          검색 중...
+        </div>
+        <div id="emptyState" class="empty-state" style="display: none;">
+          검색 결과가 없습니다.
+        </div>
+        <table class="warranties-table" id="warrantiesTable" style="display: none;">
+          <thead>
+            <tr>
+              <th>보증서 ID</th>
+              <th>제품명</th>
+              <th>상태</th>
+              <th>토큰</th>
+              <th>시리얼 넘버</th>
+              <th>소유자</th>
+              <th>생성일</th>
+            </tr>
+          </thead>
+          <tbody id="warrantiesTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- 보증서 상세 모달 -->
+  <div class="modal" id="warrantyDetailModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>보증서 상세</h3>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body" id="warrantyDetailContent">
+        <!-- 동적으로 생성 -->
+      </div>
+    </div>
+  </div>
+
+  <script src="admin-layout.js"></script>
+  <script src="admin-warranties.js"></script>
+</body>
+</html>
