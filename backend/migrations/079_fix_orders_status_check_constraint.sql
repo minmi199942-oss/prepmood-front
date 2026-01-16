@@ -20,14 +20,9 @@ FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = 'prepmood' 
   AND TABLE_NAME = 'orders';
 
--- 현재 체크 제약 확인
-SELECT 
-    CONSTRAINT_NAME,
-    CHECK_CLAUSE
-FROM information_schema.CHECK_CONSTRAINTS
-WHERE TABLE_SCHEMA = 'prepmood' 
-  AND TABLE_NAME = 'orders'
-  AND CONSTRAINT_NAME = 'chk_order_status';
+-- 현재 체크 제약 확인 (SHOW CREATE TABLE 사용)
+SELECT '=== 현재 체크 제약 확인 ===' AS info;
+SHOW CREATE TABLE orders\G
 
 -- 현재 orders.status 값 분포 확인
 SELECT 
@@ -67,14 +62,9 @@ CHECK (`status` IN (
 -- ============================================================
 SELECT '=== 3. 사후 검증 ===' AS info;
 
--- 체크 제약 확인
-SELECT 
-    CONSTRAINT_NAME,
-    CHECK_CLAUSE
-FROM information_schema.CHECK_CONSTRAINTS
-WHERE TABLE_SCHEMA = 'prepmood' 
-  AND TABLE_NAME = 'orders'
-  AND CONSTRAINT_NAME = 'chk_order_status';
+-- 체크 제약 확인 (SHOW CREATE TABLE 사용)
+SELECT '=== 체크 제약 확인 ===' AS info;
+SHOW CREATE TABLE orders\G
 
 -- orders 테이블 구조 확인 (status 컬럼)
 SELECT 

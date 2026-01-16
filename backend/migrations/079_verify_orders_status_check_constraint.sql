@@ -10,13 +10,8 @@ USE prepmood;
 -- ============================================================
 SELECT '=== 1. 체크 제약 확인 ===' AS info;
 
-SELECT 
-    CONSTRAINT_NAME,
-    CHECK_CLAUSE
-FROM information_schema.CHECK_CONSTRAINTS
-WHERE TABLE_SCHEMA = 'prepmood' 
-  AND TABLE_NAME = 'orders'
-  AND CONSTRAINT_NAME = 'chk_order_status';
+-- 체크 제약 확인 (SHOW CREATE TABLE 사용 - 가장 안전한 방법)
+SHOW CREATE TABLE orders\G
 
 -- ============================================================
 -- 2. 허용된 status 값 확인
