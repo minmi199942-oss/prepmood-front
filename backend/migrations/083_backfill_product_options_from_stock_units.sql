@@ -20,6 +20,20 @@ LEFT JOIN product_options po ON ap.id = po.product_id AND po.is_active = 1
 GROUP BY ap.id
 HAVING COUNT(po.option_id) = 0;
 
+-- product_options가 없는 상품의 상세 정보
+SELECT 
+    'product_options 없는 상품 상세' AS check_type,
+    ap.id AS product_id,
+    ap.name,
+    COUNT(DISTINCT su.stock_unit_id) as stock_count,
+    COUNT(DISTINCT CASE WHEN su.size IS NOT NULL OR su.color IS NOT NULL THEN su.stock_unit_id END) as stock_with_options
+FROM admin_products ap
+LEFT JOIN product_options po ON ap.id = po.product_id AND po.is_active = 1
+LEFT JOIN stock_units su ON ap.id = su.product_id
+GROUP BY ap.id, ap.name
+HAVING COUNT(po.option_id) = 0
+ORDER BY ap.id;
+
 -- stock_units에서 옵션 추출 가능한 상품 확인
 SELECT 
     'stock_units 옵션 데이터' AS check_type,
