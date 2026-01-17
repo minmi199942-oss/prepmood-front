@@ -435,7 +435,8 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
             const [units] = await connection.execute(
                 `SELECT oiu.order_item_unit_id, oiu.order_item_id, oiu.order_id, oiu.stock_unit_id,
                         oi.product_name, oi.quantity, oi.price,
-                        o.order_number, o.order_date, o.status as order_status, o.user_id as order_user_id
+                        o.order_number, o.order_date, o.status as order_status, 
+                        o.user_id as order_user_id, o.guest_id as order_guest_id
                  FROM order_item_units oiu
                  JOIN order_items oi ON oiu.order_item_id = oi.order_item_id
                  JOIN orders o ON oi.order_id = o.order_id
@@ -473,13 +474,50 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
                 const originalInvoice = invoices.find(inv => inv.type === 'invoice');
                 const creditNotes = invoices.filter(inv => inv.type === 'credit_note');
 
+                // 인보이스 연동 상태 판정 (3분류 + 환불 우선 상태)
+                let invoiceLinkageStatus = null;
+                
+                // 환불 상태 우선 확인 (위 3분류를 덮어쓰는 우선 상태)
+                if (unit.order_status === 'refunded') {
+                    invoiceLinkageStatus = {
+                        status: 'refunded',
+                        label: '환불됨',
+                        badge_type: 'danger'
+                    };
+                } else {
+                    // 3분류 판정
+                    if (unit.order_user_id !== null && unit.order_guest_id === null) {
+                        // 회원 주문(원래 회원)
+                        invoiceLinkageStatus = {
+                            status: 'linked_member',
+                            label: '연동됨 (회원 주문)',
+                            badge_type: 'success'
+                        };
+                    } else if (unit.order_user_id === null && unit.order_guest_id !== null) {
+                        // 비회원 주문(미클레임)
+                        invoiceLinkageStatus = {
+                            status: 'unlinked_guest',
+                            label: '미연동 (비회원, 미클레임)',
+                            badge_type: 'warning'
+                        };
+                    } else if (unit.order_user_id !== null && unit.order_guest_id !== null) {
+                        // 비회원 주문(클레임됨)
+                        invoiceLinkageStatus = {
+                            status: 'linked_from_guest',
+                            label: '연동됨 (비회원 주문, 클레임됨)',
+                            badge_type: 'success'
+                        };
+                    }
+                }
+
                 connectionInfo = {
                     order: {
                         order_id: unit.order_id,
                         order_number: unit.order_number,
                         order_date: unit.order_date,
                         status: unit.order_status,
-                        user_id: unit.order_user_id
+                        user_id: unit.order_user_id,
+                        guest_id: unit.order_guest_id
                     },
                     order_item: {
                         order_item_id: unit.order_item_id,
@@ -495,7 +533,8 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
                     invoices: {
                         original: originalInvoice || null,
                         credit_notes: creditNotes
-                    }
+                    },
+                    invoice_linkage_status: invoiceLinkageStatus
                 };
             }
         }

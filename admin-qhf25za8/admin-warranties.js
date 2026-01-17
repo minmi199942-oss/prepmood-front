@@ -228,7 +228,7 @@
     // 연결 정보
     let connectionHtml = '<p>연결 정보 없음</p>';
     if (connection_card) {
-      const { order, order_item, stock_unit, invoices } = connection_card;
+      const { order, order_item, stock_unit, invoices, invoice_linkage_status } = connection_card;
       
       connectionHtml = `
         <div class="detail-grid">
@@ -255,6 +255,14 @@
           </div>
           ` : ''}
         </div>
+        ${invoice_linkage_status ? `
+        <div style="margin-top: 1rem; padding: 0.75rem; background: #f8f9fa; border-radius: 4px;">
+          <strong>인보이스 연동 상태:</strong> 
+          <span class="badge badge-${invoice_linkage_status.badge_type}" style="margin-left: 0.5rem;">
+            ${escapeHtml(invoice_linkage_status.label)}
+          </span>
+        </div>
+        ` : ''}
         ${invoices.original ? `
         <div style="margin-top: 1rem;">
           <strong>원본 인보이스:</strong> ${escapeHtml(invoices.original.invoice_number)} 
