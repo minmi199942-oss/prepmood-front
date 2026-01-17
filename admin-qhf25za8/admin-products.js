@@ -278,6 +278,23 @@
               </div>
             </div>
           </div>
+          ${isEditing ? `
+          <!-- 옵션 관리 섹션 (Phase 15-3) -->
+          <div class="form-group" style="border-top: 1px solid #e5e5e5; padding-top: 1rem; margin-top: 1rem;">
+            <label>옵션 관리</label>
+            <div id="optionsSection" style="margin-top: 0.5rem;">
+              <div id="optionsLoading" style="text-align: center; padding: 1rem; color: #666;">
+                옵션 목록을 불러오는 중...
+              </div>
+              <div id="optionsList" style="display: none;"></div>
+              <div style="margin-top: 1rem;">
+                <button type="button" class="btn-secondary" onclick="window.openAddOptionModal('${product.id || ''}')" style="font-size: 0.9rem;">
+                  + 옵션 추가
+                </button>
+              </div>
+            </div>
+          </div>
+          ` : ''}
         </form>
         <div class="modal-footer">
           <button type="button" onclick="closeModal()" class="btn-secondary">취소</button>
@@ -335,6 +352,11 @@
           // 기존 값이 없으면 첫 번째 옵션 선택 (기본값)
           typeSelect.value = ACCESSORY_TYPE_OPTIONS[0].value;
         }
+      }
+      
+      // 옵션 관리 섹션 초기화 (수정 모달일 때만)
+      if (isEditing && product.id) {
+        setTimeout(() => loadProductOptions(product.id), 100);
       }
       
       // 카테고리 변경 이벤트
@@ -670,6 +692,202 @@
   window.AdminPages.products = window.AdminPages.products || {};
   window.AdminPages.products.init = init;
 
+  // ==================== 옵션 관리 기능 (Phase 15-3) ====================
+  
+  // 옵션 목록 로드
+  async function loadProductOptions(productId) {
+    const optionsLoading = document.getElementById('optionsLoading');
+    const optionsList = document.getElementById('optionsList');
+    
+    if (!optionsLoading || !optionsList) return;
+    
+    try {
+      optionsLoading.style.display = 'block';
+      optionsList.style.display = 'none';
+      
+      const response = await fetch(`${API_BASE_URL}/admin/products/${encodeURIComponent(productId)}/options`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        renderOptions(data.options);
+      } else {
+        throw new Error(data.message || '옵션 조회에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('옵션 로드 오류:', error.message);
+      optionsLoading.innerHTML = `<div style="color: #dc3545;">옵션 목록을 불러올 수 없습니다: ${error.message}</div>`;
+    } finally {
+      optionsLoading.style.display = 'none';
+      optionsList.style.display = 'block';
+    }
+  }
+  
+  // 옵션 목록 렌더링
+  function renderOptions(options) {
+    const optionsList = document.getElementById('optionsList');
+    if (!optionsList) return;
+    
+    if (options.length === 0) {
+      optionsList.innerHTML = '<div style="padding: 1rem; color: #666; text-align: center;">등록된 옵션이 없습니다.</div>';
+      return;
+    }
+    
+    optionsList.innerHTML = `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+        <thead>
+          <tr style="border-bottom: 2px solid #e5e5e5;">
+            <th style="padding: 0.5rem; text-align: left; font-weight: 600;">색상</th>
+            <th style="padding: 0.5rem; text-align: left; font-weight: 600;">사이즈</th>
+            <th style="padding: 0.5rem; text-align: center; font-weight: 600;">재고</th>
+            <th style="padding: 0.5rem; text-align: center; font-weight: 600;">정렬</th>
+            <th style="padding: 0.5rem; text-align: center; font-weight: 600;">상태</th>
+            <th style="padding: 0.5rem; text-align: center; font-weight: 600;">작업</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${options.map(opt => `
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 0.5rem;">${escapeHtml(opt.color || '-')}</td>
+              <td style="padding: 0.5rem;">${escapeHtml(opt.size || '-')}</td>
+              <td style="padding: 0.5rem; text-align: center;">${opt.in_stock_count || 0}</td>
+              <td style="padding: 0.5rem; text-align: center;">${opt.sort_order || 0}</td>
+              <td style="padding: 0.5rem; text-align: center;">
+                <span style="padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem; background: ${opt.is_active ? '#d4edda' : '#f8d7da'}; color: ${opt.is_active ? '#155724' : '#721c24'};">
+                  ${opt.is_active ? '활성' : '비활성'}
+                </span>
+              </td>
+              <td style="padding: 0.5rem; text-align: center;">
+                <button type="button" onclick="window.toggleOptionActive('${opt.product_id}', ${opt.option_id}, ${opt.is_active ? 'false' : 'true'})" 
+                        class="btn-secondary" style="font-size: 0.85rem; padding: 0.3rem 0.6rem; margin-right: 0.3rem;">
+                  ${opt.is_active ? '비활성화' : '활성화'}
+                </button>
+                <button type="button" onclick="window.deleteProductOption('${opt.product_id}', ${opt.option_id})" 
+                        class="btn-danger" style="font-size: 0.85rem; padding: 0.3rem 0.6rem;">
+                  삭제
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+  
+  // 옵션 추가 모달 열기
+  function openAddOptionModal(productId) {
+    const color = prompt('색상 (빈 문자열 허용):', '');
+    if (color === null) return;
+    
+    const size = prompt('사이즈 (빈 문자열 허용, 예: S, M, L, XL, XXL, F):', '');
+    if (size === null) return;
+    
+    addProductOption(productId, color || '', size || '');
+  }
+  
+  // 옵션 추가
+  async function addProductOption(productId, color, size) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/products/${encodeURIComponent(productId)}/options`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          color: color || '',
+          size: size || ''
+        })
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('옵션이 추가되었습니다.');
+        await loadProductOptions(productId);
+      } else {
+        throw new Error(data.message || '옵션 추가에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('옵션 추가 오류:', error.message);
+      alert(`옵션 추가 오류: ${error.message}`);
+    }
+  }
+  
+  // 옵션 활성화/비활성화 토글
+  async function toggleOptionActive(productId, optionId, newActiveState) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/products/${encodeURIComponent(productId)}/options/${optionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          is_active: newActiveState
+        })
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        await loadProductOptions(productId);
+      } else {
+        throw new Error(data.message || '옵션 수정에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('옵션 수정 오류:', error.message);
+      alert(`옵션 수정 오류: ${error.message}`);
+    }
+  }
+  
+  // 옵션 삭제
+  async function deleteProductOption(productId, optionId) {
+    if (!confirm('정말로 이 옵션을 삭제하시겠습니까?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/products/${encodeURIComponent(productId)}/options/${optionId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('옵션이 삭제되었습니다.');
+        await loadProductOptions(productId);
+      } else {
+        throw new Error(data.message || '옵션 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('옵션 삭제 오류:', error.message);
+      alert(`옵션 삭제 오류: ${error.message}`);
+    }
+  }
+
   // 전역 함수로 등록 (HTML에서 호출하기 위해)
   window.openAddProductModal = openAddProductModal;
   window.openEditProductModal = openEditProductModal;
@@ -677,5 +895,9 @@
   window.closeModal = closeModal;
   window.saveProduct = saveProduct;
   window.loadProducts = loadProducts;
+  window.loadProductOptions = loadProductOptions;
+  window.openAddOptionModal = openAddOptionModal;
+  window.toggleOptionActive = toggleOptionActive;
+  window.deleteProductOption = deleteProductOption;
 
 })();

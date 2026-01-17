@@ -867,5 +867,351 @@ router.delete('/admin/products/:id', authenticateToken, requireAdmin, async (req
     }
 });
 
+// ==================== 관리자: 상품 옵션 관리 API ====================
+// Phase 15-3: 관리자 페이지 옵션 관리 기능
+
+const Logger = require('./logger');
+
+// 옵션 조회 (재고 상태 포함)
+router.get('/admin/products/:productId/options', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { productId } = req.params;
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // 상품 존재 확인
+        const canonicalId = await resolveProductId(productId, connection);
+        if (!canonicalId) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '상품을 찾을 수 없습니다.'
+            });
+        }
+        
+        // 옵션 목록 조회 (재고 상태 포함)
+        const [options] = await connection.execute(
+            `SELECT 
+                po.option_id,
+                po.product_id,
+                po.color,
+                po.size,
+                po.sort_order,
+                po.is_active,
+                po.created_at,
+                po.updated_at,
+                COUNT(CASE WHEN su.status = 'in_stock' THEN 1 END) as in_stock_count
+            FROM product_options po
+            LEFT JOIN stock_units su 
+                ON su.product_id = po.product_id 
+                AND (su.color = po.color OR (su.color IS NULL AND po.color = ''))
+                AND (su.size = po.size OR (su.size IS NULL AND po.size = ''))
+            WHERE po.product_id = ?
+            GROUP BY po.option_id, po.product_id, po.color, po.size, po.sort_order, po.is_active, po.created_at, po.updated_at
+            ORDER BY po.sort_order, po.size, po.color`,
+            [canonicalId]
+        );
+        
+        await connection.end();
+        
+        Logger.log('[ADMIN_OPTIONS] 옵션 조회 완료', {
+            productId: canonicalId,
+            optionsCount: options.length
+        });
+        
+        res.json({
+            success: true,
+            options: options.map(opt => ({
+                option_id: opt.option_id,
+                product_id: opt.product_id,
+                color: opt.color || '',
+                size: opt.size || '',
+                sort_order: opt.sort_order,
+                is_active: opt.is_active === 1,
+                in_stock_count: parseInt(opt.in_stock_count) || 0,
+                created_at: opt.created_at,
+                updated_at: opt.updated_at
+            }))
+        });
+        
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.error('[ADMIN_OPTIONS] 옵션 조회 실패', {
+            productId: req.params.productId,
+            error: error.message
+        });
+        res.status(500).json({
+            success: false,
+            message: '옵션 조회에 실패했습니다.'
+        });
+    }
+});
+
+// 옵션 추가
+router.post('/admin/products/:productId/options', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { productId } = req.params;
+        const { color = '', size = '', sort_order } = req.body;
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // 상품 존재 확인
+        const canonicalId = await resolveProductId(productId, connection);
+        if (!canonicalId) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '상품을 찾을 수 없습니다.'
+            });
+        }
+        
+        // 최대 sort_order 조회 (새 옵션은 마지막에 추가)
+        let finalSortOrder = sort_order;
+        if (finalSortOrder === undefined || finalSortOrder === null) {
+            const [maxRows] = await connection.execute(
+                'SELECT COALESCE(MAX(sort_order), -1) as max_sort FROM product_options WHERE product_id = ?',
+                [canonicalId]
+            );
+            finalSortOrder = (maxRows[0].max_sort || 0) + 1;
+        }
+        
+        // 옵션 추가
+        const [result] = await connection.execute(
+            `INSERT INTO product_options (product_id, color, size, sort_order, is_active)
+             VALUES (?, ?, ?, ?, 1)`,
+            [canonicalId, color || '', size || '', finalSortOrder]
+        );
+        
+        // 생성된 옵션 조회
+        const [newOptions] = await connection.execute(
+            'SELECT * FROM product_options WHERE option_id = ?',
+            [result.insertId]
+        );
+        
+        await connection.end();
+        
+        Logger.log('[ADMIN_OPTIONS] 옵션 추가 완료', {
+            productId: canonicalId,
+            optionId: result.insertId,
+            color,
+            size
+        });
+        
+        res.json({
+            success: true,
+            option: {
+                option_id: newOptions[0].option_id,
+                product_id: newOptions[0].product_id,
+                color: newOptions[0].color || '',
+                size: newOptions[0].size || '',
+                sort_order: newOptions[0].sort_order,
+                is_active: newOptions[0].is_active === 1,
+                created_at: newOptions[0].created_at,
+                updated_at: newOptions[0].updated_at
+            },
+            message: '옵션이 추가되었습니다.'
+        });
+        
+    } catch (error) {
+        if (connection) await connection.end();
+        
+        // UNIQUE 제약 위반 (중복 옵션)
+        if (error.code === 'ER_DUP_ENTRY') {
+            Logger.warn('[ADMIN_OPTIONS] 중복 옵션 추가 시도', {
+                productId: req.params.productId,
+                color: req.body.color,
+                size: req.body.size
+            });
+            return res.status(409).json({
+                success: false,
+                message: '이미 존재하는 옵션입니다. (같은 사이즈/색상 조합)'
+            });
+        }
+        
+        Logger.error('[ADMIN_OPTIONS] 옵션 추가 실패', {
+            productId: req.params.productId,
+            error: error.message
+        });
+        res.status(500).json({
+            success: false,
+            message: '옵션 추가에 실패했습니다.'
+        });
+    }
+});
+
+// 옵션 수정 (is_active, sort_order)
+router.put('/admin/products/:productId/options/:optionId', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { productId, optionId } = req.params;
+        const { is_active, sort_order } = req.body;
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // 상품 존재 확인
+        const canonicalId = await resolveProductId(productId, connection);
+        if (!canonicalId) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '상품을 찾을 수 없습니다.'
+            });
+        }
+        
+        // 옵션 존재 확인
+        const [existing] = await connection.execute(
+            'SELECT * FROM product_options WHERE option_id = ? AND product_id = ?',
+            [optionId, canonicalId]
+        );
+        
+        if (existing.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '옵션을 찾을 수 없습니다.'
+            });
+        }
+        
+        // 업데이트할 필드 구성
+        const updates = [];
+        const params = [];
+        
+        if (is_active !== undefined && is_active !== null) {
+            updates.push('is_active = ?');
+            params.push(is_active ? 1 : 0);
+        }
+        
+        if (sort_order !== undefined && sort_order !== null) {
+            updates.push('sort_order = ?');
+            params.push(sort_order);
+        }
+        
+        if (updates.length === 0) {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: '수정할 필드가 없습니다.'
+            });
+        }
+        
+        params.push(optionId, canonicalId);
+        
+        // 옵션 수정
+        await connection.execute(
+            `UPDATE product_options 
+             SET ${updates.join(', ')} 
+             WHERE option_id = ? AND product_id = ?`,
+            params
+        );
+        
+        // 수정된 옵션 조회
+        const [updated] = await connection.execute(
+            'SELECT * FROM product_options WHERE option_id = ?',
+            [optionId]
+        );
+        
+        await connection.end();
+        
+        Logger.log('[ADMIN_OPTIONS] 옵션 수정 완료', {
+            productId: canonicalId,
+            optionId,
+            updates: updates.join(', ')
+        });
+        
+        res.json({
+            success: true,
+            option: {
+                option_id: updated[0].option_id,
+                product_id: updated[0].product_id,
+                color: updated[0].color || '',
+                size: updated[0].size || '',
+                sort_order: updated[0].sort_order,
+                is_active: updated[0].is_active === 1,
+                created_at: updated[0].created_at,
+                updated_at: updated[0].updated_at
+            },
+            message: '옵션이 수정되었습니다.'
+        });
+        
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.error('[ADMIN_OPTIONS] 옵션 수정 실패', {
+            productId: req.params.productId,
+            optionId: req.params.optionId,
+            error: error.message
+        });
+        res.status(500).json({
+            success: false,
+            message: '옵션 수정에 실패했습니다.'
+        });
+    }
+});
+
+// 옵션 삭제 (is_active = 0으로 비활성화)
+router.delete('/admin/products/:productId/options/:optionId', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { productId, optionId } = req.params;
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // 상품 존재 확인
+        const canonicalId = await resolveProductId(productId, connection);
+        if (!canonicalId) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '상품을 찾을 수 없습니다.'
+            });
+        }
+        
+        // 옵션 존재 확인
+        const [existing] = await connection.execute(
+            'SELECT * FROM product_options WHERE option_id = ? AND product_id = ?',
+            [optionId, canonicalId]
+        );
+        
+        if (existing.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '옵션을 찾을 수 없습니다.'
+            });
+        }
+        
+        // 옵션 비활성화 (is_active = 0)
+        await connection.execute(
+            'UPDATE product_options SET is_active = 0 WHERE option_id = ? AND product_id = ?',
+            [optionId, canonicalId]
+        );
+        
+        await connection.end();
+        
+        Logger.log('[ADMIN_OPTIONS] 옵션 삭제 완료', {
+            productId: canonicalId,
+            optionId
+        });
+        
+        res.json({
+            success: true,
+            message: '옵션이 삭제되었습니다.'
+        });
+        
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.error('[ADMIN_OPTIONS] 옵션 삭제 실패', {
+            productId: req.params.productId,
+            optionId: req.params.optionId,
+            error: error.message
+        });
+        res.status(500).json({
+            success: false,
+            message: '옵션 삭제에 실패했습니다.'
+        });
+    }
+});
+
 module.exports = router;
 
