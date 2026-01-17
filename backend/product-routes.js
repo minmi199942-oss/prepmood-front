@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const { authenticateToken, requireAdmin } = require('./auth-middleware');
+const Logger = require('./logger');
 require('dotenv').config();
 
 // MySQL 연결 설정
@@ -211,52 +212,19 @@ router.get('/products/options', async (req, res) => {
             });
         }
         
-        // product_id에서 색상 추출 (예: PM-25-SH-Teneu-Solid-LB-S/M/L → Light Blue)
+        // ⚠️ Phase 16-4: extractColorFromProductId() 함수 제거 (색상 코드 제거 A안)
+        // product_options 테이블이 SSOT이므로 product_id 파싱 불필요
+        // 색상 정보는 product_options 테이블에서만 조회
+        /**
+         * @deprecated Phase 16-4: product_options 테이블이 SSOT이므로 더 이상 사용하지 않음
+         * 색상 정보는 product_options 테이블에서만 조회해야 함
+         * 이 함수는 제거 예정이며, 현재는 사용하지 않음
+         */
         function extractColorFromProductId(productId) {
-            if (!productId) return null;
-            
-            // 색상 코드 매핑 (SSOT: SIZE_COLOR_STANDARDIZATION_POLICY.md 참고)
-            const colorCodeMap = {
-                'LB': 'Light Blue',
-                'GY': 'Grey',
-                'LG': 'Light Grey',  // Oxford Stripe 등에서 사용
-                'LGY': 'Light Grey',
-                'BK': 'Black',
-                'NV': 'Navy',
-                'WH': 'White',
-                'WT': 'White'
-            };
-            
-            // product_id에서 색상 코드 찾기
-            // 예: PM-25-SH-Teneu-Solid-LB-S/M/L → LB
-            // 예: PM-25-SH-Oxford-Stripe-GY-S/M/L → GY
-            const parts = productId.split('-');
-            
-            // 각 부분에서 색상 코드 검색
-            for (let i = 0; i < parts.length; i++) {
-                const part = parts[i].toUpperCase();
-                
-                // 직접 매칭
-                if (colorCodeMap[part]) {
-                    return colorCodeMap[part];
-                }
-                
-                // 슬래시로 분리된 경우 (예: BK/GY → GY)
-                if (part.includes('/')) {
-                    const subParts = part.split('/');
-                    for (const subPart of subParts) {
-                        if (colorCodeMap[subPart]) {
-                            return colorCodeMap[subPart];
-                        }
-                    }
-                }
-            }
-            
+            // ⚠️ DEPRECATED: 이 함수는 더 이상 사용하지 않음
+            // 색상 정보는 product_options 테이블에서만 조회
             return null;
         }
-        
-        // product_id에서 색상 추출
-        const extractedColor = extractColorFromProductId(product_id);
         
         // ⚠️ Phase 15: product_options 테이블에서 옵션 라인업 조회 (재고 상태와 관계없이)
         // product_options가 없으면 stock_units에서 fallback (하위 호환성)
@@ -430,15 +398,9 @@ router.get('/products/options', async (req, res) => {
             }
         });
         
-        // product_id에서 추출한 색상도 포함 (해당 상품에 존재하지 않더라도)
-        if (extractedColor) {
-            const normalizedExtractedColor = normalizeColor(extractedColor);
-            if (normalizedExtractedColor && !allColors.has(normalizedExtractedColor)) {
-                allColors.add(normalizedExtractedColor);
-                // product_id에서 추출한 색상은 available 여부를 확인할 수 없으므로 false
-                colorAvailableMap.set(normalizedExtractedColor, false);
-            }
-        }
+        // ⚠️ Phase 16-4: product_id에서 색상 추출 로직 제거
+        // product_options 테이블이 SSOT이므로 product_id 파싱 불필요
+        // product_options 또는 stock_units에 없는 색상은 표시하지 않음 (일관성 유지)
         
         // ⚠️ 특수 케이스: GY는 Grey로 매핑되지만, 실제 재고는 Light Grey일 수 있음
         // Oxford Stripe 같은 경우 GY가 Light Grey를 의미할 수 있음
@@ -454,10 +416,9 @@ router.get('/products/options', async (req, res) => {
         }));
         
         // 디버깅: 최종 결과 확인
-        console.log('✅ 상품 옵션 조회 완료 (product_options 기반):', {
+        Logger.log('✅ 상품 옵션 조회 완료 (product_options 기반):', {
             product_id: product_id,
             canonical_id: canonicalId,
-            extracted_color: extractedColor,
             sizes_with_stock: sizesWithStock,
             colors_with_stock: colorsWithStock,
             product_options_count: optionRows.length,
@@ -869,8 +830,6 @@ router.delete('/admin/products/:id', authenticateToken, requireAdmin, async (req
 
 // ==================== 관리자: 상품 옵션 관리 API ====================
 // Phase 15-3: 관리자 페이지 옵션 관리 기능
-
-const Logger = require('./logger');
 
 // 옵션 조회 (재고 상태 포함)
 router.get('/admin/products/:productId/options', authenticateToken, requireAdmin, async (req, res) => {

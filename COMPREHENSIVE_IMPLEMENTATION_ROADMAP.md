@@ -1700,11 +1700,11 @@ CREATE TABLE product_options (
 - 상세 계획은 `PRODUCT_ID_REFACTORING_PLAN.md` 참조
 - **GPT 제안 반영**: PK 직접 UPDATE 위험 회피, 옵션 B (병행 운영) 방식 채택
 
-**⚠️ 현재 상태 확인 필요**:
-- 마이그레이션 파일 `068_cutover_to_canonical_id.sql`, `069_remove_size_codes_from_ids.sql` 존재
-- 실제 실행 여부 확인 필요: `backend/scripts/check_product_id_format.sql` 실행 권장
-- 코드에서 여전히 `extractColorFromProductId()` 함수 사용 중 (색상 코드 파싱)
-- **추정**: 사이즈 코드는 제거되었을 가능성 높음, 색상 코드는 아직 남아있을 가능성 높음
+**✅ 현재 상태 확인 완료** (2026-01-16):
+- ✅ **사이즈 코드 제거 완료**: 모든 상품에서 사이즈 코드 제거됨 (슬래시 포함 0개, 단일 사이즈 코드 0개)
+- ⚠️ **색상 코드 유지**: 총 10개 상품 중 7개가 색상 코드 포함 (예: `PM-26-SH-Teneu-Solid-LB`)
+- ✅ **마이그레이션 컬럼 정리 완료**: `canonical_id`, `id_backup` 컬럼 제거됨 (071_cleanup_after_cutover.sql 실행 완료)
+- ⚠️ **코드 호환성**: `extractColorFromProductId()` 함수 여전히 사용 중 (색상 코드 파싱)
 
 **현재 문제점** (실제 상태 확인 후 업데이트 필요):
 1. **URL 라우팅 문제**: `PM-25-SH-Teneu-Solid-LB-S/M/L` 형식에 슬래시(`/`) 포함
