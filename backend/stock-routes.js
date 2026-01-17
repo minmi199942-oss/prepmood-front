@@ -537,6 +537,66 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
                 [insertValues]
             );
 
+            // ⚠️ Phase 16-4: product_options 자동 생성
+            // 재고 추가 시 해당 (product_id, size, color) 조합이 product_options에 없으면 자동 추가
+            // 색상 정규화 함수 (072_create_product_options_table.sql과 동일)
+            function normalizeColor(color) {
+                if (!color) return '';
+                const normalized = String(color).trim();
+                const upper = normalized.toUpperCase();
+                if (upper === 'LIGHTBLUE' || normalized.includes('LightBlue') || normalized.includes('Light-Blue') || upper === 'LB') {
+                    return 'Light Blue';
+                }
+                if (upper === 'LIGHTGREY' || normalized.includes('LightGrey') || normalized.includes('Light-Grey') || upper === 'LG' || upper === 'LGY') {
+                    return 'Light Grey';
+                }
+                if (upper === 'BK') return 'Black';
+                if (upper === 'NV') return 'Navy';
+                if (upper === 'WH' || upper === 'WT') return 'White';
+                if (upper === 'GY') return 'Grey';
+                if (upper === 'GRAY') return 'Grey';
+                return normalized;
+            }
+
+            function calculateSortOrder(size) {
+                if (!size) return 99;
+                const trimmed = String(size).trim();
+                const sizeOrder = { 'S': 1, 'M': 2, 'L': 3, 'XL': 4, 'XXL': 5, 'F': 6 };
+                return sizeOrder[trimmed] || 99;
+            }
+
+            // 추가된 재고의 고유한 (size, color) 조합 추출
+            const uniqueOptions = new Set();
+            insertValues.forEach(row => {
+                const size = row[1] || '';
+                const color = row[2] || '';
+                const key = `${(size || '').trim()}||${(color || '').trim()}`;
+                if (size || color) {
+                    uniqueOptions.add(key);
+                }
+            });
+
+            // 각 고유 옵션에 대해 product_options 생성
+            for (const optionKey of uniqueOptions) {
+                const [size, color] = optionKey.split('||');
+                const normalizedSize = (size || '').trim();
+                const normalizedColor = normalizeColor(color);
+                const sortOrder = calculateSortOrder(normalizedSize);
+
+                // INSERT IGNORE로 중복 방지
+                await connection.execute(
+                    `INSERT IGNORE INTO product_options (product_id, color, size, sort_order, is_active)
+                     VALUES (?, ?, ?, ?, 1)`,
+                    [productIds.canonical_id, normalizedColor || '', normalizedSize || '', sortOrder]
+                );
+            }
+
+            Logger.log('[STOCK] product_options 자동 생성 완료', {
+                product_id: productIds.canonical_id,
+                unique_options_count: uniqueOptions.size,
+                admin: req.user.email
+            });
+
             await connection.commit();
             await connection.end();
 
