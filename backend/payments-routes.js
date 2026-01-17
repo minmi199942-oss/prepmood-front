@@ -28,6 +28,7 @@ const router = express.Router();
 const mysql = require('mysql2/promise');
 const { authenticateToken } = require('./auth-middleware');
 const { verifyCSRF } = require('./csrf-middleware');
+const { sendOrderConfirmationEmail } = require('./mailer');
 const Logger = require('./logger');
 const crypto = require('crypto');
 const { createInvoiceFromOrder } = require('./utils/invoice-creator');
@@ -640,6 +641,95 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             invoiceNumber
         });
 
+        // ============================================================
+        // 10. 주문 확인 이메일 발송 (트랜잭션 외부)
+        // ============================================================
+        if (paidProcessed && paidResult?.data?.orderInfo) {
+            try {
+                const orderInfo = paidResult.data.orderInfo;
+                
+                // 주문 항목 정보 조회 (별도 커넥션)
+                const emailConnection = await mysql.createConnection(dbConfig);
+                try {
+                    const [orderItems] = await emailConnection.execute(
+                        `SELECT 
+                            product_name,
+                            size,
+                            color,
+                            quantity,
+                            unit_price,
+                            subtotal
+                        FROM order_items
+                        WHERE order_id = ?
+                        ORDER BY order_item_id`,
+                        [orderInfo.order_id]
+                    );
+                    await emailConnection.end();
+
+                    // 이메일 수신자 결정
+                    const recipientEmail = orderInfo.user_email || orderInfo.shipping_email;
+                    
+                    if (!recipientEmail) {
+                        Logger.warn('[payments][confirm] 이메일 발송 건너뜀 (수신자 이메일 없음)', {
+                            order_id: orderInfo.order_id,
+                            order_number: orderInfo.order_number
+                        });
+                    } else {
+                        // 주문 링크 생성
+                        let orderLink;
+                        if (orderInfo.guest_access_token) {
+                            // 비회원 주문: 세션 토큰 교환 링크
+                            const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
+                            orderLink = `${baseUrl}/api/guest/orders/session?token=${orderInfo.guest_access_token}`;
+                        } else {
+                            // 회원 주문: 주문 내역 페이지
+                            const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
+                            orderLink = `${baseUrl}/my-orders.html`;
+                        }
+
+                        // 이메일 발송 (비동기, 실패해도 주문 성공은 유지)
+                        const emailResult = await sendOrderConfirmationEmail(recipientEmail, {
+                            orderNumber: orderInfo.order_number,
+                            orderDate: orderInfo.order_date,
+                            totalAmount: orderInfo.total_amount,
+                            items: orderItems,
+                            orderLink: orderLink,
+                            isGuest: !!orderInfo.guest_access_token
+                        });
+
+                        if (emailResult.success) {
+                            Logger.log('[payments][confirm] 주문 확인 이메일 발송 완료', {
+                                order_id: orderInfo.order_id,
+                                order_number: orderInfo.order_number,
+                                recipient: recipientEmail
+                            });
+                        } else {
+                            Logger.warn('[payments][confirm] 주문 확인 이메일 발송 실패 (주문은 성공)', {
+                                order_id: orderInfo.order_id,
+                                order_number: orderInfo.order_number,
+                                recipient: recipientEmail,
+                                error: emailResult.error
+                            });
+                        }
+                    }
+                } catch (emailError) {
+                    // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
+                    Logger.error('[payments][confirm] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
+                        order_id: orderInfo.order_id,
+                        order_number: orderInfo.order_number,
+                        error: emailError.message,
+                        stack: emailError.stack
+                    });
+                }
+            } catch (emailError) {
+                // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
+                Logger.error('[payments][confirm] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
+                    orderNumber,
+                    error: emailError.message
+                });
+            }
+        }
+
         res.json({
             success: true,
             data: {
@@ -1163,6 +1253,155 @@ router.post('/payments/inicis/return', async (req, res) => {
             status: paymentStatus
         });
 
+        // ============================================================
+        // 주문 확인 이메일 발송 (트랜잭션 외부)
+        // ============================================================
+        if (paymentStatus === 'captured' && !paidProcessError) {
+            try {
+                // paidResult가 스코프에 있는지 확인
+                let orderInfoForEmail = null;
+                if (typeof paidResult !== 'undefined' && paidResult?.data?.orderInfo) {
+                    orderInfoForEmail = paidResult.data.orderInfo;
+                } else {
+                    // paidResult가 없으면 주문 정보를 별도로 조회
+                    const emailConnection = await mysql.createConnection(dbConfig);
+                    try {
+                        const [orderRows] = await emailConnection.execute(
+                            `SELECT 
+                                o.order_id,
+                                o.order_number,
+                                o.user_id,
+                                o.guest_id,
+                                o.total_price,
+                                o.shipping_email,
+                                o.created_at,
+                                u.email as user_email
+                            FROM orders o
+                            LEFT JOIN users u ON o.user_id = u.user_id
+                            WHERE o.order_id = ?`,
+                            [order.order_id]
+                        );
+                        
+                        if (orderRows.length > 0) {
+                            const orderRow = orderRows[0];
+                            
+                            // guest_order_access_tokens 조회 (비회원 주문인 경우)
+                            let guestAccessToken = null;
+                            if (orderRow.guest_id && !orderRow.user_id) {
+                                const [tokenRows] = await emailConnection.execute(
+                                    `SELECT token FROM guest_order_access_tokens 
+                                     WHERE order_id = ? AND revoked_at IS NULL 
+                                     ORDER BY created_at DESC LIMIT 1`,
+                                    [order.order_id]
+                                );
+                                if (tokenRows.length > 0) {
+                                    guestAccessToken = tokenRows[0].token;
+                                }
+                            }
+                            
+                            orderInfoForEmail = {
+                                order_id: orderRow.order_id,
+                                order_number: orderRow.order_number,
+                                order_date: orderRow.created_at,
+                                total_amount: orderRow.total_price,
+                                user_email: orderRow.user_email,
+                                shipping_email: orderRow.shipping_email,
+                                user_id: orderRow.user_id,
+                                guest_id: orderRow.guest_id,
+                                guest_access_token: guestAccessToken
+                            };
+                        }
+                        await emailConnection.end();
+                    } catch (queryError) {
+                        await emailConnection.end();
+                        throw queryError;
+                    }
+                }
+                
+                if (orderInfoForEmail) {
+                    // 주문 항목 정보 조회 (별도 커넥션)
+                    const emailConnection = await mysql.createConnection(dbConfig);
+                    try {
+                        const [orderItems] = await emailConnection.execute(
+                            `SELECT 
+                                product_name,
+                                size,
+                                color,
+                                quantity,
+                                unit_price,
+                                subtotal
+                            FROM order_items
+                            WHERE order_id = ?
+                            ORDER BY order_item_id`,
+                            [orderInfoForEmail.order_id]
+                        );
+                        await emailConnection.end();
+
+                        // 이메일 수신자 결정
+                        const recipientEmail = orderInfoForEmail.user_email || orderInfoForEmail.shipping_email;
+                        
+                        if (!recipientEmail) {
+                            Logger.warn('[payments][inicis] 이메일 발송 건너뜀 (수신자 이메일 없음)', {
+                                order_id: orderInfoForEmail.order_id,
+                                order_number: orderInfoForEmail.order_number
+                            });
+                        } else {
+                            // 주문 링크 생성
+                            let orderLink;
+                            if (orderInfoForEmail.guest_access_token) {
+                                // 비회원 주문: 세션 토큰 교환 링크
+                                const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
+                                orderLink = `${baseUrl}/api/guest/orders/session?token=${orderInfoForEmail.guest_access_token}`;
+                            } else {
+                                // 회원 주문: 주문 내역 페이지
+                                const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
+                                orderLink = `${baseUrl}/my-orders.html`;
+                            }
+
+                            // 이메일 발송 (비동기, 실패해도 주문 성공은 유지)
+                            const emailResult = await sendOrderConfirmationEmail(recipientEmail, {
+                                orderNumber: orderInfoForEmail.order_number,
+                                orderDate: orderInfoForEmail.order_date,
+                                totalAmount: orderInfoForEmail.total_amount,
+                                items: orderItems,
+                                orderLink: orderLink,
+                                isGuest: !!orderInfoForEmail.guest_access_token
+                            });
+
+                            if (emailResult.success) {
+                                Logger.log('[payments][inicis] 주문 확인 이메일 발송 완료', {
+                                    order_id: orderInfoForEmail.order_id,
+                                    order_number: orderInfoForEmail.order_number,
+                                    recipient: recipientEmail
+                                });
+                            } else {
+                                Logger.warn('[payments][inicis] 주문 확인 이메일 발송 실패 (주문은 성공)', {
+                                    order_id: orderInfoForEmail.order_id,
+                                    order_number: orderInfoForEmail.order_number,
+                                    recipient: recipientEmail,
+                                    error: emailResult.error
+                                });
+                            }
+                        }
+                    } catch (emailError) {
+                        // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
+                        Logger.error('[payments][inicis] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
+                            order_id: orderInfoForEmail.order_id,
+                            order_number: orderInfoForEmail.order_number,
+                            error: emailError.message,
+                            stack: emailError.stack
+                        });
+                    }
+                }
+            } catch (emailError) {
+                // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
+                Logger.error('[payments][inicis] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
+                    orderNumber,
+                    error: emailError.message
+                });
+            }
+        }
+
         // 성공 페이지로 리다이렉트
         return res.redirect(`/order-complete.html?orderId=${orderNumber}&amount=${amount}`);
 
@@ -1464,6 +1703,7 @@ async function handlePaymentStatusChange(connection, data) {
 
         // Paid 처리 (결제 성공 시에만)
         // 중요: paid_events는 별도 커넥션(autocommit)으로 먼저 생성 (결제 증거 보존)
+        let paidResultForEmail = null;
         if (paymentStatus === 'captured' && orderIdForPaidProcess) {
             try {
                 // paid_events 생성 (별도 커넥션, autocommit - 항상 남김)
@@ -1498,6 +1738,9 @@ async function handlePaymentStatusChange(connection, data) {
                     eventSource: 'webhook',
                     rawPayload: verifiedPayment
                 });
+                
+                // 이메일 발송을 위한 정보 저장
+                paidResultForEmail = paidResult;
                 
                 // orders.status 집계 함수 호출 (processPaidOrder 후)
                 // ⚠️ 중요: orders.status는 order_item_units.unit_status와 paid_events 기반으로 집계
@@ -1542,6 +1785,18 @@ async function handlePaymentStatusChange(connection, data) {
         });
         throw error;
     }
+    
+    // Paid 처리 성공 시 이메일 발송을 위한 정보 반환
+    // (호출하는 곳에서 commit 후 이메일 발송)
+    if (paymentStatus === 'captured' && orderIdForPaidProcess && paidResultForEmail?.data?.orderInfo) {
+        return {
+            shouldSendEmail: true,
+            orderInfo: paidResultForEmail.data.orderInfo,
+            orderId: orderIdForPaidProcess
+        };
+    }
+    
+    return { shouldSendEmail: false };
 }
 
 /**
@@ -1596,10 +1851,11 @@ router.post('/payments/webhook', async (req, res) => {
 
             // 이벤트 타입에 따른 처리
             // 토스페이먼츠 가이드: seller.changed = 결제 상태 변경 이벤트
+            let emailInfo = null;
             if (eventType === 'PAYMENT_STATUS_CHANGED' || 
                 eventType === 'CANCEL_STATUS_CHANGED' || 
                 eventType === 'seller.changed') {
-                await handlePaymentStatusChange(connection, data);
+                emailInfo = await handlePaymentStatusChange(connection, data);
             } else if (eventType === 'DEPOSIT_CALLBACK') {
                 await handleDepositCallback(connection, data);
             } else if (eventType === 'payout.changed') {
@@ -1613,7 +1869,95 @@ router.post('/payments/webhook', async (req, res) => {
             }
 
             await connection.commit();
+            await connection.end();
             Logger.log('✅ [payments][webhook] 웹훅 처리 완료', { eventType });
+
+            // ============================================================
+            // 주문 확인 이메일 발송 (트랜잭션 외부)
+            // ============================================================
+            if (emailInfo && emailInfo.shouldSendEmail) {
+                try {
+                    // 주문 항목 정보 조회 (별도 커넥션)
+                    const emailConnection = await mysql.createConnection(dbConfig);
+                    try {
+                        const [orderItems] = await emailConnection.execute(
+                            `SELECT 
+                                product_name,
+                                size,
+                                color,
+                                quantity,
+                                unit_price,
+                                subtotal
+                            FROM order_items
+                            WHERE order_id = ?
+                            ORDER BY order_item_id`,
+                            [emailInfo.orderId]
+                        );
+                        await emailConnection.end();
+
+                        // 이메일 수신자 결정
+                        const recipientEmail = emailInfo.orderInfo.user_email || emailInfo.orderInfo.shipping_email;
+                        
+                        if (!recipientEmail) {
+                            Logger.warn('[payments][webhook] 이메일 발송 건너뜀 (수신자 이메일 없음)', {
+                                order_id: emailInfo.orderId,
+                                order_number: emailInfo.orderInfo.order_number
+                            });
+                        } else {
+                            // 주문 링크 생성
+                            let orderLink;
+                            if (emailInfo.orderInfo.guest_access_token) {
+                                // 비회원 주문: 세션 토큰 교환 링크
+                                const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
+                                orderLink = `${baseUrl}/api/guest/orders/session?token=${emailInfo.orderInfo.guest_access_token}`;
+                            } else {
+                                // 회원 주문: 주문 내역 페이지
+                                const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
+                                orderLink = `${baseUrl}/my-orders.html`;
+                            }
+
+                            // 이메일 발송 (비동기, 실패해도 주문 성공은 유지)
+                            const emailResult = await sendOrderConfirmationEmail(recipientEmail, {
+                                orderNumber: emailInfo.orderInfo.order_number,
+                                orderDate: emailInfo.orderInfo.order_date,
+                                totalAmount: emailInfo.orderInfo.total_amount,
+                                items: orderItems,
+                                orderLink: orderLink,
+                                isGuest: !!emailInfo.orderInfo.guest_access_token
+                            });
+
+                            if (emailResult.success) {
+                                Logger.log('[payments][webhook] 주문 확인 이메일 발송 완료', {
+                                    order_id: emailInfo.orderId,
+                                    order_number: emailInfo.orderInfo.order_number,
+                                    recipient: recipientEmail
+                                });
+                            } else {
+                                Logger.warn('[payments][webhook] 주문 확인 이메일 발송 실패 (주문은 성공)', {
+                                    order_id: emailInfo.orderId,
+                                    order_number: emailInfo.orderInfo.order_number,
+                                    recipient: recipientEmail,
+                                    error: emailResult.error
+                                });
+                            }
+                        }
+                    } catch (emailError) {
+                        // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
+                        Logger.error('[payments][webhook] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
+                            order_id: emailInfo.orderId,
+                            order_number: emailInfo.orderInfo.order_number,
+                            error: emailError.message,
+                            stack: emailError.stack
+                        });
+                    }
+                } catch (emailError) {
+                    // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
+                    Logger.error('[payments][webhook] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
+                        orderId: emailInfo.orderId,
+                        error: emailError.message
+                    });
+                }
+            }
 
         } catch (webhookError) {
             if (connection) {

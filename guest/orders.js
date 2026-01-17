@@ -116,10 +116,9 @@ function renderOrderDetail(data) {
   // 배송지 정보
   const shippingInfoList = document.getElementById('shipping-info-list');
   if (shippingInfoList) {
-    const fullName = [shipping.first_name, shipping.last_name].filter(Boolean).join(' ') || '-';
     shippingInfoList.innerHTML = `
       <dt>이름</dt>
-      <dd>${escapeHtml(fullName)}</dd>
+      <dd>${escapeHtml(shipping.name || '-')}</dd>
       <dt>이메일</dt>
       <dd>${escapeHtml(shipping.email || '-')}</dd>
       <dt>전화번호</dt>

@@ -170,6 +170,8 @@
       });
 
       const customerName = order.shipping_name || order.customer_name || '-';
+      const customerEmail = order.shipping_email || order.customer_email || '';
+      const isGuestOrder = !order.user_id && order.guest_id;
       
       const itemsSummary = order.items.length > 0 
         ? order.items.slice(0, 2).map(item => 
@@ -187,11 +189,14 @@
 
       return `
         <tr data-order-id="${order.order_id}">
-          <td><strong>${order.order_number || `#${order.order_id}`}</strong></td>
+          <td>
+            <strong>${order.order_number || `#${order.order_id}`}</strong>
+            ${isGuestOrder ? '<br><small class="badge badge-secondary" style="font-size: 0.7rem; margin-top: 0.25rem;">비회원</small>' : ''}
+          </td>
           <td>${dateStr}</td>
           <td>
             ${customerName}<br>
-            <small style="color: #6c757d;">${order.customer_email || ''}</small>
+            <small style="color: #6c757d;">${customerEmail}</small>
           </td>
           <td>${itemsSummary}${moreItems}</td>
           <td><strong>${priceFormatted}</strong></td>
@@ -369,6 +374,7 @@
     const customerName = order.customer_info?.name || order.shipping_info?.name || '-';
     const customerEmail = order.customer_info?.email || order.shipping_info?.email || '-';
     const customerPhone = order.customer_info?.phone || order.shipping_info?.phone || '-';
+    const isGuestOrder = !order.user_id && order.guest_id;
     
     const priceFormatted = new Intl.NumberFormat('ko-KR', {
       style: 'currency',
@@ -587,6 +593,19 @@
           <dl>
             <dt>주문번호</dt>
             <dd>${escapeHtml(order.order_number || `#${order.order_id}`)}</dd>
+            <dt>주문 유형</dt>
+            <dd>
+              ${isGuestOrder 
+                ? '<span class="badge badge-secondary">비회원 주문</span>' 
+                : '<span class="badge badge-primary">회원 주문</span>'}
+            </dd>
+            ${isGuestOrder ? `
+            <dt>Guest ID</dt>
+            <dd><code style="font-size: 0.85rem;">${escapeHtml(order.guest_id)}</code></dd>
+            ` : order.user_id ? `
+            <dt>회원 ID</dt>
+            <dd>${escapeHtml(order.user_id)}</dd>
+            ` : ''}
             <dt>주문일시</dt>
             <dd>${new Date(order.created_at).toLocaleString('ko-KR')}</dd>
             <dt>결제일시</dt>

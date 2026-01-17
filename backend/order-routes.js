@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const mysql = require('mysql2/promise');
-const { authenticateToken } = require('./auth-middleware');
+const { authenticateToken, optionalAuth } = require('./auth-middleware');
 const { verifyCSRF } = require('./csrf-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
@@ -400,14 +400,26 @@ const dbConfig = {
     queueLimit: 0
 };
 
-// 주문 생성 API
-router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, async (req, res) => {
+// 주문 생성 API (회원/비회원 지원)
+router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (req, res) => {
     let connection;
     try {
         // 0) Idempotency-Key 처리 (중복 생성 방지)
         // Express 헤더 읽기: req.get() 또는 req.headers 사용 (case-insensitive)
         const idemKey = req.get('X-Idempotency-Key') || req.headers['x-idempotency-key'] || req.headers['X-Idempotency-Key'];
         const userId = req.user?.userId || null;
+        
+        // 비회원 주문 처리: guest_id 및 owner_key 생성
+        let guestId = null;
+        let ownerKey = null;
+        
+        if (!userId) {
+            // guest_id 생성 (UUID v4 형식)
+            guestId = crypto.randomUUID();
+            ownerKey = `g:${guestId}`;
+        } else {
+            ownerKey = `u:${userId}`;
+        }
         
         // 디버깅: 헤더 확인
         Logger.log('주문 생성 - Idempotency Key 확인', {
@@ -417,9 +429,12 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
             headersKeys: Object.keys(req.headers).filter(k => k.toLowerCase().includes('idempotency'))
         });
 
-        // userId 검증 로그
-        Logger.log('주문 생성 요청 - userId 확인', {
+        // userId/guestId 검증 로그
+        Logger.log('주문 생성 요청 - 사용자 확인', {
             userId: userId,
+            guestId: guestId,
+            ownerKey: ownerKey,
+            authType: req.authType,
             userIdType: typeof userId,
             userInfo: userId ? { userId } : 'null',
             hasUser: !!req.user,
@@ -438,19 +453,23 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
 
         connection = await mysql.createConnection(dbConfig);
 
-        // 기존 동일 키 존재 여부 확인
+        // 기존 동일 키 존재 여부 확인 (owner_key 기반)
         const [idemRows] = await connection.execute(
-            'SELECT order_number FROM orders_idempotency WHERE user_id = ? AND idem_key = ? LIMIT 1',
-            [userId, idemKey]
+            'SELECT order_number FROM orders_idempotency WHERE owner_key = ? AND idem_key = ? LIMIT 1',
+            [ownerKey, idemKey]
         );
 
         if (idemRows.length) {
             // 같은 응답 스펙으로 재전송(멱등성)
             const prevOrder = idemRows[0].order_number;
+            // 주문 조회 시 user_id 또는 guest_id로 조회
             const [rows] = await connection.execute(
-                `SELECT order_number, total_price AS amount, estimated_delivery AS eta, status
-                 FROM orders WHERE order_number = ? AND user_id = ? LIMIT 1`,
-                [prevOrder, userId]
+                userId
+                    ? `SELECT order_number, total_price AS amount, estimated_delivery AS eta, status
+                       FROM orders WHERE order_number = ? AND user_id = ? LIMIT 1`
+                    : `SELECT order_number, total_price AS amount, estimated_delivery AS eta, status
+                       FROM orders WHERE order_number = ? AND guest_id = ? LIMIT 1`,
+                [prevOrder, userId || guestId]
             );
             if (rows.length) {
                 await connection.end();
@@ -563,14 +582,14 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
                             ? `${shipping.recipient_last_name} ${shipping.recipient_first_name}`.trim()
                             : (shipping.recipient_first_name || shipping.recipient_last_name || '')));
                     
-                    // orders 테이블에 주문 생성 (배송 정보 및 주문번호 포함)
+                    // orders 테이블에 주문 생성 (배송 정보 및 주문번호 포함, guest_id 추가)
                     [orderResult] = await connection.execute(
-                        `INSERT INTO orders (user_id, order_number, total_price, status, 
+                        `INSERT INTO orders (user_id, guest_id, order_number, total_price, status, 
                          shipping_name, shipping_email, shipping_phone,
                          shipping_address, shipping_city, shipping_postal_code, shipping_country,
                          shipping_method, shipping_cost, estimated_delivery) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [userId, orderNumber, finalTotal, 'pending',
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [userId, guestId, orderNumber, finalTotal, 'pending',
                          shippingName, shipping.email, shipping.phone,
                          shipping.address, shipping.city, shipping.postal_code, shipping.country,
                          shipping.method || 'standard', shipping.cost || 0, etaStr]
@@ -630,10 +649,10 @@ router.post('/orders', authenticateToken, verifyCSRF, orderCreationLimiter, asyn
             //     throw new Error('결제 사전승인 실패: ' + paymentResult.error);
             // }
 
-            // N) Idempotency 기록 저장
+            // N) Idempotency 기록 저장 (owner_key 기반)
             await connection.execute(
-                'INSERT IGNORE INTO orders_idempotency (user_id, idem_key, order_number) VALUES (?, ?, ?)',
-                [userId, idemKey, orderNumber]
+                'INSERT IGNORE INTO orders_idempotency (owner_key, idem_key, order_number) VALUES (?, ?, ?)',
+                [ownerKey, idemKey, orderNumber]
             );
 
             // 트랜잭션 커밋
@@ -1613,11 +1632,10 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
             `SELECT 
                 o.order_id,
                 o.order_number,
-                o.created_at AS order_date,
+                o.order_date AS order_date,
                 o.total_price,
                 o.status,
-                o.shipping_first_name,
-                o.shipping_last_name,
+                o.shipping_name,
                 o.shipping_email,
                 o.shipping_phone,
                 o.shipping_address,
@@ -1641,19 +1659,18 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
 
         const order = orders[0];
 
-        // 8. 주문 항목 조회
+        // 8. 주문 항목 조회 (order_items에 이미 product_name이 저장되어 있음)
         const [items] = await connection.execute(
             `SELECT 
                 oi.order_item_id,
                 oi.product_id,
+                oi.product_name,
                 oi.quantity,
-                oi.price,
+                oi.unit_price AS price,
                 oi.size,
                 oi.color,
-                p.name AS product_name,
-                p.product_id AS product_code
+                oi.product_image
             FROM order_items oi
-            INNER JOIN products p ON oi.product_id = p.product_id
             WHERE oi.order_id = ?
             ORDER BY oi.order_item_id`,
             [order.order_id]
@@ -1727,8 +1744,7 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
                 created_at: payment.payment_created_at
             } : null,
             shipping: {
-                first_name: order.shipping_first_name,
-                last_name: order.shipping_last_name,
+                name: order.shipping_name,
                 email: order.shipping_email,
                 phone: order.shipping_phone,
                 address: order.shipping_address,
@@ -1737,8 +1753,9 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
                 country: order.shipping_country
             },
             items: items.map(item => ({
+                product_id: item.product_id,
                 product_name: item.product_name,
-                product_code: item.product_code,
+                product_image: item.product_image,
                 quantity: item.quantity,
                 price: parseFloat(item.price),
                 size: item.size,

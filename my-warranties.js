@@ -213,9 +213,14 @@ async function handleActivate(warrantyId) {
     }
     
     if (data.success) {
-      alert('보증서가 성공적으로 활성화되었습니다.');
-      // 목록 새로고침
-      await loadWarranties(0, DEFAULT_LIMIT);
+      // 보증서 활성화 성공 시 success 페이지로 리다이렉트
+      if (data.warranty && data.warranty.public_id) {
+        window.location.href = `/warranty-activate-success?public_id=${encodeURIComponent(data.warranty.public_id)}`;
+      } else {
+        alert('보증서가 성공적으로 활성화되었습니다.');
+        // 목록 새로고침
+        await loadWarranties(0, DEFAULT_LIMIT);
+      }
     } else {
       throw new Error(data.message || '활성화 실패');
     }

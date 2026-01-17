@@ -598,7 +598,8 @@ async function processPayment(orderData) {
       if (response.status === 400) {
         errorMessage = '입력값을 다시 확인해주세요.';
       } else if (response.status === 401 || response.status === 403) {
-        errorMessage = '로그인이 필요합니다.';
+        // 401/403은 인증/권한 문제일 수 있으나, 비회원 주문도 가능하므로 일반적인 에러 메시지 사용
+        errorMessage = '주문 생성 권한이 없거나 세션이 만료되었습니다.';
       } else if (response.status >= 500) {
         errorMessage = '일시적 오류입니다. 잠시 후 다시 시도해주세요.';
       }

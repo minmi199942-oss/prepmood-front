@@ -426,20 +426,25 @@
                             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                         </svg>
                     </div>
-                    <span>정품 인증 완료</span>
+                    <span><%= typeof is_activation !== 'undefined' && is_activation ? '보증서 활성화 완료' : '정품 인증 완료' %></span>
                 </div>
             </div>
             
             <!-- 안내 문구 -->
             <div class="info-text">
-                <p>디지털 보증서가 발급되었습니다.</p>
-                <p>발급된 보증서는 마이페이지 > 내 보증서에서 언제든 확인할 수 있습니다.</p>
+                <% if (typeof is_activation !== 'undefined' && is_activation) { %>
+                    <p>보증서가 성공적으로 활성화되었습니다.</p>
+                    <p>활성화된 보증서는 양도 및 환불 정책이 적용됩니다.</p>
+                <% } else { %>
+                    <p>디지털 보증서가 발급되었습니다.</p>
+                    <p>발급된 보증서는 마이페이지 > 내 보증서에서 언제든 확인할 수 있습니다.</p>
+                <% } %>
             </div>
             
             <!-- 버튼 영역 -->
             <div class="button-section">
                 <% if (warranty_public_id) { %>
-                    <a href="/digital-warranty.html" class="btn btn-primary">보증서 확인하기</a>
+                    <a href="<%= typeof is_activation !== 'undefined' && is_activation ? '/my-warranties.html' : '/digital-warranty.html' %>" class="btn btn-primary"><%= typeof is_activation !== 'undefined' && is_activation ? '보증서 목록 보기' : '보증서 확인하기' %></a>
                 <% } %>
                 <a href="/index.html" class="btn btn-secondary">홈으로 돌아가기</a>
             </div>

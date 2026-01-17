@@ -1,0 +1,112 @@
+### 보증서 활성화 API 테스트
+### REST Client 형식 테스트 스크립트
+### VS Code REST Client 확장 프로그램 또는 JetBrains HTTP Client에서 사용 가능
+
+@baseUrl = http://localhost:3000/api
+@baseUrlProd = https://prepmood.kr/api
+
+### ============================================
+### 1. 정상 케이스: 보증서 활성화
+### ============================================
+### 전제 조건:
+### - warranty_id가 issued 상태
+### - owner_user_id가 현재 로그인한 user_id와 일치
+### - 주문이 계정에 연동되어 있고 환불되지 않음
+### 
+### 사용법:
+### 1. 아래 warrantyId를 실제 테스트할 보증서 ID로 변경
+### 2. JWT 토큰을 실제 토큰으로 변경 (브라우저 개발자 도구에서 확인)
+### 3. 요청 실행
+
+POST {{baseUrl}}/warranties/1/activate
+Content-Type: application/json
+Cookie: token=YOUR_JWT_TOKEN_HERE
+
+{
+  "agree": true
+}
+
+### ============================================
+### 2. 에러 케이스: 동의 없음
+### ============================================
+POST {{baseUrl}}/warranties/1/activate
+Content-Type: application/json
+Cookie: token=YOUR_JWT_TOKEN_HERE
+
+{
+  "agree": false
+}
+
+### ============================================
+### 3. 에러 케이스: 동의 필드 누락
+### ============================================
+POST {{baseUrl}}/warranties/1/activate
+Content-Type: application/json
+Cookie: token=YOUR_JWT_TOKEN_HERE
+
+{
+}
+
+### ============================================
+### 4. 에러 케이스: 존재하지 않는 보증서
+### ============================================
+POST {{baseUrl}}/warranties/999999/activate
+Content-Type: application/json
+Cookie: token=YOUR_JWT_TOKEN_HERE
+
+{
+  "agree": true
+}
+
+### ============================================
+### 5. 에러 케이스: 소유자 불일치
+### ============================================
+### 전제 조건:
+### - warranty_id의 owner_user_id가 현재 로그인한 user_id와 다름
+### 
+### 사용법:
+### 1. 다른 사용자 계정으로 로그인
+### 2. 다른 사용자의 보증서 ID로 요청
+POST {{baseUrl}}/warranties/1/activate
+Content-Type: application/json
+Cookie: token=YOUR_JWT_TOKEN_HERE
+
+{
+  "agree": true
+}
+
+### ============================================
+### 6. 에러 케이스: 이미 활성화된 보증서
+### ============================================
+### 전제 조건:
+### - warranty_id의 status가 'active'
+POST {{baseUrl}}/warranties/1/activate
+Content-Type: application/json
+Cookie: token=YOUR_JWT_TOKEN_HERE
+
+{
+  "agree": true
+}
+
+### ============================================
+### 7. 에러 케이스: 환불된 보증서
+### ============================================
+### 전제 조건:
+### - warranty_id의 status가 'revoked'
+POST {{baseUrl}}/warranties/1/activate
+Content-Type: application/json
+Cookie: token=YOUR_JWT_TOKEN_HERE
+
+{
+  "agree": true
+}
+
+### ============================================
+### 8. 에러 케이스: 인증 토큰 없음
+### ============================================
+POST {{baseUrl}}/warranties/1/activate
+Content-Type: application/json
+
+{
+  "agree": true
+}

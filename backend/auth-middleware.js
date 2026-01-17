@@ -89,6 +89,7 @@ function authenticateToken(req, res, next) {
  * - 토큰이 있으면 검증하고 req.user에 저장
  * - 토큰이 없어도 next() 호출 (에러 없음)
  * - 로그인/비로그인 모두 접근 가능한 API에 사용
+ * - req.authType 플래그 추가: 'user' | 'anonymous'
  */
 function optionalAuth(req, res, next) {
     const token = req.cookies?.accessToken;
@@ -96,6 +97,7 @@ function optionalAuth(req, res, next) {
     if (!token) {
         // 토큰 없음 - 비로그인 상태로 진행
         req.user = null;
+        req.authType = 'anonymous'; // ✅ 추가: 명시적 플래그
         return next();
     }
 
@@ -106,11 +108,13 @@ function optionalAuth(req, res, next) {
             email: decoded.email,
             name: decoded.name
         };
+        req.authType = 'user'; // ✅ 추가: 명시적 플래그
         console.log(`✅ 선택적 인증 성공: ${decoded.email}`);
     } catch (error) {
         // 토큰이 유효하지 않아도 에러 없이 진행
         console.log(`⚠️ 선택적 인증 실패 (무시): ${error.message}`);
         req.user = null;
+        req.authType = 'anonymous'; // ✅ 추가: 명시적 플래그
     }
     
     next();

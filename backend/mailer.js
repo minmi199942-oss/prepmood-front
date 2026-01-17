@@ -407,9 +407,188 @@ Timeless lines, Refined Vibes
     }
 };
 
+/**
+ * 주문 확인 이메일 발송
+ * @param {String} to - 수신자 이메일
+ * @param {Object} data - { orderNumber, orderDate, totalAmount, items, orderLink, isGuest }
+ * @returns {Promise<Object>} { success: boolean, error?: string }
+ */
+const sendOrderConfirmationEmail = async (to, { orderNumber, orderDate, totalAmount, items, orderLink, isGuest = false }) => {
+    try {
+        console.log('📧 주문 확인 이메일 전송 시작...');
+        console.log(`📬 수신자: ${to}`);
+        console.log(`📦 주문번호: ${orderNumber}`);
+
+        if (!process.env.MAILERSEND_API_KEY) {
+            console.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            return { 
+                success: false, 
+                error: 'MAILERSEND_API_KEY가 설정되지 않았습니다.',
+                service: 'mailersend'
+            };
+        }
+
+        const sentFrom = new Sender(process.env.MAILERSEND_FROM_EMAIL, "Pre.p Mood");
+        const recipients = [new Recipient(to, to)];
+
+        // 주문 항목 HTML 생성
+        const itemsHtml = items.map(item => `
+            <tr style="border-bottom: 1px solid #dee2e6;">
+                <td style="padding: 12px; text-align: left;">${escapeHtml(item.product_name || '-')}</td>
+                <td style="padding: 12px; text-align: center;">${item.size || '-'} / ${item.color || '-'}</td>
+                <td style="padding: 12px; text-align: center;">${item.quantity || 1}</td>
+                <td style="padding: 12px; text-align: right;">${Number(item.subtotal || item.unit_price || 0).toLocaleString('ko-KR')}원</td>
+            </tr>
+        `).join('');
+
+        const emailParams = new EmailParams()
+            .setFrom(sentFrom)
+            .setTo(recipients)
+            .setReplyTo(sentFrom)
+            .setSubject(`[Pre.p Mood] 주문 확인 - ${orderNumber}`)
+            .setHtml(`
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #333; margin: 0;">Pre.p Mood</h1>
+                        <p style="color: #666; margin: 5px 0;">Timeless lines, Refined Vibes</p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 30px; border-radius: 10px;">
+                        <h2 style="color: #333; margin-bottom: 20px;">주문이 완료되었습니다</h2>
+                        <p style="color: #666; margin-bottom: 30px;">
+                            주문해주셔서 감사합니다. 주문이 성공적으로 접수되었습니다.
+                        </p>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                            <h3 style="color: #333; margin-top: 0; margin-bottom: 15px;">주문 정보</h3>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 8px 0; color: #666; width: 120px;">주문번호:</td>
+                                    <td style="padding: 8px 0; color: #333; font-weight: bold;">${escapeHtml(orderNumber)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #666;">주문일시:</td>
+                                    <td style="padding: 8px 0; color: #333;">${orderDate ? new Date(orderDate).toLocaleString('ko-KR') : '-'}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0; color: #666;">주문 금액:</td>
+                                    <td style="padding: 8px 0; color: #333; font-weight: bold; font-size: 18px;">${Number(totalAmount).toLocaleString('ko-KR')}원</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                            <h3 style="color: #333; margin-top: 0; margin-bottom: 15px;">주문 상품</h3>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                        <th style="padding: 12px; text-align: left; font-weight: bold;">상품명</th>
+                                        <th style="padding: 12px; text-align: center; font-weight: bold;">옵션</th>
+                                        <th style="padding: 12px; text-align: center; font-weight: bold;">수량</th>
+                                        <th style="padding: 12px; text-align: right; font-weight: bold;">금액</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsHtml}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="3" style="padding: 12px; text-align: right; font-weight: bold; border-top: 2px solid #dee2e6;">총 주문 금액:</td>
+                                        <td style="padding: 12px; text-align: right; font-weight: bold; font-size: 18px; border-top: 2px solid #dee2e6;">${Number(totalAmount).toLocaleString('ko-KR')}원</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${orderLink}" 
+                               style="display: inline-block; background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                ${isGuest ? '주문 상세 보기' : '주문 내역 보기'}
+                            </a>
+                        </div>
+                        
+                        ${isGuest ? `
+                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                            <p style="color: #856404; margin: 0; font-size: 14px;">
+                                <strong>비회원 주문 안내:</strong> 주문 상세 보기 링크는 90일간 유효합니다. 계정에 연동하시면 언제든지 주문 내역을 확인하실 수 있습니다.
+                            </p>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
+                        <p>본 메일은 발신전용입니다. 문의사항은 고객센터를 이용해주세요.</p>
+                        <p>&copy; 2025 Pre.p Mood. All rights reserved.</p>
+                    </div>
+                </div>
+            `)
+            .setText(`
+Pre.p Mood - 주문 확인
+
+안녕하세요!
+
+주문이 성공적으로 접수되었습니다.
+
+주문번호: ${orderNumber}
+주문일시: ${orderDate ? new Date(orderDate).toLocaleString('ko-KR') : '-'}
+주문 금액: ${Number(totalAmount).toLocaleString('ko-KR')}원
+
+주문 상품:
+${items.map(item => `- ${item.product_name || '-'} (${item.size || '-'} / ${item.color || '-'}) x ${item.quantity || 1} = ${Number(item.subtotal || item.unit_price || 0).toLocaleString('ko-KR')}원`).join('\n')}
+
+주문 내역 보기: ${orderLink}
+
+${isGuest ? '\n비회원 주문 안내: 주문 상세 보기 링크는 90일간 유효합니다. 계정에 연동하시면 언제든지 주문 내역을 확인하실 수 있습니다.\n' : ''}
+
+Pre.p Mood
+Timeless lines, Refined Vibes
+            `);
+
+        console.log('📤 MailerSend API 호출 중...');
+        const response = await mailerSend.email.send(emailParams);
+
+        if (response.statusCode !== 202) {
+            const errorMessage = `MailerSend API 오류: Status Code ${response.statusCode}`;
+            console.error('❌ MailerSend API 오류 발생:', errorMessage);
+            return { 
+                success: false, 
+                error: errorMessage,
+                service: 'mailersend'
+            };
+        }
+
+        console.log('✅ 주문 확인 이메일 전송 성공!');
+        return { 
+            success: true,
+            service: 'mailersend'
+        };
+    } catch (error) {
+        console.error('❌ 주문 확인 이메일 전송 실패:', error);
+        return { 
+            success: false, 
+            error: error.message || '이메일 전송 중 오류가 발생했습니다.',
+            service: 'mailersend'
+        };
+    }
+};
+
+// HTML 이스케이프 헬퍼 함수
+function escapeHtml(text) {
+    if (text == null) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
 module.exports = {
     sendVerificationEmail,
     sendInquiryReplyEmail,
     testConnection,
-    sendTransferRequestEmail
+    sendTransferRequestEmail,
+    sendOrderConfirmationEmail
 };

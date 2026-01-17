@@ -1256,6 +1256,8 @@ app.use('/api', invoiceRoutes);
 app.use('/api', stockRoutes);
 app.use('/api', warrantyEventRoutes);
 app.use('/api', warrantyRoutes);
+// warranty-routes의 HTML 렌더링 라우트는 루트에 마운트 (예: /warranty-activate-success)
+app.use('/', warrantyRoutes);
 app.use('/api', refundRoutes);
 app.use('/api', require('./shipment-routes'));
 
@@ -1426,15 +1428,17 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         
         connection = await mysql.createConnection(dbConfig);
         
-        // 기본 쿼리 (실제 DB 컬럼명에 맞춤)
+        // 기본 쿼리 (실제 DB 컬럼명에 맞춤, guest_id 및 shipping_email 추가)
         query = `
             SELECT 
                 o.order_id,
                 o.order_number,
                 o.user_id,
+                o.guest_id,
                 o.total_price,
                 o.status,
                 o.shipping_name,
+                o.shipping_email,
                 o.shipping_phone,
                 o.shipping_address,
                 o.shipping_postal_code as shipping_zipcode,
@@ -1457,9 +1461,9 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         if (search) {
-            query += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
+            query += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR o.shipping_email LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
             const searchPattern = `%${search}%`;
-            params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+            params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
         }
         
         if (date_from) {
@@ -1504,9 +1508,9 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
         }
         
         if (search) {
-            countQuery += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
+            countQuery += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR o.shipping_email LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
             const searchPattern = `%${search}%`;
-            countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+            countParams.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
         }
         
         if (date_from) {

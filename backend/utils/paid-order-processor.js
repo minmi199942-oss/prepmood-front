@@ -17,6 +17,7 @@ const Logger = require('../logger');
 const { createInvoiceFromOrder } = require('./invoice-creator');
 const { updateProcessingStatus, recordStockIssue } = require('./paid-event-creator');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 /**
  * Paid 주문 처리
@@ -63,13 +64,18 @@ async function processPaidOrder({
 
         const [orderRows] = await connection.execute(
             `SELECT 
-                order_id, 
-                total_price, 
-                user_id, 
-                guest_id, 
-                status 
-            FROM orders 
-            WHERE order_id = ? 
+                o.order_id, 
+                o.order_number,
+                o.total_price, 
+                o.user_id, 
+                o.guest_id, 
+                o.status,
+                o.shipping_email,
+                o.created_at,
+                u.email as user_email
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            WHERE o.order_id = ? 
             FOR UPDATE`,
             [orderId]
         );
@@ -552,6 +558,43 @@ async function processPaidOrder({
             });
         }
 
+        // ============================================================
+        // 9. guest_order_access_tokens 생성 (비회원 주문인 경우)
+        // ============================================================
+        let guestAccessToken = null;
+        if (order.guest_id && !order.user_id) {
+            try {
+                // 토큰 생성 (32바이트 hex 문자열)
+                const accessToken = crypto.randomBytes(32).toString('hex');
+                const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90일 후
+
+                // guest_order_access_tokens 생성
+                await connection.execute(
+                    `INSERT INTO guest_order_access_tokens 
+                     (order_id, token, expires_at) 
+                     VALUES (?, ?, ?)`,
+                    [orderId, accessToken, expiresAt]
+                );
+
+                guestAccessToken = accessToken; // 반환용 저장
+
+                Logger.log('[PAID_PROCESSOR] guest_order_access_tokens 생성 완료', {
+                    orderId,
+                    guestId: order.guest_id,
+                    tokenPrefix: accessToken.substring(0, 8) + '...',
+                    expiresAt
+                });
+            } catch (error) {
+                // 토큰 생성 실패는 로깅만 (결제 성공은 유지)
+                Logger.error('[PAID_PROCESSOR] guest_order_access_tokens 생성 실패 (결제는 성공)', {
+                    orderId,
+                    guestId: order.guest_id,
+                    error: error.message,
+                    error_code: error.code
+                });
+            }
+        }
+
         const duration = Date.now() - startTime;
 
         Logger.log('[PAID_PROCESSOR] Paid 처리 완료', {
@@ -576,7 +619,19 @@ async function processPaidOrder({
                 stockUnitsReserved: reservedStockUnits.length,
                 orderItemUnitsCreated: createdOrderItemUnits.length,
                 warrantiesCreated: createdWarranties.length,
-                invoiceNumber
+                invoiceNumber,
+                // 이메일 발송용 정보
+                orderInfo: {
+                    order_id: orderId,
+                    order_number: order.order_number,
+                    order_date: order.created_at,
+                    total_amount: order.total_price,
+                    user_email: order.user_email,
+                    shipping_email: order.shipping_email,
+                    user_id: order.user_id,
+                    guest_id: order.guest_id,
+                    guest_access_token: guestAccessToken
+                }
             }
         };
 

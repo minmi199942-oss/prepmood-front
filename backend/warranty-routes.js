@@ -14,7 +14,8 @@ const express = require('express');
 const router = express.Router();
 const mysql = require('mysql2/promise');
 const crypto = require('crypto');
-const { authenticateToken } = require('./auth-middleware');
+const path = require('path');
+const { authenticateToken, requireAuthForHTML } = require('./auth-middleware');
 const { sendTransferRequestEmail } = require('./mailer');
 const Logger = require('./logger');
 require('dotenv').config();
@@ -66,7 +67,7 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
         try {
             // 1. FOR UPDATE로 warranties 잠금
             const [warranties] = await connection.execute(
-                'SELECT * FROM warranties WHERE id = ? FOR UPDATE',
+                'SELECT id, public_id, status, owner_user_id, source_order_item_unit_id FROM warranties WHERE id = ? FOR UPDATE',
                 [warrantyId]
             );
 
@@ -251,6 +252,7 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
                 message: '보증서가 활성화되었습니다.',
                 warranty: {
                     id: warrantyId,
+                    public_id: warranty.public_id,
                     status: 'active',
                     activated_at: new Date().toISOString()
                 }
@@ -812,6 +814,162 @@ router.post('/warranties/transfer/accept', authenticateToken, async (req, res) =
             success: false,
             message: '양도 수락 중 오류가 발생했습니다.',
             code: 'INTERNAL_ERROR'
+        });
+    }
+});
+
+/**
+ * 날짜를 한국어 형식으로 포맷팅 (auth-routes.js와 동일한 함수)
+ * @param {string|null} dateValue - MySQL DATETIME 형식 문자열 또는 Date 객체
+ * @returns {string} 포맷팅된 날짜 문자열 (예: "2025-12-31 06:13:25")
+ */
+function formatDateForTemplate(dateValue) {
+    if (!dateValue) return '—';
+    
+    try {
+        let date;
+        if (dateValue instanceof Date) {
+            date = dateValue;
+        } else if (typeof dateValue === 'string') {
+            // MySQL DATETIME 형식을 Date 객체로 변환
+            date = new Date(dateValue.replace(' ', 'T') + 'Z');
+        } else {
+            return String(dateValue);
+        }
+        
+        // 유효한 날짜인지 확인
+        if (isNaN(date.getTime())) {
+            return String(dateValue);
+        }
+        
+        // 한국 시간대로 변환 (UTC+9)
+        const koreanDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+        
+        const year = koreanDate.getUTCFullYear();
+        const month = String(koreanDate.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(koreanDate.getUTCDate()).padStart(2, '0');
+        const hours = String(koreanDate.getUTCHours()).padStart(2, '0');
+        const minutes = String(koreanDate.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(koreanDate.getUTCSeconds()).padStart(2, '0');
+        
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+        Logger.error('[WARRANTY] 날짜 포맷팅 오류:', {
+            dateValue,
+            error: error.message
+        });
+        return String(dateValue);
+    }
+}
+
+/**
+ * GET /warranty-activate-success
+ * 보증서 활성화 성공 페이지 (HTML 렌더링)
+ * 
+ * Query Parameters:
+ * - public_id: string (필수) - 보증서 public_id
+ * 
+ * 처리 흐름:
+ * 1. 로그인 상태 확인 (requireAuthForHTML)
+ * 2. public_id로 보증서 정보 조회
+ * 3. success.ejs 렌더링 (보증서 활성화 성공 메시지)
+ */
+router.get('/warranty-activate-success', requireAuthForHTML, async (req, res) => {
+    const { public_id } = req.query;
+    const userId = req.user.userId || req.user.id;
+    
+    let connection;
+    
+    try {
+        if (!public_id || typeof public_id !== 'string' || !public_id.trim()) {
+            Logger.warn('[WARRANTY_ACTIVATE_SUCCESS] public_id 없음');
+            return res.status(400).render('error', {
+                title: '오류 발생 - Pre.p Mood',
+                message: '보증서 ID가 올바르지 않습니다.'
+            });
+        }
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // public_id로 보증서 정보 조회 (토큰 정보 포함 - QR 스캔과 동일한 구조)
+        const [warranties] = await connection.execute(
+            `SELECT 
+                w.id,
+                w.public_id,
+                w.status,
+                w.activated_at,
+                w.created_at,
+                tm.token,
+                tm.product_name,
+                tm.internal_code
+            FROM warranties w
+            INNER JOIN token_master tm ON w.token_pk = tm.token_pk
+            WHERE w.public_id = ? AND w.owner_user_id = ?`,
+            [public_id.trim(), userId]
+        );
+        
+        await connection.end();
+        
+        if (warranties.length === 0) {
+            Logger.warn('[WARRANTY_ACTIVATE_SUCCESS] 보증서 없음 또는 소유권 불일치:', {
+                public_id: public_id.substring(0, 8) + '...',
+                user_id: userId
+            });
+            return res.status(404).render('error', {
+                title: '보증서 없음 - Pre.p Mood',
+                message: '보증서를 찾을 수 없습니다.'
+            });
+        }
+        
+        const warranty = warranties[0];
+        
+        // 토큰 정보 검증 (QR 스캔과 동일한 구조)
+        if (!warranty.token) {
+            Logger.error('[WARRANTY_ACTIVATE_SUCCESS] 토큰 정보 없음:', {
+                public_id: public_id.substring(0, 8) + '...',
+                warranty_id: warranty.id
+            });
+            return res.status(500).render('error', {
+                title: '오류 발생 - Pre.p Mood',
+                message: '보증서의 토큰 정보를 찾을 수 없습니다.'
+            });
+        }
+        
+        // 보증서 활성화 성공 페이지 렌더링 (QR 스캔과 동일한 구조로 토큰 정보 전달)
+        return res.render('success', {
+            title: '보증서 활성화 완료 - Pre.p Mood',
+            product: {
+                product_name: warranty.product_name || '제품명 없음',
+                internal_code: warranty.internal_code || null,
+                token: warranty.token // 바코드 생성용
+            },
+            verified_at: formatDateForTemplate(warranty.activated_at || warranty.created_at),
+            warranty_public_id: warranty.public_id,
+            warranty_status: warranty.status,
+            is_activation: true // 보증서 활성화 성공임을 표시
+        });
+        
+    } catch (error) {
+        if (connection) {
+            try {
+                await connection.end();
+            } catch (endError) {
+                Logger.error('[WARRANTY_ACTIVATE_SUCCESS] connection.end() 실패:', {
+                    error: endError.message
+                });
+            }
+        }
+        
+        Logger.error('[WARRANTY_ACTIVATE_SUCCESS] 보증서 활성화 성공 페이지 렌더링 실패:', {
+            public_id: public_id ? public_id.substring(0, 8) + '...' : null,
+            user_id: userId,
+            error: error.message,
+            stack: error.stack
+        });
+        
+        return res.status(500).render('error', {
+            title: '오류 발생 - Pre.p Mood',
+            message: '보증서 활성화 성공 페이지를 불러오는 중 오류가 발생했습니다.'
         });
     }
 });

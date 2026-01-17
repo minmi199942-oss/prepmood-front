@@ -601,7 +601,10 @@
       console.error('액션 실행 실패:', error);
       
       // 동시성 충돌 감지 시 사용자 친화적 메시지 및 새로고침 옵션
-      if (error.message.includes('상태가 변경되어') || error.message.includes('새로고침')) {
+      if (error.message.includes('상태가 변경되어') || error.message.includes('새로고침') ||
+          error.message.includes('affectedRows') || error.message.includes('ALREADY_REFUNDED') ||
+          error.message.includes('이미 환불') || error.message.includes('활성화된 보증서') ||
+          error.message.includes('수행할 수 없습니다')) {
         const shouldReload = confirm(`${error.message}\n\n지금 새로고침하시겠습니까?`);
         if (shouldReload) {
           location.reload();
@@ -673,10 +676,27 @@
     } catch (error) {
       console.error('보증서 액션 실행 실패:', error);
       
+      // HTTP 에러 응답에서 상세 메시지 추출
+      if (error.response) {
+        const errorData = error.response.data || {};
+        const errorMessage = errorData.message || error.message;
+        
+        // 동시성 충돌 등 특정 에러에 대한 사용자 친화적 메시지
+        if (errorMessage.includes('상태') || errorMessage.includes('변경') || 
+            errorMessage.includes('affectedRows') || errorMessage.includes('ALREADY_REFUNDED') ||
+            errorMessage.includes('이미 환불') || errorMessage.includes('활성화된 보증서') ||
+            errorMessage.includes('수행할 수 없습니다') || errorMessage.includes('상태가 변경')) {
+          throw new Error('보증서 상태가 변경되어 이 작업을 수행할 수 없습니다. 페이지를 새로고침 후 다시 시도해주세요.');
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
       // 동시성 충돌 등 특정 에러에 대한 사용자 친화적 메시지
       if (error.message.includes('상태') || error.message.includes('변경') || 
           error.message.includes('affectedRows') || error.message.includes('ALREADY_REFUNDED') ||
-          error.message.includes('이미 환불') || error.message.includes('활성화된 보증서')) {
+          error.message.includes('이미 환불') || error.message.includes('활성화된 보증서') ||
+          error.message.includes('수행할 수 없습니다') || error.message.includes('상태가 변경')) {
         throw new Error('보증서 상태가 변경되어 이 작업을 수행할 수 없습니다. 페이지를 새로고침 후 다시 시도해주세요.');
       }
       
