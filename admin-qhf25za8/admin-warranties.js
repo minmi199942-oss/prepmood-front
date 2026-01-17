@@ -22,8 +22,18 @@
     warrantiesTableBody: document.getElementById('warrantiesTableBody'),
     warrantyDetailModal: document.getElementById('warrantyDetailModal'),
     closeModal: document.getElementById('closeModal'),
-    warrantyDetailContent: document.getElementById('warrantyDetailContent')
+    warrantyDetailContent: document.getElementById('warrantyDetailContent'),
+    reasonModal: document.getElementById('reasonModal'),
+    reasonModalTitle: document.getElementById('reasonModalTitle'),
+    reasonInput: document.getElementById('reasonInput'),
+    closeReasonModal: document.getElementById('closeReasonModal'),
+    cancelReasonBtn: document.getElementById('cancelReasonBtn'),
+    confirmReasonBtn: document.getElementById('confirmReasonBtn')
   };
+
+  // 현재 액션 정보 저장
+  let currentAction = null;
+  let currentWarrantyId = null;
 
   // ============================================
   // 초기화
@@ -60,6 +70,34 @@
         elements.warrantyDetailModal.classList.remove('show');
       }
     });
+
+    // Reason 모달 닫기
+    if (elements.closeReasonModal) {
+      elements.closeReasonModal.addEventListener('click', () => {
+        closeReasonModal();
+      });
+    }
+
+    if (elements.cancelReasonBtn) {
+      elements.cancelReasonBtn.addEventListener('click', () => {
+        closeReasonModal();
+      });
+    }
+
+    if (elements.confirmReasonBtn) {
+      elements.confirmReasonBtn.addEventListener('click', () => {
+        handleReasonConfirm();
+      });
+    }
+
+    // Reason 모달 배경 클릭 시 닫기
+    if (elements.reasonModal) {
+      elements.reasonModal.addEventListener('click', (e) => {
+        if (e.target === elements.reasonModal) {
+          closeReasonModal();
+        }
+      });
+    }
   }
 
   // ============================================
@@ -173,6 +211,8 @@
   // 보증서 상세 조회
   // ============================================
   async function showWarrantyDetail(warrantyId) {
+    currentWarrantyId = warrantyId; // 현재 보증서 ID 저장
+    
     elements.warrantyDetailContent.innerHTML = '<div class="loading-state">로딩 중...</div>';
     elements.warrantyDetailModal.classList.add('show');
 
@@ -390,11 +430,222 @@
         </div>
       </div>
 
+      <!-- 관리자 액션 섹션 -->
+      <div class="detail-card" style="border-top: 2px solid #dee2e6; margin-top: 1.5rem;">
+        <h4>관리자 액션</h4>
+        ${renderAdminActions(status_card.status)}
+      </div>
+
       <!-- QR 코드 다운로드 버튼 -->
       <div style="text-align: center; margin-top: 1.5rem;">
         <button class="btn-search" onclick="downloadQRCode('${warranty.public_id}')">QR 코드 다운로드</button>
       </div>
     `;
+  }
+
+  // ============================================
+  // 관리자 액션 버튼 렌더링
+  // ============================================
+  function renderAdminActions(warrantyStatus) {
+    const actions = [];
+    
+    // 정지 버튼 (active 또는 issued일 때)
+    if (warrantyStatus === 'active' || warrantyStatus === 'issued') {
+      actions.push({
+        type: 'suspend',
+        label: '정지',
+        color: 'warning',
+        icon: '⚠️'
+      });
+    }
+    
+    // 정지 해제 버튼 (suspended일 때)
+    if (warrantyStatus === 'suspended') {
+      actions.push({
+        type: 'unsuspend',
+        label: '정지 해제',
+        color: 'success',
+        icon: '✅'
+      });
+    }
+    
+    if (actions.length === 0) {
+      return '<p style="color: #6c757d;">현재 상태에서 수행 가능한 관리자 액션이 없습니다.</p>';
+    }
+    
+    return `
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        ${actions.map(action => `
+          <button 
+            class="btn-${action.color}" 
+            onclick="window.showReasonModal('${escapeHtml(action.type)}', '${escapeHtml(action.label)}')"
+            style="padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: 500; ${getButtonStyle(action.color)}"
+          >
+            ${action.icon} ${escapeHtml(action.label)}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // ============================================
+  // 버튼 스타일 생성
+  // ============================================
+  function getButtonStyle(color) {
+    const styles = {
+      'warning': 'background: #ffc107; color: #212529;',
+      'success': 'background: #28a745; color: white;',
+      'danger': 'background: #dc3545; color: white;'
+    };
+    return styles[color] || 'background: #6c757d; color: white;';
+  }
+
+  // ============================================
+  // Reason 모달 표시
+  // ============================================
+  window.showReasonModal = function(actionType, actionLabel) {
+    if (!currentWarrantyId) {
+      alert('보증서 정보를 불러올 수 없습니다.');
+      return;
+    }
+
+    currentAction = {
+      type: actionType,
+      label: actionLabel
+    };
+
+    if (elements.reasonModalTitle) {
+      elements.reasonModalTitle.textContent = `${escapeHtml(actionLabel)} - 변경 사유 입력`;
+    }
+
+    if (elements.reasonInput) {
+      elements.reasonInput.value = '';
+    }
+
+    if (elements.reasonModal) {
+      elements.reasonModal.style.display = 'flex';
+      elements.reasonModal.classList.add('show');
+      
+      // 포커스
+      if (elements.reasonInput) {
+        setTimeout(() => elements.reasonInput.focus(), 100);
+      }
+    }
+  };
+
+  // ============================================
+  // Reason 모달 닫기
+  // ============================================
+  function closeReasonModal() {
+    if (elements.reasonModal) {
+      elements.reasonModal.style.display = 'none';
+      elements.reasonModal.classList.remove('show');
+    }
+    
+    currentAction = null;
+    
+    if (elements.reasonInput) {
+      elements.reasonInput.value = '';
+    }
+  }
+
+  // ============================================
+  // Reason 확인 처리
+  // ============================================
+  async function handleReasonConfirm() {
+    if (!currentAction || !currentWarrantyId) {
+      alert('액션 정보를 불러올 수 없습니다.');
+      return;
+    }
+
+    const reason = elements.reasonInput ? elements.reasonInput.value.trim() : '';
+
+    // 최소 길이 검증
+    if (reason.length < 10) {
+      alert('변경 사유는 최소 10자 이상 입력해주세요.');
+      if (elements.reasonInput) {
+        elements.reasonInput.focus();
+      }
+      return;
+    }
+
+    // 확인 대화상자
+    const actionLabel = currentAction.label;
+    const reasonPreview = reason.substring(0, 50) + (reason.length > 50 ? '...' : '');
+    if (!confirm(`${actionLabel}을(를) 진행하시겠습니까?\n\n변경 사유: ${reasonPreview}`)) {
+      return;
+    }
+
+    // 버튼 비활성화
+    if (elements.confirmReasonBtn) {
+      elements.confirmReasonBtn.disabled = true;
+      elements.confirmReasonBtn.textContent = '처리 중...';
+    }
+
+    try {
+      await executeWarrantyAction(currentWarrantyId, currentAction.type, reason);
+      closeReasonModal();
+    } catch (error) {
+      console.error('액션 실행 실패:', error);
+      alert(`처리 중 오류가 발생했습니다: ${error.message}`);
+    } finally {
+      if (elements.confirmReasonBtn) {
+        elements.confirmReasonBtn.disabled = false;
+        elements.confirmReasonBtn.textContent = '확인';
+      }
+    }
+  }
+
+  // ============================================
+  // 보증서 액션 실행
+  // ============================================
+  async function executeWarrantyAction(warrantyId, actionType, reason) {
+    try {
+      let response;
+      
+      if (actionType === 'suspend' || actionType === 'unsuspend') {
+        // 보증서 이벤트 생성 API 호출
+        response = await fetch(`${API_BASE}/admin/warranties/${warrantyId}/events`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            type: actionType,
+            reason: reason
+          })
+        });
+      } else {
+        throw new Error(`지원하지 않는 액션 타입입니다: ${actionType}`);
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || '처리 실패');
+      }
+
+      alert('처리가 완료되었습니다.');
+      
+      // 상세 정보 다시 로드
+      await showWarrantyDetail(warrantyId);
+
+    } catch (error) {
+      console.error('보증서 액션 실행 실패:', error);
+      
+      // 동시성 충돌 등 특정 에러에 대한 사용자 친화적 메시지
+      if (error.message.includes('상태') || error.message.includes('변경')) {
+        throw new Error('보증서 상태가 변경되어 이 작업을 수행할 수 없습니다. 페이지를 새로고침 후 다시 시도해주세요.');
+      }
+      
+      throw error;
+    }
   }
 
   // ============================================

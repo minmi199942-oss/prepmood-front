@@ -269,6 +269,27 @@
       padding: 3rem;
       color: #6c757d;
     }
+
+    /* Reason 모달 스타일 */
+    #reasonModal {
+      z-index: 2000;
+    }
+
+    #reasonModal .modal-content {
+      max-width: 500px;
+    }
+
+    #reasonInput:focus {
+      outline: none;
+      border-color: #212529;
+      box-shadow: 0 0 0 2px rgba(33, 37, 41, 0.1);
+    }
+
+    #confirmReasonBtn:disabled {
+      background: #6c757d !important;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
   </style>
 </head>
 <body>
@@ -334,6 +355,34 @@
       </div>
       <div class="modal-body" id="warrantyDetailContent">
         <!-- 동적으로 생성 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Reason 입력 모달 -->
+  <div class="modal" id="reasonModal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 id="reasonModalTitle">변경 사유 입력</h3>
+        <button class="modal-close" id="closeReasonModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 1rem;">
+          <label for="reasonInput" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+            변경 사유 <span style="color: #dc3545;">*</span>
+          </label>
+          <textarea 
+            id="reasonInput" 
+            placeholder="변경 사유를 입력해주세요 (최소 10자)" 
+            rows="4"
+            style="width: 100%; padding: 0.75rem; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.875rem; font-family: inherit; resize: vertical;"
+          ></textarea>
+          <small style="color: #6c757d; font-size: 0.75rem;">최소 10자 이상 입력해주세요.</small>
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button id="cancelReasonBtn" class="btn-search" style="background: #6c757d;">취소</button>
+          <button id="confirmReasonBtn" class="btn-search" style="background: #212529;">확인</button>
+        </div>
       </div>
     </div>
   </div>
