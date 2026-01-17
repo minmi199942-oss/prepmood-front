@@ -307,6 +307,7 @@
         <div style="margin-top: 1rem;">
           <strong>원본 인보이스:</strong> ${escapeHtml(invoices.original.invoice_number)} 
           (${new Date(invoices.original.issued_at).toLocaleDateString('ko-KR')})
+          ${invoices.original.total_amount ? ` - 총액: ${Number(invoices.original.total_amount).toLocaleString('ko-KR')}원` : ''}
         </div>
         ` : ''}
         ${invoices.credit_notes && invoices.credit_notes.length > 0 ? `
@@ -469,6 +470,17 @@
       });
     }
     
+    // 환불 처리 버튼 (issued 또는 issued_unassigned일 때)
+    // ⚠️ active 상태는 환불 불가 (정책 고정)
+    if (warrantyStatus === 'issued' || warrantyStatus === 'issued_unassigned') {
+      actions.push({
+        type: 'refund',
+        label: '환불 처리',
+        color: 'danger',
+        icon: '💰'
+      });
+    }
+    
     if (actions.length === 0) {
       return '<p style="color: #6c757d;">현재 상태에서 수행 가능한 관리자 액션이 없습니다.</p>';
     }
@@ -587,7 +599,16 @@
       closeReasonModal();
     } catch (error) {
       console.error('액션 실행 실패:', error);
-      alert(`처리 중 오류가 발생했습니다: ${error.message}`);
+      
+      // 동시성 충돌 감지 시 사용자 친화적 메시지 및 새로고침 옵션
+      if (error.message.includes('상태가 변경되어') || error.message.includes('새로고침')) {
+        const shouldReload = confirm(`${error.message}\n\n지금 새로고침하시겠습니까?`);
+        if (shouldReload) {
+          location.reload();
+        }
+      } else {
+        alert(`처리 중 오류가 발생했습니다: ${error.message}`);
+      }
     } finally {
       if (elements.confirmReasonBtn) {
         elements.confirmReasonBtn.disabled = false;
@@ -616,6 +637,19 @@
             reason: reason
           })
         });
+      } else if (actionType === 'refund') {
+        // 환불 처리 API 호출
+        response = await fetch(`${API_BASE}/admin/refunds/process`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            warranty_id: warrantyId,
+            reason: reason
+          })
+        });
       } else {
         throw new Error(`지원하지 않는 액션 타입입니다: ${actionType}`);
       }
@@ -640,7 +674,9 @@
       console.error('보증서 액션 실행 실패:', error);
       
       // 동시성 충돌 등 특정 에러에 대한 사용자 친화적 메시지
-      if (error.message.includes('상태') || error.message.includes('변경')) {
+      if (error.message.includes('상태') || error.message.includes('변경') || 
+          error.message.includes('affectedRows') || error.message.includes('ALREADY_REFUNDED') ||
+          error.message.includes('이미 환불') || error.message.includes('활성화된 보증서')) {
         throw new Error('보증서 상태가 변경되어 이 작업을 수행할 수 없습니다. 페이지를 새로고침 후 다시 시도해주세요.');
       }
       
