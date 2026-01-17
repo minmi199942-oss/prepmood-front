@@ -3711,6 +3711,30 @@
   letter-spacing: 0.1px;
 }
 
+.policy-links {
+  text-align: center;
+  padding: clamp(20px, 4vw, 24px) clamp(20px, 4vw, 30px);
+  margin-top: clamp(16px, 3vw, 24px);
+  font-size: clamp(0.85rem, 1.8vw, 0.95rem);
+  color: #666;
+}
+
+.policy-links a {
+  color: #666;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.policy-links a:hover {
+  color: #111;
+  text-decoration: underline;
+}
+
+.policy-links .separator {
+  margin: 0 clamp(8px, 1.5vw, 12px);
+  color: #ccc;
+}
+
 .loading-state {
   text-align: center;
   padding: clamp(40px, 8vw, 60px) clamp(20px, 4vw, 30px);

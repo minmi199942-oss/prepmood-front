@@ -160,6 +160,24 @@ function calculateETA(shippingMethod, country, now = new Date()) {
 }
 
 // 개인정보 마스킹 유틸리티 함수
+/**
+ * 결제 게이트웨이 이름을 사용자 친화적인 결제 방법 이름으로 변환
+ * @param {string} gateway - 결제 게이트웨이 코드 (예: 'toss', 'MOCK')
+ * @returns {string} 결제 방법 이름
+ */
+function getPaymentMethodName(gateway) {
+    if (!gateway) return '알 수 없음';
+    
+    const gatewayMap = {
+        'toss': '토스페이먼츠',
+        'TOSS': '토스페이먼츠',
+        'MOCK': '모의 결제',
+        'mock': '모의 결제'
+    };
+    
+    return gatewayMap[gateway] || gateway;
+}
+
 function maskSensitiveData(data) {
     const masked = { ...data };
     
@@ -1671,9 +1689,26 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
             [order.order_id]
         );
 
+        // 11. 결제 정보 조회 (payments 테이블)
+        const [payments] = await connection.execute(
+            `SELECT 
+                gateway,
+                amount,
+                currency,
+                status as payment_status,
+                created_at as payment_created_at
+            FROM payments
+            WHERE order_number = ?
+              AND status IN ('captured', 'authorized')
+            ORDER BY created_at DESC
+            LIMIT 1`,
+            [order.order_number]
+        );
+
         await connection.end();
 
-        // 11. 응답 데이터 구성
+        // 12. 응답 데이터 구성
+        const payment = payments.length > 0 ? payments[0] : null;
         const responseData = {
             order: {
                 order_id: order.order_id, // Phase 14-4: Claim API 호출용
@@ -1683,6 +1718,14 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
                 status: order.status,
                 paid_at: order.paid_at
             },
+            payment: payment ? {
+                gateway: payment.gateway,
+                method: getPaymentMethodName(payment.gateway),
+                amount: parseFloat(payment.amount),
+                currency: payment.currency || 'KRW',
+                status: payment.payment_status,
+                created_at: payment.payment_created_at
+            } : null,
             shipping: {
                 first_name: order.shipping_first_name,
                 last_name: order.shipping_last_name,
@@ -1715,7 +1758,8 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
             orderId: order.order_id,
             sessionId: session.session_id,
             itemsCount: items.length,
-            shipmentsCount: shipments.length
+            shipmentsCount: shipments.length,
+            hasPayment: !!payment
         });
 
         res.json({

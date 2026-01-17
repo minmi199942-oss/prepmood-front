@@ -76,7 +76,7 @@ async function loadOrderDetail() {
 
 // 주문 상세 정보 렌더링
 function renderOrderDetail(data) {
-  const { order, shipping, items, shipments } = data;
+  const { order, payment, shipping, items, shipments } = data;
   
   // 주문 정보
   const orderInfoList = document.getElementById('order-info-list');
@@ -86,13 +86,31 @@ function renderOrderDetail(data) {
       <dd>${escapeHtml(order.order_number || '-')}</dd>
       <dt>주문일시</dt>
       <dd>${order.order_date ? new Date(order.order_date).toLocaleString('ko-KR') : '-'}</dd>
-      <dt>결제일시</dt>
-      <dd>${order.paid_at ? new Date(order.paid_at).toLocaleString('ko-KR') : '-'}</dd>
       <dt>주문 상태</dt>
       <dd>${getOrderStatusBadge(order.status)}</dd>
       <dt>총 주문 금액</dt>
       <dd><strong>${formatPrice(order.total_price)}</strong></dd>
     `;
+  }
+  
+  // 결제 정보
+  if (payment) {
+    const paymentCard = document.getElementById('payment-card');
+    const paymentInfoList = document.getElementById('payment-info-list');
+    
+    if (paymentCard) paymentCard.style.display = 'block';
+    if (paymentInfoList) {
+      paymentInfoList.innerHTML = `
+        <dt>결제 방법</dt>
+        <dd>${escapeHtml(payment.method || '-')}</dd>
+        <dt>결제 금액</dt>
+        <dd><strong>${formatPrice(payment.amount)}</strong></dd>
+        <dt>결제일시</dt>
+        <dd>${payment.created_at ? new Date(payment.created_at).toLocaleString('ko-KR') : (order.paid_at ? new Date(order.paid_at).toLocaleString('ko-KR') : '-')}</dd>
+        <dt>결제 상태</dt>
+        <dd>${getPaymentStatusBadge(payment.status)}</dd>
+      `;
+    }
   }
   
   // 배송지 정보
@@ -324,6 +342,20 @@ function getOrderStatusBadge(status) {
     'shipped': { label: '배송중', class: 'badge-primary' },
     'delivered': { label: '배송 완료', class: 'badge-secondary' },
     'cancelled': { label: '취소됨', class: 'badge-danger' },
+    'refunded': { label: '환불됨', class: 'badge-danger' }
+  };
+  
+  const { label, class: className } = statusMap[status] || { label: status, class: 'badge-secondary' };
+  return `<span class="badge ${className}">${label}</span>`;
+}
+
+function getPaymentStatusBadge(status) {
+  const statusMap = {
+    'initiated': { label: '결제 시작', class: 'badge-info' },
+    'authorized': { label: '승인됨', class: 'badge-success' },
+    'captured': { label: '결제 완료', class: 'badge-success' },
+    'failed': { label: '결제 실패', class: 'badge-danger' },
+    'cancelled': { label: '취소됨', class: 'badge-warning' },
     'refunded': { label: '환불됨', class: 'badge-danger' }
   };
   

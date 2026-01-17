@@ -59,7 +59,7 @@
 
 ---
 
-## 📊 현재 구현 상태 (2026-01-16 기준)
+## 📊 현재 구현 상태 (2026-01-16 최종 업데이트)
 
 ### ✅ 완료된 부분
 
@@ -116,18 +116,19 @@
 - ✅ `warranties.source_order_item_unit_id` 컬럼 - Phase 2 완료
 - ✅ `warranties.activated_at`, `warranties.revoked_at` 컬럼 - Phase 2 완료
 - ✅ `shipments` 테이블 - Phase 2 완료
-- ❌ `shipment_units` 테이블
-- ❌ `warranty_events` 테이블
-- ❌ `warranty_transfers` 테이블
-- ❌ `guest_order_access_tokens` 테이블
-- ❌ `claim_tokens` 테이블
+- ✅ `shipment_units` 테이블 - Phase 2 완료
+- ✅ `warranty_events` 테이블 - Phase 2 완료
+- ✅ `warranty_transfers` 테이블 - Phase 2 완료
+- ✅ `guest_order_access_tokens` 테이블 - Phase 2 완료
+- ✅ `claim_tokens` 테이블 - Phase 2 완료
 - ✅ `product_options` 테이블 (Phase 15-1 완료)
 
 #### 2. 백엔드 로직
-- ⚠️ **`orders.status` 직접 업데이트 위반** (즉시 수정 필요)
-  - `backend/payments-routes.js` 1434-1438줄: webhook에서 직접 업데이트
-  - `backend/index.js` 1675-1715줄: 관리자 API로 직접 수정 가능
-- ❌ 선예약형 재고 관리 (주문 생성 시 재고 예약)
+- ✅ `orders.status` 집계 함수 사용 (Phase -1 완료)
+  - `backend/utils/order-status-aggregator.js` 사용
+  - `backend/payments-routes.js`: webhook에서 집계 함수 호출 확인
+  - `backend/index.js`: 관리자 API에서 직접 수정 제거됨 (주석으로 명시)
+- ❌ 선예약형 재고 관리 (주문 생성 시 재고 예약) - 선택적
 - ✅ 옵션 API 개선 (product_options 기반, 재고 없는 옵션도 표시 - Phase 15-2 완료)
 - ✅ 색상 데이터 소스 개선 (product_options 기반 SSOT - Phase 15-2 완료)
 - ✅ 보증서 활성화 API (`POST /api/warranties/:warrantyId/activate`) - Phase 5 완료
@@ -136,15 +137,17 @@
 - ✅ 양도 요청/수락 API - Phase 8-1, 8-2 완료
 - ✅ 환불 처리 API (관리자 전용) - Phase 9 완료
 - ✅ 배송/송장 관리 API - Phase 12 완료
-- ❌ 비회원 주문 조회 API
+- ✅ 비회원 주문 조회 API - Phase 10 완료
+- ✅ 주문 상세 API 3단 구조 - Phase 13-1 완료
 
 #### 3. 프론트엔드
-- ❌ 보증서 활성화 페이지
-- ❌ 보증서 상세 페이지 (활성화, 양도 기능)
-- ❌ 비회원 주문 조회 페이지
-- ❌ Claim 페이지
-- ❌ 관리자 페이지 개선 (주문 상세 3단 구조, 보증서 상세)
-- ❌ 관리자 페이지 옵션 관리 기능 (Phase 15-3)
+- ✅ 보증서 활성화 페이지 - Phase 14-1 완료 (`my-warranties.html`)
+- ✅ 보증서 상세 페이지 (활성화, 양도 기능) - Phase 14-1, 14-2 완료 (`my-warranties.html`)
+- ✅ 비회원 주문 조회 페이지 - Phase 14-4 완료 (`guest/orders.html`)
+- ✅ Claim 페이지 - Phase 14-4 완료 (`guest/orders.html`에 Claim 기능 포함)
+- ✅ 관리자 페이지 개선 (주문 상세 3단 구조) - Phase 13-2 완료 (`admin-qhf25za8/admin-orders.js`)
+- ✅ 관리자 보증서 상세 화면 - Phase 13-3 완료 (`admin-qhf25za8/admin-warranties.js`)
+- ✅ 관리자 페이지 옵션 관리 기능 - Phase 15-3 완료 (`admin-qhf25za8/admin-products.js`)
 
 ---
 
@@ -1697,19 +1700,27 @@ CREATE TABLE product_options (
 - 상세 계획은 `PRODUCT_ID_REFACTORING_PLAN.md` 참조
 - **GPT 제안 반영**: PK 직접 UPDATE 위험 회피, 옵션 B (병행 운영) 방식 채택
 
-**현재 문제점**:
+**⚠️ 현재 상태 확인 필요**:
+- 마이그레이션 파일 `068_cutover_to_canonical_id.sql`, `069_remove_size_codes_from_ids.sql` 존재
+- 실제 실행 여부 확인 필요: `backend/scripts/check_product_id_format.sql` 실행 권장
+- 코드에서 여전히 `extractColorFromProductId()` 함수 사용 중 (색상 코드 파싱)
+- **추정**: 사이즈 코드는 제거되었을 가능성 높음, 색상 코드는 아직 남아있을 가능성 높음
+
+**현재 문제점** (실제 상태 확인 후 업데이트 필요):
 1. **URL 라우팅 문제**: `PM-25-SH-Teneu-Solid-LB-S/M/L` 형식에 슬래시(`/`) 포함
    - ✅ **해결됨**: 옵션 API를 query 방식으로 변경 (완료)
-2. **옵션 추출 의존성**: `extractSizesFromProductId()`, `extractColorFromProductId()` 함수로 product_id 파싱
+   - ⚠️ **확인 필요**: 실제 DB에 슬래시 포함 ID가 남아있는지 확인
+2. **옵션 추출 의존성**: `extractColorFromProductId()` 함수로 product_id 파싱
    - ⚠️ **문제**: product_id 구조 변경 시 파싱 로직 실패 가능
-3. **유연성 부족**: 사이즈/색상이 product_id에 하드코딩되어 있어 옵션 추가/변경 시 product_id 변경 필요
-4. **SSOT 원칙 위배**: 사이즈/색상 정보가 `stock_units`와 `admin_products.id`에 중복 저장
+   - ⚠️ **확인 필요**: 색상 코드가 실제로 제거되었는지 확인
+3. **유연성 부족**: 색상이 product_id에 하드코딩되어 있어 옵션 추가/변경 시 product_id 변경 필요
+4. **SSOT 원칙 위배**: 색상 정보가 `product_options`와 `admin_products.id`에 중복 저장 가능
 
 **목표 구조**:
 ```
-현재: PM-25-SH-Teneu-Solid-LB-S/M/L
-Phase 1: PM-25-SH-Teneu-Solid-LB  (사이즈 제거)
-Phase 2: PM-25-SH-Teneu-Solid  (색상도 제거, product_options 활용)
+기존: PM-25-SH-Teneu-Solid-LB-S/M/L
+현재 추정: PM-25-SH-Teneu-Solid-LB  (사이즈 제거됨, 색상 코드 유지)
+최종 목표: PM-25-SH-Teneu-Solid  (색상도 제거, product_options 활용)
 ```
 
 **작업**:
@@ -2008,6 +2019,8 @@ WHERE warranty_id = ? AND status IN (?, ?, ...)  -- 현재 상태 조건 포함
 
 ### ✅ 완료된 작업
 1. **Phase -1**: `orders.status` 직접 업데이트 제거 (완료)
+   - 집계 함수만 사용 (order-status-aggregator.js)
+   - 관리자 API에서 직접 수정 제거됨
 2. **Phase 2**: 핵심 인프라 테이블 생성 (완료)
 3. **Phase 5**: 보증서 활성화 API (완료)
 4. **Phase 6**: Claim API (완료)
@@ -2040,10 +2053,57 @@ WHERE warranty_id = ? AND status IN (?, ?, ...)  -- 현재 상태 조건 포함
    - 주문 조회 엔드포인트 (`GET /api/guest/orders/:orderNumber`)
    - order_number 기반 조회 (일관성 유지)
    - 배송지 정보 포함 응답 (원래 계획대로)
+   - 결제 정보 포함 (payments 테이블 조회)
 
-### 🔴 높은 우선순위 (핵심 기능 미구현)
+### ✅ 완료된 작업 (최근 추가)
+11. **Phase 13**: 관리자 페이지 개선 (완료)
+    - Phase 13-1: 주문 상세 API 3단 구조 응답 (완료)
+    - Phase 13-2: 주문 상세 프론트엔드 3단 구조 (완료)
+    - Phase 13-3: 보증서 상세 화면 (완료)
+      - 보증서 검색 기능
+      - 보증서 상세 화면 (상태 카드, 소유자 정보, 연결 정보, 이력 타임라인)
+12. **Phase 14**: 프론트엔드 사용자 페이지 (완료)
+    - Phase 14-1: 보증서 활성화 페이지 (`my-warranties.html`)
+    - Phase 14-2: 보증서 양도 요청 (`my-warranties.html`)
+    - Phase 14-3: 양도 수락 페이지 (`warranty-transfer-accept.html`)
+    - Phase 14-4: 비회원 주문 조회 페이지 (`guest/orders.html`)
+      - 결제 정보 표시 추가
+      - 정책 링크 추가
+13. **Phase 15-3**: 관리자 페이지 옵션 관리 기능 (완료)
+    - 옵션 조회/추가/수정/삭제 API
+    - 관리자 페이지 UI (상품 수정 모달에 옵션 관리 섹션)
 
-### 🟡 중간 우선순위 (운영 기능)
+### 🟡 단기 (1-2주, 선택적)
+1. **orders.created_at/updated_at 추가**
+   - 현재 `orders.order_date`만 있어서 마지막 갱신 시각 추적 불가
+   - 장애/정산/CS에 즉효
+
+### 🟢 중기 (선택적)
+2. **선예약형 재고 관리 (Phase 4)**
+   - 선택적 작업
+   - 현재 방식도 동작하므로 낮은 우선순위
+
+### 🟢 장기 리팩토링 (선택적)
+3. **Phase 16: Product ID 구조 개선**
+   - 사이즈/색상 코드 제거
+   - 장기 리팩토링
+
+4. **token_pk 마이그레이션**
+   - ⚠️ 복잡, 신중하게 진행 필요
+
+---
+
+## 🎉 핵심 기능 구현 완료
+
+**모든 핵심 기능 (Phase 2-15)이 완료되었습니다!**
+
+완료된 주요 기능:
+- ✅ QR 코드/디지털 보증서 시스템
+- ✅ 디지털 인보이스 시스템
+- ✅ 비회원 주문 조회 및 Claim 시스템
+- ✅ 보증서 활성화/양도/환불 시스템
+- ✅ 관리자 페이지 개선 (주문/보증서 상세)
+- ✅ 옵션 관리 시스템
 
 **이 문서만 보면 앞으로의 모든 구현이 가능합니다.**
 
@@ -2091,10 +2151,18 @@ WHERE warranty_id = ? AND status IN (?, ?, ...)  -- 현재 상태 조건 포함
 
 ---
 
-**문서 버전**: 2.2  
+**문서 버전**: 2.3  
 **작성일**: 2026-01-11  
 **최종 수정일**: 2026-01-16  
 **기준 문서**: `SYSTEM_FLOW_DETAILED.md`, `FINAL_EXECUTION_SPEC_REVIEW.md`, `ADMIN_QR_WARRANTY_INVOICE_CONSISTENCY_CHECK.md`, `IMPLEMENTATION_DESIGN_COMPARISON.md`
+
+**주요 변경사항 (v2.3)**:
+- Phase 13 완료: 관리자 페이지 개선 (주문 상세 3단 구조 API/프론트엔드, 보증서 상세 화면)
+- Phase 14 완료: 프론트엔드 사용자 페이지 (보증서 활성화, 양도, 비회원 주문 조회)
+- Phase 15-3 완료: 관리자 옵션 관리 기능
+- Phase 10 완료: 비회원 주문 조회 API (결제 정보 포함)
+- 데이터베이스 스키마 섹션 업데이트 (Phase 2 마이그레이션 완료 반영)
+- "현재 구현 상태" 섹션 업데이트 (실제 완료 상태 반영)
 
 **주요 변경사항 (v2.2)**:
 - Phase -1 완료: `orders.status` 직접 업데이트 제거
@@ -2104,7 +2172,6 @@ WHERE warranty_id = ? AND status IN (?, ?, ...)  -- 현재 상태 조건 포함
 - Phase 8 완료: 양도 시스템 구현 (양도 요청/수락 API, 만료 배치 작업)
 - Phase 9 완료: 환불 처리 API 구현 (관리자 전용, credit_note 생성 포함)
 - Phase 12 완료: 배송/송장 관리 API 구현 (shipments/shipment_units 사용)
-- 현재 구현 상태 섹션 업데이트
 
 **주요 변경사항 (v2.1)**:
 - Phase -1 추가: `orders.status` 직접 업데이트 제거 (즉시 수정 필요)
