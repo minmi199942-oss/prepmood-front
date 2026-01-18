@@ -616,12 +616,8 @@
       return;
     }
 
-    // 로그인 상태 확인
-    if (!(await isLoggedIn())) {
-      alert('로그인이 필요한 서비스입니다.\n로그인 페이지로 이동합니다.');
-      window.location.href = 'login.html';
-      return;
-    }
+    // ⚠️ 로그인 체크 제거: 비회원 주문 지원
+    // 로그인 상태 확인 제거 - 비회원도 주문 가능하도록 변경
 
     // 장바구니에 추가하고 결제 페이지로 이동
     const added = await addToCart();

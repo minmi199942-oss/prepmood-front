@@ -33,10 +33,28 @@ class MiniCart {
         clearInterval(waitForHeader);
         this.bindEvents();
         
-        // 로그인 상태 확인 및 장바구니 로드
+        // 로그인 상태 확인 및 장바구니 로드 (비회원 주문 지원)
         await this.checkLoginStatus();
-        if (this.isLoggedIn) {
-          await this.loadCartFromServer();
+        // ⚠️ 로그인 여부와 관계없이 장바구니 로드 (회원: 서버, 비회원: localStorage)
+        await this.loadCartFromServer();
+        
+        // ⚠️ 로그인 후 비회원 장바구니 동기화 (다음 페이지에서 동기화 예정인 경우)
+        if (sessionStorage.getItem('guest_cart_sync_pending') === '1') {
+          sessionStorage.removeItem('guest_cart_sync_pending');
+          if (this.isLoggedIn && typeof this.syncGuestCartToServer === 'function') {
+            try {
+              const syncResult = await this.syncGuestCartToServer();
+              if (syncResult && syncResult.synced > 0) {
+                if (syncResult.success) {
+                  debugLog(`✅ 비회원 장바구니 동기화 완료 (지연): ${syncResult.synced}개 상품`);
+                } else {
+                  debugLog(`⚠️ 비회원 장바구니 부분 동기화 (지연): ${syncResult.synced}/${syncResult.total}개 성공`);
+                }
+              }
+            } catch (syncError) {
+              console.error('❌ 비회원 장바구니 동기화 중 오류 (지연):', syncError);
+            }
+          }
         }
         
         this.updateCartDisplay();
@@ -242,11 +260,15 @@ class MiniCart {
 
   // 서버에서 장바구니 로드
   async loadCartFromServer() {
-    if (!this.isLoggedIn) {
-      this.cartItems = [];
+    const isLoggedIn = await this.checkLoginStatus();
+    
+    if (!isLoggedIn) {
+      // ⚠️ 비회원: localStorage에서 로드
+      this.loadCartFromLocalStorage();
       return;
     }
 
+    // 회원: 서버에서 로드
     try {
       const response = await fetch(`${API_BASE}/cart`, {
         credentials: 'include'
@@ -265,17 +287,32 @@ class MiniCart {
     }
   }
 
+  // 비회원 장바구니 로드 (localStorage)
+  loadCartFromLocalStorage() {
+    try {
+      const cartKey = 'guest_cart';
+      const cartItems = JSON.parse(localStorage.getItem(cartKey) || '[]');
+      this.cartItems = cartItems;
+      debugLog('🛒 localStorage에서 장바구니 로드:', this.cartItems.length, '개 상품');
+    } catch (error) {
+      console.error('❌ localStorage 장바구니 로드 실패:', error);
+      this.cartItems = [];
+    }
+  }
+
   async addToCart(product) {
     debugLog('🛒 addToCart 호출됨:', product);
     
     // 로그인 상태 확인
     const isLoggedIn = await this.checkLoginStatus();
+    
     if (!isLoggedIn) {
-      alert('로그인이 필요한 서비스입니다.');
-      window.location.href = 'login.html';
-      return false;
+      // ⚠️ 비회원 주문 지원: localStorage에 저장
+      debugLog('🛒 비회원 장바구니 추가 (localStorage)');
+      return this.addToCartLocalStorage(product);
     }
 
+    // 회원: 서버에 저장
     try {
       const response = await fetch(`${API_BASE}/cart/add`, {
         method: 'POST',
@@ -311,9 +348,60 @@ class MiniCart {
     }
   }
 
-  async removeFromCart(itemId) {
-    if (!this.isLoggedIn) return;
+  // 비회원 장바구니 추가 (localStorage)
+  addToCartLocalStorage(product) {
+    try {
+      const cartKey = 'guest_cart';
+      let cartItems = JSON.parse(localStorage.getItem(cartKey) || '[]');
+      
+      // 기존 아이템 확인 (같은 상품, 사이즈, 색상)
+      const existingIndex = cartItems.findIndex(item => 
+        item.id === product.id && 
+        item.size === product.size && 
+        item.color === product.color
+      );
+      
+      if (existingIndex >= 0) {
+        // 기존 아이템 수량 증가
+        cartItems[existingIndex].quantity += (product.quantity || 1);
+      } else {
+        // 새 아이템 추가
+        cartItems.push({
+          id: product.id,
+          product_id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          size: product.size,
+          color: product.color,
+          quantity: product.quantity || 1,
+          item_id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` // 임시 ID
+        });
+      }
+      
+      localStorage.setItem(cartKey, JSON.stringify(cartItems));
+      this.cartItems = cartItems; // 현재 인스턴스에도 반영
+      this.updateCartDisplay();
+      this.renderMiniCart();
+      debugLog('✅ 비회원 장바구니에 추가됨 (localStorage)');
+      return true;
+    } catch (error) {
+      console.error('❌ localStorage 장바구니 추가 오류:', error);
+      alert('장바구니 추가에 실패했습니다.');
+      return false;
+    }
+  }
 
+  async removeFromCart(itemId) {
+    const isLoggedIn = await this.checkLoginStatus();
+    
+    if (!isLoggedIn) {
+      // ⚠️ 비회원: localStorage에서 제거
+      this.removeFromCartLocalStorage(itemId);
+      return;
+    }
+
+    // 회원: 서버에서 제거
     try {
       const response = await fetch(`${API_BASE}/cart/item/${itemId}`, {
         method: 'DELETE',
@@ -338,13 +426,20 @@ class MiniCart {
   }
 
   async updateQuantity(itemId, newQuantity) {
-    if (!this.isLoggedIn) return;
-
+    const isLoggedIn = await this.checkLoginStatus();
+    
     if (newQuantity <= 0) {
       await this.removeFromCart(itemId);
       return;
     }
 
+    if (!isLoggedIn) {
+      // ⚠️ 비회원: localStorage에서 수량 업데이트
+      this.updateQuantityLocalStorage(itemId, newQuantity);
+      return;
+    }
+
+    // 회원: 서버에서 수량 업데이트
     try {
       const response = await fetch(`${API_BASE}/cart/item/${itemId}`, {
         method: 'PUT',
@@ -369,6 +464,185 @@ class MiniCart {
     } catch (error) {
       console.error('❌ 수량 변경 오류:', error);
       alert('서버와의 통신에 실패했습니다.');
+    }
+  }
+
+  // 비회원 장바구니 수량 업데이트 (localStorage)
+  updateQuantityLocalStorage(itemId, newQuantity) {
+    try {
+      const cartKey = 'guest_cart';
+      let cartItems = JSON.parse(localStorage.getItem(cartKey) || '[]');
+      
+      // 아이템 찾아서 수량 업데이트
+      const itemIndex = cartItems.findIndex(item => item.item_id === itemId);
+      if (itemIndex >= 0) {
+        cartItems[itemIndex].quantity = newQuantity;
+        localStorage.setItem(cartKey, JSON.stringify(cartItems));
+        this.cartItems = cartItems; // 현재 인스턴스에도 반영
+        this.updateCartDisplay();
+        this.renderMiniCart();
+        debugLog('✅ 비회원 장바구니 수량 업데이트 완료 (localStorage)');
+      }
+    } catch (error) {
+      console.error('❌ localStorage 수량 업데이트 오류:', error);
+      alert('수량 업데이트에 실패했습니다.');
+    }
+  }
+
+  // 비회원 장바구니를 서버 장바구니로 동기화 (로그인 시 호출)
+  async syncGuestCartToServer() {
+    // ⚠️ 중복 실행 방지: sessionStorage 락 사용
+    const syncLockKey = 'guest_cart_sync_in_progress';
+    if (sessionStorage.getItem(syncLockKey) === '1') {
+      debugLog('⚠️ 장바구니 동기화가 이미 진행 중입니다. 중복 실행 방지.');
+      return { success: false, error: '동기화가 이미 진행 중입니다.', synced: 0 };
+    }
+
+    // ⚠️ 락 해제 보장: finally 블록으로 감싸기
+    try {
+      // 동기화 시작 락 설정
+      sessionStorage.setItem(syncLockKey, '1');
+
+      const cartKey = 'guest_cart';
+      const guestCartItems = JSON.parse(localStorage.getItem(cartKey) || '[]');
+      
+      if (!guestCartItems || guestCartItems.length === 0) {
+        debugLog('🛒 동기화할 비회원 장바구니 없음');
+        return { success: true, synced: 0 };
+      }
+
+      debugLog('🔄 비회원 장바구니 서버 동기화 시작:', guestCartItems.length, '개 상품');
+      
+      let syncedCount = 0;
+      const errors = [];
+      const failed = [];
+
+      // 각 아이템을 서버 장바구니에 추가
+      for (const item of guestCartItems) {
+        try {
+          const productId = item.product_id || item.id;
+          const size = item.size || null;
+          const color = item.color || null;
+          const quantity = item.quantity || 1;
+          
+          // ⚠️ 필수 필드 검증: product_id, size, color가 없으면 동기화 불가
+          if (!productId) {
+            failed.push({ 
+              product_id: productId, 
+              size: size, 
+              color: color, 
+              reason: 'product_id가 없습니다.' 
+            });
+            debugLog(`⚠️ 장바구니 동기화 건너뜀: product_id 없음`);
+            continue;
+          }
+          
+          const response = await fetch(`${API_BASE}/cart/add`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include', // ⚠️ 인증 포함: JWT 쿠키 전송
+            body: JSON.stringify({
+              productId: productId,
+              quantity: quantity,
+              size: size,
+              color: color
+            })
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = `HTTP ${response.status}`;
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+              errorMessage = errorText || errorMessage;
+            }
+            
+            failed.push({ 
+              product_id: productId, 
+              size: size, 
+              color: color, 
+              reason: errorMessage 
+            });
+            errors.push({ productId, size, color, error: errorMessage });
+            debugLog(`⚠️ 장바구니 동기화 실패: ${productId} (${size}/${color}) - ${errorMessage}`);
+            continue;
+          }
+
+          const data = await response.json();
+          
+          if (data.success) {
+            syncedCount++;
+            debugLog(`✅ 장바구니 동기화 성공: ${productId} (${size}/${color}, 수량: ${quantity})`);
+          } else {
+            failed.push({ 
+              product_id: productId, 
+              size: size, 
+              color: color, 
+              reason: data.message || '알 수 없는 오류' 
+            });
+            errors.push({ productId, size, color, error: data.message || '알 수 없는 오류' });
+            debugLog(`⚠️ 장바구니 동기화 실패: ${productId} (${size}/${color}) - ${data.message}`);
+          }
+        } catch (error) {
+          const productId = item.product_id || item.id;
+          const size = item.size || null;
+          const color = item.color || null;
+          
+          failed.push({ 
+            product_id: productId, 
+            size: size, 
+            color: color, 
+            reason: error.message 
+          });
+          errors.push({ productId, size, color, error: error.message });
+          console.error(`❌ 장바구니 동기화 오류 (${productId}):`, error);
+        }
+      }
+
+      // ⚠️ 전체 성공 시에만 localStorage 비우기 (부분 실패 시 보존)
+      const allSuccess = syncedCount === guestCartItems.length;
+      
+      if (allSuccess) {
+        localStorage.removeItem(cartKey);
+        debugLog(`✅ 비회원 장바구니 동기화 완료: ${syncedCount}개 상품 모두 동기화, localStorage 비움`);
+        
+        // 서버에서 최신 장바구니 로드
+        await this.loadCartFromServer();
+        this.updateCartDisplay();
+        this.renderMiniCart();
+      } else {
+        // 부분 실패 시: 전체 보존 정책 (사용자가 수동으로 재시도 가능)
+        debugLog(`⚠️ 비회원 장바구니 부분 동기화: ${syncedCount}/${guestCartItems.length}개 성공, localStorage 보존 (재시도 가능)`);
+        
+        // 부분 성공한 경우에도 서버 장바구니는 업데이트되었으므로 다시 로드
+        await this.loadCartFromServer();
+        this.updateCartDisplay();
+        this.renderMiniCart();
+      }
+
+      return {
+        success: allSuccess,
+        synced: syncedCount,
+        total: guestCartItems.length,
+        attempted: guestCartItems.length,
+        failed: failed.length > 0 ? failed : undefined,
+        errors: errors.length > 0 ? errors : undefined
+      };
+    } catch (error) {
+      console.error('❌ 비회원 장바구니 동기화 오류:', error);
+      return {
+        success: false,
+        error: error.message,
+        synced: 0,
+        attempted: 0
+      };
+    } finally {
+      // ⚠️ 락 해제 보장: 성공/실패/예외 모든 경우에 락 해제
+      sessionStorage.removeItem(syncLockKey);
     }
   }
 

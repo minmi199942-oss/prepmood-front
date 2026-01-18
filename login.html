@@ -252,6 +252,33 @@
           // 최소한의 정보만 sessionStorage에 저장 (환영 메시지용)
           sessionStorage.setItem('userName', data.user.name);
           
+          // ⚠️ 비회원 장바구니 서버 동기화 (Google 로그인 시 자동 마이그레이션)
+          if (window.miniCart && typeof window.miniCart.syncGuestCartToServer === 'function') {
+            try {
+              const syncResult = await window.miniCart.syncGuestCartToServer();
+              if (syncResult && syncResult.synced > 0) {
+                if (syncResult.success) {
+                  Logger.log(`✅ 비회원 장바구니 동기화 완료: ${syncResult.synced}개 상품이 서버 장바구니로 이동되었습니다.`);
+                } else {
+                  Logger.warn(`⚠️ 비회원 장바구니 부분 동기화: ${syncResult.synced}/${syncResult.total}개 성공. 실패한 상품은 localStorage에 보존됩니다.`);
+                  if (syncResult.failed && syncResult.failed.length > 0) {
+                    Logger.warn('동기화 실패 상품:', syncResult.failed);
+                  }
+                }
+              }
+            } catch (syncError) {
+              Logger.error('❌ 비회원 장바구니 동기화 중 오류:', syncError);
+              // 동기화 실패해도 로그인은 계속 진행
+            }
+          } else {
+            // ⚠️ window.miniCart가 없을 때: 다음 페이지에서 동기화하도록 플래그 설정
+            const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+            if (guestCart.length > 0) {
+              sessionStorage.setItem('guest_cart_sync_pending', '1');
+              Logger.log('⚠️ miniCart가 없어 다음 페이지에서 장바구니 동기화 예정');
+            }
+          }
+          
           if (data.needsAdditionalInfo) {
             alert(`환영합니다! ${data.user.name}님, 추가 정보를 입력해주세요.`);
             window.location.href = 'complete-profile.html';
@@ -483,6 +510,33 @@
             // JWT 토큰은 httpOnly 쿠키로 자동 설정됨 (localStorage 사용 안함)
             // 최소한의 정보만 sessionStorage에 저장 (환영 메시지용)
             sessionStorage.setItem('userName', data.user.name);
+            
+            // ⚠️ 비회원 장바구니 서버 동기화 (로그인 시 자동 마이그레이션)
+            if (window.miniCart && typeof window.miniCart.syncGuestCartToServer === 'function') {
+              try {
+                const syncResult = await window.miniCart.syncGuestCartToServer();
+                if (syncResult && syncResult.synced > 0) {
+                  if (syncResult.success) {
+                    Logger.log(`✅ 비회원 장바구니 동기화 완료: ${syncResult.synced}개 상품이 서버 장바구니로 이동되었습니다.`);
+                  } else {
+                    Logger.warn(`⚠️ 비회원 장바구니 부분 동기화: ${syncResult.synced}/${syncResult.total}개 성공. 실패한 상품은 localStorage에 보존됩니다.`);
+                    if (syncResult.failed && syncResult.failed.length > 0) {
+                      Logger.warn('동기화 실패 상품:', syncResult.failed);
+                    }
+                  }
+                }
+              } catch (syncError) {
+                Logger.error('❌ 비회원 장바구니 동기화 중 오류:', syncError);
+                // 동기화 실패해도 로그인은 계속 진행
+              }
+            } else {
+              // ⚠️ window.miniCart가 없을 때: 다음 페이지에서 동기화하도록 플래그 설정
+              const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+              if (guestCart.length > 0) {
+                sessionStorage.setItem('guest_cart_sync_pending', '1');
+                Logger.log('⚠️ miniCart가 없어 다음 페이지에서 장바구니 동기화 예정');
+              }
+            }
             
             // ✅ 서버가 검증해서 내려준 redirectTo만 사용 (절대 URL 파라미터 직접 사용 안 함)
             const finalRedirect = data.redirectTo || 'index.html';

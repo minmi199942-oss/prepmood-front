@@ -67,16 +67,14 @@ async function initializeCheckoutPage() {
     return;
   }
   
-  // 로그인 상태 다시 확인
+  // 로그인 상태 다시 확인 (비회원 주문 지원)
   console.log('🔍 현재 로그인 상태 (초기):', window.miniCart.isLoggedIn);
   await window.miniCart.checkLoginStatus();
   console.log('🔍 현재 로그인 상태 (확인 후):', window.miniCart.isLoggedIn);
   
-  // 로그인 상태 확인 후 장바구니 재로드
-  if (window.miniCart.isLoggedIn) {
-    console.log('🔄 장바구니 다시 로드...');
-    await window.miniCart.loadCartFromServer();
-  }
+  // ⚠️ 로그인 여부와 관계없이 장바구니 로드 (회원: 서버, 비회원: localStorage)
+  console.log('🔄 장바구니 다시 로드...');
+  await window.miniCart.loadCartFromServer();
   
   // 미니카트에서 장바구니 아이템 가져오기
   const cartItems = window.miniCart.getCartItems();
