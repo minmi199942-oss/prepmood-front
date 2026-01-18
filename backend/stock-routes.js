@@ -445,6 +445,36 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
                 // 경고만 하고 계속 진행 (단계적 마이그레이션 허용)
             }
 
+            // === normalizeColor 함수 정의 (INSERT 전으로 이동, null 반환으로 통일) ===
+            function normalizeColor(color) {
+                if (!color) return null;  // ✅ '' 대신 null 반환
+                const normalized = String(color).trim();
+                if (!normalized) return null;  // 빈 문자열도 null 반환
+                
+                const upper = normalized.toUpperCase();
+                
+                // 정확 매칭 우선 (안전성 향상)
+                if (upper === 'LIGHTBLUE' || 
+                    /^LightBlue$/i.test(normalized) || 
+                    /^Light-Blue$/i.test(normalized) || 
+                    upper === 'LB') {
+                    return 'Light Blue';
+                }
+                if (upper === 'LIGHTGREY' || 
+                    /^LightGrey$/i.test(normalized) || 
+                    /^Light-Grey$/i.test(normalized) || 
+                    upper === 'LG' || upper === 'LGY') {
+                    return 'Light Grey';
+                }
+                if (upper === 'BK') return 'Black';
+                if (upper === 'NV') return 'Navy';
+                if (upper === 'WH' || upper === 'WT') return 'White';
+                if (upper === 'GY') return 'Grey';
+                if (upper === 'GRAY') return 'Grey';
+                
+                return normalized;  // 이미 표준값이면 그대로 반환
+            }
+
             // size, color 결정 로직 (정석: 입력값 우선, 파싱은 fallback)
             // 입력값이 있으면 우선 사용, 없으면 serial_number 파싱, 둘 다 없으면 NULL (레거시)
             const finalSize = size || null;
@@ -513,16 +543,89 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
                 }
             }
             
-            // 재고 추가
+            // === (1) 실제 저장될 값 계산 (파싱 fallback 포함) 및 유니크 셋 추출 ===
+            const uniqueCombinations = new Set();
+            const stockValuesMap = new Map(); // token_pk별 최종값 저장
+
+            tokenPkArray.forEach(tpk => {
+                const rawSize = finalSize || (tokenSizeColorMap[tpk]?.size || null);
+                const rawColor = finalColor || (tokenSizeColorMap[tpk]?.color || null);
+                
+                // 정규화 적용
+                const stockSize = rawSize ? rawSize.trim() : null;
+                const stockColor = rawColor ? normalizeColor(rawColor) : null;  // null 반환 가능
+                
+                // 유니크 조합 추출
+                const comboKey = `${stockColor || ''}@@${stockSize || ''}`;
+                if (stockSize || stockColor) {
+                    uniqueCombinations.add(comboKey);
+                }
+                
+                stockValuesMap.set(tpk, { stockSize, stockColor });
+            });
+
+            // === (2) 옵션 검증 (A-1/A-2 통합, 파싱 fallback 포함) ===
+            const needsOptionValidation = uniqueCombinations.size > 0;
+
+            if (needsOptionValidation) {
+                // 활성 옵션들 1번 조회 (중복 쿼리 제거)
+                const [rows] = await connection.execute(
+                    `SELECT option_id, color, size
+                     FROM product_options
+                     WHERE product_id = ? AND is_active = 1`,
+                    [productIds.canonical_id]
+                );
+
+                if (rows.length === 0) {
+                    await connection.rollback();
+                    await connection.end();
+                    return res.status(400).json({
+                        success: false,
+                        code: 'PRODUCT_OPTIONS_REQUIRED',
+                        message: '해당 상품에 활성화된 옵션이 없습니다. 먼저 옵션을 등록해주세요.',
+                        details: { product_id: productIds.canonical_id }
+                    });
+                }
+
+                // 옵션을 Set으로 변환 (빠른 매칭)
+                const optionSet = new Set();
+                rows.forEach(opt => {
+                    const optColor = normalizeColor(opt.color) || '';  // null이면 ''로 변환
+                    const optSize = (opt.size || '').trim();
+                    optionSet.add(`${optColor}@@${optSize}`);
+                });
+
+                // 각 유니크 조합이 옵션에 존재하는지 검사
+                for (const comboKey of uniqueCombinations) {
+                    if (!optionSet.has(comboKey)) {
+                        await connection.rollback();
+                        await connection.end();
+                        const [color, size] = comboKey.split('@@');
+                        return res.status(400).json({
+                            success: false,
+                            code: 'INVALID_OPTION',
+                            message: '해당 상품에 요청한 옵션 조합이 등록되어 있지 않습니다.',
+                            details: {
+                                product_id: productIds.canonical_id,
+                                size: size || null,
+                                color: color || null
+                            }
+                        });
+                    }
+                }
+            }
+
+            // === (3) INSERT VALUES 생성: 정규화 적용 (B) ===
             const insertValues = tokenPkArray.map(tpk => {
-                // 입력값 우선, 없으면 파싱 결과, 둘 다 없으면 NULL
-                const stockSize = finalSize || (tokenSizeColorMap[tpk]?.size || null);
-                const stockColor = finalColor || (tokenSizeColorMap[tpk]?.color || null);
+                const { stockSize, stockColor } = stockValuesMap.get(tpk);
+                
+                // stock_units는 NULL 허용이므로, null은 null로 유지
+                // normalizeColor는 이미 null 반환하므로 추가 처리 불필요
                 
                 return [
-                    productIds.canonical_id,     // product_id (cutover 후 id가 canonical)
-                    stockSize,
-                    stockColor,
+                    productIds.canonical_id,
+                    stockSize,  // null 또는 trim된 문자열
+                    stockColor,  // null 또는 정규화된 문자열
                     tpk,
                     'in_stock',
                     new Date(),
@@ -537,26 +640,9 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
                 [insertValues]
             );
 
-            // ⚠️ Phase 16-4: product_options 자동 생성
+            // === (4) product_options 자동 생성 ===
             // 재고 추가 시 해당 (product_id, size, color) 조합이 product_options에 없으면 자동 추가
-            // 색상 정규화 함수 (072_create_product_options_table.sql과 동일)
-            function normalizeColor(color) {
-                if (!color) return '';
-                const normalized = String(color).trim();
-                const upper = normalized.toUpperCase();
-                if (upper === 'LIGHTBLUE' || normalized.includes('LightBlue') || normalized.includes('Light-Blue') || upper === 'LB') {
-                    return 'Light Blue';
-                }
-                if (upper === 'LIGHTGREY' || normalized.includes('LightGrey') || normalized.includes('Light-Grey') || upper === 'LG' || upper === 'LGY') {
-                    return 'Light Grey';
-                }
-                if (upper === 'BK') return 'Black';
-                if (upper === 'NV') return 'Navy';
-                if (upper === 'WH' || upper === 'WT') return 'White';
-                if (upper === 'GY') return 'Grey';
-                if (upper === 'GRAY') return 'Grey';
-                return normalized;
-            }
+            // normalizeColor 함수는 이미 위에서 정의됨 (재사용)
 
             function calculateSortOrder(size) {
                 if (!size) return 99;
@@ -580,14 +666,14 @@ router.post('/admin/stock', authenticateToken, requireAdmin, async (req, res) =>
             for (const optionKey of uniqueOptions) {
                 const [size, color] = optionKey.split('||');
                 const normalizedSize = (size || '').trim();
-                const normalizedColor = normalizeColor(color);
+                const normalizedColor = normalizeColor(color) || '';  // ✅ null이면 ''로 변환 (product_options는 NOT NULL)
                 const sortOrder = calculateSortOrder(normalizedSize);
 
                 // INSERT IGNORE로 중복 방지
                 await connection.execute(
                     `INSERT IGNORE INTO product_options (product_id, color, size, sort_order, is_active)
                      VALUES (?, ?, ?, ?, 1)`,
-                    [productIds.canonical_id, normalizedColor || '', normalizedSize || '', sortOrder]
+                    [productIds.canonical_id, normalizedColor, normalizedSize, sortOrder]
                 );
             }
 
