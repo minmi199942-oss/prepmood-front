@@ -263,8 +263,8 @@ class MiniCart {
       if (response.status === 401 || response.status === 403) {
         this.isLoggedIn = false;
         const loginStatus = { status: 'guest', isLoggedIn: false };
-        // ⚠️ 운영 중 문제 재현용 상태 로그
-        console.warn('[CART_STATE]', loginStatus.status);
+        // ⚠️ 운영 중 문제 재현용 상태 로그 (정상 동작이므로 debugLog로 변경)
+        debugLog('[CART_STATE]', loginStatus.status);
         return loginStatus;
       }
       
@@ -272,7 +272,7 @@ class MiniCart {
         // 500, 502, timeout 등 서버/네트워크 에러
         this.isLoggedIn = false;
         const loginStatus = { status: 'unknown', isLoggedIn: false };
-        // ⚠️ 운영 중 문제 재현용 상태 로그
+        // ⚠️ 운영 중 문제 재현용 상태 로그 (에러 상황이므로 console.warn 유지)
         console.warn('[CART_STATE]', loginStatus.status);
         return loginStatus;
       }
@@ -283,14 +283,14 @@ class MiniCart {
         status: this.isLoggedIn ? 'auth' : 'guest', 
         isLoggedIn: this.isLoggedIn 
       };
-      // ⚠️ 운영 중 문제 재현용 상태 로그
-      console.warn('[CART_STATE]', loginStatus.status);
+      // ⚠️ 운영 중 문제 재현용 상태 로그 (정상 동작이므로 debugLog로 변경)
+      debugLog('[CART_STATE]', loginStatus.status);
       return loginStatus;
     } catch (error) {
       // 네트워크 에러, timeout 등
       this.isLoggedIn = false;
       const loginStatus = { status: 'unknown', isLoggedIn: false };
-      // ⚠️ 운영 중 문제 재현용 상태 로그
+      // ⚠️ 운영 중 문제 재현용 상태 로그 (에러 상황이므로 console.warn 유지)
       console.warn('[CART_STATE]', loginStatus.status);
       return loginStatus;
     }
@@ -839,6 +839,12 @@ class MiniCart {
       // ⚠️ 락 해제 보장: 성공/실패/예외 모든 경우에 락 해제
       sessionStorage.removeItem(syncLockKey);
     }
+  }
+
+  // ⚠️ 로그아웃 시 동기화 완료 플래그 초기화 (다음 로그인에서 다시 동기화 가능하도록)
+  clearSyncDoneFlag() {
+    sessionStorage.removeItem('pm_cart_sync_done');
+    debugLog('🔄 장바구니 동기화 완료 플래그 초기화');
   }
 
   // 로그아웃 시 장바구니 숨기기
