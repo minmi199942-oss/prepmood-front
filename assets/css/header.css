@@ -42,7 +42,7 @@ header.main-header {
   top: 0;
   left: 0;
   width: 100%;
-  min-height: var(--header-height); /* 최소 높이 보장 */
+  /* ⚠️ 순환 참조 방지: min-height 제거 (--header-height는 JavaScript에서 실제 높이로 설정) */
   height: auto; /* 콘텐츠에 맞게 자동 조정 */
   z-index: 1000;
   transition: transform 0.25s ease;
@@ -75,7 +75,7 @@ header.main-header .header-container {
   height: 100%; /* 부모 높이에 맞춤 */
   display: flex;
   align-items: center; /* 세로 중앙 정렬 */
-  min-height: var(--header-height); /* 최소 높이 보장 */
+  /* ⚠️ 순환 참조 방지: min-height 제거 (--header-height는 JavaScript에서 실제 높이로 설정) */
 }
 
 /* 태블릿 스타일 - 768px 이상부터 적용 */

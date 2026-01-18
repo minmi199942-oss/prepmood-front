@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -166,6 +166,9 @@
                 this.emailVerified = false;
                 this.isLoading = false;
                 
+                // ⚠️ 사용자가 수정한 필드만 추적 (touched fields)
+                this.touchedFields = new Set();
+                
                 // DOM 요소들
                 this.verifyBtn = document.getElementById('verifyBtn');
                 this.registerBtn = document.getElementById('registerBtn');
@@ -182,56 +185,104 @@
                 // 폼 제출 이벤트 등록
                 document.getElementById('registerForm').addEventListener('submit', (e) => this.handleSubmit(e));
                 
-                // 실시간 유효성 검사 이벤트
-                document.getElementById('email').addEventListener('input', () => {
-                    this.validateEmail();
+                // ⚠️ focus 이벤트: 필드에 커서가 들어오는 순간 에러 메시지 즉시 숨김
+                document.getElementById('email').addEventListener('focus', () => {
+                    this.touchedFields.add('email');
+                    this.hideError('emailError'); // focus 시 에러 메시지 즉시 숨김
                 });
-                document.getElementById('verificationCode').addEventListener('input', async () => {
-                    // 입력 중에는 에러 상태 초기화 (인증 완료 상태가 아닐 때만)
+                document.getElementById('verificationCode').addEventListener('focus', () => {
+                    this.touchedFields.add('verificationCode');
                     const codeInput = document.getElementById('verificationCode');
                     if (!codeInput.disabled) {
                         codeInput.classList.remove('error');
-                        this.hideError('codeError');
+                        this.hideError('codeError'); // focus 시 에러 메시지 즉시 숨김
                     }
-                    
-                    this.validateVerificationCode();
+                });
+                document.getElementById('name').addEventListener('focus', () => {
+                    this.touchedFields.add('name');
+                    this.hideError('nameError'); // focus 시 에러 메시지 즉시 숨김
+                });
+                document.getElementById('phone').addEventListener('focus', () => {
+                    this.touchedFields.add('phone');
+                    this.hideError('phoneError'); // focus 시 에러 메시지 즉시 숨김
+                });
+                document.getElementById('password').addEventListener('focus', () => {
+                    this.touchedFields.add('password');
+                    this.hideError('passwordError'); // focus 시 에러 메시지 즉시 숨김
+                });
+                document.getElementById('confirmPassword').addEventListener('focus', () => {
+                    this.touchedFields.add('confirmPassword');
+                    this.hideError('confirmPasswordError'); // focus 시 에러 메시지 즉시 숨김
+                });
+                
+                // ⚠️ input 이벤트: 버튼 활성화 여부만 업데이트 (에러 표시 안 함)
+                document.getElementById('email').addEventListener('input', () => {
+                    this.updateRegisterButton();
+                });
+                document.getElementById('verificationCode').addEventListener('input', async () => {
                     // 인증 코드가 6자리 입력되면 자동으로 인증 시도
                     const code = document.getElementById('verificationCode').value;
                     if (code.length === 6 && !this.emailVerified) {
                         await this.verifyCode();
                     }
+                    this.updateRegisterButton();
                 });
-                // 필드 입력 이벤트 리스너 (항상 활성화)
                 document.getElementById('name').addEventListener('input', () => {
-                    this.validateName();
                     this.updateRegisterButton();
                 });
                 document.getElementById('phone').addEventListener('input', (e) => {
                     this.formatPhoneNumber(e);
-                    this.validatePhone();
                     this.updateRegisterButton();
                 });
                 document.getElementById('password').addEventListener('input', () => {
-                    this.validatePassword();
-                    this.validateConfirmPassword(); // 비밀번호 변경 시 확인 비밀번호도 재검증
                     this.updateRegisterButton();
                 });
                 document.getElementById('confirmPassword').addEventListener('input', () => {
-                    this.validateConfirmPassword();
                     this.updateRegisterButton();
                 });
                 
-                // 개인정보 동의 체크박스 이벤트 리스너
+                // ⚠️ blur 이벤트: 입력 종료 시 validation 실행 및 에러 표시
+                document.getElementById('email').addEventListener('blur', () => {
+                    this.validateEmail(true); // blur 시 validation 실행 및 에러 표시
+                });
+                document.getElementById('verificationCode').addEventListener('blur', () => {
+                    this.validateVerificationCode(true); // blur 시 validation 실행 및 에러 표시
+                });
+                document.getElementById('name').addEventListener('blur', () => {
+                    this.validateName(true); // blur 시 validation 실행 및 에러 표시
+                    this.updateRegisterButton();
+                });
+                document.getElementById('phone').addEventListener('blur', () => {
+                    this.validatePhone(true); // blur 시 validation 실행 및 에러 표시
+                    this.updateRegisterButton();
+                });
+                document.getElementById('password').addEventListener('blur', () => {
+                    this.validatePassword(true); // blur 시 validation 실행 및 에러 표시
+                    // 비밀번호 변경 시 확인 비밀번호도 재검증 (확인 비밀번호가 touched된 경우만)
+                    if (this.touchedFields.has('confirmPassword')) {
+                        this.validateConfirmPassword(true);
+                    }
+                    this.updateRegisterButton();
+                });
+                document.getElementById('confirmPassword').addEventListener('blur', () => {
+                    this.validateConfirmPassword(true); // blur 시 validation 실행 및 에러 표시
+                    this.updateRegisterButton();
+                });
+                
+                // ⚠️ 개인정보 동의 체크박스 이벤트 리스너 (에러 메시지 표시 안 함, 버튼 활성화만 체크)
                 document.getElementById('privacyConsent').addEventListener('change', () => {
-                    this.validatePrivacyConsent();
+                    this.touchedFields.add('privacyConsent');
+                    // 체크박스는 사용 중 에러 메시지 표시 안 함
                     this.updateRegisterButton();
                 });
                 document.getElementById('termsConsent').addEventListener('change', () => {
-                    this.validateTermsConsent();
+                    this.touchedFields.add('termsConsent');
+                    // 체크박스는 사용 중 에러 메시지 표시 안 함
                     this.updateRegisterButton();
                 });
                 document.getElementById('privacyPolicyConsent').addEventListener('change', () => {
-                    this.validatePrivacyPolicyConsent();
+                    this.touchedFields.add('privacyPolicyConsent');
+                    // 체크박스는 사용 중 에러 메시지 표시 안 함
                     this.updateRegisterButton();
                 });
                 document.getElementById('marketingConsent').addEventListener('change', () => {
@@ -388,7 +439,8 @@
                     }
                 }
 
-                if (!this.validateAll()) return;
+                // ⚠️ submit 시에만 모든 필드 검증 및 에러 표시
+                if (!this.validateAll(true)) return;
 
                 this.setLoading(true);
                 this.registerBtn.textContent = '가입중...';
@@ -465,15 +517,19 @@
                 };
             }
 
-            validateEmail() {
+            validateEmail(showError = false) {
                 const email = document.getElementById('email').value;
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 
                 if (!email) {
-                    this.showError('emailError', '이메일을 입력해주세요.');
+                    if (showError && this.touchedFields.has('email')) {
+                        this.showError('emailError', '이메일을 입력해주세요.');
+                    }
                     return false;
                 } else if (!emailRegex.test(email)) {
-                    this.showError('emailError', '올바른 이메일 형식을 입력해주세요.');
+                    if (showError && this.touchedFields.has('email')) {
+                        this.showError('emailError', '올바른 이메일 형식을 입력해주세요.');
+                    }
                     return false;
                 } else {
                     this.hideError('emailError');
@@ -481,14 +537,18 @@
                 }
             }
 
-            validateVerificationCode() {
+            validateVerificationCode(showError = false) {
                 const code = document.getElementById('verificationCode').value;
                 
                 if (this.verificationSection.classList.contains('show') && !code) {
-                    this.showError('codeError', '인증 코드를 입력해주세요.');
+                    if (showError && this.touchedFields.has('verificationCode')) {
+                        this.showError('codeError', '인증 코드를 입력해주세요.');
+                    }
                     return false;
                 } else if (code && code.length !== 6) {
-                    this.showError('codeError', '인증 코드는 6자리입니다.');
+                    if (showError && this.touchedFields.has('verificationCode')) {
+                        this.showError('codeError', '인증 코드는 6자리입니다.');
+                    }
                     return false;
                 } else {
                     this.hideError('codeError');
@@ -497,14 +557,18 @@
             }
 
 
-            validateName() {
+            validateName(showError = false) {
                 const name = document.getElementById('name').value;
                 
                 if (!name) {
-                    this.showError('nameError', '이름을 입력해주세요.');
+                    if (showError && this.touchedFields.has('name')) {
+                        this.showError('nameError', '이름을 입력해주세요.');
+                    }
                     return false;
                 } else if (name.trim().length < 1) {
-                    this.showError('nameError', '올바른 이름을 입력해주세요.');
+                    if (showError && this.touchedFields.has('name')) {
+                        this.showError('nameError', '올바른 이름을 입력해주세요.');
+                    }
                     return false;
                 } else {
                     this.hideError('nameError');
@@ -533,28 +597,34 @@
                 e.target.value = formatted;
             }
 
-            validatePhone() {
+            validatePhone(showError = false) {
                 const phone = document.getElementById('phone').value;
                 // 숫자만 추출해서 검증
                 const numbers = phone.replace(/[^0-9]/g, '');
                 
                 // 전화번호는 필수 항목
                 if (!phone || numbers.length === 0) {
-                    this.showError('phoneError', '전화번호를 입력해주세요.');
+                    if (showError && this.touchedFields.has('phone')) {
+                        this.showError('phoneError', '전화번호를 입력해주세요.');
+                    }
                     return false;
                 }
                 
                 // 한국 전화번호 형식 검증 (010-1234-5678, 02-1234-5678 등)
                 // 10자리 또는 11자리 숫자만 허용
                 if (numbers.length < 10 || numbers.length > 11) {
-                    this.showError('phoneError', '전화번호는 10자리 또는 11자리여야 합니다.');
+                    if (showError && this.touchedFields.has('phone')) {
+                        this.showError('phoneError', '전화번호는 10자리 또는 11자리여야 합니다.');
+                    }
                     return false;
                 }
                 
                 // 올바른 형식인지 확인 (010으로 시작하거나 02, 031 등 지역번호)
                 const phoneRegex = /^(010|011|016|017|018|019|02|031|032|033|041|042|043|044|051|052|053|054|055|061|062|063|064|070)\d{3,4}\d{4}$/;
                 if (!phoneRegex.test(numbers)) {
-                    this.showError('phoneError', '올바른 전화번호 형식을 입력해주세요.');
+                    if (showError && this.touchedFields.has('phone')) {
+                        this.showError('phoneError', '올바른 전화번호 형식을 입력해주세요.');
+                    }
                     return false;
                 }
                 
@@ -562,14 +632,18 @@
                 return true;
             }
 
-            validatePassword() {
+            validatePassword(showError = false) {
                 const password = document.getElementById('password').value;
                 
                 if (!password) {
-                    this.showError('passwordError', '비밀번호를 입력해주세요.');
+                    if (showError && this.touchedFields.has('password')) {
+                        this.showError('passwordError', '비밀번호를 입력해주세요.');
+                    }
                     return false;
                 } else if (password.length < 8) {
-                    this.showError('passwordError', '비밀번호는 8자 이상이어야 합니다.');
+                    if (showError && this.touchedFields.has('password')) {
+                        this.showError('passwordError', '비밀번호는 8자 이상이어야 합니다.');
+                    }
                     return false;
                 } else {
                     this.hideError('passwordError');
@@ -577,15 +651,19 @@
                 }
             }
 
-            validateConfirmPassword() {
+            validateConfirmPassword(showError = false) {
                 const password = document.getElementById('password').value;
                 const confirmPassword = document.getElementById('confirmPassword').value;
                 
                 if (!confirmPassword) {
-                    this.showError('confirmPasswordError', '비밀번호 확인을 입력해주세요.');
+                    if (showError && this.touchedFields.has('confirmPassword')) {
+                        this.showError('confirmPasswordError', '비밀번호 확인을 입력해주세요.');
+                    }
                     return false;
                 } else if (password !== confirmPassword) {
-                    this.showError('confirmPasswordError', '비밀번호가 일치하지 않습니다.');
+                    if (showError && this.touchedFields.has('confirmPassword')) {
+                        this.showError('confirmPasswordError', '비밀번호가 일치하지 않습니다.');
+                    }
                     return false;
                 } else {
                     this.hideError('confirmPasswordError');
@@ -593,25 +671,29 @@
                 }
             }
 
-            validateAll() {
-                const emailValid = this.validateEmail();
-                const codeValid = this.emailVerified || this.validateVerificationCode();
-                const nameValid = this.validateName();
-                const phoneValid = this.validatePhone();
-                const passwordValid = this.validatePassword();
-                const confirmPasswordValid = this.validateConfirmPassword();
-                const privacyConsentValid = this.validatePrivacyConsent();
-                const termsConsentValid = this.validateTermsConsent();
-                const privacyPolicyConsentValid = this.validatePrivacyPolicyConsent();
+            validateAll(showErrors = true) {
+                // ⚠️ submit 시에만 모든 필드 검증 및 에러 표시
+                const emailValid = this.validateEmail(showErrors);
+                const codeValid = this.emailVerified || this.validateVerificationCode(showErrors);
+                const nameValid = this.validateName(showErrors);
+                const phoneValid = this.validatePhone(showErrors);
+                const passwordValid = this.validatePassword(showErrors);
+                const confirmPasswordValid = this.validateConfirmPassword(showErrors);
+                const privacyConsentValid = this.validatePrivacyConsent(showErrors);
+                const termsConsentValid = this.validateTermsConsent(showErrors);
+                const privacyPolicyConsentValid = this.validatePrivacyPolicyConsent(showErrors);
                 
                 return emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && privacyConsentValid && termsConsentValid && privacyPolicyConsentValid && this.emailVerified;
             }
 
-            validatePrivacyConsent() {
+            validatePrivacyConsent(showError = false) {
                 const privacyConsent = document.getElementById('privacyConsent').checked;
                 
                 if (!privacyConsent) {
-                    this.showError('privacyConsentError', '개인정보 수집 및 이용 동의가 필요합니다.');
+                    // ⚠️ 체크박스는 submit 시에만 에러 표시
+                    if (showError) {
+                        this.showError('privacyConsentError', '개인정보 수집 및 이용 동의가 필요합니다.');
+                    }
                     return false;
                 } else {
                     this.hideError('privacyConsentError');
@@ -619,11 +701,14 @@
                 }
             }
 
-            validateTermsConsent() {
+            validateTermsConsent(showError = false) {
                 const termsConsent = document.getElementById('termsConsent').checked;
                 
                 if (!termsConsent) {
-                    this.showError('termsConsentError', '이용약관에 동의해주세요.');
+                    // ⚠️ 체크박스는 submit 시에만 에러 표시
+                    if (showError) {
+                        this.showError('termsConsentError', '이용약관에 동의해주세요.');
+                    }
                     return false;
                 } else {
                     this.hideError('termsConsentError');
@@ -631,11 +716,14 @@
                 }
             }
 
-            validatePrivacyPolicyConsent() {
+            validatePrivacyPolicyConsent(showError = false) {
                 const privacyPolicyConsent = document.getElementById('privacyPolicyConsent').checked;
                 
                 if (!privacyPolicyConsent) {
-                    this.showError('privacyPolicyConsentError', '개인정보 처리 방침에 동의해주세요.');
+                    // ⚠️ 체크박스는 submit 시에만 에러 표시
+                    if (showError) {
+                        this.showError('privacyPolicyConsentError', '개인정보 처리 방침에 동의해주세요.');
+                    }
                     return false;
                 } else {
                     this.hideError('privacyPolicyConsentError');
@@ -644,7 +732,19 @@
             }
 
             updateRegisterButton() {
-                const allValid = this.validateAll();
+                // ⚠️ 버튼 활성화 여부만 체크 (에러 메시지 표시 안 함)
+                // touched된 필드만 검증하여 버튼 활성화 여부 결정
+                const emailValid = this.validateEmail(false);
+                const codeValid = this.emailVerified || this.validateVerificationCode(false);
+                const nameValid = this.validateName(false);
+                const phoneValid = this.validatePhone(false);
+                const passwordValid = this.validatePassword(false);
+                const confirmPasswordValid = this.validateConfirmPassword(false);
+                const privacyConsentValid = this.validatePrivacyConsent(false);
+                const termsConsentValid = this.validateTermsConsent(false);
+                const privacyPolicyConsentValid = this.validatePrivacyPolicyConsent(false);
+                
+                const allValid = emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && privacyConsentValid && termsConsentValid && privacyPolicyConsentValid && this.emailVerified;
                 this.registerBtn.disabled = !allValid;
             }
 

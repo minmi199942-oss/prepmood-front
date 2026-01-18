@@ -200,8 +200,16 @@
 .error-message {
     font-size: clamp(0.75rem, 1.8vw, 0.85rem);
     color: #ff3b30;
-    margin-top: clamp(3px, 0.8vw, 4px);
+    margin-top: clamp(2px, 0.5vw, 3px);
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0;
     display: none;
+    border: none;
+    background: none;
+    text-align: left;
+    box-shadow: none;
 }
 
 .verification-input-wrapper {

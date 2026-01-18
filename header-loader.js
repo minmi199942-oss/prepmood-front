@@ -96,12 +96,40 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // sync CSS var with actual header height (init + on resize)
       const headerEl = headerContainer.querySelector('header');
+      
+      // ⚠️ 중복 등록 방지: 기존 리스너 제거 후 새로 등록
+      if (window.__headerHeightUpdateHandler) {
+        window.removeEventListener('resize', window.__headerHeightUpdateHandler);
+      }
+      if (window.__headerResizeHandler) {
+        window.removeEventListener('resize', window.__headerResizeHandler);
+      }
+      
       function updateHeaderHeight(){
         if (!headerEl) return;
+        
+        // 실제 콘텐츠 높이 측정 (min-height 제거로 순환 참조 해결)
         const h = headerEl.offsetHeight;
-        document.documentElement.style.setProperty('--header-height', h + 'px');
+        
+        // 현재 설정된 --header-height와 비교
+        const currentHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 0;
+        
+        // 실제 높이가 유효하고, 현재 설정값과 다를 때만 업데이트
+        // ⚠️ 누적 방지: 비정상적으로 큰 값은 무시 (정상적인 리사이즈는 허용)
+        if (h > 0 && h !== currentHeight) {
+          // 리사이즈 시 정상적인 높이 변화는 허용 (현재 높이의 150% 이내 또는 초기값)
+          if (h <= currentHeight * 1.5 || currentHeight === 0) {
+            document.documentElement.style.setProperty('--header-height', h + 'px');
+          } else {
+            // 비정상적으로 큰 값은 무시 (누적 방지)
+            console.warn('header-loader: 헤더 높이 누적 감지, 업데이트 건너뜀', { h, currentHeight });
+          }
+        }
       }
       updateHeaderHeight();
+      
+      // 전역 변수에 저장하여 나중에 제거 가능하도록 함
+      window.__headerHeightUpdateHandler = updateHeaderHeight;
       window.addEventListener('resize', updateHeaderHeight);
       
       // 브라우저 크기 변경 시 모바일 메뉴 로그인 상태 업데이트 (debounce 적용)
@@ -118,6 +146,9 @@ window.addEventListener('DOMContentLoaded', () => {
           }
         }, 300);
       };
+      
+      // 전역 변수에 저장하여 나중에 제거 가능하도록 함
+      window.__headerResizeHandler = resizeHandler;
       window.addEventListener('resize', resizeHandler);
 
       // 드롭다운 메뉴 목록 초기화
