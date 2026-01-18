@@ -204,11 +204,16 @@ router.get('/admin/stock', authenticateToken, requireAdmin, async (req, res) => 
  * GET /api/admin/stock/products/:productId/tokens
  * 특정 상품의 사용 가능한 token_pk 목록 조회
  * (재고에 등록되지 않은 token_pk만 반환)
+ * 
+ * Query Parameters:
+ * - size: 사이즈 필터 (선택사항, 예: "M", "L")
+ * - color: 색상 필터 (선택사항, 예: "Light Blue", "Black")
  */
 router.get('/admin/stock/products/:productId/tokens', authenticateToken, requireAdmin, async (req, res) => {
     let connection;
     try {
         const { productId } = req.params;
+        const { size, color } = req.query; // Query 파라미터로 size, color 받기
 
         connection = await mysql.createConnection(dbConfig);
 
@@ -237,8 +242,78 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
             });
         }
 
-        // token_master 조회
-        const [tokens] = await connection.execute(
+        // === normalizeColor 함수 정의 (재고 추가 로직과 동일) ===
+        function normalizeColor(color) {
+            if (!color) return null;
+            const normalized = String(color).trim();
+            if (!normalized) return null;
+            
+            const upper = normalized.toUpperCase();
+            
+            if (upper === 'LIGHTBLUE' || 
+                /^LightBlue$/i.test(normalized) || 
+                /^Light-Blue$/i.test(normalized) || 
+                upper === 'LB') {
+                return 'Light Blue';
+            }
+            if (upper === 'LIGHTGREY' || 
+                /^LightGrey$/i.test(normalized) || 
+                /^Light-Grey$/i.test(normalized) || 
+                upper === 'LG' || upper === 'LGY') {
+                return 'Light Grey';
+            }
+            if (upper === 'BK') return 'Black';
+            if (upper === 'NV') return 'Navy';
+            if (upper === 'WH' || upper === 'WT') return 'White';
+            if (upper === 'GY') return 'Grey';
+            if (upper === 'GRAY') return 'Grey';
+            
+            return normalized;
+        }
+
+        // === serial_number에서 size, color 추출하는 함수 ===
+        function extractSizeColor(serialNumber) {
+            if (!serialNumber) return { size: null, color: null };
+            
+            // size 추출: -S-, -M-, -L-, -XL-, -XXL-, -F-
+            let extractedSize = null;
+            const sizePatterns = [
+                { pattern: /-S-[0-9]/, value: 'S' },
+                { pattern: /-M-[0-9]/, value: 'M' },
+                { pattern: /-L-[0-9]/, value: 'L' },
+                { pattern: /-XL-[0-9]/, value: 'XL' },
+                { pattern: /-XXL-[0-9]/, value: 'XXL' },
+                { pattern: /-F-[0-9]|-[0-9]+-F/, value: 'F' }
+            ];
+            for (const { pattern, value } of sizePatterns) {
+                if (pattern.test(serialNumber)) {
+                    extractedSize = value;
+                    break;
+                }
+            }
+            
+            // color 추출: -LightBlue-, -Black-, -Navy-, -White-, -Grey-
+            let extractedColor = null;
+            const colorPatterns = [
+                { pattern: /-(LightBlue|Light-Blue|LB)-/i, value: 'Light Blue' },
+                { pattern: /-(Black|BK)-/i, value: 'Black' },
+                { pattern: /-(Navy|NV)-/i, value: 'Navy' },
+                { pattern: /-(White|WH|WT)-/i, value: 'White' },
+                { pattern: /-(Grey|GY|Gray)-/i, value: 'Grey' },
+                { pattern: /-(LightGrey|Light-Grey|LGY)-/i, value: 'Light Grey' }
+            ];
+            for (const { pattern, value } of colorPatterns) {
+                if (pattern.test(serialNumber)) {
+                    extractedColor = value;
+                    break;
+                }
+            }
+            
+            return { size: extractedSize, color: extractedColor };
+        }
+
+        // token_master 조회 (모든 토큰)
+        const [allTokens] = await connection.execute(
             `SELECT 
                 tm.token_pk,
                 tm.token,
@@ -256,6 +331,37 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
             [productId, productId]
         );
 
+        // size/color 필터링 적용
+        let filteredTokens = allTokens;
+        
+        if (size || color) {
+            // 정규화된 필터 값
+            const normalizedSize = size ? size.trim() : null;
+            const normalizedColor = color ? normalizeColor(color) : null;
+            
+            filteredTokens = allTokens.filter(token => {
+                const extracted = extractSizeColor(token.serial_number);
+                const tokenSize = extracted.size;
+                const tokenColor = extracted.color;
+                
+                // size 필터링
+                if (normalizedSize) {
+                    if (tokenSize !== normalizedSize) {
+                        return false;
+                    }
+                }
+                
+                // color 필터링
+                if (normalizedColor) {
+                    if (tokenColor !== normalizedColor) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+        }
+
         await connection.end();
 
         const product = products[0];
@@ -267,14 +373,21 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
                 name: product.name,
                 short_name: product.short_name // 프론트엔드 매칭용
             },
-            tokens: tokens.map(t => ({
+            tokens: filteredTokens.map(t => ({
                 token_pk: t.token_pk,
                 token: maskToken(t.token), // 마스킹 처리
                 token_full: t.token, // 전체 토큰
                 internal_code: t.internal_code,
                 serial_number: t.serial_number,
                 product_name: t.product_name // 확인 UX용
-            }))
+            })),
+            // 필터링 정보 (디버깅용)
+            filter: {
+                size: size || null,
+                color: color || null,
+                total_count: allTokens.length,
+                filtered_count: filteredTokens.length
+            }
         });
 
     } catch (error) {

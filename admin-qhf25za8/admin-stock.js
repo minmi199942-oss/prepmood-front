@@ -112,6 +112,22 @@
       }
     });
 
+    // 사이즈 선택 시 토큰 목록 재로드 (필터링)
+    elements.addStockSize.addEventListener('change', async () => {
+      const productId = elements.addStockProductId.value;
+      if (productId) {
+        await loadAvailableTokens(productId);
+      }
+    });
+
+    // 색상 선택 시 토큰 목록 재로드 (필터링)
+    elements.addStockColor.addEventListener('change', async () => {
+      const productId = elements.addStockProductId.value;
+      if (productId) {
+        await loadAvailableTokens(productId);
+      }
+    });
+
     // 재고 추가 폼 제출
     elements.addStockForm.addEventListener('submit', handleAddStock);
 
@@ -377,7 +393,7 @@
   }
 
   // ============================================
-  // 사용 가능한 토큰 로드
+  // 사용 가능한 토큰 로드 (size/color 필터링 지원)
   // ============================================
   async function loadAvailableTokens(productId) {
     elements.tokenListContainer.style.display = 'none';
@@ -386,7 +402,22 @@
     elements.submitAddStockBtn.disabled = true;
 
     try {
-      const response = await fetch(`${API_BASE}/admin/stock/products/${encodeURIComponent(productId)}/tokens`, {
+      // size, color 파라미터 추가
+      const size = elements.addStockSize.value || null;
+      const color = elements.addStockColor.value || null;
+      
+      const params = new URLSearchParams();
+      if (size && size !== '') {
+        params.append('size', size);
+      }
+      if (color && color !== '') {
+        params.append('color', color);
+      }
+      
+      const queryString = params.toString();
+      const url = `${API_BASE}/admin/stock/products/${encodeURIComponent(productId)}/tokens${queryString ? '?' + queryString : ''}`;
+      
+      const response = await fetch(url, {
         credentials: 'include'
       });
 
