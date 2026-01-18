@@ -20,6 +20,42 @@ const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 
 /**
+ * 색상 정규화 함수 (SIZE_COLOR_STANDARDIZATION_POLICY.md 참고)
+ * stock-routes.js와 동일한 로직 사용
+ * 
+ * @param {string|null|undefined} color - 정규화할 색상 문자열
+ * @returns {string|null} - 정규화된 색상 문자열 또는 null
+ */
+function normalizeColor(color) {
+    if (!color) return null;  // null 반환으로 통일
+    const normalized = String(color).trim();
+    if (!normalized) return null;  // 빈 문자열도 null 반환
+    
+    const upper = normalized.toUpperCase();
+    
+    // 정확 매칭 우선 (안전성 향상)
+    if (upper === 'LIGHTBLUE' || 
+        /^LightBlue$/i.test(normalized) || 
+        /^Light-Blue$/i.test(normalized) || 
+        upper === 'LB') {
+        return 'Light Blue';
+    }
+    if (upper === 'LIGHTGREY' || 
+        /^LightGrey$/i.test(normalized) || 
+        /^Light-Grey$/i.test(normalized) || 
+        upper === 'LG' || upper === 'LGY') {
+        return 'Light Grey';
+    }
+    if (upper === 'BK') return 'Black';
+    if (upper === 'NV') return 'Navy';
+    if (upper === 'WH' || upper === 'WT') return 'White';
+    if (upper === 'GY') return 'Grey';
+    if (upper === 'GRAY') return 'Grey';
+    
+    return normalized;  // 이미 표준값이면 그대로 반환
+}
+
+/**
  * Paid 주문 처리
  * 
  * @param {Object} params - 처리 파라미터
@@ -176,7 +212,10 @@ async function processPaidOrder({
             const needQty = item.quantity;
             const productId = item.product_id;
             const size = item.size || null;
-            const color = item.color || null;
+            const rawColor = item.color || null;
+
+            // color 정규화 적용 (리스크 2 단기 정규화)
+            const color = rawColor ? normalizeColor(rawColor) : null;
 
             // 재고 조회 쿼리 구성 (FOR UPDATE 없이 먼저 검증)
             let stockQuery = `SELECT COUNT(*) as available_count
@@ -217,7 +256,7 @@ async function processPaidOrder({
                 needQty,
                 productId,
                 size,
-                color,
+                color,  // 정규화된 color 저장
                 availableCount
             });
         }
@@ -230,6 +269,7 @@ async function processPaidOrder({
             const { item, needQty, productId, size, color } = validation;
 
             // 재고 조회 및 잠금 (FOR UPDATE SKIP LOCKED)
+            // color는 이미 위에서 정규화되었으므로 그대로 사용
             let stockQuery = `SELECT stock_unit_id, token_pk, product_id, size, color
                 FROM stock_units
                 WHERE product_id = ? 
