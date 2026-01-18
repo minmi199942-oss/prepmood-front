@@ -627,6 +627,44 @@ class MiniCart {
     }
   }
 
+  // 비회원 장바구니 제거 (localStorage)
+  removeFromCartLocalStorage(itemId) {
+    try {
+      // ⚠️ 파손 데이터 안전 처리
+      let cartItems = [];
+      try {
+        const cartData = localStorage.getItem(GUEST_CART_KEY) || '[]';
+        cartItems = JSON.parse(cartData);
+        if (!Array.isArray(cartItems)) {
+          throw new Error('장바구니 데이터가 배열이 아닙니다.');
+        }
+      } catch (parseError) {
+        console.warn('⚠️ pm_cart_v1 파싱 실패, 빈 장바구니로 초기화:', parseError);
+        try {
+          localStorage.removeItem(GUEST_CART_KEY);
+        } catch (removeError) {
+          console.warn('⚠️ 파손된 데이터 삭제 실패:', removeError);
+        }
+        cartItems = [];
+        this.cartItems = [];
+        this.updateCartDisplay();
+        this.renderMiniCart();
+        return;
+      }
+      
+      // 아이템 제거
+      cartItems = cartItems.filter(item => item.item_id !== itemId);
+      localStorage.setItem(GUEST_CART_KEY, JSON.stringify(cartItems));
+      this.cartItems = cartItems; // 현재 인스턴스에도 반영
+      this.updateCartDisplay();
+      this.renderMiniCart();
+      debugLog('✅ 비회원 장바구니에서 제거됨 (localStorage)');
+    } catch (error) {
+      console.error('❌ localStorage 장바구니 제거 오류:', error);
+      alert('장바구니에서 제거하는데 실패했습니다.');
+    }
+  }
+
   // 비회원 장바구니 수량 업데이트 (localStorage)
   updateQuantityLocalStorage(itemId, newQuantity) {
     try {
