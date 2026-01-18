@@ -9,6 +9,7 @@ const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { resolveProductIdBoth } = require('./utils/product-id-resolver');
+const { generateUniqueGuestId } = require('./utils/user-id-generator');
 const crypto = require('crypto');
 
 // 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
@@ -413,9 +414,12 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
         let guestId = null;
         let ownerKey = null;
         
+        // 연결 생성 (guest_id 생성 시 중복 체크를 위해 필요)
+        connection = await mysql.createConnection(dbConfig);
+        
         if (!userId) {
-            // guest_id 생성 (UUID v4 형식)
-            guestId = crypto.randomUUID();
+            // ⚠️ guest_id 생성: G-{YYYYMMDD}-{랜덤6자} 형식 (VARCHAR(20) 제약 준수)
+            guestId = await generateUniqueGuestId(connection, new Date());
             ownerKey = `g:${guestId}`;
         } else {
             ownerKey = `u:${userId}`;
@@ -442,6 +446,9 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
         });
 
         if (!idemKey) {
+            if (connection) {
+                await connection.end();
+            }
             return res.status(400).json({ 
                 code: 'VALIDATION_ERROR', 
                 details: { 
@@ -451,7 +458,8 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
             });
         }
 
-        connection = await mysql.createConnection(dbConfig);
+        // ⚠️ connection은 이미 위에서 생성됨 (guest_id 생성 시 중복 체크를 위해)
+        // connection 재생성 방지
 
         // 기존 동일 키 존재 여부 확인 (owner_key 기반)
         const [idemRows] = await connection.execute(
