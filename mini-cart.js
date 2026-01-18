@@ -722,9 +722,26 @@ class MiniCart {
       return;
     }
 
-    content.innerHTML = this.cartItems.map(item => `
+    content.innerHTML = this.cartItems.map(item => {
+      // 이미지 경로 처리: /uploads/로 시작하면 그대로 사용, 아니면 /image/ 추가
+      let imageSrc = item.image || '';
+      if (imageSrc.startsWith('/uploads/')) {
+        // 업로드된 이미지 (새로 추가/수정된 이미지)
+        imageSrc = imageSrc;
+      } else if (imageSrc.startsWith('/image/')) {
+        // 기존 이미지 경로
+        imageSrc = imageSrc;
+      } else if (imageSrc) {
+        // 상대 경로인 경우
+        imageSrc = imageSrc.startsWith('image/') ? '/' + imageSrc : '/image/' + imageSrc;
+      } else {
+        // 이미지가 없는 경우 기본 이미지
+        imageSrc = '/image/default.jpg';
+      }
+      
+      return `
       <div class="mini-cart-item">
-        <img src="/image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" onerror="this.src='/image/default.jpg'">
+        <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" onerror="this.src='/image/default.jpg'">
         <div class="mini-cart-item-info">
           <div class="mini-cart-item-name">${escapeHtml(item.name)}</div>
           <div class="mini-cart-item-details">

@@ -650,9 +650,10 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
             // }
 
             // N) Idempotency 기록 저장 (owner_key 기반)
+            // ⚠️ 비회원 주문 지원: user_id는 NULL 허용 (owner_key로 실제 구분)
             await connection.execute(
-                'INSERT IGNORE INTO orders_idempotency (owner_key, idem_key, order_number) VALUES (?, ?, ?)',
-                [ownerKey, idemKey, orderNumber]
+                'INSERT IGNORE INTO orders_idempotency (user_id, owner_key, idem_key, order_number) VALUES (?, ?, ?, ?)',
+                [userId, ownerKey, idemKey, orderNumber]
             );
 
             // 트랜잭션 커밋
