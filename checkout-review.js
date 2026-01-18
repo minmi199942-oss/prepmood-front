@@ -52,10 +52,23 @@ function renderOrderItems(items) {
     return;
   }
   
-  container.innerHTML = items.map(item => `
+  container.innerHTML = items.map(item => {
+    // ⚠️ 이미지 경로 처리: /uploads/products/로 시작하면 그대로 사용, 아니면 /image/ 추가
+    let imageSrc = item.image || '';
+    if (imageSrc.startsWith('/uploads/')) {
+      imageSrc = imageSrc;
+    } else if (imageSrc.startsWith('/image/')) {
+      imageSrc = imageSrc;
+    } else if (imageSrc) {
+      imageSrc = imageSrc.startsWith('image/') ? '/' + imageSrc : '/image/' + imageSrc;
+    } else {
+      imageSrc = '/image/default.jpg';
+    }
+    
+    return `
     <div style="display: flex; gap: 15px; padding: 15px 0; border-bottom: 1px solid #eee;">
       <div>
-        <img src="/image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" style="width: 80px; height: 80px; object-fit: cover;">
+        <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" style="width: 80px; height: 80px; object-fit: cover;">
       </div>
       <div style="flex: 1;">
         <p style="font-weight: 600; margin-bottom: 5px;">${escapeHtml(item.name)}</p>
@@ -63,7 +76,8 @@ function renderOrderItems(items) {
         <p style="margin-top: 10px; font-weight: 600;">₩${new Intl.NumberFormat('ko-KR').format(item.price * item.quantity)}</p>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function updateOrderSummary(items) {

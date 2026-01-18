@@ -240,16 +240,30 @@ function renderOrderItems(cartItems) {
   
   // 주문 아이템 렌더링
   if (orderItemsContainer) {
-    orderItemsContainer.innerHTML = cartItems.map(item => `
+    orderItemsContainer.innerHTML = cartItems.map(item => {
+      // ⚠️ 이미지 경로 처리: /uploads/products/로 시작하면 그대로 사용, 아니면 /image/ 추가
+      let imageSrc = item.image || '';
+      if (imageSrc.startsWith('/uploads/')) {
+        imageSrc = imageSrc;
+      } else if (imageSrc.startsWith('/image/')) {
+        imageSrc = imageSrc;
+      } else if (imageSrc) {
+        imageSrc = imageSrc.startsWith('image/') ? '/' + imageSrc : '/image/' + imageSrc;
+      } else {
+        imageSrc = '/image/default.jpg';
+      }
+      
+      return `
       <div class="order-item">
-        <img src="/image/${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" class="order-item-image" onerror="this.src='/image/default.jpg'">
+        <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" class="order-item-image" onerror="this.src='/image/default.jpg'">
         <div class="order-item-info">
           <div class="order-item-name">${escapeHtml(item.name)}</div>
           <div class="order-item-details">색상: ${escapeHtml(item.color)} | 수량: ${escapeHtml(item.quantity)}</div>
         </div>
         <div class="order-item-price">${formatPrice(item.price * item.quantity)}</div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
   
   console.log('✅ 주문 아이템 렌더링 완료');
