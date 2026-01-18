@@ -582,24 +582,92 @@
       color: selectedColor
     };
 
-    // miniCart 인스턴스가 있는지 확인
-    if (window.miniCart) {
-      const added = await window.miniCart.addToCart(productToAdd);
-      if (added) {
-        // 미니 카트 열기
-        window.miniCart.toggleMiniCart();
-        return true;
+    // ⚠️ miniCart 인스턴스가 없으면 초기화될 때까지 대기 (이벤트 기반)
+    if (!window.miniCart) {
+      // 이벤트 기반 대기 (더 안전)
+      const cartReady = new Promise((resolve) => {
+        // 이미 초기화되었으면 즉시 resolve
+        if (window.miniCart) {
+          resolve();
+          return;
+        }
+        
+        // minicart:ready 이벤트 대기
+        const handler = () => {
+          window.removeEventListener('minicart:ready', handler);
+          resolve();
+        };
+        window.addEventListener('minicart:ready', handler);
+        
+        // 최후의 fallback: 3초 타임아웃
+        setTimeout(() => {
+          window.removeEventListener('minicart:ready', handler);
+          resolve(); // 타임아웃되어도 resolve (fallback 처리)
+        }, 3000);
+      });
+      
+      await cartReady;
+      
+      // 여전히 없으면 직접 localStorage에 저장 (비회원 장바구니 fallback)
+      if (!window.miniCart) {
+        try {
+          // ⚠️ 기존 'guest_cart' 데이터 마이그레이션 (호환성)
+          const oldCartKey = 'guest_cart';
+          const GUEST_CART_KEY = 'pm_cart_v1'; // 버전 1
+          const oldCart = localStorage.getItem(oldCartKey);
+          if (oldCart) {
+            localStorage.setItem(GUEST_CART_KEY, oldCart);
+            localStorage.removeItem(oldCartKey);
+          }
+          
+          let cartItems = JSON.parse(localStorage.getItem(GUEST_CART_KEY) || '[]');
+          
+          // 기존 아이템 확인 (같은 상품, 사이즈, 색상)
+          const existingIndex = cartItems.findIndex(item => 
+            item.id === productToAdd.id && 
+            item.size === productToAdd.size && 
+            item.color === productToAdd.color
+          );
+          
+          if (existingIndex >= 0) {
+            // 기존 아이템 수량 증가
+            cartItems[existingIndex].quantity += (productToAdd.quantity || 1);
+          } else {
+            // 새 아이템 추가
+            cartItems.push({
+              id: productToAdd.id,
+              product_id: productToAdd.id,
+              name: productToAdd.name,
+              price: productToAdd.price,
+              image: productToAdd.image,
+              size: productToAdd.size,
+              color: productToAdd.color,
+              quantity: productToAdd.quantity || 1,
+              item_id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            });
+          }
+          
+          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(cartItems));
+          alert('장바구니에 추가되었습니다.');
+          return true;
+        } catch (error) {
+          console.error('❌ localStorage 장바구니 추가 오류:', error);
+          alert('장바구니 추가에 실패했습니다. 페이지를 새로고침해주세요.');
+          return false;
+        }
       }
-      return false;
-    } else {
-      if (window.Logger) {
-        window.Logger.error('MiniCart가 초기화되지 않았습니다');
-      } else {
-        console.error('❌ MiniCart가 초기화되지 않았습니다!');
-      }
-      alert('장바구니를 사용할 수 없습니다. 페이지를 새로고침해주세요.');
-      return false;
     }
+    
+    // miniCart가 있으면 정상적으로 추가
+    const added = await window.miniCart.addToCart(productToAdd);
+    if (added) {
+      // 미니 카트 열기
+      if (window.miniCart.toggleMiniCart) {
+        window.miniCart.toggleMiniCart();
+      }
+      return true;
+    }
+    return false;
   }
 
   // 빠른 구매
