@@ -456,6 +456,7 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
         let invoiceNumber = null;
         let paidProcessError = null;
         let paidEventId = null;
+        let paidResult = null; // ⚠️ 이메일 발송용: 블록 스코프 밖에서 선언
         
         // ⚠️ 디버깅: paymentStatus 로깅
         Logger.log('[payments][confirm] Paid 처리 시작', {
@@ -494,7 +495,7 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
 
                 // 5-2. 주문 처리 트랜잭션 (기존 connection 사용)
                 // ⚠️ 중요: orders.status는 집계 함수로만 갱신 (직접 업데이트 금지)
-                const paidResult = await processPaidOrder({
+                paidResult = await processPaidOrder({
                     connection,
                     paidEventId: paidEventId,
                     orderId: order.order_id,
@@ -648,7 +649,7 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             try {
                 const orderInfo = paidResult.data.orderInfo;
                 
-                // 주문 항목 정보 조회 (별도 커넥션)
+                // 주문 항목 정보 및 고객 이름 조회 (별도 커넥션)
                 const emailConnection = await mysql.createConnection(dbConfig);
                 try {
                     const [orderItems] = await emailConnection.execute(
@@ -664,10 +665,26 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                         ORDER BY order_item_id`,
                         [orderInfo.order_id]
                     );
+
+                    // 고객 이름 조회
+                    const [orderDetails] = await emailConnection.execute(
+                        `SELECT 
+                            o.shipping_name,
+                            u.name as user_name
+                        FROM orders o
+                        LEFT JOIN users u ON o.user_id = u.user_id
+                        WHERE o.order_id = ?`,
+                        [orderInfo.order_id]
+                    );
                     await emailConnection.end();
 
                     // 이메일 수신자 결정
                     const recipientEmail = orderInfo.user_email || orderInfo.shipping_email;
+                    
+                    // 고객 이름 결정
+                    const customerName = orderDetails.length > 0 
+                        ? (orderDetails[0].user_name || orderDetails[0].shipping_name || null)
+                        : null;
                     
                     if (!recipientEmail) {
                         Logger.warn('[payments][confirm] 이메일 발송 건너뜀 (수신자 이메일 없음)', {
@@ -694,7 +711,8 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                             totalAmount: orderInfo.total_amount,
                             items: orderItems,
                             orderLink: orderLink,
-                            isGuest: !!orderInfo.guest_access_token
+                            isGuest: !!orderInfo.guest_access_token,
+                            customerName: customerName
                         });
 
                         if (emailResult.success) {
@@ -730,6 +748,12 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
             }
         }
 
+        // ⚠️ 비회원 주문인 경우 guest_order_access_token을 응답에 포함
+        let guestAccessToken = null;
+        if (paidProcessed && paidResult?.data?.orderInfo?.guest_access_token) {
+            guestAccessToken = paidResult.data.orderInfo.guest_access_token;
+        }
+
         res.json({
             success: true,
             data: {
@@ -740,7 +764,9 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 cartCleared,
                 invoice_created: invoiceCreated,
                 invoice_number: invoiceNumber,
-                alreadyConfirmed: false
+                alreadyConfirmed: false,
+                // ⚠️ 비회원 주문인 경우 guest_order_access_token 포함
+                guest_access_token: guestAccessToken
             }
         });
 
@@ -1274,8 +1300,10 @@ router.post('/payments/inicis/return', async (req, res) => {
                                 o.guest_id,
                                 o.total_price,
                                 o.shipping_email,
+                                o.shipping_name,
                                 o.created_at,
-                                u.email as user_email
+                                u.email as user_email,
+                                u.name as user_name
                             FROM orders o
                             LEFT JOIN users u ON o.user_id = u.user_id
                             WHERE o.order_id = ?`,
@@ -1335,10 +1363,26 @@ router.post('/payments/inicis/return', async (req, res) => {
                             ORDER BY order_item_id`,
                             [orderInfoForEmail.order_id]
                         );
+
+                        // 고객 이름 조회
+                        const [orderDetails] = await emailConnection.execute(
+                            `SELECT 
+                                o.shipping_name,
+                                u.name as user_name
+                            FROM orders o
+                            LEFT JOIN users u ON o.user_id = u.user_id
+                            WHERE o.order_id = ?`,
+                            [orderInfoForEmail.order_id]
+                        );
                         await emailConnection.end();
 
                         // 이메일 수신자 결정
                         const recipientEmail = orderInfoForEmail.user_email || orderInfoForEmail.shipping_email;
+                        
+                        // 고객 이름 결정
+                        const customerName = orderDetails.length > 0 
+                            ? (orderDetails[0].user_name || orderDetails[0].shipping_name || null)
+                            : null;
                         
                         if (!recipientEmail) {
                             Logger.warn('[payments][inicis] 이메일 발송 건너뜀 (수신자 이메일 없음)', {
@@ -1365,7 +1409,8 @@ router.post('/payments/inicis/return', async (req, res) => {
                                 totalAmount: orderInfoForEmail.total_amount,
                                 items: orderItems,
                                 orderLink: orderLink,
-                                isGuest: !!orderInfoForEmail.guest_access_token
+                                isGuest: !!orderInfoForEmail.guest_access_token,
+                                customerName: customerName
                             });
 
                             if (emailResult.success) {
@@ -1893,10 +1938,26 @@ router.post('/payments/webhook', async (req, res) => {
                             ORDER BY order_item_id`,
                             [emailInfo.orderId]
                         );
+
+                        // 고객 이름 조회
+                        const [orderDetails] = await emailConnection.execute(
+                            `SELECT 
+                                o.shipping_name,
+                                u.name as user_name
+                            FROM orders o
+                            LEFT JOIN users u ON o.user_id = u.user_id
+                            WHERE o.order_id = ?`,
+                            [emailInfo.orderId]
+                        );
                         await emailConnection.end();
 
                         // 이메일 수신자 결정
                         const recipientEmail = emailInfo.orderInfo.user_email || emailInfo.orderInfo.shipping_email;
+                        
+                        // 고객 이름 결정
+                        const customerName = orderDetails.length > 0 
+                            ? (orderDetails[0].user_name || orderDetails[0].shipping_name || null)
+                            : null;
                         
                         if (!recipientEmail) {
                             Logger.warn('[payments][webhook] 이메일 발송 건너뜀 (수신자 이메일 없음)', {
@@ -1923,7 +1984,8 @@ router.post('/payments/webhook', async (req, res) => {
                                 totalAmount: emailInfo.orderInfo.total_amount,
                                 items: orderItems,
                                 orderLink: orderLink,
-                                isGuest: !!emailInfo.orderInfo.guest_access_token
+                                isGuest: !!emailInfo.orderInfo.guest_access_token,
+                                customerName: customerName
                             });
 
                             if (emailResult.success) {

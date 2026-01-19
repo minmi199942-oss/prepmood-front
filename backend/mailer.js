@@ -413,7 +413,7 @@ Timeless lines, Refined Vibes
  * @param {Object} data - { orderNumber, orderDate, totalAmount, items, orderLink, isGuest }
  * @returns {Promise<Object>} { success: boolean, error?: string }
  */
-const sendOrderConfirmationEmail = async (to, { orderNumber, orderDate, totalAmount, items, orderLink, isGuest = false }) => {
+const sendOrderConfirmationEmail = async (to, { orderNumber, orderDate, totalAmount, items, orderLink, isGuest = false, customerName = null, logoUrl = null }) => {
     try {
         console.log('📧 주문 확인 이메일 전송 시작...');
         console.log(`📬 수신자: ${to}`);
@@ -431,117 +431,157 @@ const sendOrderConfirmationEmail = async (to, { orderNumber, orderDate, totalAmo
         const sentFrom = new Sender(process.env.MAILERSEND_FROM_EMAIL, "Pre.p Mood");
         const recipients = [new Recipient(to, to)];
 
-        // 주문 항목 HTML 생성
-        const itemsHtml = items.map(item => `
-            <tr style="border-bottom: 1px solid #dee2e6;">
-                <td style="padding: 12px; text-align: left;">${escapeHtml(item.product_name || '-')}</td>
-                <td style="padding: 12px; text-align: center;">${item.size || '-'} / ${item.color || '-'}</td>
-                <td style="padding: 12px; text-align: center;">${item.quantity || 1}</td>
-                <td style="padding: 12px; text-align: right;">${Number(item.subtotal || item.unit_price || 0).toLocaleString('ko-KR')}원</td>
-            </tr>
-        `).join('');
+        // 고객 이름 설정
+        const displayName = customerName || 'Customer';
+        
+        // 주문일시 포맷팅 (예: "16 January 2025")
+        let formattedDate = '-';
+        if (orderDate) {
+            const date = new Date(orderDate);
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+            formattedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+        }
+
+        // 로고 URL 설정 (절대 URL)
+        const baseUrl = process.env.FRONTEND_URL || 'https://prepmood.kr';
+        const logoImageUrl = logoUrl || `${baseUrl}/image/prepmoodlogo.jpg`;
 
         const emailParams = new EmailParams()
             .setFrom(sentFrom)
             .setTo(recipients)
             .setReplyTo(sentFrom)
-            .setSubject(`[Pre.p Mood] 주문 확인 - ${orderNumber}`)
+            .setSubject(`[Pre.pMood] Order Confirmation · ${orderNumber}`)
             .setHtml(`
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        <h1 style="color: #333; margin: 0;">Pre.p Mood</h1>
-                        <p style="color: #666; margin: 5px 0;">Timeless lines, Refined Vibes</p>
-                    </div>
+                <div style="max-width: 600px; margin: 0 auto; padding: 60px 50px; font-family: Arial, Helvetica, sans-serif; color: #333; line-height: 1.8; font-weight: bold;">
+                    <!-- 제목 및 로고 (테이블 레이아웃으로 변경 - 이메일 호환성) -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
+                        <tr>
+                            <td style="vertical-align: middle;">
+                                <h1 style="margin: 0; font-size: 18px; font-weight: bold; color: #333;">
+                                    [Pre.pMood] Order Confirmation · ${escapeHtml(orderNumber)}
+                                </h1>
+                            </td>
+                            <td style="vertical-align: middle; text-align: right; width: 120px;">
+                                <img src="${logoImageUrl}" alt="Pre.pMood" style="height: 120px; max-width: 120px; object-fit: contain;">
+                            </td>
+                        </tr>
+                    </table>
                     
-                    <div style="background: #f8f9fa; padding: 30px; border-radius: 10px;">
-                        <h2 style="color: #333; margin-bottom: 20px;">주문이 완료되었습니다</h2>
-                        <p style="color: #666; margin-bottom: 30px;">
-                            주문해주셔서 감사합니다. 주문이 성공적으로 접수되었습니다.
+                    <!-- 인사말 -->
+                    <p style="margin: 0 0 7px 0; font-size: 16px; font-weight: bold;">
+                        Hello <strong>${escapeHtml(displayName)}</strong>
+                    </p>
+                    
+                    <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: bold;">
+                        Your order has been successfully confirmed.<br>
+                        Your purchase is now securely recorded with Pre.pMood.
+                    </p>
+                    
+                    <!-- 구분선 -->
+                    <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
+                    
+                    <!-- Order Reference -->
+                    <div style="margin: 20px 0;">
+                        <p style="margin: 0 0 7px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0px;">
+                            Order Reference
                         </p>
-                        
-                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                            <h3 style="color: #333; margin-top: 0; margin-bottom: 15px;">주문 정보</h3>
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <tr>
-                                    <td style="padding: 8px 0; color: #666; width: 120px;">주문번호:</td>
-                                    <td style="padding: 8px 0; color: #333; font-weight: bold;">${escapeHtml(orderNumber)}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 8px 0; color: #666;">주문일시:</td>
-                                    <td style="padding: 8px 0; color: #333;">${orderDate ? new Date(orderDate).toLocaleString('ko-KR') : '-'}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 8px 0; color: #666;">주문 금액:</td>
-                                    <td style="padding: 8px 0; color: #333; font-weight: bold; font-size: 18px;">${Number(totalAmount).toLocaleString('ko-KR')}원</td>
-                                </tr>
-                            </table>
-                        </div>
-
-                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                            <h3 style="color: #333; margin-top: 0; margin-bottom: 15px;">주문 상품</h3>
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <thead>
-                                    <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
-                                        <th style="padding: 12px; text-align: left; font-weight: bold;">상품명</th>
-                                        <th style="padding: 12px; text-align: center; font-weight: bold;">옵션</th>
-                                        <th style="padding: 12px; text-align: center; font-weight: bold;">수량</th>
-                                        <th style="padding: 12px; text-align: right; font-weight: bold;">금액</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${itemsHtml}
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td colspan="3" style="padding: 12px; text-align: right; font-weight: bold; border-top: 2px solid #dee2e6;">총 주문 금액:</td>
-                                        <td style="padding: 12px; text-align: right; font-weight: bold; font-size: 18px; border-top: 2px solid #dee2e6;">${Number(totalAmount).toLocaleString('ko-KR')}원</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                        
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="${orderLink}" 
-                               style="display: inline-block; background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                                ${isGuest ? '주문 상세 보기' : '주문 내역 보기'}
-                            </a>
-                        </div>
-                        
-                        ${isGuest ? `
-                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin-top: 20px;">
-                            <p style="color: #856404; margin: 0; font-size: 14px;">
-                                <strong>비회원 주문 안내:</strong> 주문 상세 보기 링크는 90일간 유효합니다. 계정에 연동하시면 언제든지 주문 내역을 확인하실 수 있습니다.
-                            </p>
-                        </div>
-                        ` : ''}
+                        <p style="margin: 0px 0; font-size: 16px; font-weight: bold;">
+                            <strong>${escapeHtml(orderNumber)}</strong>
+                        </p>
+                        <p style="margin: 0px 0; font-size: 16px; font-weight: bold;">
+                            ${formattedDate}
+                        </p>
                     </div>
                     
-                    <div style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
-                        <p>본 메일은 발신전용입니다. 문의사항은 고객센터를 이용해주세요.</p>
-                        <p>&copy; 2025 Pre.p Mood. All rights reserved.</p>
+                    <!-- 구분선 -->
+                    <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
+                    
+                    <!-- Digital Records -->
+                    <div style="margin: 20px 0;">
+                        <p style="margin: 0 0 7px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0px;">
+                            Digital Records
+                        </p>
+                        <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">
+                            The following digital documents have been issued and activated:
+                        </p>
+                        <p style="margin: 0px 0; font-size: 16px; font-weight: bold;">
+                            ✔ Digital Invoice
+                        </p>
+                        <p style="margin: 0px 0; font-size: 16px; font-weight: bold;">
+                            ✔ Digital Warranty & Authenticity Certificate
+                        </p>
+                        <p style="margin: 10px 0 10px 0; font-size: 16px; font-weight: bold;">
+                            Access your order details and digital documents via the secure link below:
+                        </p>
+                        <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">
+                            👉 View Order & Digital Documents
+                        </p>
+                        <p style="margin: 5px 0;">
+                            <a href="${orderLink}" style="color: #000000; text-decoration: underline; font-size: 16px; font-style: italic; font-weight: bold;">
+                                ${orderLink}
+                            </a>
+                        </p>
                     </div>
+                    
+                    <!-- 구분선 -->
+                    <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
+                    
+                    <!-- 배송 안내 -->
+                    <p style="margin: 20px 0 10px 0; font-size: 16px; font-weight: bold;">
+                        Shipping updates and tracking details will be sent to this email once your order is dispatched.
+                    </p>
+                    
+                    <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">
+                        For assistance, please contact<br>
+                        <a href="mailto:support@prepmood.com" style="color: #333; text-decoration: underline; font-weight: bold;">
+                            support@prepmood.com
+                        </a>
+                    </p>
+                    
+                    <!-- 푸터 -->
+                    <p style="margin: 10px 0 10px 0; font-size: 16px; font-weight: bold;">
+                        Warm regards,<br>
+                        <strong>Pre.pMood</strong><br>
+                        <span style="font-style: italic; font-weight: bold;">The Art of Modern Heritage</span>
+                    </p>
                 </div>
             `)
             .setText(`
-Pre.p Mood - 주문 확인
+[Pre.pMood] Order Confirmation · ${orderNumber}
 
-안녕하세요!
+Hello ${displayName}
 
-주문이 성공적으로 접수되었습니다.
+Your order has been successfully confirmed.
+Your purchase is now securely recorded with Pre.pMood.
 
-주문번호: ${orderNumber}
-주문일시: ${orderDate ? new Date(orderDate).toLocaleString('ko-KR') : '-'}
-주문 금액: ${Number(totalAmount).toLocaleString('ko-KR')}원
+________________________________________
 
-주문 상품:
-${items.map(item => `- ${item.product_name || '-'} (${item.size || '-'} / ${item.color || '-'}) x ${item.quantity || 1} = ${Number(item.subtotal || item.unit_price || 0).toLocaleString('ko-KR')}원`).join('\n')}
+Order Reference
+${orderNumber}
+${formattedDate}
 
-주문 내역 보기: ${orderLink}
+________________________________________
 
-${isGuest ? '\n비회원 주문 안내: 주문 상세 보기 링크는 90일간 유효합니다. 계정에 연동하시면 언제든지 주문 내역을 확인하실 수 있습니다.\n' : ''}
+Digital Records
+The following digital documents have been issued and activated:
+✔ Digital Invoice
+✔ Digital Warranty & Authenticity Certificate
 
-Pre.p Mood
-Timeless lines, Refined Vibes
+Access your order details and digital documents via the secure link below:
+👉 View Order & Digital Documents
+${orderLink}
+
+________________________________________
+
+Shipping updates and tracking details will be sent to this email once your order is dispatched.
+
+For assistance, please contact
+support@prepmood.com
+
+Warm regards,
+Pre.pMood
+The Art of Modern Heritage
             `);
 
         console.log('📤 MailerSend API 호출 중...');
