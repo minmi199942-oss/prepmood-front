@@ -50,7 +50,7 @@ mysql -u prepmood_user -p prepmood < scripts/check_token_master_unique_constrain
 
 | 컬럼명 | 설명 | 예시 | 비고 |
 |--------|------|------|------|
-| `product_id` | 상품 ID (admin_products.id) | `PM-26-SH-Teneu-Solid-LB` | 필수, admin_products에 존재해야 함 |
+| `product_id` | 상품 ID (admin_products.id) | `PM-26-SH-Teneu-Solid` | 필수, admin_products에 존재해야 함 (색상 코드 제거됨) |
 | `serial_number` | 시리얼 넘버 (고유값) | `SN-001` | 필수, 고유값 |
 | `warranty_bottom_code` | 보증서 하단 코드 (고유값) | `WB-001` | 필수, 고유값 |
 
@@ -75,18 +75,18 @@ mysql -u prepmood_user -p prepmood < scripts/check_token_master_unique_constrain
 
 ```
 product_id | serial_number | warranty_bottom_code
-PM-26-SH-Teneu-Solid-LB | SN-001 | WB-001
-PM-26-SH-Teneu-Solid-LB | SN-002 | WB-002
-PM-26-SH-Teneu-Solid-LB | SN-003 | WB-003
+PM-26-SH-Teneu-Solid | SN-001 | WB-001
+PM-26-SH-Teneu-Solid | SN-002 | WB-002
+PM-26-SH-Teneu-Solid | SN-003 | WB-003
 ```
 
 ### 예시 2: 모든 컬럼 포함
 
 ```
 product_id | serial_number | warranty_bottom_code | rot_code | digital_warranty_code | digital_warranty_collection
-PM-26-SH-Teneu-Solid-LB | SN-001 | WB-001 | ROT-001 | DW-001 | Collection-26
-PM-26-SH-Teneu-Solid-LB | SN-002 | WB-002 | ROT-002 | DW-002 | Collection-26
-PM-26-SH-Teneu-Solid-LB | SN-003 | WB-003 | ROT-003 | DW-003 | Collection-26
+PM-26-SH-Teneu-Solid | SN-001 | WB-001 | ROT-001 | DW-001 | Collection-26
+PM-26-SH-Teneu-Solid | SN-002 | WB-002 | ROT-002 | DW-002 | Collection-26
+PM-26-SH-Teneu-Solid | SN-003 | WB-003 | ROT-003 | DW-003 | Collection-26
 ```
 
 **주의사항**:
@@ -363,8 +363,9 @@ ADD CONSTRAINT uk_token_master_warranty_bottom_code UNIQUE (warranty_bottom_code
 1. 관리자 페이지 → 상품 관리 (`/admin-qhf25za8/products.html`)
 2. "+ 새 상품 추가" 클릭
 3. 상품 정보 입력:
-   - 상품 ID: `PM-26-SH-New-Product-LB` (예시)
+   - 상품 ID: `PM-26-SH-New-Product` (예시, 색상 코드 제거됨)
    - 상품명, 가격, 카테고리 등
+   - ⚠️ **중요**: 색상 정보는 `product_options` 테이블에서 별도 관리 (재고 등록 시 선택)
 4. 저장 → `product_id` 확정
 
 ---
@@ -406,6 +407,8 @@ ADD CONSTRAINT uk_token_master_warranty_bottom_code UNIQUE (warranty_bottom_code
 2. "재고 추가" 클릭
 3. 생성된 `token_pk` 입력
 4. 사이즈, 색상 입력
+   - ⚠️ **중요**: 색상은 `product_options` 테이블에서 관리되는 표준값만 선택 가능
+   - 예: "Black", "Navy", "Light Blue", "Grey", "Light Grey", "White"
 5. 저장
 
 ---
@@ -499,7 +502,7 @@ INSERT (500개)
 
 **요청** (multipart/form-data):
 ```
-product_id: "PM-26-SH-Teneu-Solid-LB"
+product_id: "PM-26-SH-Teneu-Solid"
 xlsx_file: <파일>
 ```
 
@@ -509,7 +512,7 @@ xlsx_file: <파일>
   "success": true,
   "message": "500개 토큰 생성 완료",
   "data": {
-    "product_id": "PM-26-SH-Teneu-Solid-LB",
+    "product_id": "PM-26-SH-Teneu-Solid",
     "created_count": 500,
     "token_pk_range": [123, 124, ..., 622],
     "first_token_pk": 123,
@@ -574,5 +577,35 @@ xlsx_file: <파일>
 
 ---
 
-**문서 버전**: 1.0  
-**작성일**: 2026-01-16
+---
+
+## ⚠️ 색상 코드 제거 관련 변경사항 (2026-01-16)
+
+### Product ID 형식 변경
+
+**변경 전**:
+- `PM-26-SH-Teneu-Solid-LB` (색상 코드 포함)
+
+**변경 후**:
+- `PM-26-SH-Teneu-Solid` (색상 코드 제거)
+
+### 색상 정보 관리
+
+**변경 사항**:
+- 색상 정보는 `product_options` 테이블에서 관리 (SSOT)
+- `admin_products.id`와 `admin_products.name`에서 색상 정보 제거됨
+
+**영향**:
+- xlsx 파일의 `product_id`는 색상 코드 없이 입력
+- 재고 등록 시 `product_options`에서 색상 선택
+- 토큰 생성 시에는 색상 정보 불필요 (재고 등록 단계에서 처리)
+
+**관련 문서**:
+- `PRODUCT_ID_STANDARD.md`: Product ID 표준 규칙
+- `PRODUCT_NAME_COLOR_REMOVAL_IMPACT_ANALYSIS.md`: 색상 제거 영향력 분석
+
+---
+
+**문서 버전**: 1.1  
+**작성일**: 2026-01-16  
+**최종 업데이트**: 2026-01-16 (색상 코드 제거 반영)

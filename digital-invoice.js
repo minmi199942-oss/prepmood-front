@@ -194,7 +194,7 @@ function renderInvoices(invoices) {
     const card = createInvoiceCard({
       invoiceNo: invoice.invoiceNumber,
       issueDate: formatIssueDate(invoiceDate),
-      productName: invoice.shippingName || invoice.billingName || '제품명',
+      productName: invoice.productName || invoice.shippingName || invoice.billingName || '제품명',
       issueDateTime: formatDateTime(invoiceDate),
       isVerified: invoice.status === 'issued'
     }, index);
@@ -211,6 +211,19 @@ function renderInvoices(invoices) {
 function createInvoiceCard(invoice, index) {
   const wrapper = document.createElement('div');
   wrapper.className = 'invoice-letter-card';
+  
+  // 클릭 시 상세 페이지로 이동
+  const invoiceId = invoice.invoiceId || invoice.invoiceNumber;
+  if (invoiceId) {
+    wrapper.style.cursor = 'pointer';
+    wrapper.addEventListener('click', function(e) {
+      // SVG, 이미지 클릭은 무시 (호버 애니메이션과 충돌 방지)
+      if (e.target.closest('svg, img')) {
+        return;
+      }
+      window.location.href = `/invoice-detail.html?invoiceId=${encodeURIComponent(invoiceId)}`;
+    });
+  }
   
   // 인보이스 데이터에서 정보 추출 (데모 데이터)
   const productName = invoice.productName || '제품명';

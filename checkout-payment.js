@@ -302,8 +302,14 @@ async function proceedWithTossPayment(data) {
       
       const confirmed = await confirmRes.json();
       
+      // ⚠️ 비회원 주문인 경우 guest_order_access_token을 URL 파라미터로 전달
+      const guestToken = confirmed.data?.guest_access_token;
+      const redirectUrl = guestToken 
+        ? `order-complete.html?orderId=${orderNumber}&guestToken=${encodeURIComponent(guestToken)}`
+        : `order-complete.html?orderId=${orderNumber}`;
+      
       // MOCK 모드에서는 바로 완료 페이지로 이동
-      window.location.href = `order-complete.html?orderId=${orderNumber}`;
+      window.location.href = redirectUrl;
       return;
     }
     

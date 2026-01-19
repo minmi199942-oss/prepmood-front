@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주문 확인 이메일 미리보기 - Pre.p Mood</title>
+    <link href="https://fonts.cdnfonts.com/css/arial" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            background: #f5f5f5;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 60px 50px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .divider {
+            border-top: 1px solid #ddd;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div style="font-family: Arial, Helvetica, sans-serif; color: #333; line-height: 1.8; font-weight: bold;">
+            <!-- 제목 및 로고 -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <h1 style="margin: 0; font-size: 18px; font-weight: bold; color: #333;">
+                    [Pre.pMood] Order Confirmation · ORD-20250116-001
+                </h1>
+                <img src="/image/prepmoodlogo.jpg" alt="Pre.pMood" style="height: 120px; margin-left: 20px; object-fit: contain;">
+            </div>
+            
+            <!-- 인사말 -->
+            <p style="margin: 0 0 7px 0; font-size: 16px; font-weight: bold;">
+                Hello <strong>홍길동</strong>
+            </p>
+            
+            <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: bold;">
+                Your order has been successfully confirmed.<br>
+                Your purchase is now securely recorded with Pre.pMood.
+            </p>
+            
+            <!-- 구분선 -->
+            <div class="divider"></div>
+            
+            <!-- Order Reference -->
+            <div style="margin: 20px 0;">
+                <p style="margin: 0 0 7px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0px;">
+                    Order Reference
+                </p>
+                <p style="margin: 0px 0; font-size: 16px; font-weight: bold;">
+                    <strong>ORD-20250116-001</strong>
+                </p>
+                <p style="margin: 0px 0; font-size: 16px; font-weight: bold;">
+                    16 January 2025
+                </p>
+            </div>
+            
+            <!-- 구분선 -->
+            <div class="divider"></div>
+            
+            <!-- Digital Records -->
+            <div style="margin: 20px 0;">
+                <p style="margin: 0 0 7px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0px;">
+                    Digital Records
+                </p>
+                <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">
+                    The following digital documents have been issued and activated:
+                </p>
+                <p style="margin: 0px 0; font-size: 16px; font-weight: bold;">
+                    ✔ Digital Invoice
+                </p>
+                <p style="margin: 0px 0; font-size: 16px; font-weight: bold;">
+                    ✔ Digital Warranty & Authenticity Certificate
+                </p>
+                <p style="margin: 10px 0 10px 0; font-size: 16px; font-weight: bold;">
+                    Access your order details and digital documents via the secure link below:
+                </p>
+                <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">
+                    👉 View Order & Digital Documents
+                </p>
+                <p style="margin: 5px 0;">
+                    <a href="#" style="color: #000000; text-decoration: underline; font-size: 16px; font-style: italic; font-weight: bold;">
+                        {{Secure Link}}
+                    </a>
+                </p>
+            </div>
+            
+            <!-- 구분선 -->
+            <div class="divider"></div>
+            
+            <!-- 배송 안내 -->
+            <p style="margin: 20px 0 10px 0; font-size: 16px; font-weight: bold;">
+                Shipping updates and tracking details will be sent to this email once your order is dispatched.
+            </p>
+            
+            <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">
+                For assistance, please contact<br>
+                <a href="mailto:support@prepmood.com" style="color: #333; text-decoration: underline; font-weight: bold;">
+                    support@prepmood.com
+                </a>
+            </p>
+            
+            <!-- 푸터 -->
+            <p style="margin: 10px 0 10px 0; font-size: 16px; font-weight: bold;">
+                Warm regards,<br>
+                <strong>Pre.pMood</strong><br>
+                <span style="font-style: italic; font-weight: bold;">The Art of Modern Heritage</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- 버전 토글 버튼 -->
+    <div style="max-width: 600px; margin: 20px auto; text-align: center;">
+        <button onclick="toggleGuestVersion()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            비회원 버전 보기
+        </button>
+    </div>
+
+    <script>
+        function toggleGuestVersion() {
+            const button = document.querySelector('button');
+            const orderLink = document.querySelector('a[href="#"]');
+            const secureLink = document.querySelector('p[style*="font-style: italic"]');
+            
+            if (button.textContent === '비회원 버전 보기') {
+                button.textContent = '회원 버전 보기';
+                orderLink.textContent = '👉 View Order & Digital Documents';
+                if (secureLink) {
+                    secureLink.textContent = '{{Secure Link}}';
+                }
+            } else {
+                button.textContent = '비회원 버전 보기';
+                orderLink.textContent = '👉 View Order & Digital Documents';
+                if (secureLink) {
+                    secureLink.textContent = '{{Secure Link}}';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

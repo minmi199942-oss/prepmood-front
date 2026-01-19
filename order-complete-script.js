@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   const paymentKey = urlParams.get('paymentKey');
   const orderId = urlParams.get('orderId'); // 토스페이먼츠 successUrl에서 orderId로 전달
   const amount = urlParams.get('amount');
+  const guestToken = urlParams.get('guestToken'); // ⚠️ 비회원 주문 토큰
 
   const authStatus = await fetchAuthStatus();
   const isAuthenticated = authStatus?.authenticated;
@@ -27,11 +28,17 @@ document.addEventListener('DOMContentLoaded', async function() {
   
   // 일반 주문 완료 페이지 (orderId만 있는 경우)
   if (orderId) {
-    if (!isAuthenticated) {
+    // ⚠️ 비회원 주문인 경우 (guestToken이 있으면)
+    if (guestToken) {
+      await loadGuestOrderDetails(orderId, guestToken);
+    } else if (!isAuthenticated) {
+      // 비회원이지만 토큰이 없는 경우
       showOrderError('주문 정보를 확인하려면 로그인이 필요합니다.');
       return;
+    } else {
+      // 회원 주문
+      loadOrderDetails(orderId);
     }
-    loadOrderDetails(orderId);
   } else {
     console.warn('⚠️ 주문 ID가 없습니다');
     // 주문 ID가 없으면 기본 메시지만 표시
@@ -51,6 +58,118 @@ async function fetchAuthStatus() {
   } catch (error) {
     console.warn('auth status 확인 실패', error.message);
     return { authenticated: false };
+  }
+}
+
+// ⚠️ 비회원 주문 조회 (guest_order_access_token 사용)
+async function loadGuestOrderDetails(orderNumber, guestToken) {
+  try {
+    // 1. 세션 토큰 발급 (guest_order_access_token으로 세션 교환)
+    // ⚠️ fetch는 302 Redirect를 자동으로 따라가지 않으므로, redirect: 'manual' 옵션 사용
+    const sessionResponse = await fetch(`${API_BASE}/guest/orders/session?token=${encodeURIComponent(guestToken)}`, {
+      method: 'GET',
+      credentials: 'include',
+      redirect: 'manual' // 302 Redirect를 수동으로 처리
+    });
+    
+    if (sessionResponse.status === 302) {
+      // 302 Redirect는 정상 (세션 발급 후 리다이렉트)
+      // Location 헤더에서 order 파라미터 추출
+      const location = sessionResponse.headers.get('Location');
+      if (location) {
+        try {
+          const url = new URL(location, window.location.origin);
+          const redirectedOrder = url.searchParams.get('order');
+          if (redirectedOrder) {
+            // 세션 토큰이 쿠키에 설정되었으므로 바로 조회 가능
+            await loadGuestOrderDetailsBySession(redirectedOrder);
+            return;
+          }
+        } catch (urlError) {
+          console.warn('리다이렉트 URL 파싱 실패:', urlError);
+        }
+      }
+      // Location 헤더가 없거나 order 파라미터가 없으면 원래 orderNumber 사용
+      await loadGuestOrderDetailsBySession(orderNumber);
+      return;
+    }
+    
+    if (!sessionResponse.ok) {
+      const errorData = await sessionResponse.json().catch(() => ({}));
+      console.warn('비회원 주문 세션 발급 실패', sessionResponse.status, errorData);
+      showOrderError(errorData.message || '주문 정보를 불러올 수 없습니다. 이메일로 발송된 링크를 사용해주세요.');
+      return;
+    }
+    
+    // 200 OK 응답인 경우 (일반적으로는 302가 나와야 함)
+    const sessionData = await sessionResponse.json();
+    if (sessionData.success) {
+      // 세션 발급 성공 시 주문 조회
+      await loadGuestOrderDetailsBySession(orderNumber);
+    } else {
+      showOrderError(sessionData.message || '주문 정보를 불러올 수 없습니다.');
+    }
+    
+  } catch (error) {
+    console.error('비회원 주문 조회 오류:', error);
+    showOrderError('주문 정보를 불러오는 중 오류가 발생했습니다.');
+  }
+}
+
+// ⚠️ 비회원 주문 조회 (세션 토큰 사용)
+async function loadGuestOrderDetailsBySession(orderNumber) {
+  try {
+    const response = await fetch(`${API_BASE}/guest/orders/${orderNumber}`, {
+      credentials: 'include' // 세션 토큰이 httpOnly 쿠키로 전송됨
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        showOrderError('세션이 만료되었습니다. 이메일로 발송된 링크를 다시 사용해주세요.');
+        return;
+      }
+      if (response.status === 404) {
+        showOrderError('주문을 찾을 수 없습니다. 주문 번호를 확인해주세요.');
+        return;
+      }
+      const errMessage = `주문 정보 조회 실패: ${response.status}`;
+      throw new Error(errMessage);
+    }
+    
+    const result = await response.json();
+    if (result.success && result.data) {
+      // ⚠️ 비회원 주문 응답 형식: result.data.order, result.data.items, result.data.shipping 등
+      // displayOrderInfoFromServer는 첫 번째 인자로 data 객체, 두 번째 인자로 orderDetail 객체를 받음
+      // 비회원 응답 형식에 맞게 변환
+      const orderData = result.data.order || {
+        order_number: result.data.order_number,
+        order_date: result.data.order_date,
+        total_price: result.data.total_price,
+        status: result.data.status,
+        paid_at: result.data.paid_at
+      };
+      
+      // displayOrderInfoFromServer 호출 (회원과 동일한 형식으로 변환)
+      displayOrderInfoFromServer({
+        order_number: orderData.order_number,
+        amount: orderData.total_price,
+        currency: result.data.payment?.currency || 'KRW',
+        fraction: 0,
+        status: orderData.status,
+        eta: null
+      }, {
+        order: orderData,
+        shipping: result.data.shipping,
+        items: result.data.items,
+        payment: result.data.payment,
+        shipments: result.data.shipments || []
+      });
+    } else {
+      showOrderError('주문 정보를 불러올 수 없습니다.');
+    }
+  } catch (error) {
+    console.error('비회원 주문 조회 오류:', error);
+    showOrderError('주문 정보를 불러오는 중 오류가 발생했습니다.');
   }
 }
 
@@ -391,8 +510,15 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     
     const result = await response.json();
     
-    // 결제 확인 성공 → 주문 정보 로드
-    await loadOrderDetails(orderId);
+    // ⚠️ 비회원 주문인 경우 guest_order_access_token을 URL 파라미터로 전달
+    const guestToken = result.data?.guest_access_token;
+    if (guestToken) {
+      // 비회원 주문: guestToken과 함께 주문 조회
+      await loadGuestOrderDetails(orderId, guestToken);
+    } else {
+      // 회원 주문: 기존 방식대로 조회
+      await loadOrderDetails(orderId);
+    }
     
     // 성공 메시지 표시
     showPaymentSuccess();

@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인보이스 상세 - Pre.p Mood</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fonts-archive/Paperlogy/Paperlogy.css" type="text/css"/>
+    <style>
+
+        /* ============================================
+           리셋 및 기본 스타일
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Paperlogy', 'Georgia', serif;
+            background-color: #F0F0F0;
+            min-height: 100vh;
+            padding: clamp(40px, 6vw, 60px) clamp(20px, 4vw, 40px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ============================================
+           인보이스 문서 및 버튼 래퍼
+           ============================================ */
+        .invoice-main-wrapper {
+            display: flex;
+            gap: clamp(20px, 3vw, 30px);
+            align-items: flex-start;
+            width: 100%;
+            max-width: 1000px;
+            padding-left: 60px;
+            margin-bottom: clamp(30px, 5vw, 40px);
+        }
+
+        /* ============================================
+           인보이스 문서 컨테이너
+           ============================================ */
+        .invoice-document-container {
+            flex: 1 1 auto; /* 남는 폭 전부 먹기 */
+            min-width: 0; /* 긴 내용 때문에 flex 깨지는 것 방지 */
+            max-width: 900px;
+            background-color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            padding: clamp(40px, 6vw, 60px) clamp(30px, 5vw, 50px);
+            position: relative;
+        }
+
+        /* 헤더 영역 (2열) */
+        .invoice-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: clamp(40px, 6vw, 60px);
+            padding-bottom: clamp(20px, 3vw, 30px);
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .invoice-header-left {
+            flex: 1;
+        }
+
+        .invoice-header-title {
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-weight: 500;
+            font-size: clamp(24px, 3.5vw, 32px);
+            color: #000;
+            letter-spacing: 2px;
+            margin-bottom: clamp(16px, 2vw, 24px);
+        }
+
+        .invoice-header-meta {
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-weight: 500;
+            font-size: clamp(12px, 1.6vw, 14px);
+            color: #000;
+            letter-spacing: 1px;
+            margin-bottom: clamp(8px, 1vw, 12px);
+            line-height: 1.6;
+        }
+
+        .invoice-header-right {
+            text-align: right;
+        }
+
+        .invoice-brand-name {
+            font-family: 'Georgia', serif;
+            font-size: clamp(24px, 3.5vw, 32px);
+            color: #000;
+            font-weight: normal;
+            letter-spacing: 1px;
+        }
+
+        /* DESCRIPTION 섹션 */
+        .invoice-description-section {
+            margin-bottom: clamp(40px, 6vw, 60px);
+            position: relative;
+        }
+
+        .invoice-section-title {
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-weight: 500;
+            font-size: clamp(14px, 1.8vw, 16px);
+            color: #000;
+            letter-spacing: 2px;
+            margin-bottom: clamp(20px, 3vw, 30px);
+            text-transform: uppercase;
+        }
+
+        .invoice-items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .invoice-items-table th {
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-weight: 500;
+            font-size: clamp(12px, 1.6vw, 14px);
+            color: #000;
+            letter-spacing: 1px;
+            text-align: left;
+            padding: clamp(12px, 1.5vw, 16px) 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .invoice-items-table th:nth-child(2) {
+            text-align: center;
+        }
+
+        .invoice-items-table th:nth-child(3) {
+            text-align: right;
+        }
+
+        .invoice-items-table td {
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-weight: normal;
+            font-size: clamp(12px, 1.6vw, 14px);
+            color: #000;
+            letter-spacing: 0.5px;
+            padding: clamp(12px, 1.5vw, 16px) 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .invoice-items-table td:nth-child(1) {
+            text-align: left;
+        }
+
+        .invoice-items-table td:nth-child(2) {
+            text-align: center;
+        }
+
+        .invoice-items-table td:nth-child(3) {
+            text-align: right;
+        }
+
+        /* 보증서 보기 버튼 컬럼 (문서 바깥, invoice-main-wrapper 안) */
+        .warranty-buttons-column {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            align-items: flex-start;
+            justify-content: flex-start;
+            margin-top: 0;
+            flex: 0 0 auto; /* 확장 금지 */
+            width: fit-content; /* 버튼 묶음만큼만 */
+            max-width: 160px; /* 안전장치 */
+            padding: 0; /* 혹시 큰 padding이 원인인 경우 바로 제거 */
+            padding-top: 0; /* JavaScript로 동적 계산 (padding: 0 위에 오버라이드) */
+        }
+
+        /* 각 보증서 버튼은 테이블 행과 동일한 높이 */
+        .warranty-button-row {
+            display: flex;
+            align-items: center;
+            min-height: clamp(40px, calc(1.5vw + 28px), 48px); /* JavaScript로 동적 설정 */
+        }
+
+        .warranty-view-btn {
+            background-color: #000;
+            color: #fff;
+            border: none;
+            padding: clamp(6px, 1vw, 8px) clamp(12px, 1.5vw, 16px);
+            border-radius: 4px;
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-size: clamp(10px, 1.2vw, 12px);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .warranty-view-btn:hover {
+            opacity: 0.8;
+        }
+
+        /* Financial Summary (오른쪽 정렬) */
+        .invoice-summary-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: clamp(40px, 6vw, 60px);
+        }
+
+        .invoice-summary-container {
+            min-width: 300px;
+        }
+
+        .invoice-summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: clamp(8px, 1vw, 12px);
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-size: clamp(12px, 1.6vw, 14px);
+            color: #000;
+            letter-spacing: 0.5px;
+        }
+
+        .invoice-summary-row.total {
+            margin-top: clamp(16px, 2vw, 24px);
+            padding-top: clamp(16px, 2vw, 24px);
+            border-top: 1px solid #000;
+            font-weight: 500;
+        }
+
+        .invoice-summary-label {
+            text-align: left;
+        }
+
+        .invoice-summary-value {
+            text-align: right;
+        }
+
+        /* Footer (2열: Company & Customer) */
+        .invoice-detail-footer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(40px, 6vw, 60px);
+            margin-top: clamp(40px, 6vw, 60px);
+            padding-top: clamp(30px, 4vw, 40px);
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .invoice-footer-section {
+            flex: 1;
+        }
+
+        .invoice-footer-title {
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-weight: 500;
+            font-size: clamp(14px, 1.8vw, 16px);
+            color: #000;
+            letter-spacing: 2px;
+            margin-bottom: clamp(16px, 2vw, 24px);
+            text-transform: uppercase;
+        }
+
+        .invoice-footer-info {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(8px, 1vw, 12px);
+        }
+
+        .invoice-footer-row {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: clamp(16px, 2vw, 24px);
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-size: clamp(12px, 1.6vw, 14px);
+            color: #000;
+            letter-spacing: 0.5px;
+        }
+
+        .invoice-footer-label {
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .invoice-footer-value {
+            text-align: right;
+        }
+
+        /* 하단 액션 버튼들 */
+        .invoice-action-buttons {
+            display: flex;
+            gap: clamp(12px, 2vw, 16px);
+            justify-content: flex-center;
+            flex-wrap: wrap;
+            max-width: 1150px;
+            width: 100%;
+            align-self: flex-center;
+            margin-left: 0;
+        }
+
+        .action-btn {
+            padding: clamp(20px, 4vw, 28px) clamp(80px, 13vw, 110px);
+            border-radius: 4px;
+            font-family: 'Paperlogy', 'Georgia', serif;
+            font-size: clamp(15px, 2.2vw, 18px);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            border: none;
+            white-space: nowrap;
+        }
+
+        .action-btn-primary {
+            background-color: #000;
+            color: #fff;
+        }
+
+        .action-btn-primary:hover {
+            opacity: 0.8;
+        }
+
+        .action-btn-secondary {
+            background-color: #D0D0D0;
+            color: #fff;
+        }
+
+        .action-btn-secondary:hover {
+            opacity: 0.8;
+        }
+
+        .action-btn-outline {
+            background-color: #fff;
+            color: #000;
+            border: 1px solid #e0e0e0;
+        }
+
+        .action-btn-outline:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* 로딩 및 에러 상태 */
+        .loading-invoice,
+        .no-invoice {
+            text-align: center;
+            padding: clamp(60px, 10vw, 80px) clamp(20px, 4vw, 30px);
+        }
+
+        .no-invoice-title {
+            font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+            font-weight: 400;
+            color: #666;
+            margin-bottom: clamp(12px, 2.5vw, 16px);
+        }
+
+        .no-invoice-subtitle {
+            font-size: clamp(0.9rem, 2vw, 1rem);
+            color: #999;
+            margin-bottom: clamp(20px, 4vw, 24px);
+        }
+
+        /* 반응형 - 1222px 이하에서 버튼 세로 정렬 및 보증서 버튼 겹침 */
+        @media (max-width: 1222px) {
+            .invoice-main-wrapper {
+                position: relative;
+            }
+
+            .invoice-document-container {
+                padding-right: 70px; /* 우측 padding 50에서 70으로 증가 */
+            }
+
+            .warranty-buttons-column {
+                position: relative;
+                margin-left: -80px; /* 문서 안쪽으로 절반 정도 들어가도록 */
+                z-index: 10;
+            }
+
+            .invoice-action-buttons {
+                flex-direction: column;
+                max-width: 100px; /* 문서와 동일한 너비 */
+                width: 100%;
+            }
+
+            .action-btn {
+                width: 100%;
+            }
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .invoice-detail-header {
+                flex-direction: column;
+                gap: clamp(20px, 3vw, 30px);
+            }
+
+            .invoice-header-right {
+                text-align: left;
+            }
+
+            .invoice-detail-footer {
+                grid-template-columns: 1fr;
+            }
+
+            .invoice-summary-container {
+                min-width: 100%;
+            }
+
+            .invoice-main-wrapper {
+                flex-direction: column;
+            }
+
+            .warranty-buttons-column {
+                flex-direction: row;
+                margin-top: clamp(20px, 3vw, 30px);
+                justify-content: flex-start;
+                flex-wrap: wrap;
+                width: 100%;
+            }
+
+            .invoice-action-buttons {
+                flex-direction: column;
+            }
+
+            .action-btn {
+                width: 100%;
+            }
+        }
+    </style>
+    <script defer src="/utils.js"></script>
+    <script defer src="/invoice-detail.js"></script>
+</head>
+<body>
+    <!-- 인보이스 문서 및 버튼 래퍼 -->
+    <div class="invoice-main-wrapper">
+        <!-- 인보이스 문서 컨테이너 -->
+        <div class="invoice-document-container">
+        <!-- 로딩 상태 -->
+        <div id="loading-invoice" class="loading-invoice" style="display: none;">
+            <p>인보이스 정보를 불러오는 중...</p>
+        </div>
+
+        <!-- 인보이스 상세 정보 -->
+        <div id="invoice-detail-content" style="display: none;">
+            <!-- JavaScript로 동적 생성 -->
+        </div>
+
+        <!-- 인보이스 없음 상태 -->
+        <div id="no-invoice" class="no-invoice" style="display: none;">
+            <div class="no-invoice-content">
+                <h2 class="no-invoice-title">인보이스를 찾을 수 없습니다.</h2>
+                <p class="no-invoice-subtitle">인보이스 ID가 올바른지 확인해주세요.</p>
+            </div>
+        </div>
+        </div>
+
+        <!-- 보증서 보기 버튼 컬럼 (문서 바깥) -->
+        <div class="warranty-buttons-column" id="warranty-buttons-column" style="display: none;">
+            <!-- JavaScript로 동적 생성 -->
+        </div>
+    </div>
+
+    <!-- 하단 액션 버튼들 -->
+    <div class="invoice-action-buttons" id="action-buttons" style="display: none;">
+        <button class="action-btn action-btn-primary" id="download-receipt-btn">
+            결제 영수증 다운로드
+        </button>
+        <button class="action-btn action-btn-secondary" id="download-all-warranties-btn">
+            보증서 일괄 다운로드
+        </button>
+        <button class="action-btn action-btn-outline" id="back-to-list-btn">
+            목록으로 돌아가기
+        </button>
+    </div>
+</body>
+</html>
