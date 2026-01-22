@@ -599,16 +599,40 @@ async function processPaidOrder({
         }
 
         // ============================================================
-        // 9. guest_order_access_tokens 생성 (비회원 주문인 경우)
+        // 9. guest_order_access_tokens 생성 (회원/비회원 모두 - 이메일 접근 토큰)
         // ============================================================
         let guestAccessToken = null;
-        if (order.guest_id && !order.user_id) {
-            try {
-                // 토큰 생성 (32바이트 hex 문자열)
+        
+        // 회원/비회원 모두 토큰 발급 (이메일 링크 통일)
+        try {
+            // 1. 기존 유효 토큰 확인 (만료 전, revoked 아님) - 최신 것만 선택
+            const [existingTokens] = await connection.execute(
+                `SELECT token 
+                 FROM guest_order_access_tokens 
+                 WHERE order_id = ? 
+                   AND expires_at > NOW() 
+                   AND revoked_at IS NULL 
+                 ORDER BY created_at DESC 
+                 LIMIT 1`,
+                [orderId]
+            );
+
+            if (existingTokens.length > 0) {
+                // 기존 최신 토큰 재사용
+                guestAccessToken = existingTokens[0].token;
+                Logger.log('[PAID_PROCESSOR] 기존 토큰 재사용', {
+                    orderId,
+                    userId: order.user_id,
+                    guestId: order.guest_id,
+                    tokenPrefix: guestAccessToken.substring(0, 8) + '...'
+                });
+            } else {
+                // 새 토큰 생성
+                // ⚠️ 레이스 조건: 동시 요청 시 여러 토큰이 생성될 수 있으나,
+                // 다음 조회 시 ORDER BY created_at DESC LIMIT 1로 최신 것만 사용
                 const accessToken = crypto.randomBytes(32).toString('hex');
                 const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90일 후
 
-                // guest_order_access_tokens 생성
                 await connection.execute(
                     `INSERT INTO guest_order_access_tokens 
                      (order_id, token, expires_at) 
@@ -616,23 +640,46 @@ async function processPaidOrder({
                     [orderId, accessToken, expiresAt]
                 );
 
-                guestAccessToken = accessToken; // 반환용 저장
-
-                Logger.log('[PAID_PROCESSOR] guest_order_access_tokens 생성 완료', {
+                guestAccessToken = accessToken;
+                Logger.log('[PAID_PROCESSOR] 새 토큰 생성', {
                     orderId,
+                    userId: order.user_id,
                     guestId: order.guest_id,
                     tokenPrefix: accessToken.substring(0, 8) + '...',
                     expiresAt
                 });
-            } catch (error) {
-                // 토큰 생성 실패는 로깅만 (결제 성공은 유지)
-                Logger.error('[PAID_PROCESSOR] guest_order_access_tokens 생성 실패 (결제는 성공)', {
+            }
+
+            // 2. 이메일 발송 직전에 항상 "대표 토큰(최신)"을 다시 조회해서 그 토큰으로 발송
+            // ⚠️ 중요: 생성/재사용 판단 로직과 "이메일에 넣는 토큰 선택"을 분리
+            // 레이스 조건 대비: 이메일은 항상 최종 SELECT 결과 1개만 사용
+            const [finalToken] = await connection.execute(
+                `SELECT token 
+                 FROM guest_order_access_tokens 
+                 WHERE order_id = ? 
+                   AND expires_at > NOW() 
+                   AND revoked_at IS NULL 
+                 ORDER BY created_at DESC 
+                 LIMIT 1`,
+                [orderId]
+            );
+
+            if (finalToken.length > 0) {
+                guestAccessToken = finalToken[0].token; // 이메일 발송용 최종 토큰
+                Logger.log('[PAID_PROCESSOR] 이메일 발송용 최신 토큰 선정', {
                     orderId,
-                    guestId: order.guest_id,
-                    error: error.message,
-                    error_code: error.code
+                    tokenPrefix: guestAccessToken.substring(0, 8) + '...'
                 });
             }
+        } catch (error) {
+            // 토큰 생성 실패는 로깅만 (결제 성공은 유지)
+            Logger.error('[PAID_PROCESSOR] 토큰 처리 실패 (결제는 성공)', {
+                orderId,
+                userId: order.user_id,
+                guestId: order.guest_id,
+                error: error.message,
+                error_code: error.code
+            });
         }
 
         const duration = Date.now() - startTime;

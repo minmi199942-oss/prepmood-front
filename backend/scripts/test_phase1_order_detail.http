@@ -1,0 +1,121 @@
+### Phase 1 테스트: 통합 주문 상세 페이지 구현
+### REST Client 형식 테스트 스크립트
+### VS Code REST Client 확장 프로그램 또는 JetBrains HTTP Client에서 사용 가능
+
+@baseUrl = http://localhost:3000/api
+@baseUrlProd = https://prepmood.kr/api
+
+### ============================================
+### 1. 세션 교환 엔드포인트 테스트
+### ============================================
+
+### 1-1. 정상 케이스: Claim 완료된 주문도 접근 가능 (수정 확인)
+### 전제 조건:
+### - guest_order_access_token이 유효하고
+### - orders.user_id IS NOT NULL (Claim 완료)
+### - expires_at > NOW()
+### - revoked_at IS NULL
+### 
+### 예상 결과: 302 Redirect (이전에는 410 에러였음)
+
+GET {{baseUrl}}/guest/orders/session?token=YOUR_VALID_TOKEN_HERE
+
+### 1-2. 토큰 만료 케이스
+### 전제 조건: expires_at < NOW()
+### 예상 결과: 410 에러
+
+GET {{baseUrl}}/guest/orders/session?token=YOUR_EXPIRED_TOKEN_HERE
+
+### 1-3. 토큰 회수 케이스
+### 전제 조건: revoked_at IS NOT NULL
+### 예상 결과: 410 에러
+
+GET {{baseUrl}}/guest/orders/session?token=YOUR_REVOKED_TOKEN_HERE
+
+### 1-4. 토큰 없음 케이스
+### 예상 결과: 400 에러
+
+GET {{baseUrl}}/guest/orders/session
+
+### ============================================
+### 2. optionalAuth 미들웨어 테스트
+### ============================================
+
+### 2-1. JWT 유효 + 권한 있음
+### 예상 결과: 200 OK, 정상 응답
+
+GET {{baseUrl}}/auth/status
+Cookie: accessToken=YOUR_VALID_JWT_HERE
+
+### 2-2. JWT 무효 (만료/깨짐)
+### 예상 결과: 401 에러 (세션으로 폴백하지 않음)
+
+GET {{baseUrl}}/auth/status
+Cookie: accessToken=invalid_or_expired_jwt_token
+
+### 2-3. JWT 없음
+### 예상 결과: 200 OK, authenticated: false
+
+GET {{baseUrl}}/auth/status
+
+### ============================================
+### 3. Claim API 멱등성 테스트
+### ============================================
+
+### 3-1. 정상 케이스: Claim 성공
+### 전제 조건:
+### - orders.user_id IS NULL (비회원 주문)
+### - claim_token이 유효하고 미사용
+### 예상 결과: 200 OK, success: true
+
+POST {{baseUrl}}/orders/1/claim
+Content-Type: application/json
+Cookie: accessToken=YOUR_VALID_JWT_HERE
+
+{
+  "claim_token": "YOUR_VALID_CLAIM_TOKEN_HERE"
+}
+
+### 3-2. 멱등성 테스트: 같은 사용자 재요청
+### 전제 조건:
+### - orders.user_id = 현재 로그인한 user_id
+### 예상 결과: 200 OK, already_claimed: true
+
+POST {{baseUrl}}/orders/1/claim
+Content-Type: application/json
+Cookie: accessToken=YOUR_VALID_JWT_HERE
+
+{
+  "claim_token": "YOUR_VALID_CLAIM_TOKEN_HERE"
+}
+
+### 3-3. 다른 사용자 요청
+### 전제 조건:
+### - orders.user_id = 다른 user_id
+### 예상 결과: 409 Conflict, code: ALREADY_CLAIMED_BY_OTHER
+
+POST {{baseUrl}}/orders/1/claim
+Content-Type: application/json
+Cookie: accessToken=OTHER_USER_JWT_HERE
+
+{
+  "claim_token": "YOUR_VALID_CLAIM_TOKEN_HERE"
+}
+
+### ============================================
+### 4. 토큰 발급 테스트 (DB 확인)
+### ============================================
+### 이 테스트는 실제 주문 결제 후 DB를 확인해야 함
+### 
+### 테스트 방법:
+### 1. 회원 주문 결제 완료
+### 2. DB에서 확인:
+###    SELECT * FROM guest_order_access_tokens WHERE order_id = ?;
+### 3. 비회원 주문 결제 완료
+### 4. DB에서 확인:
+###    SELECT * FROM guest_order_access_tokens WHERE order_id = ?;
+### 
+### 예상 결과:
+### - 회원 주문에도 토큰 생성됨
+### - 비회원 주문에도 토큰 생성됨
+### - 중복 confirm/webhook 시 최신 토큰만 이메일에 포함

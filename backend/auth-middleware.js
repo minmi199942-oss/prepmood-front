@@ -95,12 +95,13 @@ function optionalAuth(req, res, next) {
     const token = req.cookies?.accessToken;
     
     if (!token) {
-        // 토큰 없음 - 비로그인 상태로 진행
+        // 토큰 없음 - 세션 경로 가능
         req.user = null;
-        req.authType = 'anonymous'; // ✅ 추가: 명시적 플래그
+        req.authType = 'anonymous';
         return next();
     }
 
+    // JWT 쿠키가 있으면 검증 실패 시 즉시 401 반환 (세션 폴백 금지)
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = {
@@ -108,16 +109,18 @@ function optionalAuth(req, res, next) {
             email: decoded.email,
             name: decoded.name
         };
-        req.authType = 'user'; // ✅ 추가: 명시적 플래그
+        req.authType = 'user';
         console.log(`✅ 선택적 인증 성공: ${decoded.email}`);
+        return next();
     } catch (error) {
-        // 토큰이 유효하지 않아도 에러 없이 진행
-        console.log(`⚠️ 선택적 인증 실패 (무시): ${error.message}`);
-        req.user = null;
-        req.authType = 'anonymous'; // ✅ 추가: 명시적 플래그
+        // ⚠️ JWT 쿠키가 있으면 검증 실패 시 즉시 401 (세션으로 폴백하지 않음)
+        console.log(`❌ 선택적 인증 실패 (JWT 쿠키 존재): ${error.message}`);
+        return res.status(401).json({
+            success: false,
+            message: '인증에 실패했습니다. 다시 로그인해주세요.',
+            code: 'AUTH_FAILED'
+        });
     }
-    
-    next();
 }
 
 /**

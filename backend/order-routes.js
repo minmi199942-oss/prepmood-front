@@ -1146,17 +1146,57 @@ router.post('/orders/:orderId/claim', authenticateToken, async (req, res) => {
 
             const order = orders[0];
 
-            // 이미 회원 계정에 연동된 주문인지 확인
-            if (order.user_id !== null) {
-                await connection.rollback();
-                await connection.end();
-                return res.status(400).json({
-                    success: false,
-                    message: '이미 회원 계정에 연동된 주문입니다.'
-                });
+            // ⚠️ UPDATE-first 패턴: SELECT 먼저 하지 않고 UPDATE 먼저 시도 (경합 안전)
+            // 1. orders.user_id 업데이트 (원자적 업데이트로 경합 방지)
+            const [orderUpdateResult] = await connection.execute(
+                `UPDATE orders
+                 SET user_id = ?
+                 WHERE order_id = ? AND user_id IS NULL`,
+                [userId, orderId]
+            );
+
+            // 2. affectedRows === 0이면 이미 연결된 주문 (그때만 SELECT로 재확인)
+            if (orderUpdateResult.affectedRows === 0) {
+                // 현재 상태를 다시 읽어서 확인
+                const [currentOrder] = await connection.execute(
+                    'SELECT user_id FROM orders WHERE order_id = ?',
+                    [orderId]
+                );
+
+                if (currentOrder.length === 0) {
+                    // 주문이 없음 (이상 케이스)
+                    await connection.rollback();
+                    await connection.end();
+                    return res.status(404).json({
+                        success: false,
+                        message: '주문을 찾을 수 없습니다.'
+                    });
+                }
+
+                if (currentOrder[0].user_id === userId) {
+                    // 멱등: 같은 사용자가 재요청
+                    await connection.rollback();
+                    await connection.end();
+                    return res.json({
+                        success: true,
+                        message: '이미 연결된 주문입니다.',
+                        already_claimed: true
+                    });
+                } else {
+                    // 다른 사용자가 요청
+                    await connection.rollback();
+                    await connection.end();
+                    return res.status(409).json({
+                        success: false,
+                        message: '이 주문은 다른 계정에 연결되어 있습니다.',
+                        code: 'ALREADY_CLAIMED_BY_OTHER'
+                    });
+                }
             }
 
-            // 2. 3-Factor Atomic Check
+            // 3. affectedRows === 1이면 Claim 성공, 계속 진행
+
+            // 4. 3-Factor Atomic Check
             // ⚠️ 핵심: token, order_id, used_at IS NULL, expires_at > NOW() 모두 한 번에 검증
             const [updateResult] = await connection.execute(
                 `UPDATE claim_tokens
@@ -1212,27 +1252,7 @@ router.post('/orders/:orderId/claim', authenticateToken, async (req, res) => {
                 });
             }
 
-            // 3. orders.user_id 업데이트
-            const [orderUpdateResult] = await connection.execute(
-                `UPDATE orders
-                 SET user_id = ?
-                 WHERE order_id = ? AND user_id IS NULL`,
-                [userId, orderId]
-            );
-
-            if (orderUpdateResult.affectedRows !== 1) {
-                await connection.rollback();
-                await connection.end();
-                Logger.error('[CLAIM] orders.user_id 업데이트 실패', {
-                    orderId,
-                    userId,
-                    affectedRows: orderUpdateResult.affectedRows
-                });
-                return res.status(500).json({
-                    success: false,
-                    message: '주문 연동에 실패했습니다.'
-                });
-            }
+            // 5. orders.user_id 업데이트는 이미 위에서 완료됨 (affectedRows === 1 확인됨)
 
             // 4. orders.guest_id는 유지 (감사 로그)
 
@@ -1447,7 +1467,7 @@ router.get('/guest/orders/session', async (req, res) => {
             });
         }
 
-        // 3. revoked_at 확인
+        // 3. revoked_at 확인 (3종 차단: token 없음 / expires_at 만료 / revoked_at 회수)
         if (tokenData.revoked_at !== null) {
             await connection.end();
             return res.status(410).json({
@@ -1457,15 +1477,8 @@ router.get('/guest/orders/session', async (req, res) => {
             });
         }
 
-        // 4. orders.user_id IS NULL 확인 (Claim 완료된 주문 차단)
-        if (tokenData.user_id !== null) {
-            await connection.end();
-            return res.status(410).json({
-                success: false,
-                message: '이미 회원 계정에 연동된 주문입니다.',
-                code: 'ORDER_CLAIMED'
-            });
-        }
+        // 4. orders.user_id IS NULL 확인 제거 (Claim 완료 주문도 이메일 링크로 접근 가능)
+        // ⚠️ 제거됨: Claim 완료된 주문도 이메일 링크로 접근 가능해야 함
 
         // 5. 세션 토큰 발급 (24시간 TTL)
         const sessionToken = crypto.randomBytes(32).toString('hex');
