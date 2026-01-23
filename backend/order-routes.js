@@ -1621,15 +1621,8 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
             });
         }
 
-        // 4. Claim 완료 확인 (orders.user_id IS NOT NULL)
-        if (session.user_id !== null) {
-            await connection.end();
-            return res.status(410).json({
-                success: false,
-                message: '이미 회원 계정에 연동된 주문입니다.',
-                code: 'ORDER_CLAIMED'
-            });
-        }
+        // 4. Claim 완료 확인 제거 (Phase 1: Claim 완료 주문도 이메일 링크로 접근 가능)
+        // ⚠️ 제거됨: Claim 완료된 주문도 이메일 링크로 접근 가능해야 함
 
         // 5. revoked_at 확인
         if (session.revoked_at !== null) {
