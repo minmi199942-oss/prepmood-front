@@ -1707,7 +1707,38 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
             [order.order_id]
         );
 
-        // 10. 배송 완료 정보 조회 (order_item_units 기반)
+        // 10. 배송 상태 조회 (order_item_units 기반)
+        const [unitStatuses] = await connection.execute(
+            `SELECT 
+                unit_status,
+                COUNT(*) as count
+            FROM order_item_units
+            WHERE order_id = ?
+              AND unit_status != 'refunded'
+            GROUP BY unit_status`,
+            [order.order_id]
+        );
+
+        // 배송 상태 계산 (가장 진행된 상태 기준)
+        let shippingStatus = 'preparing'; // 기본값: 준비중
+        let hasDelivered = false;
+        let hasShipped = false;
+        
+        for (const stat of unitStatuses) {
+            if (stat.unit_status === 'delivered') {
+                hasDelivered = true;
+            } else if (stat.unit_status === 'shipped') {
+                hasShipped = true;
+            }
+        }
+        
+        if (hasDelivered) {
+            shippingStatus = 'delivered'; // 배송완료
+        } else if (hasShipped) {
+            shippingStatus = 'shipping'; // 배송중
+        }
+
+        // 배송 완료 정보 조회 (delivered_at 최신 값)
         const [deliveredUnits] = await connection.execute(
             `SELECT 
                 oiu.order_item_unit_id,
@@ -1781,8 +1812,10 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
                 carrier_name: shipment.carrier_name,
                 tracking_number: shipment.tracking_number,
                 shipped_at: shipment.shipped_at,
-                delivered_at: deliveredUnits.length > 0 ? deliveredUnits[0].delivered_at : null
-            }))
+                delivered_at: deliveredUnits.length > 0 ? deliveredUnits[0].delivered_at : null,
+                status: shippingStatus // 배송 상태 추가
+            })),
+            shipping_status: shippingStatus // 전체 배송 상태 (shipments가 없을 때도 표시)
         };
 
         Logger.log('[GUEST_ORDER] 주문 조회 완료', {

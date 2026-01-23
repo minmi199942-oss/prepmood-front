@@ -76,7 +76,7 @@ async function loadOrderDetail() {
 
 // 주문 상세 정보 렌더링
 function renderOrderDetail(data) {
-  const { order, payment, shipping, items, shipments } = data;
+  const { order, payment, shipping, items, shipments, shipping_status } = data;
   
   // 주문 정보
   const orderInfoList = document.getElementById('order-info-list');
@@ -148,42 +148,62 @@ function renderOrderDetail(data) {
   }
   
   // 배송 정보
-  if (shipments && shipments.length > 0) {
-    const shipmentsCard = document.getElementById('shipments-card');
-    const shipmentsList = document.getElementById('shipments-list');
-    
+  const shipmentsCard = document.getElementById('shipments-card');
+  const shipmentsList = document.getElementById('shipments-list');
+  
+  // 배송 상태 표시 (shipments가 없어도 표시)
+  if (shipping_status || (shipments && shipments.length > 0)) {
     if (shipmentsCard) shipmentsCard.style.display = 'block';
     if (shipmentsList) {
-      shipmentsList.innerHTML = shipments.map(shipment => {
-        const trackingUrl = getTrackingUrl(shipment.carrier_code, shipment.tracking_number);
-        const shippedDate = shipment.shipped_at 
-          ? new Date(shipment.shipped_at).toLocaleString('ko-KR')
-          : '-';
-        const deliveredDate = shipment.delivered_at
-          ? new Date(shipment.delivered_at).toLocaleString('ko-KR')
-          : '-';
-        
-        return `
-          <div class="shipment-item">
+      let html = '';
+      
+      // 배송 상태 표시
+      if (shipping_status) {
+        html += `
+          <div class="shipment-status">
             <dl>
-              <dt>택배사</dt>
-              <dd>${escapeHtml(shipment.carrier_name || shipment.carrier_code || '-')}</dd>
-              <dt>송장번호</dt>
-              <dd>
-                ${trackingUrl && shipment.tracking_number
-                  ? `<a href="${trackingUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(shipment.tracking_number)}</a>`
-                  : escapeHtml(shipment.tracking_number || '-')}
-              </dd>
-              <dt>발송일시</dt>
-              <dd>${shippedDate}</dd>
-              ${deliveredDate !== '-' ? `
-              <dt>배송완료일시</dt>
-              <dd>${deliveredDate}</dd>
-              ` : ''}
+              <dt>배송 상태</dt>
+              <dd>${getShippingStatusBadge(shipping_status)}</dd>
             </dl>
           </div>
         `;
-      }).join('');
+      }
+      
+      // 배송 상세 정보 (shipments가 있는 경우)
+      if (shipments && shipments.length > 0) {
+        html += shipments.map(shipment => {
+          const trackingUrl = getTrackingUrl(shipment.carrier_code, shipment.tracking_number);
+          const shippedDate = shipment.shipped_at 
+            ? new Date(shipment.shipped_at).toLocaleString('ko-KR')
+            : '-';
+          const deliveredDate = shipment.delivered_at
+            ? new Date(shipment.delivered_at).toLocaleString('ko-KR')
+            : '-';
+          
+          return `
+            <div class="shipment-item">
+              <dl>
+                <dt>택배사</dt>
+                <dd>${escapeHtml(shipment.carrier_name || shipment.carrier_code || '-')}</dd>
+                <dt>송장번호</dt>
+                <dd>
+                  ${trackingUrl && shipment.tracking_number
+                    ? `<a href="${trackingUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(shipment.tracking_number)}</a>`
+                    : escapeHtml(shipment.tracking_number || '-')}
+                </dd>
+                <dt>발송일시</dt>
+                <dd>${shippedDate}</dd>
+                ${deliveredDate !== '-' ? `
+                <dt>배송완료일시</dt>
+                <dd>${deliveredDate}</dd>
+                ` : ''}
+              </dl>
+            </div>
+          `;
+        }).join('');
+      }
+      
+      shipmentsList.innerHTML = html;
     }
   }
   
@@ -346,6 +366,18 @@ function getOrderStatusBadge(status) {
   
   const { label, class: className } = statusMap[status] || { label: status, class: 'badge-secondary' };
   return `<span class="badge ${className}">${label}</span>`;
+}
+
+// 배송 상태 배지
+function getShippingStatusBadge(status) {
+  const statusMap = {
+    'preparing': { text: '준비중', class: 'status-preparing' },
+    'shipping': { text: '배송중', class: 'status-shipping' },
+    'delivered': { text: '배송완료', class: 'status-delivered' }
+  };
+  
+  const statusInfo = statusMap[status] || { text: status || '-', class: 'status-unknown' };
+  return `<span class="status-badge ${statusInfo.class}">${escapeHtml(statusInfo.text)}</span>`;
 }
 
 function getPaymentStatusBadge(status) {
