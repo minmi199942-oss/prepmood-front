@@ -407,7 +407,7 @@ function initializeMypageFunctionality() {
 
   function setLoggedOutState() {
     removeAdminLink();
-    mypageToggle.href = 'login.html';
+    mypageToggle.href = '/login.html';
     mypageIcon.src = '/image/mypage.jpg';
     mypageIcon.classList.remove('mypage-icon-logged-in');
 
