@@ -193,6 +193,9 @@ rsync -av \
   --include="legal.html" \
   --include="privacy.html" \
   --include="counterfeit-prevention.html" \
+  --include="guest/" \
+  --include="guest/*.html" \
+  --include="guest/*.js" \
   --include="header.partial" \
   --include="footer.partial" \
   --include="utils.js" \
