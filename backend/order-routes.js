@@ -1779,7 +1779,8 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
                 order_date: order.order_date,
                 total_price: parseFloat(order.total_price),
                 status: order.status,
-                paid_at: order.paid_at
+                paid_at: order.paid_at,
+                user_id: order.user_id // Claim 완료 여부 확인용
             },
             payment: payment ? {
                 gateway: payment.gateway,

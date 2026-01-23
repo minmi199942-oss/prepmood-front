@@ -63,9 +63,6 @@ async function loadOrderDetail() {
     // 주문 정보 렌더링
     renderOrderDetail(orderData);
     
-    // Claim 버튼 표시 (비회원 주문이므로 항상 표시)
-    showClaimSection();
-    
   } catch (error) {
     console.error('주문 상세 정보 로드 오류:', error);
     showError(error.message || '주문 정보를 불러오는 중 오류가 발생했습니다.');
@@ -78,137 +75,234 @@ async function loadOrderDetail() {
 function renderOrderDetail(data) {
   const { order, payment, shipping, items, shipments, shipping_status } = data;
   
-  // 주문 정보
-  const orderInfoList = document.getElementById('order-info-list');
-  if (orderInfoList) {
-    orderInfoList.innerHTML = `
-      <dt>주문번호</dt>
-      <dd>${escapeHtml(order.order_number || '-')}</dd>
-      <dt>주문일시</dt>
-      <dd>${order.order_date ? new Date(order.order_date).toLocaleString('ko-KR') : '-'}</dd>
-      <dt>주문 상태</dt>
-      <dd>${getOrderStatusBadge(order.status)}</dd>
-      <dt>총 주문 금액</dt>
-      <dd><strong>${formatPrice(order.total_price)}</strong></dd>
-    `;
-  }
+  // 1. 주문 요약 (Order Summary)
+  renderOrderSummary(order, payment, shipping, items);
   
-  // 결제 정보
-  if (payment) {
-    const paymentCard = document.getElementById('payment-card');
-    const paymentInfoList = document.getElementById('payment-info-list');
-    
-    if (paymentCard) paymentCard.style.display = 'block';
-    if (paymentInfoList) {
-      paymentInfoList.innerHTML = `
-        <dt>결제 방법</dt>
-        <dd>${escapeHtml(payment.method || '-')}</dd>
-        <dt>결제 금액</dt>
-        <dd><strong>${formatPrice(payment.amount)}</strong></dd>
-        <dt>결제일시</dt>
-        <dd>${payment.created_at ? new Date(payment.created_at).toLocaleString('ko-KR') : (order.paid_at ? new Date(order.paid_at).toLocaleString('ko-KR') : '-')}</dd>
-        <dt>결제 상태</dt>
-        <dd>${getPaymentStatusBadge(payment.status)}</dd>
-      `;
-    }
-  }
+  // 2. 디지털 인보이스 (PDF)
+  renderInvoiceSection(order);
   
-  // 배송지 정보
-  const shippingInfoList = document.getElementById('shipping-info-list');
-  if (shippingInfoList) {
-    shippingInfoList.innerHTML = `
-      <dt>이름</dt>
-      <dd>${escapeHtml(shipping.name || '-')}</dd>
-      <dt>이메일</dt>
-      <dd>${escapeHtml(shipping.email || '-')}</dd>
-      <dt>전화번호</dt>
-      <dd>${escapeHtml(shipping.phone || '-')}</dd>
-      <dt>주소</dt>
-      <dd>${escapeHtml(shipping.address || '-')}</dd>
-      <dt>도시</dt>
-      <dd>${escapeHtml(shipping.city || '-')}</dd>
-      <dt>우편번호</dt>
-      <dd>${escapeHtml(shipping.postal_code || '-')}</dd>
-      <dt>국가</dt>
-      <dd>${escapeHtml(shipping.country || 'KR')}</dd>
-    `;
-  }
+  // 3. 디지털 정품 인증서 - 등록하기
+  renderAuthenticitySection(order);
   
-  // 주문 항목
-  const orderItemsTbody = document.getElementById('order-items-tbody');
-  if (orderItemsTbody) {
-    orderItemsTbody.innerHTML = items.map(item => `
-      <tr>
-        <td>${escapeHtml(item.product_name || '-')}</td>
-        <td>${escapeHtml(item.color || '-')} / ${escapeHtml(item.size || '-')}</td>
-        <td>${item.quantity}</td>
-        <td>${formatPrice(item.price)}</td>
-      </tr>
-    `).join('');
-  }
+  // 4. 디지털 워런티 (Warranty)
+  renderWarrantySection();
   
-  // 배송 정보
-  const shipmentsCard = document.getElementById('shipments-card');
-  const shipmentsList = document.getElementById('shipments-list');
+  // 5. 소유 기록 (Ownership Record)
+  renderOwnershipRecord(order);
   
-  // 배송 상태 표시 (shipments가 없어도 표시)
-  if (shipping_status || (shipments && shipments.length > 0)) {
-    if (shipmentsCard) shipmentsCard.style.display = 'block';
-    if (shipmentsList) {
-      let html = '';
-      
-      // 배송 상태 표시
-      if (shipping_status) {
-        html += `
-          <div class="shipment-status">
-            <dl>
-              <dt>배송 상태</dt>
-              <dd>${getShippingStatusBadge(shipping_status)}</dd>
-            </dl>
-          </div>
-        `;
-      }
-      
-      // 배송 상세 정보 (shipments가 있는 경우)
-      if (shipments && shipments.length > 0) {
-        html += shipments.map(shipment => {
-          const trackingUrl = getTrackingUrl(shipment.carrier_code, shipment.tracking_number);
-          const shippedDate = shipment.shipped_at 
-            ? new Date(shipment.shipped_at).toLocaleString('ko-KR')
-            : '-';
-          const deliveredDate = shipment.delivered_at
-            ? new Date(shipment.delivered_at).toLocaleString('ko-KR')
-            : '-';
-          
-          return `
-            <div class="shipment-item">
-              <dl>
-                <dt>택배사</dt>
-                <dd>${escapeHtml(shipment.carrier_name || shipment.carrier_code || '-')}</dd>
-                <dt>송장번호</dt>
-                <dd>
-                  ${trackingUrl && shipment.tracking_number
-                    ? `<a href="${trackingUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(shipment.tracking_number)}</a>`
-                    : escapeHtml(shipment.tracking_number || '-')}
-                </dd>
-                <dt>발송일시</dt>
-                <dd>${shippedDate}</dd>
-                ${deliveredDate !== '-' ? `
-                <dt>배송완료일시</dt>
-                <dd>${deliveredDate}</dd>
-                ` : ''}
-              </dl>
-            </div>
-          `;
-        }).join('');
-      }
-      
-      shipmentsList.innerHTML = html;
-    }
-  }
+  // 6. 배송 상태 트래킹
+  renderShippingTracking(shipments, shipping_status);
+  
+  // 7. 브랜드 메시지
+  renderBrandMessage();
   
   showContent();
 }
+
+// 1. 주문 요약 (Order Summary)
+function renderOrderSummary(order, payment, shipping, items) {
+  const summaryContent = document.getElementById('order-summary-content');
+  if (!summaryContent) return;
+  
+  const orderDate = order.order_date ? new Date(order.order_date).toLocaleDateString('ko-KR') : '-';
+  const buyerName = shipping?.name || '-';
+  
+  // 상품명/옵션 목록
+  const productsList = items.map(item => {
+    const options = [item.color, item.size].filter(Boolean).join(' / ');
+    return `${escapeHtml(item.product_name || '-')}${options ? ` (${escapeHtml(options)})` : ''}`;
+  }).join('<br>');
+  
+  // 결제수단 마스킹 (일부 마스킹 처리)
+  const paymentMethod = payment ? maskPaymentMethod(payment.method || payment.gateway || '-') : '-';
+  
+  summaryContent.innerHTML = `
+    <dl>
+      <dt>주문번호</dt>
+      <dd>${escapeHtml(order.order_number || '-')}</dd>
+      <dt>주문일</dt>
+      <dd>${orderDate}</dd>
+      <dt>구매자명</dt>
+      <dd>${escapeHtml(buyerName)}</dd>
+      <dt>상품명 / 옵션</dt>
+      <dd>${productsList}</dd>
+      <dt>결제금액</dt>
+      <dd><strong>${formatPrice(order.total_price)}</strong></dd>
+      <dt>결제수단</dt>
+      <dd>${paymentMethod}</dd>
+    </dl>
+  `;
+}
+
+// 2. 디지털 인보이스 (PDF)
+function renderInvoiceSection(order) {
+  const invoiceCard = document.getElementById('invoice-card');
+  const invoiceContent = document.getElementById('invoice-content');
+  if (!invoiceCard || !invoiceContent) return;
+  
+  // TODO: 인보이스 정보 조회 API 추가 필요
+  // 현재는 주문 ID로 인보이스가 있는지 확인 불가
+  // 일단 항상 표시하고, 다운로드 버튼은 인보이스가 있을 때만 활성화
+  invoiceCard.style.display = 'block';
+  invoiceContent.innerHTML = `
+    <p>디지털 인보이스를 다운로드할 수 있습니다.</p>
+    <button id="download-invoice-btn" class="btn-primary" onclick="downloadInvoice(${order.order_id})">
+      PDF 다운로드
+    </button>
+  `;
+}
+
+// 3. 디지털 정품 인증서 - 등록하기
+function renderAuthenticitySection(order) {
+  const authenticityCard = document.getElementById('authenticity-card');
+  const authenticityContent = document.getElementById('authenticity-content');
+  if (!authenticityCard || !authenticityContent) return;
+  
+  authenticityCard.style.display = 'block';
+  
+  // 주문이 Claim 완료되었는지 확인 (order.user_id가 있으면 이미 등록됨)
+  if (order.user_id) {
+    authenticityContent.innerHTML = `
+      <p>이미 등록된 디지털 인보이스입니다.</p>
+    `;
+  } else {
+    authenticityContent.innerHTML = `
+      <p>이 주문을 회원 계정에 연동하면 보증서를 활성화하고 관리할 수 있습니다.</p>
+      <button id="claim-btn" class="btn-primary" onclick="handleClaim()">
+        등록하기
+      </button>
+    `;
+  }
+}
+
+// 4. 디지털 워런티 (Warranty)
+function renderWarrantySection() {
+  const warrantyCard = document.getElementById('warranty-card');
+  const warrantyContent = document.getElementById('warranty-content');
+  if (!warrantyCard || !warrantyContent) return;
+  
+  warrantyCard.style.display = 'block';
+  warrantyContent.innerHTML = `
+    <div class="warranty-links">
+      <a href="/warranty-as.html" target="_blank" rel="noopener noreferrer" class="warranty-link">
+        AS 관련사항
+      </a>
+      <span class="separator">|</span>
+      <a href="/care-guideline.html" target="_blank" rel="noopener noreferrer" class="warranty-link">
+        케어 가이드라인
+      </a>
+    </div>
+  `;
+}
+
+// 5. 소유 기록 (Ownership Record)
+function renderOwnershipRecord(order) {
+  const ownershipCard = document.getElementById('ownership-card');
+  const ownershipContent = document.getElementById('ownership-content');
+  if (!ownershipCard || !ownershipContent) return;
+  
+  const orderDate = order.order_date ? new Date(order.order_date).toLocaleDateString('ko-KR') : '-';
+  
+  ownershipCard.style.display = 'block';
+  ownershipContent.innerHTML = `
+    <dl>
+      <dt>최초 구매자 기록</dt>
+      <dd>${escapeHtml(order.order_number || '-')}</dd>
+      <dt>소유일</dt>
+      <dd>${orderDate}</dd>
+    </dl>
+    <p class="ownership-note">이 기록은 Pre.pMood 서버에 안전하게 보관됩니다.</p>
+  `;
+}
+
+// 6. 배송 상태 트래킹
+function renderShippingTracking(shipments, shipping_status) {
+  const shipmentsCard = document.getElementById('shipments-card');
+  const shipmentsList = document.getElementById('shipments-list');
+  
+  if (!shipmentsCard || !shipmentsList) return;
+  
+  // 배송 상태 표시 (shipments가 없어도 표시)
+  if (shipping_status || (shipments && shipments.length > 0)) {
+    shipmentsCard.style.display = 'block';
+    let html = '';
+    
+    // 배송 상태 표시
+    if (shipping_status) {
+      html += `
+        <div class="shipment-status">
+          <dl>
+            <dt>배송 상태</dt>
+            <dd>${getShippingStatusBadge(shipping_status)}</dd>
+          </dl>
+        </div>
+      `;
+    }
+    
+    // 배송 상세 정보 (shipments가 있는 경우)
+    if (shipments && shipments.length > 0) {
+      html += shipments.map(shipment => {
+        const trackingUrl = getTrackingUrl(shipment.carrier_code, shipment.tracking_number);
+        
+        return `
+          <div class="shipment-item">
+            <dl>
+              <dt>배송사</dt>
+              <dd>${escapeHtml(shipment.carrier_name || shipment.carrier_code || '-')}</dd>
+              <dt>송장번호</dt>
+              <dd>
+                ${trackingUrl && shipment.tracking_number
+                  ? `<a href="${trackingUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(shipment.tracking_number)}</a>`
+                  : escapeHtml(shipment.tracking_number || '-')}
+              </dd>
+            </dl>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    shipmentsList.innerHTML = html;
+  }
+}
+
+// 7. 브랜드 메시지
+function renderBrandMessage() {
+  const brandMessageCard = document.getElementById('brand-message-card');
+  const brandMessageContent = document.getElementById('brand-message-content');
+  if (!brandMessageCard || !brandMessageContent) return;
+  
+  brandMessageContent.innerHTML = `
+    <p class="brand-message">This digital record represents your ownership of a genuine Pre.pMood product.</p>
+    <p class="brand-message">Timeless design, securely recorded.</p>
+  `;
+}
+
+// 결제수단 마스킹 처리
+function maskPaymentMethod(method) {
+  if (!method || method === '-') return '-';
+  
+  // 카드 번호 형식인 경우 마스킹
+  if (/^\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}$/.test(method.replace(/\s/g, ''))) {
+    return method.replace(/(\d{4}[\s-]?)(\d{4}[\s-]?)(\d{4}[\s-]?)(\d{4})/, '$1****-****-$4');
+  }
+  
+  // 일반 결제수단명은 그대로 표시
+  return escapeHtml(method);
+}
+
+// 인보이스 다운로드 (TODO: API 구현 필요)
+async function downloadInvoice(orderId) {
+  try {
+    // TODO: 인보이스 다운로드 API 호출
+    alert('인보이스 다운로드 기능은 준비 중입니다.');
+  } catch (error) {
+    console.error('인보이스 다운로드 오류:', error);
+    alert('인보이스 다운로드에 실패했습니다.');
+  }
+}
+
+// 전역 함수로 등록
+window.downloadInvoice = downloadInvoice;
 
 // Claim 처리
 async function handleClaim() {
@@ -335,11 +429,6 @@ function showError(message) {
 function hideError() {
   const error = document.getElementById('error-message');
   if (error) error.style.display = 'none';
-}
-
-function showClaimSection() {
-  const claimSection = document.getElementById('claim-section');
-  if (claimSection) claimSection.style.display = 'block';
 }
 
 // 유틸리티 함수
