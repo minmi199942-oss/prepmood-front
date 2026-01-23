@@ -193,9 +193,6 @@ rsync -av \
   --include="legal.html" \
   --include="privacy.html" \
   --include="counterfeit-prevention.html" \
-  --include="guest/" \
-  --include="guest/*.html" \
-  --include="guest/*.js" \
   --include="header.partial" \
   --include="footer.partial" \
   --include="utils.js" \
@@ -263,7 +260,18 @@ else
   echo "  ⚠️  prep_server/static 디렉토리가 없습니다"
 fi
 
-# 3-6. 관리자 페이지 디렉토리 동기화 (별도 처리)
+# 3-6. guest 디렉토리 동기화 (별도 처리)
+echo "📦 guest 디렉토리 동기화 중..."
+if [ -d "$REPO_DIR/guest" ]; then
+  rsync -av \
+    --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+    "$REPO_DIR/guest/" "$LIVE_ROOT/guest/"
+  echo "  ✅ guest 디렉토리 동기화 완료"
+else
+  echo "  ⚠️  guest 디렉토리가 없습니다"
+fi
+
+# 3-7. 관리자 페이지 디렉토리 동기화 (별도 처리)
 echo "📦 관리자 페이지 디렉토리 동기화 중..."
 if [ -d "$REPO_DIR/admin-qhf25za8" ]; then
   rsync -av \
