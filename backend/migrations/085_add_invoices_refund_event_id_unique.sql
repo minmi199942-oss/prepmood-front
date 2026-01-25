@@ -59,12 +59,17 @@ SET @col_gen_exists = (
     WHERE TABLE_SCHEMA = 'prepmood' AND TABLE_NAME = 'invoices' AND COLUMN_NAME = 'credit_note_refund_event_id'
 );
 
--- refund_event_id가 없으면 오류. 073 패턴: 단일 문자열 + \' 이스케이프 (CONCAT/'' 사용 시 구문 오류)
+-- refund_event_id가 없으면 오류. 073 패턴: CONCAT 사용하여 이스케이프 문제 회피
 SET @sql2 = IF(@col_refund_exists = 0,
     'SELECT "ERROR: refund_event_id 컬럼이 존재하지 않습니다. Step 1을 먼저 실행하세요." AS error',
     IF(@col_gen_exists > 0,
         'SELECT "credit_note_refund_event_id 컬럼이 이미 존재합니다." AS info',
-        'ALTER TABLE invoices ADD COLUMN credit_note_refund_event_id VARCHAR(64) NULL GENERATED ALWAYS AS (IF(`type` = \'credit_note\', refund_event_id, NULL)) STORED COMMENT \'credit_note only refund_event_id else NULL\' AFTER refund_event_id'
+        CONCAT(
+            'ALTER TABLE invoices ADD COLUMN credit_note_refund_event_id VARCHAR(64) NULL ',
+            'GENERATED ALWAYS AS (IF(type = ''credit_note'', refund_event_id, NULL)) STORED ',
+            'COMMENT ''credit_note only refund_event_id else NULL'' ',
+            'AFTER refund_event_id'
+        )
     )
 );
 
