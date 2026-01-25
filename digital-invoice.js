@@ -42,6 +42,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   
   // 모바일 클릭 토글 초기화
   initMobileToggle();
+  
+  // 편지 내용 영역 클릭 이벤트 초기화 (편지가 열렸을 때만 작동)
+  initLetterContentClick();
 });
 
 // 로그인 상태 확인
@@ -192,6 +195,7 @@ function renderInvoices(invoices) {
     // API 응답 데이터를 카드 형식으로 변환
     const invoiceDate = new Date(invoice.issuedAt);
     const card = createInvoiceCard({
+      invoiceId: invoice.invoiceId,  // invoiceId 추가
       invoiceNo: invoice.invoiceNumber,
       issueDate: formatIssueDate(invoiceDate),
       productName: invoice.productName || invoice.shippingName || invoice.billingName || '제품명',
@@ -212,17 +216,10 @@ function createInvoiceCard(invoice, index) {
   const wrapper = document.createElement('div');
   wrapper.className = 'invoice-letter-card';
   
-  // 클릭 시 상세 페이지로 이동
+  // 클릭 시 상세 페이지로 이동은 initLetterContentClick()에서 처리
   const invoiceId = invoice.invoiceId || invoice.invoiceNumber;
   if (invoiceId) {
     wrapper.style.cursor = 'pointer';
-    wrapper.addEventListener('click', function(e) {
-      // SVG, 이미지 클릭은 무시 (호버 애니메이션과 충돌 방지)
-      if (e.target.closest('svg, img')) {
-        return;
-      }
-      window.location.href = `/invoice-detail.html?invoiceId=${encodeURIComponent(invoiceId)}`;
-    });
   }
   
   // 인보이스 데이터에서 정보 추출 (데모 데이터)
@@ -259,7 +256,7 @@ function createInvoiceCard(invoice, index) {
       </div>
 
       <!-- 중간 - 인보이스 내용 영역 -->
-      <div class="invoice-letter-content">
+      <div class="invoice-letter-content" data-invoice-id="${escapeHtml(invoiceId)}">
         <div class="invoice-letter-content-inner">
           <div class="invoice-letter-content-grid">
             <div class="invoice-letter-content-left">
@@ -362,6 +359,44 @@ function initMobileToggle() {
       card.classList.remove('is-open');
       card.classList.add('is-closed');
       card.setAttribute('data-open', 'false');
+    }
+  });
+}
+
+// 편지 내용 영역 클릭 이벤트 초기화
+function initLetterContentClick() {
+  // 이벤트 위임을 사용하여 동적으로 생성된 편지 내용 영역에도 이벤트 적용
+  document.addEventListener('click', function(e) {
+    const letterContent = e.target.closest('.invoice-letter-content');
+    if (!letterContent) {
+      return;
+    }
+    
+    // SVG, 이미지 클릭은 무시
+    if (e.target.closest('svg, img')) {
+      return;
+    }
+    
+    // 편지가 열린 상태인지 확인
+    const card = letterContent.closest('.invoice-letter-card');
+    if (!card) {
+      return;
+    }
+    
+    // 호버 상태 또는 모바일에서 is-open 클래스 확인
+    const isOpen = card.matches(':hover') || 
+                   card.classList.contains('is-open') ||
+                   (getComputedStyle(letterContent).opacity !== '0' && 
+                    getComputedStyle(letterContent).height !== '0px');
+    
+    // 편지가 열린 상태에서만 상세 페이지로 이동
+    if (isOpen) {
+      const invoiceId = letterContent.getAttribute('data-invoice-id');
+      if (invoiceId) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.href = `/invoice-detail.html?invoiceId=${encodeURIComponent(invoiceId)}`;
+      }
     }
   });
 }
