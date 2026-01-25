@@ -34,7 +34,7 @@ SELECT '=== 2. credit_note_refund_event_id generated column 추가 ===' AS info;
 
 ALTER TABLE invoices
 ADD COLUMN credit_note_refund_event_id VARCHAR(64) NULL
-    GENERATED ALWAYS AS (IF(type = 'credit_note', refund_event_id, NULL)) STORED
+    GENERATED ALWAYS AS (IF(`type` = 'credit_note', refund_event_id, NULL)) STORED
     COMMENT 'credit_note 시 refund_event_id, 아니면 NULL (UNIQUE용)'
     AFTER refund_event_id;
 
