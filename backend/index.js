@@ -47,7 +47,7 @@ app.use(cors({
     origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-XSRF-TOKEN', 'X-Idempotency-Key']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'X-User-Email', 'X-XSRF-TOKEN', 'X-Idempotency-Key', 'Idempotency-Key']
 }));
 
 // 보안 미들웨어
@@ -1935,12 +1935,11 @@ app.post('/api/admin/orders/:orderId/shipped', authenticateToken, requireAdmin, 
             // buildInClause로 IN 절 생성
             const { placeholders, params: unitIdsParams } = buildInClause(uniqueUnitIds);
 
-            // 주문 존재 확인
+            // orders FOR UPDATE 먼저 잠금 (락 순서 1단계: 전역 순서 준수)
             const [orders] = await connection.execute(
-                'SELECT order_id FROM orders WHERE order_id = ?',
+                'SELECT order_id, order_number FROM orders WHERE order_id = ? FOR UPDATE',
                 [orderId]
             );
-
             if (orders.length === 0) {
                 await connection.rollback();
                 await connection.end();
@@ -1950,7 +1949,7 @@ app.post('/api/admin/orders/:orderId/shipped', authenticateToken, requireAdmin, 
                 });
             }
 
-            // order_item_units 조회 (FOR UPDATE로 잠금)
+            // order_item_units 조회 (FOR UPDATE로 잠금, 락 순서 3단계)
             const [units] = await connection.execute(
                 `SELECT 
                     oiu.order_item_unit_id,
@@ -2180,26 +2179,10 @@ app.post('/api/admin/orders/:orderId/delivered', authenticateToken, requireAdmin
         await connection.beginTransaction();
 
         try {
-            // buildInClause로 IN 절 생성
             const { placeholders, params: unitIdsParams } = buildInClause(uniqueUnitIds);
 
-            // 주문 존재 확인
-            const [orders] = await connection.execute(
-                'SELECT order_id FROM orders WHERE order_id = ?',
-                [orderId]
-            );
-
-            if (orders.length === 0) {
-                await connection.rollback();
-                await connection.end();
-                return res.status(404).json({
-                    success: false,
-                    message: '주문을 찾을 수 없습니다.'
-                });
-            }
-
-            // order_item_units 조회 (FOR UPDATE로 잠금 - 락 순서 1)
-            const [units] = await connection.execute(
+            // 1. (락 없이) order_item_units 조회 → stock_unit_ids 확보 (전역 락 순서: orders first)
+            const [unitsLockFree] = await connection.execute(
                 `SELECT 
                     oiu.order_item_unit_id,
                     oiu.order_id,
@@ -2208,23 +2191,20 @@ app.post('/api/admin/orders/:orderId/delivered', authenticateToken, requireAdmin
                     oiu.stock_unit_id
                 FROM order_item_units oiu
                 WHERE oiu.order_item_unit_id IN (${placeholders})
-                  AND oiu.order_id = ?
-                FOR UPDATE`,
+                  AND oiu.order_id = ?`,
                 [...unitIdsParams, orderId]
             );
 
-            // 검증: 길이 일치
-            if (units.length !== uniqueUnitIds.length) {
+            if (unitsLockFree.length !== uniqueUnitIds.length) {
                 await connection.rollback();
                 await connection.end();
                 return res.status(400).json({
                     success: false,
-                    message: `검증 실패: 요청=${uniqueUnitIds.length}개, 조회=${units.length}개`
+                    message: `검증 실패: 요청=${uniqueUnitIds.length}개, 조회=${unitsLockFree.length}개`
                 });
             }
 
-            // 검증: order_id 일치
-            const inferredOrderId = units[0]?.order_id;
+            const inferredOrderId = unitsLockFree[0]?.order_id;
             if (inferredOrderId !== parseInt(orderId)) {
                 await connection.rollback();
                 await connection.end();
@@ -2234,8 +2214,7 @@ app.post('/api/admin/orders/:orderId/delivered', authenticateToken, requireAdmin
                 });
             }
 
-            // 검증: unit_status = 'shipped'
-            const invalidStatus = units.filter(u => u.unit_status !== 'shipped');
+            const invalidStatus = unitsLockFree.filter(u => u.unit_status !== 'shipped');
             if (invalidStatus.length > 0) {
                 await connection.rollback();
                 await connection.end();
@@ -2245,8 +2224,7 @@ app.post('/api/admin/orders/:orderId/delivered', authenticateToken, requireAdmin
                 });
             }
 
-            // 검증: delivered_at 전부 NULL
-            const alreadyDelivered = units.filter(u => u.delivered_at !== null);
+            const alreadyDelivered = unitsLockFree.filter(u => u.delivered_at !== null);
             if (alreadyDelivered.length > 0) {
                 await connection.rollback();
                 await connection.end();
@@ -2256,10 +2234,23 @@ app.post('/api/admin/orders/:orderId/delivered', authenticateToken, requireAdmin
                 });
             }
 
-            // stock_unit_id 추출 (중복 제거)
-            const stockUnitIds = [...new Set(units.map(u => u.stock_unit_id).filter(id => id !== null))];
+            const stockUnitIds = [...new Set(unitsLockFree.map(u => u.stock_unit_id).filter(id => id !== null))];
 
-            // stock_units 조회 및 잠금 (FOR UPDATE - 락 순서 2)
+            // 2. orders FOR UPDATE 먼저 (락 순서 1단계: 전역 순서 준수)
+            const [orders] = await connection.execute(
+                'SELECT order_id, order_number FROM orders WHERE order_id = ? FOR UPDATE',
+                [orderId]
+            );
+            if (orders.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(404).json({
+                    success: false,
+                    message: '주문을 찾을 수 없습니다.'
+                });
+            }
+
+            // 3. stock_units FOR UPDATE (락 순서 2단계)
             let stockUnits = [];
             if (stockUnitIds.length > 0) {
                 const { placeholders: stockPlaceholders, params: stockParams } = buildInClause(stockUnitIds);
@@ -2276,6 +2267,30 @@ app.post('/api/admin/orders/:orderId/delivered', authenticateToken, requireAdmin
                     [...stockParams, orderId]
                 );
                 stockUnits = stockRows;
+            }
+
+            // 4. order_item_units FOR UPDATE (락 순서 3단계)
+            const [units] = await connection.execute(
+                `SELECT 
+                    oiu.order_item_unit_id,
+                    oiu.order_id,
+                    oiu.unit_status,
+                    oiu.delivered_at,
+                    oiu.stock_unit_id
+                FROM order_item_units oiu
+                WHERE oiu.order_item_unit_id IN (${placeholders})
+                  AND oiu.order_id = ?
+                FOR UPDATE`,
+                [...unitIdsParams, orderId]
+            );
+
+            if (units.length !== uniqueUnitIds.length) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `검증 실패: 요청=${uniqueUnitIds.length}개, 조회=${units.length}개`
+                });
             }
 
             // stock_units 검증: 상태가 reserved이고 reserved_by_order_id가 일치
