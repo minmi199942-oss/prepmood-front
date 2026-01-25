@@ -42,23 +42,17 @@ EXECUTE stmt1;
 DEALLOCATE PREPARE stmt1;
 
 -- ============================================================
--- 2. credit_note_refund_event_id generated column 추가 (없을 때만)
+-- 2. credit_note_refund_event_id generated column 추가
+-- 084 패턴: 직접 ALTER TABLE (동적 SQL은 GENERATED 구문에서 구문 오류 발생)
+-- 재실행 시 Duplicate column → schema_migrations failed 삭제 후 재실행 필요
 -- ============================================================
-SELECT '=== 2. credit_note_refund_event_id generated column 추가 (idempotent) ===' AS info;
+SELECT '=== 2. credit_note_refund_event_id generated column 추가 ===' AS info;
 
-SET @col_cn_reid = (
-    SELECT COUNT(*) FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = 'prepmood' AND TABLE_NAME = 'invoices' AND COLUMN_NAME = 'credit_note_refund_event_id'
-);
-
-SET @sql2 = IF(@col_cn_reid = 0,
-    'ALTER TABLE invoices ADD COLUMN credit_note_refund_event_id VARCHAR(64) NULL GENERATED ALWAYS AS (IF(`type` = \'credit_note\', refund_event_id, NULL)) STORED COMMENT \'credit_note only refund_event_id else NULL\' AFTER refund_event_id',
-    'SELECT ''credit_note_refund_event_id 컬럼이 이미 존재합니다.'' AS info'
-);
-
-PREPARE stmt2 FROM @sql2;
-EXECUTE stmt2;
-DEALLOCATE PREPARE stmt2;
+ALTER TABLE invoices
+ADD COLUMN credit_note_refund_event_id VARCHAR(64) NULL
+    GENERATED ALWAYS AS (IF(`type` = 'credit_note', refund_event_id, NULL)) STORED
+    COMMENT 'credit_note only refund_event_id else NULL'
+    AFTER refund_event_id;
 
 -- ============================================================
 -- 3. UNIQUE 제약 추가 (없을 때만)
