@@ -43,7 +43,7 @@ DEALLOCATE PREPARE stmt1;
 
 -- ============================================================
 -- 2. credit_note_refund_event_id generated column 추가
--- 073 패턴: 동적 SQL 사용 (idempotent, refund_event_id 존재 확인 후 실행)
+-- 동적 SQL에서 CHAR(39) 사용하여 작은따옴표 이스케이프 문제 회피
 -- ============================================================
 SELECT '=== 2. credit_note_refund_event_id generated column 추가 ===' AS info;
 
@@ -59,15 +59,15 @@ SET @col_gen_exists = (
     WHERE TABLE_SCHEMA = 'prepmood' AND TABLE_NAME = 'invoices' AND COLUMN_NAME = 'credit_note_refund_event_id'
 );
 
--- refund_event_id가 없으면 오류. 073 패턴: CONCAT 사용하여 이스케이프 문제 회피
+-- refund_event_id가 없으면 오류. CHAR(39)를 사용하여 작은따옴표 이스케이프 문제 회피
 SET @sql2 = IF(@col_refund_exists = 0,
-    'SELECT "ERROR: refund_event_id 컬럼이 존재하지 않습니다. Step 1을 먼저 실행하세요." AS error',
+    CONCAT('SELECT ', CHAR(34), 'ERROR: refund_event_id 컬럼이 존재하지 않습니다. Step 1을 먼저 실행하세요.', CHAR(34), ' AS error'),
     IF(@col_gen_exists > 0,
-        'SELECT "credit_note_refund_event_id 컬럼이 이미 존재합니다." AS info',
+        CONCAT('SELECT ', CHAR(34), 'credit_note_refund_event_id 컬럼이 이미 존재합니다.', CHAR(34), ' AS info'),
         CONCAT(
             'ALTER TABLE invoices ADD COLUMN credit_note_refund_event_id VARCHAR(64) NULL ',
-            'GENERATED ALWAYS AS (IF(type = ''credit_note'', refund_event_id, NULL)) STORED ',
-            'COMMENT ''credit_note only refund_event_id else NULL'' ',
+            'GENERATED ALWAYS AS (IF(`type` = ', CHAR(39), 'credit_note', CHAR(39), ', refund_event_id, NULL)) STORED ',
+            'COMMENT ', CHAR(39), 'credit_note only refund_event_id else NULL', CHAR(39), ' ',
             'AFTER refund_event_id'
         )
     )
