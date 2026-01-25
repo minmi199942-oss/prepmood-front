@@ -434,6 +434,7 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
             // order_item_units → order_items → orders
             const [units] = await connection.execute(
                 `SELECT oiu.order_item_unit_id, oiu.order_item_id, oiu.order_id, oiu.stock_unit_id,
+                        oiu.unit_status,
                         oi.product_name, oi.quantity, oi.price,
                         o.order_number, o.order_date, o.status as order_status, 
                         o.user_id as order_user_id, o.guest_id as order_guest_id
@@ -477,8 +478,8 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
                 // 인보이스 연동 상태 판정 (3분류 + 환불 우선 상태)
                 let invoiceLinkageStatus = null;
                 
-                // 환불 상태 우선 확인 (위 3분류를 덮어쓰는 우선 상태)
-                if (unit.order_status === 'refunded') {
+                // SSOT 준수: 환불 상태는 unit_status 또는 warranty.status로 판단 (order.status는 집계 결과)
+                if (unit.unit_status === 'refunded' || warranty.status === 'revoked') {
                     invoiceLinkageStatus = {
                         status: 'refunded',
                         label: '환불됨',
