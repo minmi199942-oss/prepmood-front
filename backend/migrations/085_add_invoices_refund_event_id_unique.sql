@@ -52,12 +52,7 @@ SET @col_cn_reid = (
 );
 
 SET @sql2 = IF(@col_cn_reid = 0,
-    CONCAT(
-        'ALTER TABLE invoices ADD COLUMN credit_note_refund_event_id VARCHAR(64) NULL ',
-        'GENERATED ALWAYS AS (IF(`type` = ''credit_note'', refund_event_id, NULL)) STORED ',
-        'COMMENT ''credit_note 시 refund_event_id, 아니면 NULL (UNIQUE용)'' ',
-        'AFTER refund_event_id'
-    ),
+    'ALTER TABLE invoices ADD COLUMN credit_note_refund_event_id VARCHAR(64) NULL GENERATED ALWAYS AS (IF(`type` = \'credit_note\', refund_event_id, NULL)) STORED COMMENT \'credit_note only refund_event_id else NULL\' AFTER refund_event_id',
     'SELECT ''credit_note_refund_event_id 컬럼이 이미 존재합니다.'' AS info'
 );
 
