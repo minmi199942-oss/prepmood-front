@@ -60,13 +60,16 @@ SET @col_gen_exists = (
 );
 
 -- refund_event_id가 없으면 오류. CHAR(39)를 사용하여 작은따옴표 이스케이프 문제 회피
+-- MySQL 문법: VARCHAR(64) 다음에 바로 GENERATED ALWAYS가 와야 함 (NULL은 기본 허용이므로 생략)
+-- CASE WHEN 사용 (IF 대신, GPT 권장)
 SET @sql2 = IF(@col_refund_exists = 0,
     CONCAT('SELECT ', CHAR(34), 'ERROR: refund_event_id 컬럼이 존재하지 않습니다. Step 1을 먼저 실행하세요.', CHAR(34), ' AS error'),
     IF(@col_gen_exists > 0,
         CONCAT('SELECT ', CHAR(34), 'credit_note_refund_event_id 컬럼이 이미 존재합니다.', CHAR(34), ' AS info'),
         CONCAT(
-            'ALTER TABLE invoices ADD COLUMN credit_note_refund_event_id VARCHAR(64) NULL ',
-            'GENERATED ALWAYS AS (IF(`type` = ', CHAR(39), 'credit_note', CHAR(39), ', refund_event_id, NULL)) STORED ',
+            'ALTER TABLE invoices ADD COLUMN credit_note_refund_event_id VARCHAR(64) ',
+            'GENERATED ALWAYS AS (CASE WHEN `type` = ', CHAR(39), 'credit_note', CHAR(39),
+            ' THEN refund_event_id ELSE NULL END) STORED ',
             'COMMENT ', CHAR(39), 'credit_note only refund_event_id else NULL', CHAR(39), ' ',
             'AFTER refund_event_id'
         )
