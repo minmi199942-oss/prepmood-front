@@ -137,6 +137,48 @@ router.post('/admin/refunds/process', authenticateToken, requireAdmin, async (re
             });
         }
 
+        // 1-1. Idempotency-Key 필수 검증 (085: 멱등성 보장)
+        const idempotencyKeyRaw = req.get('Idempotency-Key') || req.headers['idempotency-key'] || req.headers['idempotency-key'];
+        if (!idempotencyKeyRaw || typeof idempotencyKeyRaw !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'Idempotency-Key 헤더가 필수입니다. (재시도 시 동일 키 재사용)',
+                code: 'MISSING_IDEMPOTENCY_KEY'
+            });
+        }
+
+        // trim() 처리 (선행/후행 공백 방지)
+        const idempotencyKey = idempotencyKeyRaw.trim();
+        if (idempotencyKey.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Idempotency-Key는 공백일 수 없습니다.',
+                code: 'INVALID_IDEMPOTENCY_KEY'
+            });
+        }
+
+        // UUID 형식 검증 (case-insensitive, 버전 무관 v1~v7 모두 허용)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(idempotencyKey)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Idempotency-Key는 UUID 형식이어야 합니다.',
+                code: 'INVALID_IDEMPOTENCY_KEY_FORMAT'
+            });
+        }
+
+        // 길이 제한 확인 (VARCHAR(64), UUID는 36자)
+        if (idempotencyKey.length > 64) {
+            return res.status(400).json({
+                success: false,
+                message: 'Idempotency-Key는 64자 이하여야 합니다.',
+                code: 'INVALID_IDEMPOTENCY_KEY_LENGTH'
+            });
+        }
+
+        // refund_event_id 확정 (Idempotency-Key 값 사용, 재시도 시 동일 ID 보장)
+        const refund_event_id = idempotencyKey;
+
         Logger.log('[REFUND] 환불 처리 요청:', {
             warranty_id,
             reason: reason.substring(0, 50),
@@ -147,7 +189,40 @@ router.post('/admin/refunds/process', authenticateToken, requireAdmin, async (re
         await connection.beginTransaction();
 
         try {
-            // 2. warranty 조회 (FOR UPDATE로 잠금)
+            // 2-1. (락 없이) warranty → order_id 조회 (전역 락 순서: orders first)
+            const [warrantyInfo] = await connection.execute(
+                `SELECT w.id, oiu.order_id
+                 FROM warranties w
+                 INNER JOIN order_item_units oiu ON w.source_order_item_unit_id = oiu.order_item_unit_id
+                 WHERE w.id = ?`,
+                [warranty_id]
+            );
+            if (warrantyInfo.length === 0) {
+                await connection.rollback();
+                return res.status(404).json({
+                    success: false,
+                    message: '보증서를 찾을 수 없습니다.',
+                    code: 'WARRANTY_NOT_FOUND'
+                });
+            }
+            const orderId = warrantyInfo[0].order_id;
+
+            // 2-2. orders FOR UPDATE 먼저 잠금 (락 순서 1단계: 전역 순서 준수)
+            const [orders] = await connection.execute(
+                `SELECT order_id, order_number, total_price, shipping_email, shipping_name
+                 FROM orders WHERE order_id = ? FOR UPDATE`,
+                [orderId]
+            );
+            if (orders.length === 0) {
+                await connection.rollback();
+                return res.status(404).json({
+                    success: false,
+                    message: '주문을 찾을 수 없습니다.',
+                    code: 'ORDER_NOT_FOUND'
+                });
+            }
+
+            // 2-3. warranties FOR UPDATE 잠금 (락 순서 4단계)
             const [warranties] = await connection.execute(
                 `SELECT 
                     w.id,
@@ -175,7 +250,6 @@ router.post('/admin/refunds/process', authenticateToken, requireAdmin, async (re
                 FOR UPDATE`,
                 [warranty_id]
             );
-
             if (warranties.length === 0) {
                 await connection.rollback();
                 return res.status(404).json({
@@ -183,6 +257,18 @@ router.post('/admin/refunds/process', authenticateToken, requireAdmin, async (re
                     message: '보증서를 찾을 수 없습니다.',
                     code: 'WARRANTY_NOT_FOUND'
                 });
+            }
+
+            // 2-4. 경쟁 조건 검증: FOR UPDATE로 읽은 order_id가 최초 조회와 일치해야 함
+            const confirmedOrderId = warranties[0].order_id;
+            if (confirmedOrderId !== orderId) {
+                Logger.error('[REFUND] order_id 불일치 (경쟁 조건 감지)', {
+                    warranty_id,
+                    initial_order_id: orderId,
+                    confirmed_order_id: confirmedOrderId
+                });
+                await connection.rollback();
+                throw new Error('Order ID mismatch detected. Please retry.');
             }
 
             const warranty = warranties[0];
@@ -309,11 +395,12 @@ router.post('/admin/refunds/process', authenticateToken, requireAdmin, async (re
             const refundTaxAmount = 0; // 부가세 별도 계산 시 수정 필요
             const refundNetAmount = refundAmount - refundTaxAmount;
 
-            // credit_note payload_json 생성
+            // credit_note payload_json 생성 (085: refund_event_id 포함)
             const creditNotePayload = {
                 type: 'credit_note',
                 related_invoice_id: relatedInvoiceId,
                 related_invoice_number: originalInvoices.length > 0 ? originalInvoices[0].invoice_number : null,
+                refund_event_id: refund_event_id, // 085: 멱등성 식별자
                 refund_reason: reason.trim(),
                 refunded_at: now.toISOString(),
                 refunded_by: 'admin',
@@ -336,51 +423,122 @@ router.post('/admin/refunds/process', authenticateToken, requireAdmin, async (re
             const payloadString = JSON.stringify(creditNotePayload);
             const orderSnapshotHash = crypto.createHash('sha256').update(payloadString).digest('hex');
 
-            // credit_note INSERT
-            const [creditNoteResult] = await connection.execute(
-                `INSERT INTO invoices (
-                    order_id,
-                    invoice_number,
-                    type,
-                    status,
-                    currency,
-                    total_amount,
-                    tax_amount,
-                    net_amount,
-                    billing_name,
-                    billing_email,
-                    shipping_name,
-                    shipping_email,
-                    payload_json,
-                    order_snapshot_hash,
-                    version,
-                    issued_by,
-                    issued_by_id,
-                    related_invoice_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    warranty.order_id,
-                    creditNoteNumber,
-                    'credit_note',
-                    'issued',
-                    'KRW',
-                    refundAmount,
-                    refundTaxAmount,
-                    refundNetAmount,
-                    warranty.shipping_name || '고객',
-                    warranty.shipping_email || '',
-                    warranty.shipping_name || '고객',
-                    warranty.shipping_email || null,
-                    payloadString,
-                    orderSnapshotHash,
-                    1,
-                    'admin',
-                    adminUserId,
-                    relatedInvoiceId
-                ]
-            );
+            // credit_note INSERT (085: refund_event_id 포함)
+            let creditNoteResult;
+            let creditNoteId;
+            try {
+                [creditNoteResult] = await connection.execute(
+                    `INSERT INTO invoices (
+                        order_id,
+                        invoice_number,
+                        type,
+                        status,
+                        currency,
+                        total_amount,
+                        tax_amount,
+                        net_amount,
+                        billing_name,
+                        billing_email,
+                        shipping_name,
+                        shipping_email,
+                        payload_json,
+                        order_snapshot_hash,
+                        version,
+                        issued_by,
+                        issued_by_id,
+                        related_invoice_id,
+                        refund_event_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        warranty.order_id,
+                        creditNoteNumber,
+                        'credit_note',
+                        'issued',
+                        'KRW',
+                        refundAmount,
+                        refundTaxAmount,
+                        refundNetAmount,
+                        warranty.shipping_name || '고객',
+                        warranty.shipping_email || '',
+                        warranty.shipping_name || '고객',
+                        warranty.shipping_email || null,
+                        payloadString,
+                        orderSnapshotHash,
+                        1,
+                        'admin',
+                        adminUserId,
+                        relatedInvoiceId,
+                        refund_event_id
+                    ]
+                );
+                creditNoteId = creditNoteResult.insertId;
+            } catch (sqlError) {
+                // ER_DUP_ENTRY: UNIQUE(credit_note_refund_event_id) 위반 시 기존 credit_note 조회 후 반환 (멱등성)
+                if (sqlError.code === 'ER_DUP_ENTRY') {
+                    Logger.log('[REFUND] 중복 credit_note 감지 (DB 제약), 기존 credit_note 조회', {
+                        refund_event_id,
+                        warranty_id,
+                        error_code: sqlError.code,
+                        sql_message: sqlError.sqlMessage
+                    });
 
-            const creditNoteId = creditNoteResult.insertId;
+                    // 기존 credit_note 조회 (issued 우선, 없으면 최신 1건)
+                    const [existingCreditNotes] = await connection.execute(
+                        `SELECT invoice_id, invoice_number, status, issued_at, refund_event_id
+                         FROM invoices
+                         WHERE type = 'credit_note' 
+                           AND refund_event_id = ?
+                         ORDER BY 
+                           CASE WHEN status = 'issued' THEN 0 ELSE 1 END,
+                           (issued_at IS NULL) ASC,
+                           issued_at DESC,
+                           invoice_id DESC
+                         LIMIT 1`,
+                        [refund_event_id]
+                    );
+
+                    if (existingCreditNotes.length > 0) {
+                        const existing = existingCreditNotes[0];
+                        
+                        // issued가 있으면 반환 (정상 케이스)
+                        if (existing.status === 'issued') {
+                            Logger.log('[REFUND] 기존 issued credit_note 반환 (DB 충돌 처리)', {
+                                refund_event_id,
+                                warranty_id,
+                                credit_note_id: existing.invoice_id,
+                                credit_note_number: existing.invoice_number
+                            });
+                            creditNoteId = existing.invoice_id;
+                            // 기존 credit_note 반환 후 계속 진행 (warranty_events 기록 등)
+                        } else {
+                            // issued 없고 void/refunded만 있으면 에러 (데이터 꼬임)
+                            Logger.error('[REFUND] ER_DUP_ENTRY 발생했으나 issued credit_note 없음 (데이터 꼬임)', {
+                                refund_event_id,
+                                warranty_id,
+                                related_invoice_id: relatedInvoiceId,
+                                attempted_amount: refundAmount,
+                                attempted_unit: warranty.source_order_item_unit_id,
+                                existing_credit_note_id: existing.invoice_id,
+                                existing_status: existing.status,
+                                error_code: sqlError.code
+                            });
+                            throw new Error('Credit note 중복 감지되었으나 기존 issued credit note를 찾을 수 없습니다.');
+                        }
+                    } else {
+                        // 조회 결과가 없으면 트랜잭션 가시성 문제 또는 데이터 꼬임
+                        Logger.error('[REFUND] ER_DUP_ENTRY 발생했으나 기존 credit_note 조회 실패', {
+                            refund_event_id,
+                            warranty_id,
+                            error_code: sqlError.code,
+                            sql_message: sqlError.sqlMessage
+                        });
+                        throw new Error('Credit note 중복 감지되었으나 기존 credit note를 찾을 수 없습니다.');
+                    }
+                } else {
+                    // 다른 SQL 에러는 그대로 throw
+                    throw sqlError;
+                }
+            }
 
             // 9. warranty_events에 환불 이벤트 기록 (Outbox 패턴)
             // ⚠️ 이벤트 INSERT 실패 시 전이도 롤백
