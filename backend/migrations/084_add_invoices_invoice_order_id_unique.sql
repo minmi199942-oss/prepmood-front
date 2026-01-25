@@ -119,9 +119,9 @@ HAVING cnt > 1;
 -- invoice일 때만 order_id, 아니면 NULL (status 무관)
 -- ============================================================
 ALTER TABLE invoices
-ADD COLUMN invoice_order_id INT NULL
+ADD COLUMN invoice_order_id INT
     GENERATED ALWAYS AS (IF(`type` = 'invoice', order_id, NULL)) STORED
-    COMMENT 'invoice 전용: 주문당 1장 강제 (정책 A: type=invoice일 때만 order_id, status 무관, credit_note는 NULL)'
+    COMMENT 'invoice 전용: 주문당 1장 강제'
     AFTER order_id;
 
 -- ============================================================
