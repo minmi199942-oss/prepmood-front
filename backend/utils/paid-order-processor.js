@@ -171,12 +171,13 @@ async function processPaidOrder({
         await updateProcessingStatus(paidEventId, 'processing');
 
         // ============================================================
-        // 3. order_items 조회 (size, color 포함)
+        // 3. order_items 조회 (size, color, product_name 포함)
         // ============================================================
         const [orderItems] = await connection.execute(
             `SELECT 
                 order_item_id,
                 product_id,
+                product_name,
                 size,
                 color,
                 quantity,
@@ -339,7 +340,8 @@ async function processPaidOrder({
                     order_item_id: item.order_item_id,
                     unit_seq: i + 1,
                     stock_unit_id: stockUnit.stock_unit_id,
-                    token_pk: stockUnit.token_pk
+                    token_pk: stockUnit.token_pk,
+                    product_name: item.product_name  // warranties에 저장하기 위해 추가
                 });
             }
         }
@@ -461,12 +463,14 @@ async function processPaidOrder({
                          SET status = ?,
                              source_order_item_unit_id = ?,
                              owner_user_id = ?,
+                             product_name = ?,
                              verified_at = ?
                          WHERE token_pk = ? AND status = 'revoked'`,
                         [
                             warrantyStatus,
                             unit.order_item_unit_id,
                             ownerUserId,
+                            unit.product_name,
                             utcDateTime,
                             unit.token_pk
                         ]
@@ -492,17 +496,19 @@ async function processPaidOrder({
                     // 신규 생성: revoked 상태 warranty가 없으면 INSERT
                     // ⚠️ public_id 필수: UUID v4 생성
                     // ⚠️ verified_at 필수: UTC 시간 ('YYYY-MM-DD HH:MM:SS' 형식)
+                    // ⚠️ product_name 필수: order_items에서 가져온 제품명 저장
                     const publicId = uuidv4();
                     const [insertResult] = await connection.execute(
                         `INSERT INTO warranties
-                        (source_order_item_unit_id, token_pk, owner_user_id, status, public_id, verified_at, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                        (source_order_item_unit_id, token_pk, owner_user_id, status, public_id, product_name, verified_at, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                         [
                             unit.order_item_unit_id,
                             unit.token_pk,
                             ownerUserId,
                             warrantyStatus,
                             publicId,
+                            unit.product_name,
                             utcDateTime,
                             utcDateTime
                         ]
@@ -564,11 +570,14 @@ async function processPaidOrder({
         });
 
         let invoiceNumber = null;
+        let invoiceId = null;
         try {
             const invoiceResult = await createInvoiceFromOrder(connection, orderId);
             invoiceNumber = invoiceResult.invoice_number;
+            invoiceId = invoiceResult.invoice_id;
             Logger.log('[PAID_PROCESSOR] invoices 생성 완료', {
                 orderId,
+                invoiceId,
                 invoiceNumber
             });
         } catch (error) {
@@ -691,6 +700,7 @@ async function processPaidOrder({
             stockUnitsReserved: reservedStockUnits.length,
             orderItemUnitsCreated: createdOrderItemUnits.length,
             warrantiesCreated: createdWarranties.length,
+            invoiceId,
             invoiceNumber
         });
 
@@ -706,6 +716,7 @@ async function processPaidOrder({
                 stockUnitsReserved: reservedStockUnits.length,
                 orderItemUnitsCreated: createdOrderItemUnits.length,
                 warrantiesCreated: createdWarranties.length,
+                invoiceId,
                 invoiceNumber,
                 // 이메일 발송용 정보
                 orderInfo: {

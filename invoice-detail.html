@@ -56,7 +56,7 @@
             background-color: #ffffff;
             box-shadow: 9px 9px 6px -2px rgba(41, 41, 41, 0.5);
          
-            border-radius: 2px;
+            border-radius: 0px;
             padding: clamp(80px, 6vw, 80px) clamp(85px, 5vw, 85px);
             padding-left: clamp(100px, 5vw, 100px);
             position: relative;
@@ -300,7 +300,7 @@
             left: 34px;
             right: 0px;
             height: 0.5px;
-            background-color: #e0e0e0;
+            background-color: rgba(204, 204, 204, 1);
         }
 
         .invoice-summary-label {
@@ -326,7 +326,7 @@
             left: 6px;
             right: 0px;
             height: 0.5px;
-            background-color: #e0e0e0;
+            background-color: rgba(204, 204, 204, 1);
         }
 
         .invoice-footer-section {
@@ -388,15 +388,14 @@
             justify-content: flex-end;
             flex-wrap: wrap;
             max-width: 1150px;
-            
             align-self: flex-center;
             margin-left: 0px;
             margin-right: 50px;
         }
 
         .action-btn {
-            padding: clamp(20px, 4vw, 20px) clamp(80px, 13vw, 80px);
-            border-radius: 6px;
+            padding: clamp(29.8px, 4vw, 29.8px) clamp(80px, 13vw, 80px);
+            border-radius: 14px;
             font-family: 'Paperlogy', 'Georgia', serif;
             font-size: clamp(14px, 2.2vw, 14px);
             font-weight: 500;
@@ -417,7 +416,7 @@
         }
 
         .action-btn-secondary {
-            background-color: #D0D0D0;
+            background-color: rgba(179, 179, 179, 1);
             color: #fff;
         }
 
@@ -427,7 +426,7 @@
 
         .action-btn-outline {
             background-color: #fff;
-            color: #000;
+            color: rgba(102, 102, 102, 1);
             border: 1px solid #e0e0e0;
         }
 
@@ -453,6 +452,23 @@
             font-size: clamp(calc(0.9rem - 1px), calc(2vw - 1px), calc(1rem - 1px));
             color: #999;
             margin-bottom: clamp(20px, 4vw, 20px);
+        }
+
+        /* PC 화면 (1440px 이상) - action button 크기 및 간격 증가 */
+        @media (min-width: 1440px) {
+            .invoice-action-buttons {
+                gap: 20px;
+                max-width: 1440px;
+                margin-top: 35px;
+            }
+
+            .action-btn {
+                padding: 31px 105px;
+                font-size: 18px;
+                border-radius: 19px;
+                font-weight: 400;
+                
+            }
         }
 
         /* 반응형 - 1439px 이하에서 버튼 세로 정렬 및 보증서 버튼 겹침 */
@@ -495,7 +511,7 @@
                 flex-direction: column;
                  /* 문서와 동일한 너비 */
                 margin-right: 0px;
-                width: 710px;
+                width: 769px;
             }
             .invoice-detail-header {
                 margin-bottom: 36px;
@@ -589,11 +605,8 @@
             padding-left: 45.4px;           
             }
 
-            .invoice-summary-value {
-                
-            }
-
             .invoice-summary-row.total::before {
+                background-color: rgba(204, 204, 204, 1);
                 left: 52px;
             }
 
@@ -606,7 +619,7 @@
                 height: 667px;
                 min-height: 667px;
                 max-height: 667px;
-                padding: 81.3px 53px 0px 53px;
+                padding: 81.3px 55.5px 0px 55.5px;
                 justify-content: flex-start; /* 높이 변경 시 여백이 늘어나지 않도록 */
             }
 
@@ -614,7 +627,7 @@
                 flex-direction: row;
                 gap: 8px;
                 margin-bottom: 14px;
-                padding-bottom: 24.8px;
+                padding-bottom: 24px;
                 align-items: center;
             }
 
@@ -628,7 +641,7 @@
 
             .invoice-header-left > .invoice-brand-logo {
                 position: absolute;
-                right: -3px;
+                right: -5.8px;
                 top: 0;
             }
 
@@ -656,10 +669,11 @@
                 min-width: 269px;
                 max-width: 269px;
                 margin: 0 auto;
-                padding: 33px 30px 20px 35.4px;
+                padding: 32.5px 30px 20px 35.4px;
                 height: 371px;
                 min-height: 371px;
                 max-height: 371px;
+                box-shadow: 4.5px 4.5px 3px -1px rgba(41, 41, 41, 0.5);
             }
 
             .invoice-items-table th {
@@ -667,55 +681,65 @@
             }
 
             .invoice-items-table td {
-                padding: 3px 0 4.4px 0;
+                padding: 3px 0 4.2px 0;
             }
 
-            .invoice-items-table td:nth-child(2) {
-                padding-left: 5px;
-            }
+            
 
             .invoice-items-table td:nth-child(3) {
                 padding-right: 2px;
             }
 
             .invoice-summary-label {
-                padding-left: 122px;
-                letter-spacing: 0.8px;
+                padding-left: 122.6px;
+                letter-spacing: 0.5px;
+                font-size: 4px;
+                font-weight: 500.2;
             }
 
             .invoice-summary-value {
-                letter-spacing: 0.8px;
+                letter-spacing: 0.5px;
+                font-size: 4px;
+                font-weight: 500.2;
+                padding-right: 2.5px;
             }
 
             .invoice-summary-row {
-                margin-bottom: 8px;
+                margin-bottom: 7.5px;
+                letter-spacing: 0.5px;
+            }
+
+            /* Payment Method를 Tax 쪽으로 1px 올리기 (세 번째 summary-row) */
+            .invoice-summary-container .invoice-summary-row:nth-child(3) {
+                margin-top: -0.7px;
             }
 
             .invoice-summary-row.total {
-                margin-top: 24px;
-                margin-bottom: 9px;
-                padding-top: 14px;
+                margin-top: 25.25px;
+                margin-bottom: 10.4px;
+                padding-top: 12px;
             }
 
             .invoice-summary-row.total::before {
-                
-                height: 0.1px;
-                left: -1px;
+                background-color: rgba(204, 204, 204, 1);
+                height: 0.08px;
+                left: 125.5px;
             }
 
             .invoice-detail-header::after {
-                height: 0.1px;
-                left: -1px;
+                height: 0.08px;
+                left: 4px;
             }
 
             .invoice-description-section::after {
-                height: 0.1px;
-                left: -1px;
+                height: 0.08px;
+                left: 4px;
             }
 
             .invoice-detail-footer::before {
-                height: 0.1px;
-                left: -1px;
+                background-color: rgba(204, 204, 204, 1);
+                height: 0.08px;
+                left: 4px;
             }
 
             .invoice-summary-section {
@@ -727,48 +751,62 @@
             }
 
             .invoice-description-section {
-                margin-bottom: 14px;
+                margin-bottom: 12.4px;
                 padding-bottom: 32px;
             }
 
             .invoice-detail-footer {
                 grid-template-columns: 1fr 1fr;
                 gap: 14px;
-                padding-top: 18px;
+                padding-top: 17.5px;
                 margin-top: 1px;
                 align-items: start;
             }
 
             .invoice-footer-title {
                 margin-bottom: 6.3px;
+                margin-left: 0.45px;
             }
 
             .invoice-footer-section:nth-child(2) .invoice-footer-title {
-                padding-left: 0.2px;
+                padding-left: 8px;
             }
 
             .invoice-footer-info {
-                gap: 8.3px;
-            }
-
-            .invoice-footer-row {
-                  
+                gap: 7.3px;
+                font-weight: 500;
             }
 
             .invoice-footer-value {
-                
+                padding-right: 0px;
+            }
+
+            /* 고객 정보 쪽 invoice-footer-value에 right padding 추가 */
+            .invoice-footer-section:nth-child(2) .invoice-footer-value {
+                padding-right: 2.5px;
+            }
+
+            /* 회사 정보 쪽 invoice-footer-value를 왼쪽으로 이동 */
+            .invoice-footer-section:nth-child(1) .invoice-footer-value {
+                margin-left: -6px;
             }
 
             .invoice-footer-section:nth-child(2) .invoice-footer-label {
-                padding-left: 1.2px;
+                padding-left: 8.5px;
+            }
+
+            /* 고객 정보의 label과 value 사이 간격 줄이기 */
+            .invoice-footer-section:nth-child(2) .invoice-footer-row {
+                gap: 2px;
             }
 
             .invoice-main-wrapper .invoice-header-title {
-                margin-bottom: 6.4px;
+                margin-bottom: 4.6px;
+                
             }
 
             .invoice-main-wrapper .invoice-header-meta {
-                gap: 6.5px;
+                gap: 5.1px;
                 margin-bottom: 3px;
             }
 
@@ -787,7 +825,6 @@
                 margin-top: 0;
                 justify-content: flex-start;
                 flex-wrap: nowrap;
-                
                 max-width: 140px;
             }
 
@@ -800,7 +837,8 @@
                 align-items: center;
                 justify-content: center;
                 gap: 8px;
-                max-width: 610px;
+                max-width: 312px;
+                min-width: 312px;
                 margin-right: 0px;
             }
 
@@ -819,27 +857,42 @@
 
             /* 폰트 사이즈 고정값 (invoice-main-wrapper 내부만, action button 제외) – 2px씩 감소 */
             .invoice-main-wrapper .invoice-header-title {
-                font-size: 5px;
+                font-size: 5.9px;
+                letter-spacing: 0.55px;
+                font-weight: 610;
             }
 
             .invoice-main-wrapper .invoice-header-meta {
-                font-size: 3px;
+                font-size: 4.1px;
+                letter-spacing: 0.58px;
+                font-weight: 500;
+                padding-left: 0.58px;
             }
 
             
 
             .invoice-main-wrapper .invoice-section-title {
-                font-size: 5px;
-                margin-bottom: 5.3px;
+                font-size: 5.75px;
+                margin-bottom: 3.55px;
+                letter-spacing: 0.55px;
+                font-weight: 625;
             }
 
             .invoice-main-wrapper .invoice-items-table th {
-                font-size: 3px;
+                
+                letter-spacing: 0.5px;
             }
 
             .invoice-main-wrapper .invoice-items-table td {
-                font-size: 3px;
-                letter-spacing: 0.8px;
+                font-size: 4.1px;
+                letter-spacing: 0.47px;
+                font-weight: 500;
+                padding-left: 0.6px;
+            }
+
+            .invoice-items-table td:nth-child(2) {
+                padding-left: 6.35px;
+                
             }
 
             .invoice-main-wrapper .warranty-view-btn {
@@ -847,21 +900,29 @@
                 
             }
 
+            .action-btn {
+                border-radius: 6px;
+            }
+
             .warranty-view-btn {
-                border-radius: 12px;
+                border-radius: 2px;
             }
 
             .invoice-main-wrapper .invoice-summary-row {
-                font-size: 3px;
+                letter-spacing: 0.5px;
             }
 
             .invoice-main-wrapper .invoice-footer-title {
-                font-size: 5.7px;
+                font-size: 5.9px;
                 letter-spacing: 0.7px;
+                font-weight: 608;
+                 
             }
 
             .invoice-main-wrapper .invoice-footer-row {
-                font-size: 3.5px;
+                font-size: 3.9px;
+                letter-spacing: 0.61px;
+                
             }
 
             .invoice-main-wrapper .no-invoice-title {
@@ -872,9 +933,14 @@
                 font-size: 4px;
             }
 
+            .invoice-footer-label {
+                padding-left: 1px;
+            }
+             
+
             .invoice-brand-logo {
-                width: 72.5px;
-                height: 15.8px;
+                width: 75px;
+                height: 18px;
                 margin-left: 0;
                 padding-left: 0;
                 
