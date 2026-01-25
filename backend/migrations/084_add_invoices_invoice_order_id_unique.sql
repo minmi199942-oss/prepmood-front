@@ -120,7 +120,7 @@ HAVING cnt > 1;
 -- ============================================================
 ALTER TABLE invoices
 ADD COLUMN invoice_order_id INT NULL
-    GENERATED ALWAYS AS (IF(type = 'invoice', order_id, NULL)) STORED
+    GENERATED ALWAYS AS (IF(`type` = 'invoice', order_id, NULL)) STORED
     COMMENT 'invoice 전용: 주문당 1장 강제 (정책 A: type=invoice일 때만 order_id, status 무관, credit_note는 NULL)'
     AFTER order_id;
 
