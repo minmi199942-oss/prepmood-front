@@ -63,12 +63,12 @@ async function migrateSqliteToMysql() {
         
         // 4. MySQL에서 기존 warranties의 owner_user_id 매핑 조회
         const [warranties] = await mysqlConn.execute(
-            'SELECT token, user_id FROM warranties WHERE token IS NOT NULL'
+            'SELECT token, owner_user_id FROM warranties WHERE token IS NOT NULL'
         );
         
         const tokenToUserId = {};
         warranties.forEach(w => {
-            tokenToUserId[w.token] = w.user_id;
+            tokenToUserId[w.token] = w.owner_user_id;
         });
         
         Logger.log(`📋 MySQL warranties에서 ${warranties.length}개 소유주 매핑 발견`);

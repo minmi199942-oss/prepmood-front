@@ -840,7 +840,9 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 invoice_created: invoiceCreated,
                 invoice_number: invoiceNumber,
                 alreadyConfirmed: false,
-                // ⚠️ 비회원 주문인 경우 guest_order_access_token 포함
+                // ⚠️ 회원/비회원 구분을 위한 user_id 포함
+                user_id: order.user_id,
+                // ⚠️ 비회원 주문인 경우 guest_order_access_token 포함 (회원 주문이어도 이메일 링크용으로 생성됨)
                 guest_access_token: guestAccessToken
             }
         });

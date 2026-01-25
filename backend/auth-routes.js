@@ -858,7 +858,7 @@ router.get('/api/warranties/:public_id', authLimiter, authenticateToken, async (
             const [warranties] = await connection.execute(
                 `SELECT id, public_id, product_name, created_at, verified_at 
                  FROM warranties 
-                 WHERE public_id = ? AND user_id = ?`,
+                 WHERE public_id = ? AND owner_user_id = ?`,
                 [publicId, userId]
             );
             

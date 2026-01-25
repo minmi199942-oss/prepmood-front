@@ -510,13 +510,19 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     
     const result = await response.json();
     
-    // ⚠️ 비회원 주문인 경우 guest_order_access_token을 URL 파라미터로 전달
+    // ⚠️ 회원/비회원 구분: user_id가 있으면 회원 주문, 없으면 비회원 주문
+    const userId = result.data?.user_id;
     const guestToken = result.data?.guest_access_token;
-    if (guestToken) {
+    
+    if (userId) {
+      // 회원 주문: 기존 방식대로 조회
+      await loadOrderDetails(orderId);
+    } else if (guestToken) {
       // 비회원 주문: guestToken과 함께 주문 조회
       await loadGuestOrderDetails(orderId, guestToken);
     } else {
-      // 회원 주문: 기존 방식대로 조회
+      // user_id도 없고 guestToken도 없는 경우 (예외 상황)
+      console.warn('⚠️ 주문 타입을 확인할 수 없습니다. 회원 주문으로 시도합니다.');
       await loadOrderDetails(orderId);
     }
     

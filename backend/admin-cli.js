@@ -183,7 +183,7 @@ async function transferWarranty(token, fromEmail, toEmail, reason = null, dryRun
         
         // 2. 현재 보증서 상태 확인
         const [warrantyRows] = await connection.execute(
-            'SELECT public_id, user_id FROM warranties WHERE token = ? AND deleted_at IS NULL',
+            'SELECT public_id, owner_user_id FROM warranties WHERE token = ? AND deleted_at IS NULL',
             [token]
         );
         
@@ -193,8 +193,8 @@ async function transferWarranty(token, fromEmail, toEmail, reason = null, dryRun
         
         const warranty = warrantyRows[0];
         
-        if (warranty.user_id !== fromUser.user_id) {
-            throw new Error(`소유주가 일치하지 않습니다. 현재 소유주: user_id ${warranty.user_id}`);
+        if (warranty.owner_user_id !== fromUser.user_id) {
+            throw new Error(`소유주가 일치하지 않습니다. 현재 소유주: user_id ${warranty.owner_user_id}`);
         }
         
         // 3. token_master 확인
@@ -214,7 +214,7 @@ async function transferWarranty(token, fromEmail, toEmail, reason = null, dryRun
         // dry-run 모드: 실제 업데이트 없이 미리보기만
         if (dryRun) {
             console.log(`\n🔍 [DRY-RUN] 다음 작업이 실행될 예정입니다:`);
-            console.log(`   1. warranties.user_id: ${fromUser.user_id} → ${toUser.user_id} (예상 affectedRows: 1)`);
+            console.log(`   1. warranties.owner_user_id: ${fromUser.user_id} → ${toUser.user_id} (예상 affectedRows: 1)`);
             console.log(`   2. token_master.owner_user_id: ${fromUser.user_id} → ${toUser.user_id} (예상 affectedRows: 1)`);
             console.log(`   3. transfer_logs 기록 추가 (예상: 1건)`);
             console.log(`\n⚠️  실제로는 변경되지 않습니다. (--dry-run 모드)`);
@@ -233,7 +233,7 @@ async function transferWarranty(token, fromEmail, toEmail, reason = null, dryRun
         
         // 4. warranties 업데이트
         const [warrantyUpdate] = await connection.execute(
-            'UPDATE warranties SET user_id = ? WHERE token = ? AND user_id = ? AND deleted_at IS NULL',
+            'UPDATE warranties SET owner_user_id = ? WHERE token = ? AND owner_user_id = ? AND deleted_at IS NULL',
             [toUser.user_id, token, fromUser.user_id]
         );
         
@@ -580,7 +580,7 @@ async function deleteWarranty(token, reason = null, dryRun = false, skipConfirm 
         // dry-run 모드
         if (dryRun) {
             const [warrantyRows] = await connection.execute(
-                'SELECT public_id, user_id FROM warranties WHERE token = ? AND deleted_at IS NULL',
+                'SELECT public_id, owner_user_id FROM warranties WHERE token = ? AND deleted_at IS NULL',
                 [token]
             );
             
@@ -798,13 +798,13 @@ program
                 console.log(`   생성일: ${formatDate(info.warranty.created_at)}`);
                 console.log(`   인증일: ${formatDate(info.warranty.verified_at)}`);
                 
-                // warranties의 user_id와 token_master의 owner_user_id 비교
-                if (info.warranty.user_id) {
-                    const warrantyOwnerId = info.warranty.user_id;
+                // warranties의 owner_user_id와 token_master의 owner_user_id 비교
+                if (info.warranty.owner_user_id) {
+                    const warrantyOwnerId = info.warranty.owner_user_id;
                     const tokenMasterOwnerId = info.token_master.owner_user_id;
                     
                     if (warrantyOwnerId !== tokenMasterOwnerId) {
-                        console.log(`\n⚠️  주의: warranties.user_id(${warrantyOwnerId})와 token_master.owner_user_id(${tokenMasterOwnerId})가 일치하지 않습니다!`);
+                        console.log(`\n⚠️  주의: warranties.owner_user_id(${warrantyOwnerId})와 token_master.owner_user_id(${tokenMasterOwnerId})가 일치하지 않습니다!`);
                         
                         // warranties의 소유주 정보 조회
                         const [warrantyOwnerRows] = await connection.execute(
