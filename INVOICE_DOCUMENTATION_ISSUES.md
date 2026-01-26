@@ -8,6 +8,85 @@
 
 ## ⚠️ 발견된 문제점
 
+### 0. `SYSTEM_FLOW_DETAILED.md`와 실제 구현 불일치 ❌
+
+#### 0-1. invoice_number 형식 불일치
+
+**문서 명시** (`SYSTEM_FLOW_DETAILED.md` 184줄):
+- `PM-INV-YYMMDD-HHmmss-{랜덤}` 형식 (초 단위 포함)
+
+**실제 구현** (`backend/utils/invoice-number-generator.js` 4줄, 37줄):
+- `PM-INV-YYMMDD-HHmm-{랜덤4자}` 형식 (초 제외, 분까지만)
+
+**문제점**:
+- 문서와 실제 구현이 다름
+- 문서는 "초 단위 + 랜덤으로 충돌 방지"라고 하지만, 실제로는 분 단위만 사용
+
+**권장 해결책**:
+- 옵션 A: 문서 수정 (실제 구현에 맞춤) - 권장
+- 옵션 B: 코드 수정 (문서에 맞춤) - 초 단위 추가
+
+#### 0-2. 인보이스 INSERT 필드 차이
+
+**문서 명시** (`SYSTEM_FLOW_DETAILED.md` 173-181줄):
+```sql
+INSERT INTO invoices (
+  order_id, invoice_number, type, status,
+  currency, total_amount, tax_amount, net_amount,
+  billing_name, billing_email, billing_phone, billing_address_json,
+  shipping_name, shipping_email, shipping_phone, shipping_address_json,
+  payload_json, order_snapshot_hash, version,
+  issued_at
+)
+VALUES (?, ?, 'invoice', 'issued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+```
+
+**실제 구현** (`backend/utils/invoice-creator.js` 193-200줄):
+```sql
+INSERT INTO invoices (
+  order_id, invoice_number, type, status,
+  currency, total_amount, tax_amount, net_amount,
+  billing_name, billing_email, billing_phone, billing_address_json,
+  shipping_name, shipping_email, shipping_phone, shipping_address_json,
+  payload_json, order_snapshot_hash, version,
+  issued_by, issued_at
+)
+VALUES (?, ?, 'invoice', 'issued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'system', NOW())
+```
+
+**차이점**:
+- 실제 구현에 `issued_by` 필드가 추가로 포함됨 (문서에는 없음)
+- 실제 구현: `issued_by = 'system'` (기본값)
+
+**문제점**:
+- 문서에 `issued_by` 필드가 누락되어 있음
+- 문서를 기준으로 구현하면 `issued_by` 필드가 빠질 수 있음
+
+**권장 해결책**:
+- `SYSTEM_FLOW_DETAILED.md`에 `issued_by` 필드 추가
+
+#### 0-3. 비회원 주문 상세 조회 API에 인보이스 정보 누락
+
+**문서 명시** (`SYSTEM_FLOW_DETAILED.md` 310-314줄):
+- 비회원 주문 상세 페이지에 **인보이스 정보** 표시 필요:
+  - 주문번호
+  - 주문일시
+  - 결제 정보 (결제일시, 결제 금액, 결제 방법)
+  - 배송지 정보
+
+**실제 구현** (`backend/order-routes.js` 1831-1834줄):
+- `GET /api/guest/orders/:orderNumber` 응답에 `invoices` 정보 없음
+
+**문제점**:
+- 문서에서 명시한 "인보이스 정보"가 API 응답에 포함되지 않음
+- 비회원이 주문 상세 페이지에서 인보이스 정보를 확인할 수 없음
+
+**권장 해결책**:
+- `GET /api/guest/orders/:orderNumber` 응답에 `invoices` 배열 추가
+- 각 인보이스 정보: `invoiceId`, `invoiceNumber`, `type`, `status`, `issuedAt` 등
+
+---
+
 ### 1. `backend/invoice-routes.js` 주석 불일치 ❌
 
 **문제**:
@@ -61,8 +140,9 @@
 
 ### 3. 비회원 주문 상세 조회 API 응답에 invoices 정보 누락 ❌
 
-**문서 명시** (`GUEST_INVOICE_ACCESS_DESIGN.md` 127-132줄):
-- `GET /api/guest/orders/:orderNumber` 응답에 `invoices` 배열 추가 필요
+**문서 명시**:
+- `SYSTEM_FLOW_DETAILED.md` 310-314줄: 비회원 주문 상세 페이지에 **인보이스 정보** 표시 필요
+- `GUEST_INVOICE_ACCESS_DESIGN.md` 127-132줄: `GET /api/guest/orders/:orderNumber` 응답에 `invoices` 배열 추가 필요
 - **상태**: ❌ 구현되지 않음
 
 **현재 구현 상태** (`backend/order-routes.js` 1831-1834줄):
@@ -76,6 +156,7 @@ res.json({
 **문제점**:
 - 응답에 `invoices` 배열이 포함되어 있지 않음
 - 비회원이 주문 상세 페이지에서 인보이스 정보를 확인할 수 없음
+- 두 문서 모두에서 명시한 요구사항이 구현되지 않음
 
 **권장 해결책**:
 - 비회원 주문 상세 조회 API 응답에 `invoices` 배열 추가
@@ -120,16 +201,21 @@ res.json({
 
 ### 즉시 수정 필요
 
-1. **`backend/invoice-routes.js` 주석 수정**
+1. **`SYSTEM_FLOW_DETAILED.md` 문서 수정**
+   - `invoice_number` 형식: `PM-INV-YYMMDD-HHmmss-{랜덤}` → `PM-INV-YYMMDD-HHmm-{랜덤4자}` (실제 구현에 맞춤)
+   - 인보이스 INSERT 문에 `issued_by` 필드 추가
+
+2. **`backend/invoice-routes.js` 주석 수정**
    - 파일 상단 주석에 `GET /api/invoices/:invoiceId` 엔드포인트 추가
 
-2. **비회원 인보이스 접근 API 구현**
+3. **비회원 인보이스 접근 API 구현**
    - `GET /api/guest/orders/:orderNumber/invoice` 구현 (권장)
    - 또는 `GET /api/guest/invoices/:invoiceId` 구현
    - 세션 토큰 검증 포함
 
-3. **비회원 주문 상세 조회 API 응답 수정**
+4. **비회원 주문 상세 조회 API 응답 수정**
    - `GET /api/guest/orders/:orderNumber` 응답에 `invoices` 배열 추가
+   - `SYSTEM_FLOW_DETAILED.md`와 `GUEST_INVOICE_ACCESS_DESIGN.md` 모두에서 요구한 사항
 
 ### 향후 확인 필요
 
@@ -170,4 +256,4 @@ res.json({
 ---
 
 **검토일**: 2026-01-25  
-**검토 기준**: `INVOICE_PAGINATION_DESIGN.md`, `GUEST_INVOICE_ACCESS_DESIGN.md`, `ADMIN_QR_WARRANTY_INVOICE_CONSISTENCY_CHECK.md`, 실제 구현 코드
+**검토 기준**: `SYSTEM_FLOW_DETAILED.md`, `INVOICE_PAGINATION_DESIGN.md`, `GUEST_INVOICE_ACCESS_DESIGN.md`, `ADMIN_QR_WARRANTY_INVOICE_CONSISTENCY_CHECK.md`, 실제 구현 코드

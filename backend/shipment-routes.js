@@ -133,12 +133,11 @@ router.post('/admin/orders/:orderId/shipments', authenticateToken, requireAdmin,
                 });
             }
 
-            // 3. 주문 존재 확인
+            // 3. orders FOR UPDATE 먼저 잠금 (락 순서 1단계: 전역 순서 준수)
             const [orders] = await connection.execute(
-                'SELECT order_id FROM orders WHERE order_id = ?',
+                'SELECT order_id, order_number FROM orders WHERE order_id = ? FOR UPDATE',
                 [orderId]
             );
-
             if (orders.length === 0) {
                 await connection.rollback();
                 await connection.end();
@@ -149,7 +148,7 @@ router.post('/admin/orders/:orderId/shipments', authenticateToken, requireAdmin,
                 });
             }
 
-            // 4. order_item_units 조회 (FOR UPDATE로 잠금)
+            // 4. order_item_units 조회 (FOR UPDATE로 잠금, 락 순서 3단계)
             const { placeholders, params: unitIdsParams } = buildInClause(uniqueUnitIds);
             const [units] = await connection.execute(
                 `SELECT 
@@ -403,12 +402,11 @@ router.post('/admin/orders/:orderId/deliver', authenticateToken, requireAdmin, a
         await connection.beginTransaction();
 
         try {
-            // 2. 주문 존재 확인
+            // 2. orders FOR UPDATE 먼저 잠금 (락 순서 1단계: 전역 순서 준수)
             const [orders] = await connection.execute(
-                'SELECT order_id FROM orders WHERE order_id = ?',
+                'SELECT order_id, order_number FROM orders WHERE order_id = ? FOR UPDATE',
                 [orderId]
             );
-
             if (orders.length === 0) {
                 await connection.rollback();
                 await connection.end();
@@ -419,7 +417,7 @@ router.post('/admin/orders/:orderId/deliver', authenticateToken, requireAdmin, a
                 });
             }
 
-            // 3. order_item_units 조회 (FOR UPDATE로 잠금)
+            // 3. order_item_units 조회 (FOR UPDATE로 잠금, 락 순서 3단계)
             const { placeholders, params: unitIdsParams } = buildInClause(uniqueUnitIds);
             const [units] = await connection.execute(
                 `SELECT 

@@ -19,7 +19,7 @@
 
 4. **`warranties.status`는 권리/정책 상태(활성화/양도/환불 가능 여부)의 진실 원천이다.**
    - 환불 가능 여부 판정은 `warranties.status`만 본다.
-   - 활성화 가능 여부 판정은 `warranties.status`를 1차 기준으로 하되, **주문 귀속 검증(`orders.user_id`)**과 **Refunded 여부**를 함께 확인한다.
+   - 활성화 가능 여부 판정은 `warranties.status`를 1차 기준으로 하되, **주문 귀속 검증(`orders.user_id`)**과 **Refunded 여부**(`order_item_units.unit_status` + `warranties.status`. **`orders.status` 미사용**)를 함께 확인한다.
 
 5. **`invoices`는 문서(스냅샷)이며, "권리 판단 기준"이 아니라 "증빙/조회" 역할이다.**
    - 활성화/환불 판정에 `invoices`를 사용하지 않는다.
@@ -27,7 +27,9 @@
 
 ### 전역 정합성 규칙
 
-1. **전역 락 순서(필수):** `stock_units`(물리) → `orders`(결제) → `warranties`(권리) → `invoices`(문서)
+1. **전역 락 순서(필수):** `orders`(결제) → `stock_units`(물리) → `order_item_units`(물류) → `warranties`(권리) → `invoices`(문서)  
+   - **FOR UPDATE로 잠그는 첫 테이블은 항상 `orders`이다.**  
+   - **`orders`를 잠그기 위해 필요한 `order_id` 식별 조회는 예외적으로 락 없이 허용한다.** (refund: warranty_id→order_id, shipment: 요청의 orderId 사용 후, 반드시 `orders FOR UPDATE` 먼저 → 이후 순서 유지)
 
 2. **전역 원자성 규칙(필수):** 상태 전이는 `UPDATE ... WHERE 조건`으로만 수행하며 `affectedRows=1` 검증 필수.
 
@@ -39,7 +41,7 @@
      - **`active_lock` 정의:** `CASE WHEN unit_status IN ('reserved', 'shipped', 'delivered') THEN 1 ELSE NULL END`
      - **운영 규칙:** 위 상태 집합은 실제 `order_item_units` 테이블의 ENUM과 일치해야 하며, 신규 상태 추가 시 `active_lock` 정의를 갱신해야 한다.
    - `warranties`: `UNIQUE(token_pk)` (토큰당 레코드 1개 강제)
-   - `invoices`: `UNIQUE(invoice_number)`, `UNIQUE(invoice_group_id, invoice_part_no)`
+   - `invoices`: `UNIQUE(invoice_number)`, `UNIQUE(invoice_order_id)` (A안: invoice만 주문당 1장. `invoice_order_id` = generated `IF(type='invoice', order_id, NULL)`. credit_note는 1:N 유지. **void는 상태(enum)로 존재하지만, 중복 정리 방법으로는 사용 금지** → DELETE만 사용)
 
 4. **토큰 체계(필수):** 비회원 조회는 `guest_order_access_token`(90일), Claim은 `claim_token`(단기)으로 철저히 분리.
 
@@ -691,12 +693,13 @@ completed_at: '2025-01-01 14:00:00'
 6. **credit_note 생성** (`invoices` 테이블, `type='credit_note'`):
    - `related_invoice_id`: 원본 invoice_id
    - `payload_json`: 환불 대상 unit 식별자(`order_item_unit_id` 리스트), 환불 금액/세금/통화, 환불 사유, 환불 트랜잭션 키(`payment_key`) 포함
-   - **부분 환불 지원**: 원본 1장에 여러 credit_note 가능 (`related_invoice_id`는 1:N 허용)
+   - **정책**: **credit_note 1:N** — 환불 1회당 1장. 부분 환불은 credit_note 여러 장으로 누적.
 7. `orders.status` 집계 함수로 자동 업데이트
 
 **⚠️ 부분 환불 정책**:
-- **전량 환불**: 모든 unit이 `refunded` → `orders.status = 'refunded'`
-- **일부 환불**: 일부 unit만 `refunded` → 배송 상태 유지 (`partial_shipped`/`partial_delivered`), 별도 refund 상태/금액 표시
+- **전량 환불**: 모든 unit이 `refunded` → `orders.status`는 집계 함수로 `'refunded'`로 **표시됨** (표시용, 정책 판단 기준 아님)
+- **일부 환불**: 일부 unit만 `refunded` → 배송 상태 유지 (`partial_shipped`/`partial_delivered`), 별도 refund 상태/금액 표시. **credit_note는 환불 1회당 1장으로 여러 장 누적 가능.**
+- `orders.status`는 집계 결과일 뿐이며, 정책 판단 기준으로 사용하지 않음.
 
 **데이터베이스 상태 (환불 전)**:
 ```sql
@@ -859,7 +862,7 @@ unit_status: 'reserved'
 **구현 예시 (원자적 조건 포함)**:
 ```javascript
 // 재판매 시 warranties 업데이트 (paid 처리 트랜잭션 내에서만)
-// ⚠️ 락 순서: stock_units(물리) → orders(결제) → warranties(권리)
+// ⚠️ 락 순서: orders(결제) → stock_units(물리) → ... → warranties(권리) (전역 순서 준수)
 
 // 1. stock_units 락 획득
 const [stockUnits] = await connection.execute(

@@ -16,6 +16,30 @@ const Logger = require('../logger');
  */
 async function createInvoiceFromOrder(connection, orderId) {
     try {
+        // 0. 기존 인보이스 확인 (중복 생성 방지)
+        const [existingInvoices] = await connection.execute(
+            `SELECT invoice_id, invoice_number 
+             FROM invoices 
+             WHERE order_id = ? 
+               AND type = 'invoice' 
+               AND status = 'issued'
+             ORDER BY issued_at DESC 
+             LIMIT 1`,
+            [orderId]
+        );
+
+        if (existingInvoices.length > 0) {
+            Logger.log('[INVOICE] 기존 인보이스 발견 (중복 생성 방지)', {
+                order_id: orderId,
+                invoice_id: existingInvoices[0].invoice_id,
+                invoice_number: existingInvoices[0].invoice_number
+            });
+            return {
+                invoice_id: existingInvoices[0].invoice_id,
+                invoice_number: existingInvoices[0].invoice_number
+            };
+        }
+
         // 1. 주문 정보 조회 (회원 정보 포함)
         const [orderRows] = await connection.execute(
             `SELECT 
@@ -194,6 +218,44 @@ async function createInvoiceFromOrder(connection, orderId) {
                 ]
             );
         } catch (sqlError) {
+            // ER_DUP_ENTRY: UNIQUE(invoice_order_id) 등 중복 시 기존 invoice 조회 후 반환 (멱등성)
+            if (sqlError.code === 'ER_DUP_ENTRY') {
+                Logger.log('[INVOICE] 중복 인보이스 감지 (DB 제약), 기존 인보이스 조회', {
+                    order_id: orderId,
+                    error_code: sqlError.code,
+                    sql_message: sqlError.sqlMessage
+                });
+                const [existingInvoices] = await connection.execute(
+                    `SELECT invoice_id, invoice_number, status, issued_at, voided_at, void_reason
+                     FROM invoices
+                     WHERE order_id = ? AND type = 'invoice'
+                     ORDER BY CASE WHEN status = 'issued' THEN 0 ELSE 1 END,
+                              (issued_at IS NULL) ASC, issued_at DESC, invoice_id DESC
+                     LIMIT 1`,
+                    [orderId]
+                );
+                if (existingInvoices.length > 0) {
+                    const existing = existingInvoices[0];
+                    if (existing.status === 'issued') {
+                        return {
+                            invoice_id: existing.invoice_id,
+                            invoice_number: existing.invoice_number
+                        };
+                    }
+                    // issued 없고 void/refunded만 있으면 에러. invoice는 void 후 재발급 불허.
+                    Logger.error('[INVOICE] 중복 인보이스가 issued 상태가 아님 (void/refunded)', {
+                        order_id: orderId,
+                        invoice_id: existing.invoice_id,
+                        invoice_number: existing.invoice_number,
+                        status: existing.status,
+                        void_reason: existing.void_reason || null,
+                        voided_at: existing.voided_at || null
+                    });
+                    throw new Error(
+                        `이미 ${existing.status} 상태의 인보이스가 존재합니다. (invoice_id=${existing.invoice_id}) 인보이스는 void 후 재발급을 허용하지 않습니다.`
+                    );
+                }
+            }
             Logger.error('[INVOICE] SQL INSERT 실패', {
                 order_id: orderId,
                 invoice_number: invoiceNumber,

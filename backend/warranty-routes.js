@@ -37,14 +37,15 @@ const dbConfig = {
  * 요청 본문:
  * - agree: boolean (필수) - 활성화 동의 여부
  * 
- * 처리 흐름 (SYSTEM_FLOW_DETAILED.md 4-1절, FINAL_EXECUTION_SPEC_REVIEW.md 467-496줄):
- * 1. FOR UPDATE로 warranties 잠금
- * 2. owner_user_id 확인
- * 3. status = 'issued' 확인
- * 4. 핵심 검증: 인보이스 연동 확인 (환불 후 QR 코드 악용 방지)
- * 5. 동의 체크 확인
- * 6. 원자적 상태 전이 (affectedRows=1 검증)
- * 7. warranty_events 이벤트 기록 (Outbox 패턴)
+ * 처리 흐름 (SYSTEM_FLOW_DETAILED.md 4-1절):
+ * 1. (락 없이) 보증서→주문 조회 (order_id, order_user_id, unit_status)
+ * 2. orders FOR UPDATE 먼저 잠금 (전역 락 순서 준수)
+ * 3. warranties FOR UPDATE 잠금
+ * 4. order_id assert (경쟁 조건 검증)
+ * 5–9. owner_user_id, status, 인보이스 연동, unit_status 검증
+ * 10. 동의 체크 확인
+ * 11. 원자적 상태 전이 (affectedRows=1 검증)
+ * 12. warranty_events 이벤트 기록 (Outbox 패턴)
  */
 router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, res) => {
     let connection;
@@ -65,9 +66,54 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
         await connection.beginTransaction();
 
         try {
-            // 1. FOR UPDATE로 warranties 잠금
+            // 1. (락 없이) 보증서→주문 조회 (order_id, order_user_id, unit_status)
+            const [orderInfo] = await connection.execute(
+                `SELECT 
+                    o.order_id,
+                    o.user_id as order_user_id,
+                    oiu.unit_status
+                FROM warranties w
+                INNER JOIN order_item_units oiu ON w.source_order_item_unit_id = oiu.order_item_unit_id
+                INNER JOIN order_items oi ON oiu.order_item_id = oi.order_item_id
+                INNER JOIN orders o ON oi.order_id = o.order_id
+                WHERE w.id = ?`,
+                [warrantyId]
+            );
+
+            if (orderInfo.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: '보증서가 연결된 주문 정보를 찾을 수 없습니다.'
+                });
+            }
+
+            const order = orderInfo[0];
+            const orderId = order.order_id;
+
+            // 2. orders FOR UPDATE 먼저 잠금 (락 순서 1단계: 전역 순서 준수)
+            const [orders] = await connection.execute(
+                'SELECT order_id FROM orders WHERE order_id = ? FOR UPDATE',
+                [orderId]
+            );
+            if (orders.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(404).json({
+                    success: false,
+                    message: '주문을 찾을 수 없습니다.'
+                });
+            }
+
+            // 3. warranties FOR UPDATE 잠금 (락 순서 4단계)
             const [warranties] = await connection.execute(
-                'SELECT id, public_id, status, owner_user_id, source_order_item_unit_id FROM warranties WHERE id = ? FOR UPDATE',
+                `SELECT w.id, w.public_id, w.status, w.owner_user_id, w.source_order_item_unit_id, oiu.order_id
+                 FROM warranties w
+                 INNER JOIN order_item_units oiu ON w.source_order_item_unit_id = oiu.order_item_unit_id
+                 INNER JOIN orders o ON oiu.order_id = o.order_id
+                 WHERE w.id = ?
+                 FOR UPDATE`,
                 [warrantyId]
             );
 
@@ -82,7 +128,23 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
 
             const warranty = warranties[0];
 
-            // 2. owner_user_id 확인
+            // 4. 경쟁 조건 검증: FOR UPDATE로 읽은 order_id가 최초 조회와 일치
+            if (warranty.order_id !== orderId) {
+                Logger.error('[WARRANTY_ACTIVATE] order_id 불일치 (경쟁 조건 감지)', {
+                    warrantyId,
+                    initial_order_id: orderId,
+                    confirmed_order_id: warranty.order_id
+                });
+                await connection.rollback();
+                await connection.end();
+                return res.status(500).json({
+                    success: false,
+                    message: '처리 중 경쟁이 감지되었습니다. 다시 시도해 주세요.',
+                    code: 'ORDER_ID_MISMATCH'
+                });
+            }
+
+            // 5. owner_user_id 확인
             if (!warranty.owner_user_id || warranty.owner_user_id !== userId) {
                 await connection.rollback();
                 await connection.end();
@@ -92,7 +154,7 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
                 });
             }
 
-            // 3. status = 'issued' 확인 (다른 상태에서 활성화 불가)
+            // 6. status = 'issued' 확인 (다른 상태에서 활성화 불가)
             if (warranty.status !== 'issued') {
                 await connection.rollback();
                 await connection.end();
@@ -114,8 +176,7 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
                 });
             }
 
-            // 4. 핵심 검증: 인보이스 연동 확인 (환불 후 QR 코드 악용 방지)
-            // ⚠️ 이것이 환불 후 QR 코드 악용 방지의 핵심 방어 메커니즘
+            // 7. 인보이스 연동 확인: 주문 항목 연결
             if (!warranty.source_order_item_unit_id) {
                 await connection.rollback();
                 await connection.end();
@@ -125,31 +186,7 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
                 });
             }
 
-            const [orderInfo] = await connection.execute(
-                `SELECT 
-                    o.user_id as order_user_id,
-                    o.status as order_status,
-                    oiu.unit_status
-                FROM warranties w
-                INNER JOIN order_item_units oiu ON w.source_order_item_unit_id = oiu.order_item_unit_id
-                INNER JOIN order_items oi ON oiu.order_item_id = oi.order_item_id
-                INNER JOIN orders o ON oi.order_id = o.order_id
-                WHERE w.id = ?`,
-                [warrantyId]
-            );
-
-            if (orderInfo.length === 0) {
-                await connection.rollback();
-                await connection.end();
-                return res.status(400).json({
-                    success: false,
-                    message: '보증서가 연결된 주문 정보를 찾을 수 없습니다.'
-                });
-            }
-
-            const order = orderInfo[0];
-
-            // 인보이스 연동 확인: orders.user_id = 현재 로그인한 user_id
+            // 8. 인보이스 연동 확인: orders.user_id = 현재 로그인한 user_id
             if (!order.order_user_id || order.order_user_id !== userId) {
                 await connection.rollback();
                 await connection.end();
@@ -159,17 +196,7 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
                 });
             }
 
-            // 환불 상태 확인: orders.status != 'refunded'
-            if (order.order_status === 'refunded') {
-                await connection.rollback();
-                await connection.end();
-                return res.status(403).json({
-                    success: false,
-                    message: '환불 처리된 주문의 보증서는 활성화할 수 없습니다.'
-                });
-            }
-
-            // 환불 상태 확인: order_item_units.unit_status != 'refunded'
+            // 9. 환불 상태 확인: order_item_units.unit_status + warranties.status (SSOT. orders.status 미사용)
             if (order.unit_status === 'refunded') {
                 await connection.rollback();
                 await connection.end();
@@ -179,9 +206,9 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
                 });
             }
 
-            // 5. 동의 체크는 이미 확인됨 (요청 본문 검증)
+            // 10. 동의 체크는 이미 확인됨 (요청 본문 검증)
 
-            // 6. 원자적 조건으로 상태 전이
+            // 11. 원자적 조건으로 상태 전이
             // ⚠️ affectedRows=1 검증 필수
             const [updateResult] = await connection.execute(
                 `UPDATE warranties 
@@ -205,7 +232,7 @@ router.post('/warranties/:warrantyId/activate', authenticateToken, async (req, r
                 });
             }
 
-            // 7. warranty_events에 활성화 이벤트 기록 (Outbox 패턴)
+            // 12. warranty_events에 활성화 이벤트 기록 (Outbox 패턴)
             // ⚠️ 이벤트 INSERT 실패 시 전이도 롤백 (증거성 보장)
             try {
                 await connection.execute(

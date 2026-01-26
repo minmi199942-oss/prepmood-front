@@ -612,6 +612,194 @@ The Art of Modern Heritage
     }
 };
 
+/**
+ * 인보이스 이메일 발송
+ * @param {String} to - 수신자 이메일
+ * @param {Object} data - { invoiceNumber, invoiceId, invoiceLink, orderNumber, customerName, logoUrl }
+ * @returns {Promise<Object>} { success: boolean, error?: string }
+ */
+const sendInvoiceEmail = async (to, { invoiceNumber, invoiceId, invoiceLink, orderNumber, customerName = null, logoUrl = null }) => {
+    try {
+        console.log('📧 인보이스 이메일 전송 시작...');
+        console.log(`📬 수신자: ${to}`);
+        console.log(`📋 인보이스 번호: ${invoiceNumber}`);
+
+        if (!process.env.MAILERSEND_API_KEY) {
+            console.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            return { 
+                success: false, 
+                error: 'MAILERSEND_API_KEY가 설정되지 않았습니다.',
+                service: 'mailersend'
+            };
+        }
+
+        const sentFrom = new Sender(process.env.MAILERSEND_FROM_EMAIL, "Pre.p Mood");
+        const recipients = [new Recipient(to, to)];
+
+        // 고객 이름 설정
+        const displayName = customerName || 'Customer';
+
+        // 로고 URL 설정 (절대 URL)
+        const baseUrl = process.env.FRONTEND_URL || 'https://prepmood.kr';
+        const logoImageUrl = logoUrl || `${baseUrl}/image/prepmoodlogo.jpg`;
+
+        const emailParams = new EmailParams()
+            .setFrom(sentFrom)
+            .setTo(recipients)
+            .setReplyTo(sentFrom)
+            .setSubject(`[Pre.pMood] Digital Invoice · ${invoiceNumber}`)
+            .setHtml(`
+                <div style="max-width: 600px; margin: 0 auto; padding: 60px 50px; font-family: Arial, Helvetica, sans-serif; color: #333; line-height: 1.8; font-weight: bold;">
+                    <!-- 제목 및 로고 (테이블 레이아웃으로 변경 - 이메일 호환성) -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
+                        <tr>
+                            <td style="vertical-align: middle;">
+                                <h1 style="margin: 0; font-size: 18px; font-weight: bold; color: #333;">
+                                    [Pre.pMood] Digital Invoice · ${escapeHtml(invoiceNumber)}
+                                </h1>
+                            </td>
+                            <td style="vertical-align: middle; text-align: right; width: 120px;">
+                                <img src="${logoImageUrl}" alt="Pre.pMood" style="height: 120px; max-width: 120px; object-fit: contain;">
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <!-- 인사말 -->
+                    <p style="margin: 0 0 7px 0; font-size: 16px; font-weight: bold;">
+                        Hello <strong>${escapeHtml(displayName)}</strong>
+                    </p>
+                    
+                    <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: bold;">
+                        Your digital invoice has been issued.<br>
+                        This document represents your purchase and ownership record.
+                    </p>
+                    
+                    <!-- 구분선 -->
+                    <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
+                    
+                    <!-- Invoice Reference -->
+                    <div style="margin: 20px 0;">
+                        <p style="margin: 0 0 7px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0px;">
+                            Invoice Reference
+                        </p>
+                        <p style="margin: 0px 0; font-size: 16px; font-weight: bold;">
+                            <strong>${escapeHtml(invoiceNumber)}</strong>
+                        </p>
+                        ${orderNumber ? `<p style="margin: 5px 0; font-size: 14px; font-weight: bold; color: #666;">
+                            Order: ${escapeHtml(orderNumber)}
+                        </p>` : ''}
+                    </div>
+                    
+                    <!-- 구분선 -->
+                    <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
+                    
+                    <!-- Digital Invoice Access -->
+                    <div style="margin: 20px 0;">
+                        <p style="margin: 0 0 7px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0px;">
+                            Digital Invoice
+                        </p>
+                        <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">
+                            Access your digital invoice via the secure link below:
+                        </p>
+                        <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">
+                            👉 View Digital Invoice
+                        </p>
+                        <p style="margin: 5px 0;">
+                            <a href="${invoiceLink}" style="color: #000000; text-decoration: underline; font-size: 16px; font-style: italic; font-weight: bold;">
+                                ${invoiceLink}
+                            </a>
+                        </p>
+                        <p style="margin: 10px 0; font-size: 14px; font-weight: bold; color: #666;">
+                            This digital invoice is securely stored and can be accessed anytime.
+                        </p>
+                    </div>
+                    
+                    <!-- 구분선 -->
+                    <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
+                    
+                    <!-- 안내 -->
+                    <p style="margin: 20px 0 10px 0; font-size: 16px; font-weight: bold;">
+                        This digital invoice serves as your official purchase record and can be used for warranty claims and ownership verification.
+                    </p>
+                    
+                    <p style="margin: 10px 0; font-size: 16px; font-weight: bold;">
+                        For assistance, please contact<br>
+                        <a href="mailto:support@prepmood.com" style="color: #333; text-decoration: underline; font-weight: bold;">
+                            support@prepmood.com
+                        </a>
+                    </p>
+                    
+                    <!-- 푸터 -->
+                    <p style="margin: 10px 0 10px 0; font-size: 16px; font-weight: bold;">
+                        Warm regards,<br>
+                        <strong>Pre.pMood</strong><br>
+                        <span style="font-style: italic; font-weight: bold;">The Art of Modern Heritage</span>
+                    </p>
+                </div>
+            `)
+            .setText(`
+[Pre.pMood] Digital Invoice · ${invoiceNumber}
+
+Hello ${displayName}
+
+Your digital invoice has been issued.
+This document represents your purchase and ownership record.
+
+________________________________________
+
+Invoice Reference
+${invoiceNumber}
+${orderNumber ? `Order: ${orderNumber}` : ''}
+
+________________________________________
+
+Digital Invoice
+Access your digital invoice via the secure link below:
+👉 View Digital Invoice
+${invoiceLink}
+
+This digital invoice is securely stored and can be accessed anytime.
+
+________________________________________
+
+This digital invoice serves as your official purchase record and can be used for warranty claims and ownership verification.
+
+For assistance, please contact
+support@prepmood.com
+
+Warm regards,
+Pre.pMood
+The Art of Modern Heritage
+            `);
+
+        console.log('📤 MailerSend API 호출 중...');
+        const response = await mailerSend.email.send(emailParams);
+
+        if (response.statusCode !== 202) {
+            const errorMessage = `MailerSend API 오류: Status Code ${response.statusCode}`;
+            console.error('❌ MailerSend API 오류 발생:', errorMessage);
+            return { 
+                success: false, 
+                error: errorMessage,
+                service: 'mailersend'
+            };
+        }
+
+        console.log('✅ 인보이스 이메일 전송 성공!');
+        return { 
+            success: true,
+            service: 'mailersend'
+        };
+    } catch (error) {
+        console.error('❌ 인보이스 이메일 전송 실패:', error);
+        return { 
+            success: false, 
+            error: error.message || '이메일 전송 중 오류가 발생했습니다.',
+            service: 'mailersend'
+        };
+    }
+};
+
 // HTML 이스케이프 헬퍼 함수
 function escapeHtml(text) {
     if (text == null) return '';
@@ -630,5 +818,6 @@ module.exports = {
     sendInquiryReplyEmail,
     testConnection,
     sendTransferRequestEmail,
-    sendOrderConfirmationEmail
+    sendOrderConfirmationEmail,
+    sendInvoiceEmail
 };

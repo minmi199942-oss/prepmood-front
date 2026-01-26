@@ -52,17 +52,16 @@
         /* 중간 패널(소배경) - 카드 전체를 동일한 간격으로 감싸기 */
         .stage-panel {
             background: #eeeeee;
-            padding: 48px;
+            padding: 80px 48px 80px 48px;
             border-radius: 6px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-            width: 100%;
             max-width: 616px;
             animation: fadeIn 0.5s ease-in;
         }
         
         .container {
             background: white;
-            max-width: 520px;
+            max-width: 480px;
             width: 100%;
             border-radius: 0;
             box-shadow: none;
@@ -84,7 +83,7 @@
         .header-bar {
             background: #2f2f2f;
             color: white;
-            padding: 50px 24px;
+            padding: 50px 24px 50px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -108,7 +107,7 @@
         
         /* 카드 내부 컨텐츠 - 흰색 영역 (바코드까지) */
         .card-content {
-            padding: 30px 24px;
+            padding: 55px 65px 50px 65px;
             background: white;
             position: relative;
         }
@@ -119,7 +118,7 @@
             display: block;
             height: 1px;
             background: #d8d8d8;
-            margin: 16px 0 0px 0;
+            margin: 16px 0 12px 0;
             width: 100%;
         }
         
@@ -141,24 +140,22 @@
             justify-content: space-between;
             align-items: flex-start;
             padding: 14px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .info-row:last-of-type {
             border-bottom: none;
         }
         
         .info-label {
-            font-size: 12px;
+            font-size: 13.5px;
             color: #666;
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             min-width: 100px;
+            letter-spacing: 1.6px;
         }
         
         .info-value {
             font-size: 14px;
+            letter-spacing: 1px;
             color: #1a1a1a;
             font-weight: 500;
             text-align: right;
@@ -169,33 +166,37 @@
         /* 점선 컷팅 라인 래퍼 */
         .ticket-divider-wrap {
             position: relative;
-            margin: 22px 0 18px 0;
-            height: 0;
-            border-top: 3px dashed #d0d0d0;
+            margin: 22px -65px 18px -65px; /* card-content의 padding만큼 음수 마진으로 양쪽 끝까지 확장 */
+            height: 3px; /* 점선 높이 */
+            border-top: none; /* border 대신 background-image 사용 */
+            background-image: repeating-linear-gradient(
+                to right,
+                #d0d0d0 0px,
+                #d0d0d0 10px,  /* 점선 길이 */
+                transparent 10px,
+                transparent 20px  /* 점선 간격 (더 여유롭게) */
+            );
+            background-size: 30px 3px; /* 패턴 크기 */
+            background-position: 0 0;
+            background-repeat: repeat-x;
             overflow: visible;
         }
         
         /* ============================================
-           좌측 노치 설정 (직접 수정 가능)
+           좌측 노치 설정 (card-content 경계에 반씩 걸치도록)
            ============================================ */
         .ticket-divider-wrap::before {
             content: '';
             position: absolute;
-            /* left 값 조정: 
-               - 값이 작을수록(예: -20px) 노치가 더 왼쪽으로 이동 (더 많이 카드 밖으로)
-               - 값이 클수록(예: -10px) 노치가 더 오른쪽으로 이동 (카드 안으로 더 들어옴)
-               - 현재: -14px = 노치 중심이 카드 왼쪽 테두리에서 14px 밖에 위치
-               - 반원 효과: 노치 지름의 절반만큼 음수로 설정 (예: 지름 28px → -14px) */
-            left: -35px;
+            /* left: ticket-divider-wrap이 이미 margin -65px로 확장되어 있으므로,
+               노치 지름의 절반만큼 음수로 설정하면 card-content 왼쪽 경계에 반씩 걸치게 됨 */
+            left: calc(-28px / 2);
             
-            /* top: 50% + transform = 점선 라인의 정확한 중앙 높이에 배치 */
+            /* top: 50% + transform = 점선 라인(높이 3px)의 정확한 중앙 높이에 배치 */
             top: 50%;
             transform: translateY(-50%);
             
-            /* 노치 크기 조정:
-               - width/height 값을 키우면 노치가 더 크게 보임 (예: 32px, 36px)
-               - 값을 줄이면 노치가 더 작게 보임 (예: 24px, 20px)
-               - left 값도 함께 조정 필요 (left = -width/2) */
+            /* 노치 크기 */
             width: 28px;
             height: 28px;
             
@@ -208,26 +209,20 @@
         }
         
         /* ============================================
-           우측 노치 설정 (직접 수정 가능)
+           우측 노치 설정 (card-content 경계에 반씩 걸치도록)
            ============================================ */
         .ticket-divider-wrap::after {
             content: '';
             position: absolute;
-            /* right 값 조정:
-               - 값이 작을수록(예: -20px) 노치가 더 오른쪽으로 이동 (더 많이 카드 밖으로)
-               - 값이 클수록(예: -10px) 노치가 더 왼쪽으로 이동 (카드 안으로 더 들어옴)
-               - 현재: -14px = 노치 중심이 카드 오른쪽 테두리에서 14px 밖에 위치
-               - 반원 효과: 노치 지름의 절반만큼 음수로 설정 (예: 지름 28px → -14px) */
-            right: -37px;
+            /* right: ticket-divider-wrap이 이미 margin -65px로 확장되어 있으므로,
+               노치 지름의 절반만큼 음수로 설정하면 card-content 오른쪽 경계에 반씩 걸치게 됨 */
+            right: calc(-28px / 2);
             
-            /* top: 50% + transform = 점선 라인의 정확한 중앙 높이에 배치 */
+            /* top: 50% + transform = 점선 라인(높이 3px)의 정확한 중앙 높이에 배치 */
             top: 50%;
             transform: translateY(-50%);
             
-            /* 노치 크기 조정:
-               - width/height 값을 키우면 노치가 더 크게 보임 (예: 32px, 36px)
-               - 값을 줄이면 노치가 더 작게 보임 (예: 24px, 20px)
-               - right 값도 함께 조정 필요 (right = -width/2) */
+            /* 노치 크기 */
             width: 28px;
             height: 28px;
             
@@ -458,7 +453,9 @@
         <div class="container">
         <!-- 헤더 바 -->
         <div class="header-bar">
-            <div class="brand-name">Pre.pMood</div>
+            <div class="brand-name">
+                <img src="/image/prep.png  " alt="Pre.pMood" style="height: 40px; width: auto;">
+            </div>
             <div class="header-date" id="header-date"></div>
         </div>
         

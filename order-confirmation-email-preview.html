@@ -23,17 +23,49 @@
             border-top: 1px solid #ddd;
             margin: 15px 0;
         }
+
+        /* 1439px 이하에서 작게 디자인 (실험용) */
+        @media (max-width: 1439px) {
+            body {
+                padding: 5px;
+            }
+            
+            .email-container {
+                max-width: 375px;
+                padding: 10px 8px;
+                transform: scale(0.6);
+                transform-origin: top center;
+                margin-bottom: -40%;
+            }
+            
+            /* 제목/로고 영역 세로 배치 */
+            .email-container > div > div:first-child {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+            }
+            
+            .email-container > div > div:first-child h1 {
+                font-size: 10px !important;
+                margin-bottom: 4px !important;
+            }
+            
+            .email-container > div > div:first-child img {
+                height: 30px !important;
+                margin-left: 0 !important;
+                margin-top: 4px !important;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="email-container">
         <div style="font-family: Arial, Helvetica, sans-serif; color: #333; line-height: 1.8; font-weight: bold;">
             <!-- 제목 및 로고 -->
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-                <h1 style="margin: 0; font-size: 18px; font-weight: bold; color: #333;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap;">
+                <h1 style="margin: 0; font-size: 18px; font-weight: bold; color: #333; flex: 1; min-width: 0;">
                     [Pre.pMood] Order Confirmation · ORD-20250116-001
                 </h1>
-                <img src="/image/prepmoodlogo.jpg" alt="Pre.pMood" style="height: 120px; margin-left: 20px; object-fit: contain;">
+                <img src="/image/prepmoodlogo.jpg" alt="Pre.pMood" style="height: 120px; margin-left: 20px; object-fit: contain; flex-shrink: 0;">
             </div>
             
             <!-- 인사말 -->
@@ -143,6 +175,7 @@
                 }
             }
         }
+
     </script>
 </body>
 </html>

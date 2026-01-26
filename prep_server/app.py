@@ -9,9 +9,13 @@ import sqlite3
 import csv
 import glob
 from datetime import datetimeㅎㅎ
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, send_from_directory
 
 app = Flask(__name__)
+
+# 프로젝트 루트 경로 설정 (prep_server의 부모 디렉토리)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+IMAGE_DIR = os.path.join(PROJECT_ROOT, 'image')
 
 # 설정
 DB_PATH = os.path.join(os.path.dirname(__file__), "prep.db")
@@ -187,6 +191,12 @@ def verify_product(token):
     return render_template('warning.html',
                          product=product,
                          first_verified_at=product['first_verified_at']), 200
+
+
+@app.route('/image/<filename>')
+def serve_image(filename):
+    """프로젝트 루트의 image 폴더에서 이미지 파일 서빙"""
+    return send_from_directory(IMAGE_DIR, filename)
 
 
 @app.route('/health')
