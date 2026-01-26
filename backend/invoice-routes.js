@@ -293,6 +293,58 @@ router.get('/invoices/:invoiceId', authenticateToken, async (req, res) => {
                 paymentMethod = gatewayMap[invoice.payment_method.toLowerCase()] || invoice.payment_method.toUpperCase();
             }
             
+            // order_items와 admin_products를 조인하여 product_id → short_name 매핑 생성
+            const [orderItemsWithShortName] = await connection.execute(`
+                SELECT 
+                    oi.product_id,
+                    oi.product_name,
+                    ap.short_name
+                FROM order_items oi
+                LEFT JOIN admin_products ap ON oi.product_id = ap.id
+                WHERE oi.order_id = ?
+                ORDER BY oi.order_item_id ASC
+            `, [invoice.order_id]);
+            
+            // product_id → short_name 매핑 생성
+            const productShortNameMap = {};
+            orderItemsWithShortName.forEach(item => {
+                if (item.product_id && item.short_name) {
+                    productShortNameMap[item.product_id] = item.short_name;
+                }
+            });
+            
+            // payload_json 파싱 및 items에 short_name 추가
+            let payloadJson = invoice.payload_json;
+            if (payloadJson) {
+                try {
+                    const payload = typeof payloadJson === 'string' 
+                        ? JSON.parse(payloadJson) 
+                        : payloadJson;
+                    
+                    // items 배열의 각 item에 short_name 추가
+                    if (payload.items && Array.isArray(payload.items)) {
+                        payload.items = payload.items.map(item => {
+                            const shortName = item.product_id && productShortNameMap[item.product_id]
+                                ? productShortNameMap[item.product_id]
+                                : item.product_name; // fallback: short_name이 없으면 product_name 사용
+                            
+                            return {
+                                ...item,
+                                product_short_name: shortName
+                            };
+                        });
+                    }
+                    
+                    payloadJson = JSON.stringify(payload);
+                } catch (parseError) {
+                    Logger.warn('[INVOICE] payload_json 파싱 실패 (short_name 추가)', {
+                        invoice_id: invoice.invoice_id,
+                        error: parseError.message
+                    });
+                    // 파싱 실패 시 원본 payload_json 유지
+                }
+            }
+            
             return res.json({
                 success: true,
                 invoice: {
@@ -316,7 +368,7 @@ router.get('/invoices/:invoiceId', authenticateToken, async (req, res) => {
                     shipping_email: invoice.shipping_email,
                     shipping_phone: invoice.shipping_phone,
                     shipping_address_json: invoice.shipping_address_json,
-                    payload_json: invoice.payload_json,
+                    payload_json: payloadJson,
                     issued_at: issuedAt,
                     issuedAt: issuedAt,
                     order_id: invoice.order_id,

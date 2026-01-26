@@ -295,7 +295,8 @@ function renderInvoiceDetail(invoice) {
         </thead>
         <tbody>
           ${items.length > 0 ? items.map((item, index) => {
-            const itemName = escapeHtml(item.product_name || 'N/A');
+            // 상품명 우선순위: product_short_name > product_name
+            const itemName = escapeHtml(item.product_short_name || item.product_name || 'N/A');
             const quantity = item.quantity || 0;
             const subtotalAmount = parseFloat(item.subtotal || 0);
             const itemCurrency = item.currency || currency;
