@@ -461,7 +461,7 @@ function getOrderStatusBadge(status) {
 function getShippingStatusBadge(status) {
   const statusMap = {
     'preparing': { text: '준비중', class: 'status-preparing' },
-    'shipping': { text: '배송중', class: 'status-shipping' },
+    'shipping': { text: '발송완료', class: 'status-shipping' },
     'delivered': { text: '배송완료', class: 'status-delivered' }
   };
   

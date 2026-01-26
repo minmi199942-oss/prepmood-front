@@ -217,7 +217,8 @@ function createInvoiceCard(invoice, index) {
   wrapper.className = 'invoice-letter-card';
   
   // 클릭 시 상세 페이지로 이동은 initLetterContentClick()에서 처리
-  const invoiceId = invoice.invoiceId || invoice.invoiceNumber;
+  // invoiceId는 반드시 invoice_id (숫자)를 사용해야 함 (API가 숫자면 invoice_id로 조회)
+  const invoiceId = invoice.invoiceId; // invoice_id만 사용 (invoiceNumber는 fallback 제거)
   if (invoiceId) {
     wrapper.style.cursor = 'pointer';
   }

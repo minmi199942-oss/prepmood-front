@@ -3,6 +3,7 @@
  * 
  * 엔드포인트:
  * - GET /api/invoices/me - 사용자 인보이스 목록 조회
+ * - GET /api/invoices/:invoiceId - 인보이스 상세 정보 조회
  */
 
 const express = require('express');
