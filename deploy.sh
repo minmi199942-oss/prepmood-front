@@ -177,6 +177,7 @@ rsync -av \
   --include="warranty-detail.html" \
   --include="digital-warranty.html" \
   --include="digital-invoice.html" \
+  --include="invoice-detail.html" \
   --include="complete-profile.html" \
   --include="google-callback.html" \
   --include="catalog.html" \
@@ -201,6 +202,7 @@ rsync -av \
   --include="warranty-detail.js" \
   --include="digital-warranty.js" \
   --include="digital-invoice.js" \
+  --include="invoice-detail.js" \
   --include="header-loader.js" \
   --include="header-scroll.js" \
   --include="footer-loader.js" \

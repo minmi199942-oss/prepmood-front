@@ -149,6 +149,23 @@ async function loadInvoices() {
 
     const data = await response.json();
     
+    // 디버깅: 인보이스 목록 로그 출력
+    console.log('[INVOICE_LIST] 인보이스 목록 응답:', data);
+    console.log('[INVOICE_LIST] 인보이스 개수:', data.invoices?.length || 0);
+    if (data.invoices && data.invoices.length > 0) {
+      console.log('[INVOICE_LIST] 인보이스 ID 목록:', data.invoices.map(inv => ({
+        invoiceId: inv.invoiceId,
+        invoiceNumber: inv.invoiceNumber
+      })));
+      // invoiceId=2가 있는지 확인
+      const invoice2 = data.invoices.find(inv => inv.invoiceId === 2);
+      if (invoice2) {
+        console.log('[INVOICE_LIST] ✅ invoiceId=2 찾음:', invoice2);
+      } else {
+        console.log('[INVOICE_LIST] ❌ invoiceId=2 없음');
+      }
+    }
+    
     if (data.success && data.invoices && data.invoices.length > 0) {
       renderInvoices(data.invoices);
       if (noInvoices) {
