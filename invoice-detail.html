@@ -21,7 +21,7 @@
             font-family: 'Paperlogy', 'Georgia', serif;
             background-color: #E6E6E6;
             min-height: 100vh;
-            padding: clamp(40px, 6vw, 60px) clamp(10px, 4vw, 40px);
+            padding: 40px 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -33,7 +33,7 @@
            ============================================ */
         .invoice-main-wrapper {
             display: flex;
-            gap: clamp(20px, 3vw, 30px);
+            gap: 20px;
             align-items: flex-start;
             min-height: 1050px;
             width: 100%;
@@ -57,8 +57,8 @@
             box-shadow: 9px 9px 6px -2px rgba(41, 41, 41, 0.5);
          
             border-radius: 0px;
-            padding: clamp(80px, 6vw, 80px) clamp(85px, 5vw, 85px);
-            padding-left: clamp(100px, 5vw, 100px);
+            padding: 80px 85px;
+            padding-left: 100px;
             position: relative;
         }
 
@@ -67,8 +67,8 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: clamp(35px, 6vw, 35px);
-            padding-bottom: clamp(69px, 3vw, 69px);
+            margin-bottom: 35px;
+            padding-bottom: 69px;
             position: relative;
         }
 
@@ -89,19 +89,19 @@
         .invoice-header-title {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-weight: 700.2;
-            font-size: clamp(17px, 3.5vw, 17px);
+            font-size: 17px;
             color: #000;
             letter-spacing: 2px;
-            margin-bottom: clamp(10.5px, 2vw, 10.5px);
+            margin-bottom: 10.5px;
         }
 
         .invoice-header-meta {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-weight: 500;
-            font-size: clamp(11px, 1.6vw, 11px);
+            font-size: 11px;
             color: #000;
             letter-spacing: 1px;
-            margin-bottom: clamp(8px, 1vw, 8px);
+            margin-bottom: 8px;
             line-height: 1.6;
             display: flex;
             flex-direction: column;
@@ -114,14 +114,14 @@
 
         .invoice-brand-name {
             font-family: 'Georgia', serif;
-            font-size: clamp(23px, 3.5vw, 23px);
+            font-size: 23px;
             color: #000;
             font-weight: normal;
             letter-spacing: 1px;
         }
 
         .invoice-brand-logo {
-            width: clamp(198px, 15vw, 198px);
+            width: 198px;
             height: auto;
             display: block;
         }
@@ -133,8 +133,8 @@
 
         /* DESCRIPTION 섹션 */
         .invoice-description-section {
-            margin-bottom: clamp(30px, 6vw, 30px);
-            padding-bottom: clamp(85.5px, 3vw, 85.5px);
+            margin-bottom: 30px;
+            padding-bottom: 85.5px;
             position: relative;
         }
 
@@ -151,10 +151,10 @@
         .invoice-section-title {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-weight: 710;
-            font-size: clamp(16px, 1.8vw, 16px);
+            font-size: 16px;
             color: #000;
             letter-spacing: 2px;
-            margin-bottom: clamp(6px, 3vw, 6px);
+            margin-bottom: 6px;
             text-transform: uppercase;
         }
 
@@ -170,11 +170,11 @@
         .invoice-items-table th {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-weight: 600;
-            font-size: clamp(12px, 1.6vw, 12px);
+            font-size: 12px;
             color: #000;
             letter-spacing: 1px;
             text-align: left;
-            padding: clamp(11px, 1.5vw, 11px) 0;
+            padding: 11px 0;
             border-bottom: none; /* 헤더 아래 줄 제거 */
         }
 
@@ -189,7 +189,7 @@
         .invoice-items-table td {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-weight: 400;
-            font-size: clamp(11px, 1.6vw, 11px);
+            font-size: 11px;
             color: #000;
             letter-spacing: 0.5px;
             padding: 6px 0 12px 0;
@@ -237,7 +237,7 @@
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            min-height: clamp(40px, calc(1.5vw + 28px), 40px); /* JavaScript로 동적 설정 */
+            min-height: 40px; /* JavaScript로 동적 설정 */
             height: auto; /* JavaScript로 동적 설정 */
         }
 
@@ -245,10 +245,10 @@
             background-color: #000;
             color: #fff;
             border: none;
-            padding: clamp(6px, 1vw, 8px) clamp(12px, 1.5vw, 16px);
+            padding: 6px 12px;
             border-radius: 6px;
             font-family: 'Paperlogy', 'Georgia', serif;
-            font-size: clamp(9px, 1.2vw, 9px);
+            font-size: 9px;
             font-weight: 500;
             letter-spacing: 0.5px;
             cursor: pointer;
@@ -264,7 +264,7 @@
         .invoice-summary-section {
             display: flex;
             justify-content: flex-end;
-            margin-bottom: clamp(0px, 6vw, 0px);
+            margin-bottom: 0px;
         }
 
         .invoice-summary-container {
@@ -279,7 +279,7 @@
             justify-content: space-between;
             margin-bottom: 20px;
             font-family: 'Paperlogy', 'Georgia', serif;
-            font-size: clamp(11px, 1.6vw, 11px);
+            font-size: 11px;
             font-weight: 400;
             color: #000;
             letter-spacing: 1.5px;
@@ -288,7 +288,7 @@
         .invoice-summary-row.total {
             margin-top: 65px;
             margin-bottom: 28px;
-            padding-top: clamp(31.5px, 2vw, 31.5px);
+            padding-top: 31.5px;
             position: relative;
             font-weight: 400;
         }
@@ -305,7 +305,7 @@
 
         .invoice-summary-label {
             text-align: left;
-            padding-left: 28px;
+            padding-left: 15px;
            
         }
 
@@ -313,8 +313,8 @@
         .invoice-detail-footer {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: clamp(40px, 6vw, 40px);
-            padding-top: clamp(45px, 4vw, 45px);
+            gap: 40px;
+            padding-top: 45px;
             margin-top: 2px;
             position: relative;
         }
@@ -338,15 +338,15 @@
         .invoice-footer-title {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-weight: 701;
-            font-size: clamp(13px, 1.8vw, 13px);
+            font-size: 13px;
             color: #000;
             letter-spacing: 2px;
-            margin-bottom: clamp(18.8px, 2vw, 18.8px);
+            margin-bottom: 18.8px;
             text-transform: uppercase;
         }
 
         .invoice-footer-section:nth-child(2) .invoice-footer-title {
-            padding-left: 31.6px;
+            padding-left: 40px;
         }
 
         .invoice-footer-info {
@@ -358,9 +358,9 @@
         .invoice-footer-row {
             display: grid;
             grid-template-columns: auto 1fr;
-            gap: clamp(12px, 2vw, 12px);
+            gap: 12px;
             font-family: 'Paperlogy', 'Georgia', serif;
-            font-size: clamp(12px, 1.6vw, 12px);
+            font-size: 12px;
             color: #000;
             letter-spacing: 0.9px;
         }
@@ -378,13 +378,13 @@
 
         .invoice-footer-section:nth-child(2) .invoice-footer-label {
             text-align: right;
-            padding-left: 34px;
+            padding-left: 41px;
         }
 
         /* 하단 액션 버튼들 */
         .invoice-action-buttons {
             display: flex;
-            gap: clamp(12px, 2vw, 12px);
+            gap: 12px;
             justify-content: flex-end;
             flex-wrap: wrap;
             max-width: 1150px;
@@ -394,10 +394,10 @@
         }
 
         .action-btn {
-            padding: clamp(29.8px, 4vw, 29.8px) clamp(80px, 13vw, 80px);
+            padding: 29.8px 80px;
             border-radius: 14px;
             font-family: 'Paperlogy', 'Georgia', serif;
-            font-size: clamp(14px, 2.2vw, 14px);
+            font-size: 14px;
             font-weight: 500;
             letter-spacing: 0.5px;
             cursor: pointer;
@@ -438,20 +438,20 @@
         .loading-invoice,
         .no-invoice {
             text-align: center;
-            padding: clamp(60px, 10vw, 60px) clamp(20px, 4vw, 20px);
+            padding: 60px 20px;
         }
 
         .no-invoice-title {
-            font-size: clamp(calc(1.1rem - 1px), calc(2.5vw - 1px), calc(1.3rem - 1px));
+            font-size: calc(1.1rem - 1px);
             font-weight: 600;
             color: #666;
-            margin-bottom: clamp(12px, 2.5vw, 12px);
+            margin-bottom: 12px;
         }
 
         .no-invoice-subtitle {
-            font-size: clamp(calc(0.9rem - 1px), calc(2vw - 1px), calc(1rem - 1px));
+            font-size: calc(0.9rem - 1px);
             color: #999;
-            margin-bottom: clamp(20px, 4vw, 20px);
+            margin-bottom: 20px;
         }
 
         /* PC 화면 (1440px 이상) - action button 크기 및 간격 증가 */
@@ -477,19 +477,19 @@
                 position: relative;
                 padding: 0;
                 max-width: 707.5px; /* padding 제거로 보라색 영역 제거 */
-                margin-bottom: clamp(40px, 5vw, 40px);
+                margin-bottom: 40px;
             }
 
             .invoice-brand-logo {
-                width: clamp(310px, 15vw, 310px);
-                height: clamp(39.8px, 2vw, 39.8px);
+                width: 310px;
+                height: 39.8px;
                 margin-left: 20px;
                 padding-left: 113px;
             }
 
             .invoice-description-section {
-            margin-bottom: clamp(31.5px, 6vw, 31.5px);
-            padding-bottom: clamp(86px, 3vw, 86px);
+            margin-bottom: 31.5px;
+            padding-bottom: 86px;
             }
 
             .invoice-document-container {
@@ -523,58 +523,58 @@
 
             /* 폰트 사이즈 2px씩 감소 */
             .invoice-header-title {
-                font-size: clamp(15px, calc(3.5vw - 2px), 15px);
+                font-size: 15px;
             }
 
             .invoice-header-meta {
-                font-size: clamp(10px, calc(1.6vw - 2px), 10px);
+                font-size: 10px;
             }
 
             .invoice-brand-name {
-                font-size: clamp(22px, calc(3.5vw - 2px), 22px);
+                font-size: 22px;
             }
 
             .invoice-section-title {
-                font-size: clamp(14px, calc(1.8vw - 2px), 14px);
+                font-size: 14px;
                 margin-bottom: 12px;
             }
 
             .invoice-items-table th {
-                font-size: clamp(10px, calc(1.6vw - 2px), 10px);
+                font-size: 10px;
                             }
 
             .invoice-items-table td {
-                font-size: clamp(10px, calc(1.6vw - 2px), 10px);
+                font-size: 10px;
                 
             }
 
                        
             .warranty-view-btn {
-                font-size: clamp(8px, calc(1.2vw - 2px), 8px);
+                font-size: 8px;
             }
 
             .invoice-summary-row {
-                font-size: clamp(10px, calc(1.6vw - 2px), 10px);
+                font-size: 10px;
             }
 
             .invoice-footer-title {
-                font-size: clamp(14px, calc(1.8vw - 2px), 14px);
+                font-size: 14px;
             }
 
             .invoice-footer-row {
-                font-size: clamp(10px, calc(1.6vw - 2px), 10px);
+                font-size: 10px;
             }
 
             .action-btn {
-                font-size: clamp(13px, calc(2.2vw - 2px), 16px);
+                font-size: 13px;
             }
 
             .no-invoice-title {
-                font-size: clamp(calc(1.1rem - 2px), calc(2.5vw - 2px), calc(1.3rem - 2px));
+                font-size: calc(1.1rem - 2px);
             }
 
             .no-invoice-subtitle {
-                font-size: clamp(calc(0.9rem - 2px), calc(2vw - 2px), calc(1rem - 2px));
+                font-size: calc(0.9rem - 2px);
             }
 
             .invoice-summary-container {
