@@ -199,6 +199,12 @@ router.get('/invoices/:invoiceId', authenticateToken, async (req, res) => {
     const invoiceId = req.params.invoiceId;
     const userId = req.user.userId;
     
+    Logger.log('[INVOICE] 인보이스 상세 조회 요청:', {
+        invoiceId,
+        userId,
+        type: typeof invoiceId
+    });
+    
     try {
         const connection = await mysql.createConnection(dbConfig);
         
@@ -208,6 +214,12 @@ router.get('/invoices/:invoiceId', authenticateToken, async (req, res) => {
             const whereClause = isNumeric 
                 ? 'i.invoice_id = ?' 
                 : 'i.invoice_number = ?';
+            
+            Logger.log('[INVOICE] 쿼리 조건:', {
+                isNumeric,
+                whereClause,
+                invoiceId
+            });
             
             // 인보이스 상세 정보 조회 (orders, users, payments와 조인하여 결제 방법 및 membership_id 포함)
             const [invoices] = await connection.execute(`
@@ -247,6 +259,12 @@ router.get('/invoices/:invoiceId', authenticateToken, async (req, res) => {
             `, [invoiceId, userId]);
             
             if (invoices.length === 0) {
+                Logger.warn('[INVOICE] 인보이스를 찾을 수 없음:', {
+                    invoiceId,
+                    userId,
+                    isNumeric,
+                    whereClause
+                });
                 return res.status(404).json({
                     success: false,
                     message: '인보이스를 찾을 수 없습니다.',

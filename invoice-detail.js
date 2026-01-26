@@ -105,30 +105,41 @@ async function loadInvoiceDetail(invoiceId, devMode = false) {
   
   try {
     // GET /api/invoices/:invoiceId 또는 GET /api/invoices/:invoiceNumber
-    const response = await fetch(`${API_BASE}/invoices/${encodeURIComponent(invoiceId)}`, {
+    const url = `${API_BASE}/invoices/${encodeURIComponent(invoiceId)}`;
+    console.log('[INVOICE] 인보이스 상세 조회 요청:', url);
+    
+    const response = await fetch(url, {
       method: 'GET',
       credentials: 'include'
     });
 
+    console.log('[INVOICE] 응답 상태:', response.status, response.statusText);
+
     if (response.status === 404) {
-      showError('인보이스를 찾을 수 없습니다.');
+      const errorData = await response.json().catch(() => ({}));
+      console.error('[INVOICE] 404 에러:', errorData);
+      showError(errorData.message || '인보이스를 찾을 수 없습니다.');
       return;
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      console.error('[INVOICE] 에러 응답:', response.status, errorData);
+      throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('[INVOICE] 응답 데이터:', data);
     
     if (data.success && data.invoice) {
       renderInvoiceDetail(data.invoice);
     } else {
-      showError('인보이스 정보를 불러올 수 없습니다.');
+      console.error('[INVOICE] 응답 형식 오류:', data);
+      showError(data.message || '인보이스 정보를 불러올 수 없습니다.');
     }
   } catch (error) {
-    console.error('인보이스 상세 정보 로드 오류:', error);
-    showError('인보이스 정보를 불러오는 중 오류가 발생했습니다.');
+    console.error('[INVOICE] 인보이스 상세 정보 로드 오류:', error);
+    showError(`인보이스 정보를 불러오는 중 오류가 발생했습니다: ${error.message}`);
   } finally {
     showLoading(false);
   }
