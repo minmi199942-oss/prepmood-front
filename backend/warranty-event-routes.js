@@ -27,6 +27,18 @@ const dbConfig = {
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 };
 
+/** JSON 컬럼 안전 파싱 (mysql2는 JSON을 이미 객체로 반환할 수 있음, null 시 fallback) */
+function safeParseJson(val, fallback = {}) {
+    if (val == null) return fallback;
+    if (typeof val === 'object') return val;
+    if (typeof val !== 'string') return fallback;
+    try {
+        return JSON.parse(val);
+    } catch {
+        return fallback;
+    }
+}
+
 /**
  * POST /api/admin/warranties/:id/events
  * 보증서 이벤트 생성 (관리자 전용)
@@ -600,8 +612,8 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
                 ownership_history: ownerEvents.map(e => ({
                     event_id: e.event_id,
                     event_type: e.event_type,
-                    old_value: JSON.parse(e.old_value || '{}'),
-                    new_value: JSON.parse(e.new_value),
+                    old_value: safeParseJson(e.old_value, {}),
+                    new_value: safeParseJson(e.new_value, {}),
                     changed_by: e.changed_by,
                     changed_by_id: e.changed_by_id,
                     reason: e.reason,
@@ -612,8 +624,8 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
             events: events.map(e => ({
                 event_id: e.event_id,
                 event_type: e.event_type,
-                old_value: JSON.parse(e.old_value || '{}'),
-                new_value: JSON.parse(e.new_value),
+                old_value: safeParseJson(e.old_value, {}),
+                new_value: safeParseJson(e.new_value, {}),
                 changed_by: e.changed_by,
                 changed_by_id: e.changed_by_id,
                 reason: e.reason,
@@ -674,8 +686,8 @@ router.get('/admin/warranties/:id/events', authenticateToken, requireAdmin, asyn
             events: events.map(e => ({
                 event_id: e.event_id,
                 event_type: e.event_type,
-                old_value: JSON.parse(e.old_value || '{}'),
-                new_value: JSON.parse(e.new_value),
+                old_value: safeParseJson(e.old_value, {}),
+                new_value: safeParseJson(e.new_value, {}),
                 changed_by: e.changed_by,
                 changed_by_id: e.changed_by_id,
                 reason: e.reason,
