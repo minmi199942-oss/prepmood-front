@@ -180,6 +180,8 @@ rsync -av \
   --include="digital-warranty.html" \
   --include="digital-invoice.html" \
   --include="invoice-detail.html" \
+  --include="invoice-detail-grid.css" \
+  --include="invoice-detail-grid.js" \
   --include="complete-profile.html" \
   --include="google-callback.html" \
   --include="catalog.html" \
