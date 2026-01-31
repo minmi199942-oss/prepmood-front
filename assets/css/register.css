@@ -290,6 +290,33 @@
     margin-bottom: clamp(12px, 2.5vw, 15px);
 }
 
+.consent-toggle {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 0.85em;
+    line-height: inherit;
+    font-weight: 400;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+    margin: 0 0 0 6px;
+    vertical-align: baseline;
+    height: auto;
+}
+
+.consent-toggle:hover {
+    color: #333;
+}
+
+.consent-full-text {
+    margin-top: 8px;
+}
+
+.consent-full-text[hidden] {
+    display: none;
+}
+
 .consent-checkbox {
     display: flex;
     align-items: flex-start;
@@ -347,6 +374,8 @@
 .consent-text .optional {
     color: #666;
     font-weight: 400;
+    font-size: 0.85em;
+    margin-left: 4px;
 }
 
 .consent-description {

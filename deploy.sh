@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_DIR="/root/prepmood-repo"
 LIVE_BACKEND="/var/www/html/backend"
-BACKUP_DIR="/var/www/html/backups"
+BACKUP_DIR="/root/backups"
 
 # 배포 락 (중복 실행 방지)
 LOCK="/tmp/prepmood-deploy.lock"
@@ -99,11 +99,13 @@ if [ -n "$LOCAL_AFTER" ] && [ -n "$REMOTE_COMMIT" ] && [ "$LOCAL_AFTER" != "$REM
   echo "  ✅ 강제 동기화 완료: ${LOCAL_AFTER:0:7}"
 fi
 
-# 2. 백업 생성 (tar 압축)
+# 2. 백업 생성 (tar 압축) — 웹 루트 외부 /root/backups 사용, 최신 10개만 유지
 echo "💾 백업 생성 중..."
 mkdir -p "$BACKUP_DIR"
 if tar -C /var/www/html -czf "$BACKUP_DIR/backend_backup_$TIMESTAMP.tgz" backend/ 2>/dev/null; then
   echo "✅ 백업 완료: $BACKUP_DIR/backend_backup_$TIMESTAMP.tgz"
+  # 회전: 최신 10개만 유지 (재발 방지)
+  ls -1t "$BACKUP_DIR"/backend_backup_*.tgz 2>/dev/null | tail -n +11 | xargs -r rm -f
 else
   echo "⚠️  백업 생성 실패 (계속 진행하지만 롤백 불가능)"
   echo "💡 수동 백업 권장: tar -C /var/www/html -czf $BACKUP_DIR/manual_backup_$TIMESTAMP.tgz backend/"

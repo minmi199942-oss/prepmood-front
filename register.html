@@ -96,11 +96,13 @@
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="privacyConsent" required>
                                 <span class="checkmark"></span>
-                                <span class="consent-text">개인정보 수집 및 이용 동의<span class="required-badge">(필수)</span></span>
+                                <span class="consent-text">개인정보 수집 및 이용 동의<span class="required-badge">(필수)</span><button type="button" class="consent-toggle" aria-expanded="false" data-target="privacyConsentFull">(전문보기)</button></span>
                             </label>
-                            <p class="consent-description">
-                                회원은 개인정보 수집 및 이용에 동의하며, 프리무드가 회원의 개인정보를 처리할 수 있도록 설정합니다
-                            </p>
+                            <div class="consent-full-text" id="privacyConsentFull" hidden>
+                                <p class="consent-description">
+                                    회원은 개인정보 수집 및 이용에 동의하며, 프레피무드가 회원의 개인정보를 처리할 수 있도록 설정합니다
+                                </p>
+                            </div>
                             <div class="error-message" id="privacyConsentError"></div>
                         </div>
 
@@ -109,11 +111,13 @@
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="marketingConsent">
                                 <span class="checkmark"></span>
-                                <span class="consent-text">마케팅 정보 수신 동의 <span class="optional">(선택)</span></span>
+                                <span class="consent-text">마케팅 정보 수신 동의 <span class="optional">(선택)</span><button type="button" class="consent-toggle" aria-expanded="false" data-target="marketingConsentFull">(전문보기)</button></span>
                             </label>
-                            <p class="consent-description">
-                                이후 '프리무드' 및 제3자의 프리무드 관련 제품 및 서비스에 대한 프로모션 이메일, SMS, 마케팅 및 이벤트 알림을 받으시려면 아래의 개인정보를 제공받아 사용하시기 바랍니다.
-                            </p>
+                            <div class="consent-full-text" id="marketingConsentFull" hidden>
+                                <p class="consent-description">
+                                    이후 '프레피무드' 및 제3자의 프레피무드 관련 제품 및 서비스에 대한 프로모션 이메일, SMS, 마케팅 및 이벤트 알림을 받으시려면 아래의 개인정보를 제공받아 사용하시기 바랍니다.
+                                </p>
+                            </div>
                         </div>
 
                         <!-- 이용약관 동의 (필수) -->
@@ -806,6 +810,21 @@
         // DOM 로드 후 초기화
         document.addEventListener('DOMContentLoaded', () => {
             new RegisterForm();
+
+            // (전문보기) 클릭 시 전문 접기/펼치기
+            document.querySelectorAll('.consent-toggle').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const id = btn.getAttribute('data-target');
+                    const block = id ? document.getElementById(id) : null;
+                    if (!block) return;
+                    const isOpen = !block.hidden;
+                    block.hidden = isOpen;
+                    btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+                    btn.textContent = isOpen ? '(전문보기)' : '(접기)';
+                });
+            });
         });
     </script>
   <!-- 푸터 로드 -->

@@ -556,6 +556,485 @@ function renderInvoiceDetail(invoice) {
       });
     }
   }, 100);
+
+  // Grid 리팩터용 측정 (개발 시: URL에 ?debug=true 또는 ?dev=true 있을 때)
+  const search = typeof window !== 'undefined' ? window.location.search : '';
+  if (search.includes('debug=true') || search.includes('dev=true')) {
+    setTimeout(measureCurrentLayoutForGridSetup, 500);
+  }
+}
+
+/**
+ * 7행 Grid 작성용 픽셀 측정. ?debug=true 일 때 콘솔 출력.
+ * - 구분선 위치·상품 행 간격·셀 스타일·헤더/Summary/푸터 내부 간격까지 "지금 화면 기준"으로 측정.
+ * - 실질 한 행 공간 = 행높이 + 행간여백 → 트리거 행 수는 이 값으로 계산.
+ * - Grid로 옮길 때 이 값들을 적용하면 픽셀 단위로 동일한 레이아웃 유지 가능.
+ */
+function measureCurrentLayoutForGridSetup() {
+  const content = document.getElementById('invoice-detail-content');
+  const container = content?.closest('.invoice-document-container');
+  if (!content || !container || content.style.display === 'none') return null;
+
+  const header = content.querySelector('.invoice-detail-header');
+  const descSection = content.querySelector('.invoice-description-section');
+  const summary = content.querySelector('.invoice-summary-section');
+  const footer = content.querySelector('.invoice-detail-footer');
+  const table = content.querySelector('.invoice-items-table');
+  const rows = content.querySelectorAll('.invoice-items-table tbody tr');
+  const firstRow = rows[0];
+  const cells = firstRow ? firstRow.querySelectorAll('td') : [];
+  const firstCell = cells[0];
+
+  const win = window.innerWidth;
+  const bp = win <= 768 ? 'Mobile' : (win <= 1439 ? 'Tablet' : 'PC');
+
+  const containerRect = container.getBoundingClientRect();
+  const containerStyle = window.getComputedStyle(container);
+  const containerPaddingTop = parseFloat(containerStyle.paddingTop) || 0;
+  const containerPaddingRight = parseFloat(containerStyle.paddingRight) || 0;
+  const containerPaddingBottom = parseFloat(containerStyle.paddingBottom) || 0;
+  const containerPaddingLeft = parseFloat(containerStyle.paddingLeft) || 0;
+  const headerRect = header ? header.getBoundingClientRect() : { height: 0, bottom: 0, right: 0 };
+  const descRect = descSection ? descSection.getBoundingClientRect() : { height: 0, bottom: 0 };
+  const summaryRect = summary ? summary.getBoundingClientRect() : { height: 0 };
+  const footerRect = footer ? footer.getBoundingClientRect() : { height: 0, top: 0 };
+  const rowHeightActual = firstRow ? firstRow.getBoundingClientRect().height : 0;
+
+  let rowGap = 0;
+  if (rows.length >= 2) {
+    const r1 = rows[0].getBoundingClientRect();
+    const r2 = rows[1].getBoundingClientRect();
+    rowGap = Math.max(0, r2.top - r1.bottom);
+  }
+  const effectiveRowSpace = rowHeightActual + rowGap;
+
+  const h = Math.round(headerRect.height);
+  const d = Math.round(descRect.height);
+  const s = Math.round(summaryRect.height);
+  const f = Math.round(footerRect.height);
+
+  const SEPARATOR_BUFFER = bp === 'Mobile' ? 15 : (bp === 'Tablet' ? 40 : 50);
+  const usableItemsHeight = Math.max(0, descRect.height - SEPARATOR_BUFFER);
+  const maxRowsBeforeTrigger = effectiveRowSpace > 0 ? Math.floor(usableItemsHeight / effectiveRowSpace) : 0;
+
+  // ─── 헤더 상세 ─────────────────────────────────────────────────────────
+  const headerLeft = content.querySelector('.invoice-header-left');
+  const headerRight = content.querySelector('.invoice-header-right');
+  const headerTitle = content.querySelector('.invoice-header-title');
+  const headerMeta = content.querySelector('.invoice-header-meta');
+  const logo = content.querySelector('.invoice-brand-logo');
+
+  let headerLeftRightGap = 0, titleToMeta = 0, metaGap = 0, metaLineHeightPx = 0;
+  let titleFromTop = 0, logoWidth = 0, logoHeight = 0, logoFromRight = 0, logoFromTop = 0;
+
+  if (headerLeft && headerRight) {
+    const lr = headerLeft.getBoundingClientRect();
+    const rr = headerRight.getBoundingClientRect();
+    headerLeftRightGap = Math.max(0, rr.left - lr.right);
+  }
+  if (headerTitle && headerMeta) {
+    const tr = headerTitle.getBoundingClientRect();
+    const mr = headerMeta.getBoundingClientRect();
+    titleToMeta = Math.max(0, mr.top - tr.bottom);
+    const ms = window.getComputedStyle(headerMeta);
+    metaGap = parseFloat(ms.gap) || 0;
+    const lhRaw = ms.lineHeight;
+    metaLineHeightPx = (lhRaw && lhRaw !== 'normal') ? parseFloat(lhRaw) : 0;
+  }
+  if (headerTitle && header) {
+    const tr = headerTitle.getBoundingClientRect();
+    const hr = header.getBoundingClientRect();
+    titleFromTop = tr.top - hr.top;
+  }
+  if (logo) {
+    const lr = logo.getBoundingClientRect();
+    logoWidth = lr.width;
+    logoHeight = lr.height;
+    if (header) {
+      const hr = header.getBoundingClientRect();
+      logoFromRight = hr.right - lr.right;
+      logoFromTop = lr.top - hr.top;
+    }
+  }
+
+  // ─── 구분선↔콘텐츠 간격 + DESCRIPTION 타이틀 높이/여백 ───────────────────
+  const sectionTitle = content.querySelector('.invoice-section-title');
+  const sectionTitleRect = sectionTitle ? sectionTitle.getBoundingClientRect() : null;
+  const headerSeparatorToDesc = (sectionTitleRect && header) ? sectionTitleRect.top - headerRect.bottom : 0;
+  const descTitleToTable = (sectionTitleRect && table) ? table.getBoundingClientRect().top - sectionTitleRect.bottom : 0;
+  let sectionTitleHeight = 0, sectionTitleMarginBottom = 0, headerTitleFw = '', headerMetaFw = '';
+  if (sectionTitle) {
+    sectionTitleHeight = sectionTitleRect ? sectionTitleRect.height : 0;
+    const stStyle = window.getComputedStyle(sectionTitle);
+    sectionTitleMarginBottom = parseFloat(stStyle.marginBottom) || 0;
+  }
+  if (headerTitle) {
+    headerTitleFw = window.getComputedStyle(headerTitle).fontWeight || '';
+  }
+  if (headerMeta) {
+    headerMetaFw = window.getComputedStyle(headerMeta).fontWeight || '';
+  }
+
+  const summaryContainer = content.querySelector('.invoice-summary-container');
+  const summaryContainerRect = summaryContainer ? summaryContainer.getBoundingClientRect() : { top: 0 };
+  const descToSummary = descSection ? summaryContainerRect.top - descRect.bottom : 0;
+
+  // 상품명(Description) ↔ Summary 구분선 위·아래 여백 (구분선 = .invoice-description-section::after = desc 하단)
+  const lastItemRow = rows.length ? rows[rows.length - 1] : null;
+  const lastItemRowRect = lastItemRow ? lastItemRow.getBoundingClientRect() : null;
+  const itemsBottomToSeparatorGap = (descRect && lastItemRowRect) ? Math.max(0, descRect.bottom - lastItemRowRect.bottom) : 0;
+  const separatorToSummaryGap = descToSummary;
+
+  const footerSections = content.querySelectorAll('.invoice-footer-section');
+  const footerContentTop = footerSections[0] ? footerSections[0].getBoundingClientRect().top : 0;
+  const footerSeparatorToContent = footer ? footerContentTop - footerRect.top : 0;
+
+  // ─── DESCRIPTION 테이블 컬럼 ─────────────────────────────────────────────
+  let col1Width = 0, col2Width = 0, col3Width = 0;
+  let col1PaddingLeft = 0, col2PaddingLeft = 0, col3PaddingRight = 0;
+  let col1ToCol2Gap = 0, col2ToCol3Gap = 0;
+  if (cells.length >= 3) {
+    const c1 = cells[0].getBoundingClientRect();
+    const c2 = cells[1].getBoundingClientRect();
+    const c3 = cells[2].getBoundingClientRect();
+    col1Width = c1.width;
+    col2Width = c2.width;
+    col3Width = c3.width;
+    col1ToCol2Gap = Math.max(0, c2.left - c1.right);
+    col2ToCol3Gap = Math.max(0, c3.left - c2.right);
+    const s1 = window.getComputedStyle(cells[0]);
+    const s2 = window.getComputedStyle(cells[1]);
+    const s3 = window.getComputedStyle(cells[2]);
+    col1PaddingLeft = parseFloat(s1.paddingLeft) || 0;
+    col2PaddingLeft = parseFloat(s2.paddingLeft) || 0;
+    col3PaddingRight = parseFloat(s3.paddingRight) || 0;
+  }
+  const tableRect = table ? table.getBoundingClientRect() : { width: 0 };
+  const tableWidth = tableRect.width || 0;
+  const col1Pct = tableWidth > 0 ? (col1Width / tableWidth * 100) : 0;
+  const col2Pct = tableWidth > 0 ? (col2Width / tableWidth * 100) : 0;
+  const col3Pct = tableWidth > 0 ? (col3Width / tableWidth * 100) : 0;
+
+  // ─── 셀 스타일 (line-height normal→실효 픽셀, font-weight) ───────────────
+  let cellPt = 0, cellPb = 0, cellFs = 0, cellLhPx = 0, cellLs = 0, cellFw = '';
+  let cellLineHeightLabel = '0px';
+  if (firstCell) {
+    const cs = window.getComputedStyle(firstCell);
+    cellPt = parseFloat(cs.paddingTop) || 0;
+    cellPb = parseFloat(cs.paddingBottom) || 0;
+    cellFs = parseFloat(cs.fontSize) || 0;
+    cellFw = cs.fontWeight || '';
+    const lhRaw = cs.lineHeight;
+    const lhNum = (lhRaw && lhRaw !== 'normal') ? parseFloat(lhRaw) : 0;
+    cellLhPx = lhNum > 0 ? lhNum : (cellFs * 1.2);
+    cellLineHeightLabel = (lhRaw === 'normal' || lhNum === 0) ? `${cellLhPx.toFixed(1)}px (normal\u21921.2\u00D7)` : `${cellLhPx.toFixed(1)}px`;
+    cellLs = parseFloat(cs.letterSpacing) || 0;
+  }
+
+  // ─── Summary (영역 안 전부) ──────────────────────────────────────────────
+  const summaryRows = content.querySelectorAll('.invoice-summary-row');
+  const summaryRowTotal = content.querySelector('.invoice-summary-row.total');
+  let summaryMarginBottom = 0, summaryTotalMarginTop = 0, summaryTotalPaddingTop = 0;
+  let summaryLabelValueGap = 0, summaryContainerWidth = 0;
+  const summaryRowHeights = [];
+  const summaryRowMarginTops = [];
+  const summaryRowMarginBottoms = [];
+  const summaryRowLabelPaddingLefts = [];
+  let summaryTotalMarginBottom = 0;
+  let summaryRowFontSize = 0;
+  let summaryRowLetterSpacing = 0;
+  if (summaryRows.length) {
+    const sr0 = window.getComputedStyle(summaryRows[0]);
+    summaryMarginBottom = parseFloat(sr0.marginBottom) || 0;
+    summaryRowFontSize = parseFloat(sr0.fontSize) || 0;
+    summaryRowLetterSpacing = parseFloat(sr0.letterSpacing) || 0;
+    summaryRows.forEach((row, idx) => {
+      const r = row.getBoundingClientRect();
+      const rs = window.getComputedStyle(row);
+      summaryRowHeights.push(r.height);
+      summaryRowMarginTops.push(parseFloat(rs.marginTop) || 0);
+      summaryRowMarginBottoms.push(parseFloat(rs.marginBottom) || 0);
+      const lab = row.querySelector('.invoice-summary-label');
+      summaryRowLabelPaddingLefts.push(lab ? (parseFloat(window.getComputedStyle(lab).paddingLeft) || 0) : 0);
+    });
+  }
+  if (summaryRowTotal) {
+    const st = window.getComputedStyle(summaryRowTotal);
+    summaryTotalMarginTop = parseFloat(st.marginTop) || 0;
+    summaryTotalPaddingTop = parseFloat(st.paddingTop) || 0;
+    summaryTotalMarginBottom = parseFloat(st.marginBottom) || 0;
+  }
+  const sumLabel = content.querySelector('.invoice-summary-label');
+  const sumValue = content.querySelector('.invoice-summary-value');
+  let summaryLabelWidth = 0, summaryValueWidth = 0, summaryLabelFw = '', summaryValueFw = '';
+  let summaryLabelPaddingLeft = 0, summaryRow3MarginTop = null;
+  if (sumLabel && sumValue) {
+    const lr = sumLabel.getBoundingClientRect();
+    const vr = sumValue.getBoundingClientRect();
+    summaryLabelValueGap = Math.max(0, vr.left - lr.right);
+    summaryLabelWidth = lr.width;
+    summaryValueWidth = vr.width;
+    summaryLabelFw = window.getComputedStyle(sumLabel).fontWeight || '';
+    summaryValueFw = window.getComputedStyle(sumValue).fontWeight || '';
+    summaryLabelPaddingLeft = parseFloat(window.getComputedStyle(sumLabel).paddingLeft) || 0;
+  }
+  if (summaryRows.length >= 3) {
+    const row3Style = window.getComputedStyle(summaryRows[2]);
+    summaryRow3MarginTop = parseFloat(row3Style.marginTop) || 0;
+  }
+  if (summaryContainer) {
+    summaryContainerWidth = summaryContainer.getBoundingClientRect().width;
+  }
+  // Total 위 구분선(::before) — CSS 기준, 브레이크포인트별 (JS에서 pseudo 측정 불가)
+  const summaryTotalBeforeLeft = bp === 'Mobile' ? 125.5 : (bp === 'Tablet' ? 52 : 34);
+  const summaryTotalBeforeHeight = bp === 'Mobile' ? 0.08 : 0.5;
+
+  // ─── 푸터 ───────────────────────────────────────────────────────────────
+  let footerSectionsGap = 0, footerInfoGap = 0, footerRowGap = 0;
+  let footerSectionLeftWidth = 0, footerSectionRightWidth = 0;
+  let footerTitleFw = '', footerLabelFw = '', footerValueFw = '';
+  if (footerSections.length >= 2) {
+    const fl = footerSections[0].getBoundingClientRect();
+    const fr = footerSections[1].getBoundingClientRect();
+    footerSectionsGap = Math.max(0, fr.left - fl.right);
+    footerSectionLeftWidth = fl.width;
+    footerSectionRightWidth = fr.width;
+  }
+  const footerTitles = content.querySelectorAll('.invoice-footer-title');
+  const footerLabels = content.querySelectorAll('.invoice-footer-label');
+  const footerValues = content.querySelectorAll('.invoice-footer-value');
+  if (footerTitles.length) {
+    footerTitleFw = window.getComputedStyle(footerTitles[0]).fontWeight || '';
+  }
+  if (footerLabels.length) {
+    footerLabelFw = window.getComputedStyle(footerLabels[0]).fontWeight || '';
+  }
+  if (footerValues.length) {
+    footerValueFw = window.getComputedStyle(footerValues[0]).fontWeight || '';
+  }
+  const footerInfos = content.querySelectorAll('.invoice-footer-info');
+  const footerRows = content.querySelectorAll('.invoice-footer-row');
+  if (footerInfos.length) {
+    const fiStyle = window.getComputedStyle(footerInfos[0]);
+    footerInfoGap = parseFloat(fiStyle.gap) || 0;
+  }
+  if (footerRows.length) {
+    const frStyle = window.getComputedStyle(footerRows[0]);
+    footerRowGap = parseFloat(frStyle.gap) || 0;
+  }
+
+  let footerRightTitlePaddingLeft = 0, footerRightLabelPaddingLeft = 0, footerRightLabelTextAlign = '';
+  let footerRightRowGap = null, footerLeftValueMarginLeft = 0, footerRightValuePaddingRight = 0;
+  let footerLabelPaddingLeft = 0;
+  if (footerSections.length >= 2) {
+    const rightSection = footerSections[1];
+    const rightTitle = rightSection.querySelector('.invoice-footer-title');
+    const rightLabel = rightSection.querySelector('.invoice-footer-label');
+    const rightRows = rightSection.querySelectorAll('.invoice-footer-row');
+    const rightValue = rightSection.querySelector('.invoice-footer-value');
+    if (rightTitle) {
+      footerRightTitlePaddingLeft = parseFloat(window.getComputedStyle(rightTitle).paddingLeft) || 0;
+    }
+    if (rightLabel) {
+      const rls = window.getComputedStyle(rightLabel);
+      footerRightLabelPaddingLeft = parseFloat(rls.paddingLeft) || 0;
+      footerRightLabelTextAlign = rls.textAlign || '';
+    }
+    if (rightRows.length) {
+      footerRightRowGap = parseFloat(window.getComputedStyle(rightRows[0]).gap) || 0;
+    }
+    if (rightValue) {
+      footerRightValuePaddingRight = parseFloat(window.getComputedStyle(rightValue).paddingRight) || 0;
+    }
+    const leftValue = footerSections[0].querySelector('.invoice-footer-value');
+    if (leftValue) {
+      footerLeftValueMarginLeft = parseFloat(window.getComputedStyle(leftValue).marginLeft) || 0;
+    }
+  }
+  if (footerLabels.length) {
+    footerLabelPaddingLeft = parseFloat(window.getComputedStyle(footerLabels[0]).paddingLeft) || 0;
+  }
+
+  const footerStyle = footer ? window.getComputedStyle(footer) : null;
+  const footerPaddingTop = footerStyle ? parseFloat(footerStyle.paddingTop) || 0 : 0;
+
+  // ─── 콘솔 출력 ──────────────────────────────────────────────────────────
+  const pad = (n) => (typeof n === 'number' && !isNaN(n)) ? n.toFixed(1) : String(n);
+  const lines = [
+    '',
+    '═'.repeat(60),
+    '📐 완전 측정 (모든 너비·높이·간격 — Grid 고정용)',
+    '═'.repeat(60),
+    `  [${bp}] viewport ${win}px`,
+    '',
+    '📦 문서',
+    '─'.repeat(40),
+    `  컨테이너: ${pad(containerRect.width)}px \u00D7 ${pad(containerRect.height)}px`,
+    `  padding: top ${pad(containerPaddingTop)} | right ${pad(containerPaddingRight)} | bottom ${pad(containerPaddingBottom)} | left ${pad(containerPaddingLeft)} px`,
+    '  ※ 구분선(::after/::before) left/right/height·color는 CSS에서 브레이크포인트별 확인',
+    '',
+    '🔷 헤더 (' + pad(headerRect.height) + 'px)',
+    '─'.repeat(40),
+    `  좌우 영역 간격: ${pad(headerLeftRightGap)}px`,
+    `  INVOICE 타이틀 ↔ 메타 세로: ${pad(titleToMeta)}px | 타이틀 상단에서: ${pad(titleFromTop)}px`,
+    `  타이틀 font-weight: ${headerTitleFw} | 메타 font-weight: ${headerMetaFw}`,
+    `  메타 line-height: ${metaLineHeightPx ? pad(metaLineHeightPx) + 'px' : '(normal)'} | gap: ${metaGap}px`,
+    `  로고: ${pad(logoWidth)}\u00D7${pad(logoHeight)}px, 우측에서 ${pad(logoFromRight)}px, 상단에서 ${pad(logoFromTop)}px`,
+    '',
+    '📋 구분선 \u2192 콘텐츠',
+    '─'.repeat(40),
+    `  헤더 구분선 \u2192 DESCRIPTION 타이틀: ${pad(headerSeparatorToDesc)}px`,
+    `  DESCRIPTION 타이틀 \u2192 테이블: ${pad(descTitleToTable)}px (타이틀 높이 ${pad(sectionTitleHeight)}px, margin-bottom ${pad(sectionTitleMarginBottom)}px)`,
+    `  [상품\u2192Summary 구분선] 위 여백(상품 맨 아래~구분선): ${pad(itemsBottomToSeparatorGap)}px`,
+    `  [상품\u2192Summary 구분선] 아래 여백(구분선~Summary 컨테이너): ${pad(separatorToSummaryGap)}px (= 상품\u2192가격 구분선 \u2192 Summary)`,
+    `  푸터 구분선 \u2192 푸터 내용: ${pad(footerSeparatorToContent)}px (푸터 padding-top: ${pad(footerPaddingTop)}px)`,
+    '',
+    '📋 DESCRIPTION 테이블 (' + pad(descRect.height) + 'px)',
+    '─'.repeat(40),
+    `  테이블 너비: ${pad(tableWidth)}px | 컬럼 비율: 상품명 ${pad(col1Pct)}% | 수량 ${pad(col2Pct)}% | 가격 ${pad(col3Pct)}%`,
+    `  컬럼 너비: 상품명 ${pad(col1Width)}px | 수량 ${pad(col2Width)}px | 가격 ${pad(col3Width)}px`,
+    `  padding: 상품명 left ${col1PaddingLeft}px | 수량 left ${col2PaddingLeft}px | 가격 right ${col3PaddingRight}px`,
+    `  한 행: ${pad(rowHeightActual)}px | 행간 여백: ${pad(rowGap)}px | 실질 한 행 공간: ${pad(effectiveRowSpace)}px | 행 수: ${rows.length}개`,
+    `  셀: padding ${pad(cellPt)}/${pad(cellPb)}px | font-size ${pad(cellFs)}px | line-height ${cellLineHeightLabel} | letter-spacing ${pad(cellLs)}px | font-weight ${cellFw}`,
+    '',
+    '💰 Summary 영역 안 전부 (' + pad(summaryRect.height) + 'px)',
+    '─'.repeat(40),
+    `  컨테이너 너비: ${pad(summaryContainerWidth)}px`,
+    `  행별 높이: [${summaryRowHeights.map(h => pad(h)).join(', ')}]`,
+    `  행별 margin-top: [${summaryRowMarginTops.map(m => pad(m)).join(', ')}]`,
+    `  행별 margin-bottom: [${summaryRowMarginBottoms.map(m => pad(m)).join(', ')}]`,
+    `  행별 label padding-left: [${summaryRowLabelPaddingLefts.map(p => pad(p)).join(', ')}]`,
+    `  행 font-size: ${pad(summaryRowFontSize)}px | letter-spacing: ${pad(summaryRowLetterSpacing)}px`,
+    `  Label 너비: ${pad(summaryLabelWidth)}px (font-weight ${summaryLabelFw}) | Value 너비: ${pad(summaryValueWidth)}px (font-weight ${summaryValueFw})`,
+    `  Label \u2192 Value 간격: ${pad(summaryLabelValueGap)}px`,
+    `  일반 행 margin-bottom: ${pad(summaryMarginBottom)}px`,
+    `  Total margin-top: ${pad(summaryTotalMarginTop)}px | padding-top: ${pad(summaryTotalPaddingTop)}px | margin-bottom: ${pad(summaryTotalMarginBottom)}px`,
+    `  [Total 위 구분선 ::before] left: ${pad(summaryTotalBeforeLeft)}px (CSS기준) | height: ${pad(summaryTotalBeforeHeight)}px`,
+    ...(summaryRow3MarginTop !== null ? [`  [특수] 3행(Payment Method) margin-top: ${pad(summaryRow3MarginTop)}px`] : []),
+    '',
+    '🔖 푸터 (' + pad(footerRect.height) + 'px)',
+    '─'.repeat(40),
+    `  좌측 섹션 너비: ${pad(footerSectionLeftWidth)}px | 우측 섹션 너비: ${pad(footerSectionRightWidth)}px | 간격: ${pad(footerSectionsGap)}px`,
+    `  섹션 내부 행 간 gap: ${pad(footerInfoGap)}px | label\u2192value gap(좌): ${pad(footerRowGap)}px` + (footerRightRowGap !== null ? ` | 우측섹션 row gap: ${pad(footerRightRowGap)}px` : ''),
+    `  푸터 타이틀 font-weight: ${footerTitleFw} | label: ${footerLabelFw} | value: ${footerValueFw}`,
+    `  [우측섹션] 타이틀 padding-left: ${pad(footerRightTitlePaddingLeft)}px | label padding-left: ${pad(footerRightLabelPaddingLeft)}px, text-align: ${footerRightLabelTextAlign || '(없음)'}`,
+    `  [좌측 value] margin-left: ${pad(footerLeftValueMarginLeft)}px | [우측 value] padding-right: ${pad(footerRightValuePaddingRight)}px | [label 공통] padding-left: ${pad(footerLabelPaddingLeft)}px`,
+    '',
+    '📊 트리거 (상품↔가격 구분선)',
+    '─'.repeat(40),
+    `  상품 영역: ${d}px | 버퍼: ${SEPARATOR_BUFFER}px → 사용가능 ${Math.round(usableItemsHeight)}px`,
+    `  → ${maxRowsBeforeTrigger}행까지 OK, ${maxRowsBeforeTrigger + 1}행부터 구분선 숨김 + 가격란 2페이지`,
+    '',
+    '🎯 grid-template-rows 복사용:',
+    '---',
+    `    ${h}px        /* 행1 헤더 */`,
+    `    1px          /* 행2 헤더 구분선 */`,
+    `    ${d}px        /* 행3 상품영역 */`,
+    `    1px          /* 행4 상품↔가격 구분선 */`,
+    `    ${s}px        /* 행5 Summary */`,
+    `    1px          /* 행6 푸터 구분선 */`,
+    `    ${f}px;       /* 행7 푸터 */`,
+    '---',
+    `  ※ .items-area gap: ${pad(rowGap)}px. 위 모든 값을 Grid/셀에 적용하면 지금 화면과 픽셀 단위 동일.`,
+    '═'.repeat(60),
+    ''
+  ];
+  console.log(lines.join('\n'));
+
+  return {
+    breakpoint: bp,
+    viewportWidth: win,
+    containerWidth: Math.round(containerRect.width),
+    containerHeight: Math.round(containerRect.height),
+    containerPaddingTop: containerPaddingTop,
+    containerPaddingRight: containerPaddingRight,
+    containerPaddingBottom: containerPaddingBottom,
+    containerPaddingLeft: containerPaddingLeft,
+    headerHeight: h,
+    itemsAreaHeight: d,
+    summaryHeight: s,
+    footerHeight: f,
+    rowHeight: rowHeightActual,
+    rowGap,
+    effectiveRowSpace,
+    rowCount: rows.length,
+    separatorBuffer: SEPARATOR_BUFFER,
+    usableItemsHeight: Math.round(usableItemsHeight),
+    maxRowsBeforeTrigger,
+    headerLeftRightGap,
+    titleToMeta,
+    titleFromTop,
+    headerTitleFw,
+    headerMetaFw,
+    metaGap,
+    metaLineHeightPx: metaLineHeightPx || null,
+    logoWidth,
+    logoHeight,
+    logoFromRight,
+    logoFromTop,
+    headerSeparatorToDesc,
+    descTitleToTable,
+    descToSummary,
+    itemsBottomToSeparatorGap,
+    separatorToSummaryGap,
+    footerSeparatorToContent,
+    footerPaddingTop,
+    sectionTitleHeight,
+    sectionTitleMarginBottom,
+    tableWidth,
+    col1Width,
+    col2Width,
+    col3Width,
+    col1Pct,
+    col2Pct,
+    col3Pct,
+    col1PaddingLeft,
+    col2PaddingLeft,
+    col3PaddingRight,
+    col1ToCol2Gap,
+    col2ToCol3Gap,
+    cellPaddingTop: cellPt,
+    cellPaddingBottom: cellPb,
+    cellFontSize: cellFs,
+    cellLineHeight: cellLhPx || null,
+    cellLetterSpacing: cellLs,
+    cellFontWeight: cellFw,
+    summaryContainerWidth,
+    summaryLabelWidth,
+    summaryValueWidth,
+    summaryLabelPaddingLeft,
+    summaryRow3MarginTop: summaryRow3MarginTop ?? undefined,
+    summaryLabelFw,
+    summaryValueFw,
+    summaryMarginBottom,
+    summaryTotalMarginTop,
+    summaryTotalPaddingTop,
+    summaryLabelValueGap,
+    summaryRowHeights,
+    summaryRowMarginTops,
+    summaryRowMarginBottoms,
+    summaryRowLabelPaddingLefts,
+    summaryTotalMarginBottom,
+    summaryRowFontSize,
+    summaryRowLetterSpacing,
+    summaryTotalBeforeLeft,
+    summaryTotalBeforeHeight,
+    footerSectionsGap,
+    footerRightTitlePaddingLeft,
+    footerRightLabelPaddingLeft,
+    footerRightLabelTextAlign: footerRightLabelTextAlign || undefined,
+    footerRightRowGap: footerRightRowGap ?? undefined,
+    footerLeftValueMarginLeft,
+    footerRightValuePaddingRight,
+    footerLabelPaddingLeft,
+    footerSectionLeftWidth,
+    footerSectionRightWidth: footerSectionRightWidth,
+    footerTitleFw,
+    footerLabelFw,
+    footerValueFw,
+    footerInfoGap,
+    footerRowGap
+  };
 }
 
 // ISSUE DATE 포맷 함수 (DD Mon YYYY 형식)

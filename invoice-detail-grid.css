@@ -1,0 +1,932 @@
+/**
+ * invoice-detail-grid.css
+ * 인보이스 Grid 버전 — 부록 A(구분선), 부록 B(픽셀 측정) 기준.
+ * 비-extended: 7행 — 헤더 | 헤더구분선 | 상품 | 가격구분선 | Summary | 푸터구분선 | 푸터 (부록 B.1 그대로)
+ * .invoice-page.extended-items: 5행 — 헤더 | 헤더구분선 | 확장상품영역 | 푸터구분선 | 푸터
+ */
+
+/* ========== 리셋·공통 ========== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Paperlogy', 'Georgia', serif;
+  background-color: #E6E6E6;
+  min-height: 100vh;
+  padding: 40px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #000;
+}
+
+/* 스택 애니메이션: 페이지들이 같은 위치에 겹침 */
+.invoice-pages-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  min-height: 1038px; /* 한 장 높이(990px) + 여유 */
+}
+
+/* 페이지 + 보증서 버튼 컬럼 묶음. 스택 시 같은 좌표에 겹침. 첫 페이지가 화면 중심에 오도록 우측 오프셋 */
+.invoice-page-block {
+  position: absolute;
+  top: 0;
+  left: calc(50%);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 20px;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+/* 스택 상태 클래스 (INVOICE_LAYOUT_PAGINATION_ANIMATION_RULES.md §8) */
+.invoice-page-block.current,
+.invoice-page-block.last {
+  transform: translateX(-50%) translateZ(0) translateX(0);
+  z-index: 10;
+  opacity: 1;
+}
+
+.invoice-page-block.next,
+.invoice-page-block.prev {
+  opacity: 0.5;
+}
+
+.invoice-page-block.next {
+  transform: translateX(-50%) translateZ(-100px) translateX(30px);
+  z-index: 5;
+}
+
+.invoice-page-block.prev {
+  /* INVOICE 글자 중 IN까지 보이도록 이전 페이지 노출 폭 확대 (약 120px) */
+  transform: translateX(-50%) translateZ(-100px) translateX(-70px);
+  z-index: 5;
+}
+
+/* 보이지 않는 페이지: 왼쪽/오른쪽 밖으로 */
+.invoice-page-block.back-left,
+.invoice-page-block.back-right {
+  opacity: 0.35;
+}
+
+.invoice-page-block.back-left {
+  transform: translateX(-50%) translateX(-900px);
+  z-index: 1;
+}
+
+.invoice-page-block.back-right {
+  transform: translateX(-50%) translateX(900px);
+  z-index: 1;
+}
+
+/* 측정 모드: transform 비활성화 (페이지 분할 측정 시) */
+.invoice-page-block.measure-mode {
+  transform: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+}
+
+/* 보증서 보기 버튼 컬럼 (문서 바깥, 원본과 동일) */
+.invoice-page-block .warranty-buttons-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex: 0 0 auto;
+  width: fit-content;
+  max-width: 140px;
+  padding: 0;
+  padding-top: 0;
+}
+
+.invoice-page-block .warranty-button-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 40px;
+  height: auto;
+}
+
+.invoice-page-block .warranty-view-btn {
+  background-color: #000;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: 'Paperlogy', 'Georgia', serif;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+
+.invoice-page-block .warranty-view-btn:hover {
+  opacity: 0.8;
+}
+
+/* 이전/다음 버튼: 문서 바깥, wrapper 기준 절대 위치, 세로 중앙 */
+.invoice-nav-prev,
+.invoice-nav-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: #000;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  line-height: 1;
+  z-index: 15;
+  transition: opacity 0.2s ease;
+}
+.invoice-nav-prev:hover:not(:disabled),
+.invoice-nav-next:hover:not(:disabled) {
+  opacity: 0.85;
+}
+.invoice-nav-prev:disabled,
+.invoice-nav-next:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.invoice-nav-prev {
+  left: 8px;
+}
+
+.invoice-nav-next {
+  right: 0;
+}
+
+/* ========== 한 장 컨테이너 (PC 기준, B.1) ========== */
+.invoice-page {
+  width: 751.4px;
+  height: 990px;
+  background-color: #fff;
+  box-shadow: 9px 9px 6px -2px rgba(41, 41, 41, 0.5);
+  display: grid;
+  grid-template-rows: 159px 1px 238px 1px 247.5px 1px 162px; /* 5행 243=217+26, grid-sep-footer 포함 그 밑으로 내리려면 이 값 키우기 */
+  grid-template-columns: 1fr;
+  padding: 80px 85px 80px 100px; /* B.1 PC */
+  position: relative;
+  overflow: hidden;
+}
+
+/* extended-items: 푸터 위치/높이를 페이지4(7행)와 동일하게 — 푸터 위까지 합 647.5 */
+.invoice-page.extended-items {
+  grid-template-rows: 159px 1px 486.5px 1px 162px; /* 159+1+486.5+1 = 647.5, 페이지4 푸터 시작과 동일 */
+}
+
+/* ========== 구분선 공통 (행이 1px, 내부에 실제 선 그리기) ========== */
+.invoice-page .grid-sep {
+  grid-column: 1;
+  min-height: 0;
+  overflow: visible;
+  display: flex;
+  align-items: flex-start;
+  justify-content: stretch;
+}
+
+.invoice-page .grid-sep-inner {
+  width: 100%;
+  height: 0.5px;
+  background-color: #e0e0e0;
+  margin-left: 10px;   /* A.1 PC 헤더/Description 구분선 left */
+  margin-right: 0;
+}
+
+.invoice-page .grid-sep-footer .grid-sep-inner {
+  background-color: rgba(204, 204, 204, 1);
+  margin-left: 6px;    /* A.1 PC 푸터 구분선 left */
+}
+
+.invoice-page .grid-sep-price .grid-sep-inner {
+  background-color: rgba(204, 204, 204, 1);
+  margin-left: 34px;   /* A.1 PC Summary Total 위 구분선 left */
+  
+}
+
+.invoice-page .grid-sep-hidden,
+.invoice-page .grid-summary-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ========== 그리드 영역 배치 ========== */
+.invoice-page .grid-header {
+  grid-column: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.invoice-page .grid-items {
+  grid-column: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.invoice-page .grid-summary {
+  grid-column: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.invoice-page .grid-footer {
+  grid-column: 1;
+  min-height: 0;
+  display: flex;
+  gap: 40px; /* B.6 PC 좌측/우측/간격 */
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+/* ========== B.2 헤더 (PC) ========== */
+.invoice-page .invoice-header-left {
+  flex: 1;
+}
+
+.invoice-page .invoice-header-title {
+  font-family: 'Paperlogy', 'Georgia', serif;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 2px;
+  margin-bottom: 10.5px;
+}
+
+.invoice-page .invoice-header-meta {
+  font-family: 'Paperlogy', 'Georgia', serif;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 1px;
+  line-height: 17.6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.invoice-page .invoice-header-right {
+  text-align: right;
+}
+
+.invoice-page .invoice-brand-logo {
+  width: 198px;
+  height: 37px;
+  display: block;
+  object-fit: contain;
+}
+
+/* ========== B.3 구분선→콘텐츠 간격 (PC) ========== */
+.invoice-page .grid-items {
+  padding-top: 35px;    /* 헤더 구분선 → DESCRIPTION 타이틀 */
+  padding-bottom: 45.5px; /* 상품 테이블 하단 ~ 상품↔가격 구분선 간격 (조정 가능) */
+}
+
+.invoice-page .invoice-section-title {
+  font-family: 'Paperlogy', 'Georgia', serif;
+  font-weight: 710;
+  font-size: 16px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;  /* DESCRIPTION 타이틀 → 테이블 */
+}
+
+/* ========== B.4 DESCRIPTION 테이블 (PC) ========== */
+.invoice-page .invoice-items-table {
+  width: 566.4px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  
+}
+
+.invoice-page .invoice-items-table thead {
+  display: none;
+}
+
+.invoice-page .invoice-items-table td {
+  font-family: 'Paperlogy', 'Georgia', serif;
+  font-weight: 400;
+  font-size: 11px;
+  color: #000;
+  letter-spacing: 0.5px;
+  padding: 6px 0 12px 0;
+  vertical-align: top;
+}
+
+.invoice-page .invoice-items-table td:nth-child(1) {
+  width: 55%;
+  text-align: left;
+  letter-spacing: 1.6px;
+  font-weight: 400;
+}
+
+.invoice-page .invoice-items-table td:nth-child(2) {
+  width: 10.4%;
+  text-align: center;
+  padding-left: 23px;
+  font-weight: 400;
+}
+
+.invoice-page .invoice-items-table td:nth-child(3) {
+  width: 34.6%;
+  text-align: right;
+  letter-spacing: 1.5px;
+  font-weight: 400;
+  padding-right: 0;
+}
+
+/* ========== B.5 Summary (PC) — measureCurrentLayoutForGridSetup 측정값 반영 ========== */
+/* 구분선 아래 여백: PC 30.0 | Tablet 31.5 | Mobile 12.4 */
+.invoice-page .grid-summary {
+  padding-top: 30px; /* [측정] 구분선~Summary 컨테이너 30.0px */
+}
+
+.invoice-page .invoice-summary-container {
+  min-width: 250px;
+  max-width: 250px; /* Credit Card 등 결제수단 한 줄 안에 들어가도록 */
+  flex-shrink: 0;
+  overflow: hidden; /* 우측 삐져나감 방지 */
+}
+
+.invoice-page .invoice-summary-row {
+  margin-bottom: 20px; /* [측정] 행별 20 */
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 24px; /* Label↔Value (41.8→24, Credit Card 왼쪽으로 당기기, 250px 안에 들어가도록) */
+  font-family: 'Paperlogy', 'Georgia', serif;
+  font-size: 11px;
+  font-weight: 400;
+  color: #000;
+  letter-spacing: 1.5px;
+}
+
+.invoice-page .invoice-summary-label {
+  text-align: left;
+  padding-left: 29.5px; /* [측정] 행별 15 */
+  flex-shrink: 0;
+}
+
+.invoice-page .invoice-summary-value {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.invoice-page .invoice-summary-row.total {
+  margin-top: 65px; /* [측정 B.5] Payment Method ~ Total 블록 65 */
+  margin-bottom: 28px; /* [측정] 28 */
+  padding-top: 31.5px; /* [측정 B.5] Total 위 구분선 ~ Total 글자 세로 간격 31.5 */
+  position: relative;
+  font-weight: 400;
+}
+
+.invoice-page .invoice-summary-row.total::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 34px; /* [측정] Total 위 구분선 left 34 */
+  right: 0;
+  height: 0.5px;
+  background-color: rgba(204, 204, 204, 1);
+}
+
+
+/* ========== B.6 푸터 (PC) ========== */
+.invoice-page .grid-footer {
+  padding-top: 45px; /* 푸터 구분선 → 푸터 내용 */
+}
+
+.invoice-page .invoice-footer-section {
+  flex: 0 0 auto;
+  font-weight: 470;
+}
+
+.invoice-page .invoice-footer-section:first-child {
+  width: 265.3px;
+}
+
+.invoice-page .invoice-footer-section:last-child {
+  width: 261.2px;
+}
+
+.invoice-page .invoice-footer-title {
+  font-family: 'Paperlogy', 'Georgia', serif;
+  font-weight: 701;
+  font-size: 13px;
+  color: #000;
+  letter-spacing: 2px;
+  margin-bottom: 18.8px;
+  text-transform: uppercase;
+}
+
+.invoice-page .invoice-footer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.invoice-page .invoice-footer-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: baseline;
+  font-family: 'Paperlogy', 'Georgia', serif;
+  font-size: 12px;
+  color: #000;
+  letter-spacing: 0.9px;
+}
+
+.invoice-page .invoice-footer-label {
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.invoice-page .invoice-footer-value {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.invoice-page .invoice-footer-section:last-child .invoice-footer-row {
+  gap: 12px;
+}
+
+.invoice-page .invoice-footer-section:last-child .invoice-footer-label {
+  text-align: right;
+  padding-left: 41px;
+}
+
+.invoice-page .invoice-footer-section:last-child .invoice-footer-title {
+  padding-left: 40px;
+}
+
+/* ========== 액션 버튼 (원본 invoice-detail.html과 동일) ========== */
+.invoice-action-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  max-width: 1150px;
+  align-self: flex-center;
+  margin-left: 0;
+  margin-right: 50px;
+}
+
+.action-btn {
+  padding: 29.8px 80px;
+  border-radius: 14px;
+  font-family: 'Paperlogy', 'Georgia', serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  border: none;
+  white-space: nowrap;
+}
+
+.action-btn-primary {
+  background-color: #000;
+  color: #fff;
+}
+
+.action-btn-primary:hover {
+  opacity: 0.8;
+}
+
+.action-btn-secondary {
+  background-color: rgba(179, 179, 179, 1);
+  color: #fff;
+}
+
+.action-btn-secondary:hover {
+  opacity: 0.8;
+}
+
+.action-btn-outline {
+  background-color: #fff;
+  color: rgba(102, 102, 102, 1);
+  border: 1px solid #e0e0e0;
+}
+
+.action-btn-outline:hover {
+  background-color: #f5f5f5;
+}
+
+/* PC (1440px 이상) — 액션 버튼 크기·간격 */
+@media (min-width: 1440px) {
+  .invoice-action-buttons {
+    gap: 20px;
+    max-width: 1440px;
+    margin-top: 35px;
+  }
+
+  .action-btn {
+    padding: 31px 105px;
+    font-size: 18px;
+    border-radius: 19px;
+    font-weight: 400;
+  }
+}
+
+/* ============================================================
+   Tablet (max-width: 1439px) — 부록 B·A
+   ============================================================ */
+@media (max-width: 1439px) {
+  .invoice-page {
+    width: 707.5px;
+    height: 970px;
+    padding: 83px 85px 80px 95px;
+    grid-template-rows: 149px 1px 238px 1px 243px 1px 157px; /* 5행 237=211+26, grid-sep-footer 밑으로 내리기 */
+  }
+
+  /* extended: 푸터 위치를 7행(페이지4)과 동일 — 푸터 위까지 633 (149+1+238+1+243+1) */
+  .invoice-page.extended-items {
+    grid-template-rows: 149px 1px 482px 1px 157px; /* 149+1+482+1=633 */
+  }
+
+  .invoice-page .invoice-header-title {
+    margin-bottom: 10.5px;
+    font-size: 15px; /* 원본 태블릿: 17→15 */
+  }
+
+  .invoice-page .invoice-header-meta {
+    font-size: 10px; /* 원본 태블릿: 11→10 */
+    line-height: 16px;
+    gap: 16px;
+  }
+
+  .invoice-page .invoice-brand-logo {
+    width: 310px;
+    height: 39.8px;
+    margin-left: 20px;   /* 원본 태블릿 로고 위치 */
+    padding-left: 113px;
+  }
+
+  .invoice-page .grid-items {
+    padding-top: 36px;
+  }
+
+  .invoice-page .invoice-section-title {
+    font-size: 14px; /* 원본 태블릿: 16→14 */
+    margin-bottom: 12px;
+  }
+
+  .invoice-page .invoice-items-table {
+    width: 527.5px;
+  }
+
+  .invoice-page .invoice-items-table td {
+    font-size: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .invoice-page .invoice-items-table td:nth-child(1) {
+    letter-spacing: 1.6px;
+  }
+
+  .invoice-page .invoice-items-table td:nth-child(2) {
+    width: 9.5%;
+    padding-left: 18.4px;
+  }
+
+  .invoice-page .invoice-items-table td:nth-child(3) {
+    width: 35.5%;
+    padding-right: 3px;
+  }
+
+  .invoice-page .grid-summary {
+    padding-top: 31.5px; /* [측정] 구분선~Summary 31.5px */
+  }
+
+  .invoice-page .invoice-summary-container {
+    min-width: 255px;
+    max-width: 255px; /* [측정] 255.0 */
+  }
+
+  .invoice-page .invoice-summary-row {
+    font-size: 10px;
+    gap: 26px; /* Label↔Value 줄여서 Credit Card 왼쪽으로 */
+  }
+
+  .invoice-page .invoice-summary-row.total {
+    margin-bottom: 26.5px; /* [측정] 26.5 */
+  }
+
+  .invoice-page .invoice-summary-label {
+    padding-left: 45.4px; /* [측정] 행별 15 */
+  }
+  
+  .invoice-page .invoice-summary-row.total::before {
+    left: 52px; /* [측정] Total 위 구분선 left 52 */
+    background-color: rgba(204, 204, 204, 1);
+  }
+
+  .invoice-page .grid-sep-price .grid-sep-inner {
+    margin-left: 10px; /* grid-sep-header와 동일한 길이 (좌측 10px) */
+  }
+
+  .invoice-page .grid-footer {
+    padding-top: 45px;
+    gap: 40px;
+  }
+
+  .invoice-page .invoice-footer-section:first-child {
+    width: 243.8px;
+  }
+
+  .invoice-page .invoice-footer-section:last-child {
+    width: 243.8px;
+  }
+
+  .invoice-page .invoice-footer-info {
+    gap: 20px;
+  }
+
+  .invoice-page .invoice-footer-title {
+    font-size: 14px;
+  }
+
+  .invoice-page .invoice-footer-row {
+    font-size: 10px;
+  }
+
+  .invoice-action-buttons {
+    flex-direction: column;
+    margin-right: 0;
+    width: 769px;
+  }
+
+  .action-btn {
+    width: 100%;
+    font-size: 13px;
+  }
+}
+
+/* ============================================================
+   Mobile (max-width: 768px) — 부록 B·A
+   ============================================================ */
+@media (max-width: 768px) {
+  .invoice-page-block {
+    left: 50%;
+  }
+
+  /* 768px 이하: 이전(prev) 페이지 노출도 축소 — 더 왼쪽으로 밀어 덜 보이게 */
+  .invoice-page-block.prev {
+    transform: translateX(-50%) translateZ(-100px) translateX(-110px);
+  }
+
+  .invoice-page {
+    width: 269px;
+    height: 371px;
+    padding: 32.5px 30px 20px 35.4px;
+    grid-template-rows: 57px 1px 92px 1px 94px 1px 60px; /* 5행 108=82+26, grid-sep-footer 밑으로 내리기 */
+  }
+
+  .invoice-page-block .warranty-buttons-column {
+    max-width: 34px;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+  }
+
+  .invoice-page-block .warranty-button-row {
+    max-width: 34px;
+    min-height: 16px;
+  }
+
+  .invoice-page-block .warranty-view-btn {
+    padding: 3px 6px;
+    font-size: 2.5px;
+    border-radius: 2px;
+  }
+
+  /* extended: 푸터 위치를 7행(페이지4)과 동일 — 푸터 위까지 246 (57+1+92+1+94+1) */
+  .invoice-page.extended-items {
+    grid-template-rows: 57px 1px 187px 1px 60px; /* 57+1+187+1=246 */
+  }
+
+  .invoice-page .grid-sep-inner {
+    height: 0.08px;
+    margin-left: 4px;
+  }
+
+  .invoice-page .grid-sep-footer .grid-sep-inner {
+    margin-left: 4px;
+  }
+
+  .invoice-page .grid-sep-price .grid-sep-inner {
+    margin-left: 4px; /* grid-sep-header와 동일한 길이 (모바일 4px) */
+    height: 0.08px;
+  }
+
+  .invoice-page .invoice-header-title {
+    font-size: 5.9px;   /* 원본 모바일 */
+    letter-spacing: 0.55px;
+    font-weight: 610;
+    margin-bottom: 4.6px;
+  }
+
+  .invoice-page .invoice-header-meta {
+    font-size: 4.1px;   /* 원본 모바일 (10px 아님) */
+    letter-spacing: 0.58px;
+    font-weight: 500;
+    line-height: 6.6px;
+    gap: 5.1px;
+  }
+
+  .invoice-page .grid-header {
+    gap: 8px; /* B.2 Mobile 좌우 영역 간격 */
+  }
+
+  .invoice-page .invoice-brand-logo {
+    width: 75px;
+    height: 18px;
+    margin-left: 0;
+    padding-left: 0;
+    margin-right: -5.8px; /* 원본 .invoice-header-left > .invoice-brand-logo { right: -5.8px } 와 비슷하게 */
+  }
+
+  .invoice-page .grid-items {
+    padding-top: 14px;
+  }
+
+  .invoice-page .invoice-section-title {
+    font-size: 5.75px;  /* 원본 모바일 */
+    letter-spacing: 0.55px;
+    font-weight: 625;
+    margin-bottom: 3.55px;
+  }
+
+  .invoice-page .invoice-items-table {
+    width: 203.6px;
+  }
+
+  .invoice-page .invoice-items-table td {
+    font-size: 4.1px;
+    letter-spacing: 0.47px; /* 원본 0.47 */
+    font-weight: 500;
+    padding: 3px 0 4.2px 0;
+  }
+
+  .invoice-page .invoice-items-table td:nth-child(2) {
+    width: 9.2%;
+    padding-left: 6.35px;
+  }
+
+  .invoice-page .invoice-items-table td:nth-child(3) {
+    width: 35.8%;
+    padding-right: 2px;
+  }
+
+  .invoice-page .grid-summary {
+    padding-top: 12.4px; /* [측정] 구분선~Summary 12.4px */
+  }
+
+  .invoice-page .invoice-summary-container {
+    min-width: 203.6px;
+    max-width: 203.6px; /* [측정] 203.6 */
+  }
+
+  .invoice-page .invoice-summary-row {
+    margin-bottom: 7.5px; /* [측정] 행별 7.5 */
+    gap: 14.3px; /* [측정] Label→Value 14.3 */
+    letter-spacing: 0.5px;
+  }
+
+  .invoice-page .invoice-summary-label {
+    padding-left: 122.6px; /* [측정] 행별 122.6 */
+    letter-spacing: 0.5px;
+    font-size: 4px;
+    font-weight: 500.2;
+  }
+
+  .invoice-page .invoice-summary-value {
+    letter-spacing: 0.5px;
+    font-size: 4px;
+    font-weight: 500.2;
+    padding-right: 2.5px;
+  }
+
+  .invoice-page .invoice-summary-row.total {
+    margin-top: 25.3px; /* [측정] 25.3 */
+    margin-bottom: 10.4px; /* [측정] 10.4 */
+    padding-top: 12px; /* [측정] 12 */
+  }
+
+  .invoice-page .invoice-summary-container .invoice-summary-row:nth-child(3) {
+    margin-top: -0.7px; /* [측정] 3행(Payment Method) -0.7 */
+  }
+
+  .invoice-page .invoice-summary-row.total::before {
+    height: 0.08px;
+    left: 125.5px; /* [측정] Total 위 구분선 left 125.5 */
+    background-color: rgba(204, 204, 204, 1);
+  }
+
+  .invoice-page .grid-footer {
+    padding-top: 17.5px;
+    gap: 14px;
+  }
+
+  .invoice-page .invoice-footer-section:first-child {
+    width: 99.2px;
+  }
+
+  .invoice-page .invoice-footer-section:last-child {
+    width: 90.5px;
+  }
+
+  .invoice-page .invoice-footer-info {
+    gap: 7.3px;
+    font-weight: 500;
+  }
+
+  .invoice-page .invoice-footer-title {
+    font-size: 5.9px;
+    letter-spacing: 0.7px;
+    font-weight: 608;
+    margin-bottom: 6.3px;
+    margin-left: 0.45px;
+  }
+
+  .invoice-page .invoice-footer-row {
+    font-size: 3.9px;
+    letter-spacing: 0.61px;
+  }
+
+  .invoice-page .invoice-footer-section:last-child .invoice-footer-row {
+    gap: 2px;
+  }
+
+  .invoice-page .invoice-footer-section:last-child .invoice-footer-title {
+    padding-left: 8px;
+  }
+
+  .invoice-page .invoice-footer-section:last-child .invoice-footer-label {
+    padding-left: 8.5px;
+  }
+
+  .invoice-page .invoice-footer-section:first-child .invoice-footer-value {
+    margin-left: -6px; /* B.6 [좌측 value] margin-left Mobile */
+  }
+
+  .invoice-page .invoice-footer-section:last-child .invoice-footer-value {
+    padding-right: 2.5px;
+  }
+
+  .invoice-page .invoice-footer-row .invoice-footer-label {
+    padding-left: 1px;
+  }
+
+  /* 모바일: 래퍼 높이 = 문서 높이(371px) → 이전/다음 버튼 top:50%가 문서 세로 중앙에 오도록, 문서에 가려지지 않음 */
+  .invoice-pages-wrapper {
+    min-height: 420px;
+    height: 420px;
+  }
+
+  /* 모바일 액션 버튼 — 원본 invoice-detail.html @media (max-width: 768px) 그대로 */
+  .invoice-action-buttons {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    max-width: 312px;
+    min-width: 312px;
+    margin-right: 0;
+  }
+
+  .action-btn {
+    width: 312px;
+    height: 35.3px;
+    min-height: 35.3px;
+    padding: 0 16px;
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    border-radius: 6px;
+  }
+}
