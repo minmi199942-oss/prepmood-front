@@ -811,12 +811,12 @@ body {
 
   .invoice-page .invoice-summary-row {
     margin-bottom: 7.5px; /* [측정] 행별 7.5 */
-    gap: 14.3px; /* [측정] Label→Value 14.3 */
+    gap: 6px; /* Payment Method↔Credit Card 간격 축소(라벨 위치 유지), 14.3→6 */
     letter-spacing: 0.5px;
   }
 
   .invoice-page .invoice-summary-label {
-    padding-left: 122.6px; /* [측정] 행별 122.6 */
+    padding-left: 122.6px; /* [측정] 행별 122.6 — Payment Method 위치 고정 */
     letter-spacing: 0.5px;
     font-size: 4px;
     font-weight: 500.2;
