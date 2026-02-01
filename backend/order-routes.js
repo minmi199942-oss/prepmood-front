@@ -1014,8 +1014,42 @@ router.post('/orders/:orderId/claim-token', authenticateToken, async (req, res) 
             });
         }
 
-        // 3. guest_order_access_token 검증 (TODO: 쿠키/세션에서 확인)
-        // 현재는 주문이 비회원 주문이면 통과
+        // 3. 게스트 세션 검증: guest_session_token 쿠키 + 세션의 order_id 매칭
+        const sessionToken = req.cookies?.guest_session_token;
+        if (!sessionToken || typeof sessionToken !== 'string') {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: '게스트 세션이 필요합니다. 이메일 링크로 주문 페이지를 연 뒤 \'내 계정에 연결\'을 눌러주세요.',
+                code: 'GUEST_SESSION_REQUIRED'
+            });
+        }
+
+        const [sessions] = await connection.execute(
+            `SELECT gos.order_id, gos.expires_at
+             FROM guest_order_sessions gos
+             WHERE gos.session_token = ? AND gos.expires_at > NOW()`,
+            [sessionToken]
+        );
+
+        if (sessions.length === 0) {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: '유효하지 않거나 만료된 게스트 세션입니다. 이메일 링크로 주문 페이지를 다시 열어주세요.',
+                code: 'INVALID_OR_EXPIRED_SESSION'
+            });
+        }
+
+        const orderIdNum = parseInt(orderId, 10);
+        if (Number.isNaN(orderIdNum) || sessions[0].order_id !== orderIdNum) {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: '이 세션으로는 해당 주문에 대한 Claim을 요청할 수 없습니다.',
+                code: 'SESSION_ORDER_MISMATCH'
+            });
+        }
 
         // 4. claim_token 생성 (30분 유효)
         const claimToken = crypto.randomBytes(32).toString('hex');
