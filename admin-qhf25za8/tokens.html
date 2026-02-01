@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>토큰 관리 | Pre.pMood Admin</title>
+  <link rel="stylesheet" href="../assets/css/global.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .token-create-card {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      margin-bottom: 2rem;
+    }
+    .token-create-card .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+    .token-create-card .form-group {
+      flex: 0 0 auto;
+      min-width: 140px;
+    }
+    .token-create-card label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.875rem; }
+    .token-create-card select, .token-create-card input[type="number"] {
+      padding: 0.5rem;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      min-width: 120px;
+    }
+    .meta-status { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem; font-weight: 600; }
+    .meta-status.ok { background: #d4edda; color: #155724; }
+    .meta-status.missing { background: #f8d7da; color: #721c24; }
+    .token-result-list { margin-top: 1rem; max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 0.5rem; background: #fff; }
+    .token-result-list table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .token-result-list th, .token-result-list td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #eee; }
+    .modal-content .form-group { margin-bottom: 1rem; }
+    .modal-content label { display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.875rem; }
+    .modal-content input { width: 100%; padding: 0.5rem; border: 1px solid #dee2e6; border-radius: 4px; }
+    .modal-content small { color: #6c757d; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <!-- 관리자 헤더는 admin-layout.js에서 동적 생성됨 -->
+
+  <main class="admin-main">
+    <div class="admin-container">
+      <div class="admin-toolbar">
+        <h2>토큰 관리</h2>
+      </div>
+
+      <div class="token-create-card">
+        <h3 style="margin-top:0;">토큰 추가</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="tokenProductId">상품 *</label>
+            <select id="tokenProductId">
+              <option value="">상품 선택</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tokenOptionSelect">옵션 (사이즈/색상) *</label>
+            <select id="tokenOptionSelect" disabled>
+              <option value="">상품 선택 후 옵션 선택</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>옵션 메타</label>
+            <div>
+              <span id="optionMetaStatus" class="meta-status missing">미설정</span>
+              <button type="button" id="optionMetaBtn" class="btn-secondary" style="margin-left:0.5rem;" disabled>메타 설정</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="tokenCount">개수</label>
+            <input type="number" id="tokenCount" min="1" max="100" value="1" style="width:80px;">
+          </div>
+          <div class="form-group">
+            <button type="button" id="createTokensBtn" class="btn-primary" disabled>토큰 생성</button>
+          </div>
+        </div>
+        <div id="createResult" style="display:none;">
+          <p><strong>생성 완료:</strong> <span id="createdCount">0</span>개</p>
+          <div class="token-result-list" id="createdTokenList"></div>
+        </div>
+      </div>
+
+      <p style="color:#6c757d; font-size:0.875rem;">
+        토큰 생성은 옵션 메타(rot_code, warranty_bottom_prefix, serial_prefix, digital_warranty_code, digital_warranty_collection)가 모두 설정된 옵션에서만 가능합니다.
+        메타가 비어 있으면 "메타 설정"에서 입력 후 저장하세요.
+      </p>
+    </div>
+  </main>
+
+  <!-- 옵션 메타 설정 모달 -->
+  <div class="modal" id="optionMetaModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>옵션 메타 설정</h3>
+        <button class="modal-close" id="closeOptionMetaModal">&times;</button>
+      </div>
+      <form id="optionMetaForm">
+        <input type="hidden" id="metaOptionId" name="option_id">
+        <div class="form-group">
+          <label for="metaRotCode">rot_code</label>
+          <input type="text" id="metaRotCode" name="rot_code" maxlength="100" placeholder="ROT 코드">
+        </div>
+        <div class="form-group">
+          <label for="metaWarrantyBottomPrefix">warranty_bottom_prefix *</label>
+          <input type="text" id="metaWarrantyBottomPrefix" name="warranty_bottom_prefix" maxlength="120" placeholder="예: PREPMOOD_TENEUSOLIDLBS_">
+          <small>끝에 구분자(_, -) 포함</small>
+        </div>
+        <div class="form-group">
+          <label for="metaSerialPrefix">serial_prefix *</label>
+          <input type="text" id="metaSerialPrefix" name="serial_prefix" maxlength="120" placeholder="예: PM26-TeneuSolid-LightBlue-S-">
+          <small>끝에 구분자(_, -) 포함</small>
+        </div>
+        <div class="form-group">
+          <label for="metaDigitalWarrantyCode">digital_warranty_code *</label>
+          <input type="text" id="metaDigitalWarrantyCode" name="digital_warranty_code" maxlength="100" placeholder="예: TENEU SOLID · SIZE S · LIGHT BLUE">
+        </div>
+        <div class="form-group">
+          <label for="metaDigitalWarrantyCollection">digital_warranty_collection *</label>
+          <input type="text" id="metaDigitalWarrantyCollection" name="digital_warranty_collection" maxlength="100" placeholder="예: COLLECTION — 2025">
+        </div>
+        <div class="form-group">
+          <label for="metaSeasonCode">season_code (선택)</label>
+          <input type="text" id="metaSeasonCode" name="season_code" maxlength="20" placeholder="시즌 코드">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="cancelOptionMetaBtn">취소</button>
+          <button type="submit" class="btn-primary">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin-layout.js"></script>
+  <script src="admin-tokens.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const ok = await initAdminLayout('tokens');
+      if (!ok) return;
+      const fn = window.AdminPages?.tokens?.init;
+      if (typeof fn === 'function') fn();
+    });
+  </script>
+</body>
+</html>

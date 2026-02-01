@@ -34,6 +34,7 @@ shipment_units	BASE TABLE	InnoDB	0	16384	32768	2026-01-13 10:55:24	NULL
 shipments	BASE TABLE	InnoDB	0	16384	81920	2026-01-13 10:55:18	NULL
 stock_units	BASE TABLE	InnoDB	3	16384	147456	2026-01-13 08:20:58	NULL
 token_master	BASE TABLE	InnoDB	42	16384	196608	2026-01-13 08:05:05	2026-01-13 11:45:13
+token_variant_sequence	BASE TABLE	InnoDB	0	16384	0	NULL	NULL
 token_master_backup	BASE TABLE	InnoDB	42	16384	147456	2026-01-08 18:59:56	NULL
 transfer_logs	BASE TABLE	InnoDB	0	16384	98304	2025-12-30 18:05:26	NULL
 user_addresses	BASE TABLE	InnoDB	0	16384	16384	2025-10-01 11:28:58	NULL
@@ -270,6 +271,12 @@ product_options	sort_order	int	NO		0		정렬 순서 (낮을수록 먼저 표시,
 product_options	is_active	tinyint(1)	NO	MUL	1		활성 여부 (1: 활성, 0: 비활성)	6
 product_options	created_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED		7
 product_options	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP		8
+product_options	rot_code	varchar(100)	YES		NULL		ROT 코드 (옵션 고정)	9
+product_options	warranty_bottom_prefix	varchar(120)	YES		NULL		warranty_bottom_code = prefix + LPAD(seq,6)	10
+product_options	serial_prefix	varchar(120)	YES		NULL		serial_number = serial_prefix + LPAD(seq,6)	11
+product_options	digital_warranty_code	varchar(100)	YES		NULL		디지털 보증서 코드	12
+product_options	digital_warranty_collection	varchar(100)	YES		NULL		컬렉션명	13
+product_options	season_code	varchar(20)	YES		NULL		시즌 코드	14
 product_qr	id	int	NO	PRI	NULL	auto_increment		1
 product_qr	serial	varchar(100)	NO	MUL	NULL			2
 product_qr	nonce	varchar(32)	NO		NULL			3
@@ -345,18 +352,22 @@ token_master	token	varchar(20)	NO	UNI	NULL			2
 token_master	internal_code	varchar(100)	NO	MUL	NULL			3
 token_master	product_name	varchar(255)	NO		NULL			4
 token_master	product_id	varchar(128)	YES	MUL	NULL			5
-token_master	serial_number	varchar(100)	YES	MUL	NULL			6
-token_master	rot_code	varchar(100)	YES	MUL	NULL			7
-token_master	warranty_bottom_code	varchar(100)	YES	MUL	NULL			8
-token_master	digital_warranty_code	varchar(100)	YES	MUL	NULL			9
-token_master	digital_warranty_collection	varchar(100)	YES	MUL	NULL			10
-token_master	is_blocked	tinyint(1)	YES	MUL	0			11
-token_master	owner_user_id	int	YES	MUL	NULL			12
-token_master	scan_count	int	YES		0			13
-token_master	first_scanned_at	datetime	YES	MUL	NULL			14
-token_master	last_scanned_at	datetime	YES		NULL			15
-token_master	created_at	datetime	NO		NULL			16
-token_master	updated_at	datetime	NO		NULL			17
+token_master	option_id	bigint	YES	MUL	NULL		product_options.option_id 참조	6
+token_master	serial_number	varchar(100)	YES	MUL	NULL			7
+token_master	rot_code	varchar(100)	YES	MUL	NULL			8
+token_master	warranty_bottom_code	varchar(100)	YES	MUL	NULL			9
+token_master	digital_warranty_code	varchar(100)	YES	MUL	NULL			10
+token_master	digital_warranty_collection	varchar(100)	YES	MUL	NULL			11
+token_master	is_blocked	tinyint(1)	YES	MUL	0			12
+token_master	owner_user_id	int	YES	MUL	NULL			13
+token_master	scan_count	int	YES		0			14
+token_master	first_scanned_at	datetime	YES	MUL	NULL			15
+token_master	last_scanned_at	datetime	YES		NULL			16
+token_master	created_at	datetime	NO		NULL			17
+token_master	updated_at	datetime	NO		NULL			18
+token_variant_sequence	option_id	bigint	NO	PRI	NULL		product_options.option_id 참조	1
+token_variant_sequence	last_number	int	NO		0			2
+token_variant_sequence	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	3
 token_master_backup	token	varchar(20)	NO	PRI	NULL			1
 token_master_backup	internal_code	varchar(100)	NO	MUL	NULL			2
 token_master_backup	product_name	varchar(255)	NO		NULL			3
@@ -621,12 +632,14 @@ token_master	idx_internal_code	internal_code	1	1	BTREE
 token_master	idx_is_blocked	is_blocked	1	1	BTREE	
 token_master	idx_owner_user_id	owner_user_id	1	1	BTREE	
 token_master	idx_product_id	product_id	1	1	BTREE	
+token_master	idx_token_master_option_id	option_id	1	1	BTREE	
 token_master	idx_rot_code	rot_code	1	1	BTREE	
 token_master	idx_serial_number	serial_number	1	1	BTREE	
 token_master	idx_token	token	1	1	BTREE	
 token_master	idx_warranty_bottom_code	warranty_bottom_code	1	1	BTREE	
 token_master	PRIMARY	token_pk	1	0	BTREE	
 token_master	token	token	1	0	BTREE	
+token_variant_sequence	PRIMARY	option_id	1	0	BTREE	
 token_master_backup	idx_digital_warranty_code	digital_warranty_code	1	1	BTREE	
 token_master_backup	idx_digital_warranty_collection	digital_warranty_collection	1	1	BTREE	
 token_master_backup	idx_first_scanned_at	first_scanned_at	1	1	BTREE	
@@ -725,7 +738,9 @@ stock_units	stock_units_ibfk_1	product_id	admin_products	id	NO ACTION	RESTRICT
 stock_units	stock_units_ibfk_2	token_pk	token_master	token_pk	NO ACTION	RESTRICT
 stock_units	stock_units_ibfk_3	reserved_by_order_id	orders	order_id	NO ACTION	SET NULL
 token_master	token_master_ibfk_1	owner_user_id	users	user_id	NO ACTION	SET NULL
+token_master	fk_tm_option_id	option_id	product_options	option_id	NO ACTION	SET NULL	CASCADE
 token_master	token_master_ibfk_product_id	product_id	admin_products	id	NO ACTION	RESTRICT
+token_variant_sequence	fk_tvs_option_id	option_id	product_options	option_id	NO ACTION	RESTRICT	CASCADE
 token_master_backup	token_master_backup_ibfk_1	owner_user_id	users	user_id	NO ACTION	SET NULL
 transfer_logs	transfer_logs_ibfk_1	warranty_public_id	warranties	public_id	NO ACTION	RESTRICT
 transfer_logs	transfer_logs_ibfk_2	from_user_id	users	user_id	NO ACTION	SET NULL
@@ -765,7 +780,7 @@ paid_event_processing	7	4	1	0
 paid_events	9	5	1	0
 payments	11	3	1	18
 product_history	5	2	1	0
-product_options	8	6	1	5
+product_options	14	6	1	5
 product_qr	7	3	1	12
 products	6	3	1	0
 qr_audit_logs	8	4	2	8
@@ -775,7 +790,7 @@ schema_migrations	7	4	0	7
 shipment_units	3	3	2	0
 shipments	11	6	2	0
 stock_units	11	10	4	3
-token_master	17	13	2	42
+token_master	18	14	3	42
 token_master_backup	15	10	1	42
 transfer_logs	8	7	4	0
 user_addresses	6	2	1	0

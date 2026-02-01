@@ -468,10 +468,10 @@ router.get('/products/:id', async (req, res) => {
         
         connection = await mysql.createConnection(dbConfig);
         
-        // ⚠️ Dual-read: canonical_id 또는 id로 상품 조회
+        // admin_products 단일 조회 (db_structure_actual 기준: canonical_id 컬럼 없음)
         const [products] = await connection.execute(
-            'SELECT * FROM admin_products WHERE canonical_id = ? OR id = ? LIMIT 1',
-            [id, id]
+            'SELECT * FROM admin_products WHERE id = ? LIMIT 1',
+            [id]
         );
         
         if (products.length === 0) {
@@ -626,11 +626,10 @@ router.post('/admin/products', authenticateToken, requireAdmin, async (req, res)
             });
         }
         
-        // ⚠️ Dual-write: 상품 추가 (canonical_id 자동 설정)
-        // 신규 상품은 슬래시 없으므로 canonical_id = id
+        // admin_products INSERT (db_structure_actual 기준: canonical_id 없음, short_name은 선택 Phase 4)
         await connection.execute(
-            'INSERT INTO admin_products (id, canonical_id, name, price, image, collection_year, category, type, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, id, name, price, image || null, collectionYear, category, normalizedType, description || null]
+            'INSERT INTO admin_products (id, name, price, image, collection_year, category, type, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, name, price, image || null, collectionYear, category, normalizedType, description || null]
         );
         
         console.log('✅ 상품 추가 성공:', id, name);
@@ -849,7 +848,7 @@ router.get('/admin/products/:productId/options', authenticateToken, requireAdmin
             });
         }
         
-        // 옵션 목록 조회 (재고 상태 포함)
+        // 옵션 목록 조회 (재고 상태 + 옵션 메타 포함, 토큰 관리 UI용)
         const [options] = await connection.execute(
             `SELECT 
                 po.option_id,
@@ -858,6 +857,12 @@ router.get('/admin/products/:productId/options', authenticateToken, requireAdmin
                 po.size,
                 po.sort_order,
                 po.is_active,
+                po.rot_code,
+                po.warranty_bottom_prefix,
+                po.serial_prefix,
+                po.digital_warranty_code,
+                po.digital_warranty_collection,
+                po.season_code,
                 po.created_at,
                 po.updated_at,
                 COUNT(CASE WHEN su.status = 'in_stock' THEN 1 END) as in_stock_count
@@ -867,7 +872,10 @@ router.get('/admin/products/:productId/options', authenticateToken, requireAdmin
                 AND (su.color = po.color OR (su.color IS NULL AND po.color = ''))
                 AND (su.size = po.size OR (su.size IS NULL AND po.size = ''))
             WHERE po.product_id = ?
-            GROUP BY po.option_id, po.product_id, po.color, po.size, po.sort_order, po.is_active, po.created_at, po.updated_at
+            GROUP BY po.option_id, po.product_id, po.color, po.size, po.sort_order, po.is_active,
+                     po.created_at, po.updated_at,
+                     po.rot_code, po.warranty_bottom_prefix, po.serial_prefix,
+                     po.digital_warranty_code, po.digital_warranty_collection, po.season_code
             ORDER BY po.sort_order, po.size, po.color`,
             [canonicalId]
         );
@@ -1105,6 +1113,111 @@ router.put('/admin/products/:productId/options/:optionId', authenticateToken, re
             success: false,
             message: '옵션 수정에 실패했습니다.'
         });
+    }
+});
+
+/**
+ * PUT /api/admin/product-options/:optionId/meta
+ * 옵션 메타 편집 (rot_code, warranty_bottom_prefix, serial_prefix, digital_warranty_code, digital_warranty_collection, season_code)
+ * 설계: ADMIN_TOKEN_PRODUCT_STOCK_DESIGN.md §3.2.4
+ */
+router.put('/admin/product-options/:optionId/meta', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const optionId = req.params.optionId;
+        const {
+            rot_code,
+            warranty_bottom_prefix,
+            serial_prefix,
+            digital_warranty_code,
+            digital_warranty_collection,
+            season_code
+        } = req.body || {};
+
+        const optId = parseInt(optionId, 10);
+        if (Number.isNaN(optId) || optId <= 0) {
+            return res.status(400).json({ success: false, message: '유효하지 않은 option_id입니다.' });
+        }
+
+        // 검증: 길이 제한 (자동 자르기 금지)
+        if (rot_code !== undefined && rot_code !== null && String(rot_code).length > 100) {
+            return res.status(400).json({ success: false, message: 'rot_code는 100자 이하여야 합니다.' });
+        }
+        if (season_code !== undefined && season_code !== null && String(season_code).length > 20) {
+            return res.status(400).json({ success: false, message: 'season_code는 20자 이하여야 합니다.' });
+        }
+        if (digital_warranty_code !== undefined && digital_warranty_code !== null && String(digital_warranty_code).length > 100) {
+            return res.status(400).json({ success: false, message: 'digital_warranty_code는 100자 이하여야 합니다.' });
+        }
+        if (digital_warranty_collection !== undefined && digital_warranty_collection !== null && String(digital_warranty_collection).length > 100) {
+            return res.status(400).json({ success: false, message: 'digital_warranty_collection은 100자 이하여야 합니다.' });
+        }
+
+        // prefix: 비어 있지 않으면 끝 구분자(_ 또는 -) 포함 검사
+        const allowSeparators = /[_\-\s]$/;
+        if (warranty_bottom_prefix !== undefined && warranty_bottom_prefix !== null) {
+            const s = String(warranty_bottom_prefix).trim();
+            if (s.length > 0 && !allowSeparators.test(s)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'warranty_bottom_prefix는 끝에 구분자(_, -, 공백)를 포함해야 합니다.'
+                });
+            }
+        }
+        if (serial_prefix !== undefined && serial_prefix !== null) {
+            const s = String(serial_prefix).trim();
+            if (s.length > 0 && !allowSeparators.test(s)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'serial_prefix는 끝에 구분자(_, -, 공백)를 포함해야 합니다.'
+                });
+            }
+        }
+
+        connection = await mysql.createConnection(dbConfig);
+        const [existing] = await connection.execute(
+            'SELECT option_id, product_id FROM product_options WHERE option_id = ? LIMIT 1',
+            [optId]
+        );
+        if (existing.length === 0) {
+            await connection.end();
+            return res.status(404).json({ success: false, message: '옵션을 찾을 수 없습니다.' });
+        }
+
+        const updates = [];
+        const params = [];
+        if (rot_code !== undefined) { updates.push('rot_code = ?'); params.push(rot_code === '' || rot_code === null ? null : String(rot_code).trim()); }
+        if (warranty_bottom_prefix !== undefined) { updates.push('warranty_bottom_prefix = ?'); params.push(warranty_bottom_prefix === '' || warranty_bottom_prefix === null ? null : String(warranty_bottom_prefix).trim()); }
+        if (serial_prefix !== undefined) { updates.push('serial_prefix = ?'); params.push(serial_prefix === '' || serial_prefix === null ? null : String(serial_prefix).trim()); }
+        if (digital_warranty_code !== undefined) { updates.push('digital_warranty_code = ?'); params.push(digital_warranty_code === '' || digital_warranty_code === null ? null : String(digital_warranty_code).trim()); }
+        if (digital_warranty_collection !== undefined) { updates.push('digital_warranty_collection = ?'); params.push(digital_warranty_collection === '' || digital_warranty_collection === null ? null : String(digital_warranty_collection).trim()); }
+        if (season_code !== undefined) { updates.push('season_code = ?'); params.push(season_code === '' || season_code === null ? null : String(season_code).trim()); }
+
+        if (updates.length === 0) {
+            await connection.end();
+            return res.status(400).json({ success: false, message: '수정할 메타 필드가 없습니다.' });
+        }
+        params.push(optId);
+        await connection.execute(
+            `UPDATE product_options SET ${updates.join(', ')} WHERE option_id = ?`,
+            params
+        );
+        const [updated] = await connection.execute(
+            'SELECT option_id, product_id, color, size, rot_code, warranty_bottom_prefix, serial_prefix, digital_warranty_code, digital_warranty_collection, season_code FROM product_options WHERE option_id = ?',
+            [optId]
+        );
+        await connection.end();
+
+        Logger.log('[ADMIN_OPTIONS_META] 옵션 메타 수정', { optionId: optId, userId: req.user?.user_id });
+        res.json({
+            success: true,
+            option: updated[0],
+            message: '옵션 메타가 저장되었습니다.'
+        });
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.error('[ADMIN_OPTIONS_META] 실패', { optionId: req.params.optionId, error: error.message });
+        res.status(500).json({ success: false, message: '옵션 메타 저장에 실패했습니다.' });
     }
 });
 

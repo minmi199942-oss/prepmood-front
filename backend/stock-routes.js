@@ -231,7 +231,7 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
         // 상품 정보 조회 (short_name도 포함)
         const [products] = await connection.execute(
             'SELECT id, name, short_name FROM admin_products WHERE id = ? LIMIT 1',
-            [productId]
+            [canonicalId]
         );
 
         if (products.length === 0) {
@@ -242,151 +242,84 @@ router.get('/admin/stock/products/:productId/tokens', authenticateToken, require
             });
         }
 
-        // === normalizeColor 함수 정의 (재고 추가 로직과 동일) ===
-        function normalizeColor(color) {
-            if (!color) return null;
-            const normalized = String(color).trim();
-            if (!normalized) return null;
-            
-            const upper = normalized.toUpperCase();
-            
-            if (upper === 'LIGHTBLUE' || 
-                /^LightBlue$/i.test(normalized) || 
-                /^Light-Blue$/i.test(normalized) || 
-                upper === 'LB') {
-                return 'Light Blue';
-            }
-            if (upper === 'LIGHTGREY' || 
-                /^LightGrey$/i.test(normalized) || 
-                /^Light-Grey$/i.test(normalized) || 
-                upper === 'LG' || upper === 'LGY') {
-                return 'Light Grey';
-            }
-            if (upper === 'BK') return 'Black';
-            if (upper === 'NV') return 'Navy';
-            if (upper === 'WH' || upper === 'WT') return 'White';
-            if (upper === 'GY') return 'Grey';
-            if (upper === 'GRAY') return 'Grey';
-            
-            return normalized;
+        // size/color 필터: product_options JOIN 기반 (§3.2.3). 정규화된 값 사용
+        function normalizeColorForOptions(c) {
+            if (!c) return '';
+            const n = String(c).trim();
+            if (!n) return '';
+            const u = n.toUpperCase();
+            if (u === 'LIGHTBLUE' || /^LightBlue$/i.test(n) || /^Light-Blue$/i.test(n) || u === 'LB') return 'Light Blue';
+            if (u === 'LIGHTGREY' || /^LightGrey$/i.test(n) || /^Light-Grey$/i.test(n) || u === 'LG' || u === 'LGY') return 'Light Grey';
+            if (u === 'BK') return 'Black';
+            if (u === 'NV') return 'Navy';
+            if (u === 'WH' || u === 'WT') return 'White';
+            if (u === 'GY' || u === 'GRAY') return 'Grey';
+            return n;
         }
+        const sizeNorm = (size && typeof size === 'string') ? size.trim() : '';
+        const colorNorm = (color && typeof color === 'string') ? normalizeColorForOptions(color) : '';
+        const hasFilter = sizeNorm !== '' || colorNorm !== '';
 
-        // === serial_number에서 size, color 추출하는 함수 ===
-        function extractSizeColor(serialNumber) {
-            if (!serialNumber) return { size: null, color: null };
-            
-            // size 추출: -S-, -M-, -L-, -XL-, -XXL-, -F-
-            let extractedSize = null;
-            const sizePatterns = [
-                { pattern: /-S-[0-9]/, value: 'S' },
-                { pattern: /-M-[0-9]/, value: 'M' },
-                { pattern: /-L-[0-9]/, value: 'L' },
-                { pattern: /-XL-[0-9]/, value: 'XL' },
-                { pattern: /-XXL-[0-9]/, value: 'XXL' },
-                { pattern: /-F-[0-9]|-[0-9]+-F/, value: 'F' }
-            ];
-            for (const { pattern, value } of sizePatterns) {
-                if (pattern.test(serialNumber)) {
-                    extractedSize = value;
-                    break;
-                }
+        let allTokens;
+        if (hasFilter) {
+            // size/color 필터 있음: INNER JOIN product_options → option_id NULL 토큰 제외
+            const params = [canonicalId, canonicalId, canonicalId];
+            const conditions = ['po.product_id = ?', 'tm.product_id = ?', 'tm.token_pk NOT IN (SELECT COALESCE(su.token_pk, 0) FROM stock_units su WHERE su.product_id = ?)'];
+            if (sizeNorm !== '') {
+                conditions.push('po.size = ?');
+                params.push(sizeNorm);
             }
-            
-            // color 추출: -LightBlue-, -Black-, -Navy-, -White-, -Grey-
-            let extractedColor = null;
-            const colorPatterns = [
-                { pattern: /-(LightBlue|Light-Blue|LB)-/i, value: 'Light Blue' },
-                { pattern: /-(Black|BK)-/i, value: 'Black' },
-                { pattern: /-(Navy|NV)-/i, value: 'Navy' },
-                { pattern: /-(White|WH|WT)-/i, value: 'White' },
-                { pattern: /-(Grey|GY|Gray)-/i, value: 'Grey' },
-                { pattern: /-(LightGrey|Light-Grey|LGY)-/i, value: 'Light Grey' }
-            ];
-            for (const { pattern, value } of colorPatterns) {
-                if (pattern.test(serialNumber)) {
-                    extractedColor = value;
-                    break;
-                }
+            if (colorNorm !== '') {
+                conditions.push('po.color = ?');
+                params.push(colorNorm);
             }
-            
-            return { size: extractedSize, color: extractedColor };
-        }
-
-        // token_master 조회 (모든 토큰)
-        const [allTokens] = await connection.execute(
-            `SELECT 
-                tm.token_pk,
-                tm.token,
-                tm.internal_code,
-                tm.serial_number,
-                tm.product_name
-            FROM token_master tm
-            WHERE tm.product_id = ?
-              AND tm.token_pk NOT IN (
-                  SELECT COALESCE(token_pk, 0) FROM stock_units 
-                  WHERE product_id = ?
-              )
-            ORDER BY tm.token_pk
-            LIMIT 100`,
-            [productId, productId]
-        );
-
-        // size/color 필터링 적용
-        let filteredTokens = allTokens;
-        
-        if (size || color) {
-            // 정규화된 필터 값
-            const normalizedSize = size ? size.trim() : null;
-            const normalizedColor = color ? normalizeColor(color) : null;
-            
-            filteredTokens = allTokens.filter(token => {
-                const extracted = extractSizeColor(token.serial_number);
-                const tokenSize = extracted.size;
-                const tokenColor = extracted.color;
-                
-                // size 필터링
-                if (normalizedSize) {
-                    if (tokenSize !== normalizedSize) {
-                        return false;
-                    }
-                }
-                
-                // color 필터링
-                if (normalizedColor) {
-                    if (tokenColor !== normalizedColor) {
-                        return false;
-                    }
-                }
-                
-                return true;
-            });
+            const [rows] = await connection.execute(
+                `SELECT tm.token_pk, tm.token, tm.internal_code, tm.serial_number, tm.product_name
+                 FROM token_master tm
+                 INNER JOIN product_options po ON tm.option_id = po.option_id
+                 WHERE ${conditions.join(' AND ')}
+                 ORDER BY tm.token_pk
+                 LIMIT 100`,
+                params
+            );
+            allTokens = rows;
+        } else {
+            // 필터 없음: product_id 기준, option_id NULL 포함 (LEFT JOIN 없이 단순 조회)
+            const [rows] = await connection.execute(
+                `SELECT tm.token_pk, tm.token, tm.internal_code, tm.serial_number, tm.product_name
+                 FROM token_master tm
+                 WHERE tm.product_id = ?
+                   AND tm.token_pk NOT IN (SELECT COALESCE(su.token_pk, 0) FROM stock_units su WHERE su.product_id = ?)
+                 ORDER BY tm.token_pk
+                 LIMIT 100`,
+                [canonicalId, canonicalId]
+            );
+            allTokens = rows;
         }
 
         await connection.end();
 
         const product = products[0];
-        
         res.json({
             success: true,
             product: {
                 id: product.id,
                 name: product.name,
-                short_name: product.short_name // 프론트엔드 매칭용
+                short_name: product.short_name
             },
-            tokens: filteredTokens.map(t => ({
+            tokens: allTokens.map(t => ({
                 token_pk: t.token_pk,
-                token: maskToken(t.token), // 마스킹 처리
-                token_full: t.token, // 전체 토큰
+                token: maskToken(t.token),
+                token_full: t.token,
                 internal_code: t.internal_code,
                 serial_number: t.serial_number,
-                product_name: t.product_name // 확인 UX용
+                product_name: t.product_name
             })),
-            // 필터링 정보 (디버깅용)
             filter: {
                 size: size || null,
                 color: color || null,
                 total_count: allTokens.length,
-                filtered_count: filteredTokens.length
+                filtered_count: allTokens.length
             }
         });
 

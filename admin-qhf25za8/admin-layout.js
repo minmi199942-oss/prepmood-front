@@ -13,6 +13,7 @@ const API_BASE = '/api';
 // 네비게이션 메뉴 구조
 const NAV_MENU = [
   { id: 'products', label: '상품 관리', href: 'products.html' },
+  { id: 'tokens', label: '토큰 관리', href: 'tokens.html' },
   { id: 'stock', label: '재고 관리', href: 'stock.html' },
   { id: 'orders', label: '주문 관리', href: 'orders.html' },
   { id: 'warranties', label: '보증서 관리', href: 'warranties.html' },
