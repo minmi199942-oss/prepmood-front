@@ -1006,6 +1006,40 @@
   border-bottom: none;
 }
 
+/* 브랜드 소식 수신 동의(선택) 섹션 */
+.profile-section-consent .profile-item-consent {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.profile-section-consent .consent-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: clamp(0.85rem, 1.8vw, 0.95rem);
+  color: #111;
+}
+
+.profile-section-consent .consent-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #BF8F00;
+  cursor: pointer;
+}
+
+.profile-section-consent .consent-text .optional {
+  color: #808080;
+  font-size: 0.9em;
+}
+
+.profile-section-consent .consent-note {
+  margin: 8px 0 0 28px;
+  font-size: clamp(0.75rem, 1.6vw, 0.85rem);
+  color: #808080;
+  line-height: 1.5;
+}
+
 .section-header {
   display: flex;
   justify-content: space-between;

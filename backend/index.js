@@ -1045,6 +1045,43 @@ app.post('/api/update-profile', [
     }
 });
 
+// 마케팅 수신 동의(선택) 업데이트 API - 내 프로필에서 체크 해제/설정 시 DB 반영
+app.patch('/api/profile/marketing-consent', authenticateToken, [
+    body('marketing_consent').optional().isBoolean().withMessage('marketing_consent는 true/false여야 합니다.')
+], async (req, res) => {
+    try {
+        const raw = req.body.marketing_consent;
+        const marketingConsent = raw === true || raw === 'true';
+        const userId = req.user.userId;
+
+        const connection = await mysql.createConnection(dbConfig);
+        const [result] = await connection.execute(
+            'UPDATE users SET marketing_consent = ? WHERE user_id = ?',
+            [marketingConsent ? 1 : 0, userId]
+        );
+        await connection.end();
+
+        if (result.affectedRows !== 1) {
+            return res.status(404).json({
+                success: false,
+                message: '사용자를 찾을 수 없습니다.'
+            });
+        }
+
+        res.json({
+            success: true,
+            marketingConsent,
+            message: marketingConsent ? '브랜드 소식 수신에 동의하셨습니다.' : '브랜드 소식 수신 동의를 해제했습니다.'
+        });
+    } catch (error) {
+        console.error('마케팅 수신 동의 업데이트 오류:', error);
+        res.status(500).json({
+            success: false,
+            message: '설정 저장 중 오류가 발생했습니다.'
+        });
+    }
+});
+
 // ==================== 위시리스트 API ====================
 
 // 위시리스트 토글 API (추가/삭제)
@@ -1182,7 +1219,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         // 사용자 상세 정보 조회
         const connection = await mysql.createConnection(dbConfig);
         const [users] = await connection.execute(
-            'SELECT user_id, membership_id, email, name, phone FROM users WHERE user_id = ?',
+            'SELECT user_id, membership_id, email, name, phone, marketing_consent FROM users WHERE user_id = ?',
             [req.user.userId]
         );
         connection.end();
@@ -1202,7 +1239,8 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
                 membership_id: user.membership_id || null,
                 email: user.email,
                 name: user.name || '',
-                phone: user.phone || null
+                phone: user.phone || null,
+                marketingConsent: user.marketing_consent === 1
             }
         });
     } catch (error) {

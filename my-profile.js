@@ -95,6 +95,12 @@ async function displayUserInfo() {
             // 사용자 정보가 없는 경우, 기본값으로 "정보 없음" 표시
             document.getElementById('user-region').textContent = user.region || '정보 없음';
             document.getElementById('user-phone').textContent = user.phone || '정보 없음';
+
+            // 브랜드 소식 수신 동의(선택) 체크박스 초기값
+            const marketingCheckbox = document.getElementById('marketing-consent-checkbox');
+            if (marketingCheckbox) {
+                marketingCheckbox.checked = user.marketingConsent === true;
+            }
         }
     } catch (error) {
         console.error('사용자 정보 로드 오류:', error);
@@ -112,11 +118,45 @@ function initializeEventListeners() {
         });
     });
 
+    // 브랜드 소식 수신 동의(선택) 체크박스 변경 시 DB 저장
+    const marketingCheckbox = document.getElementById('marketing-consent-checkbox');
+    if (marketingCheckbox) {
+        marketingCheckbox.addEventListener('change', handleMarketingConsentChange);
+    }
+
     // 사이드바 열기 이벤트
     initializeSidebarEvents();
     
     // 폼 제출 이벤트
     initializeFormEvents();
+}
+
+// 브랜드 소식 수신 동의(선택) 체크 해제/설정 시 API 호출하여 DB 반영
+async function handleMarketingConsentChange() {
+    const checkbox = document.getElementById('marketing-consent-checkbox');
+    if (!checkbox) return;
+
+    const checked = checkbox.checked;
+    try {
+        const response = await fetch(`${API_BASE}/profile/marketing-consent`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ marketing_consent: checked })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message || (checked ? '브랜드 소식 수신에 동의하셨습니다.' : '브랜드 소식 수신 동의를 해제했습니다.'));
+        } else {
+            checkbox.checked = !checked; // 실패 시 체크 상태 복원
+            showNotification(data.message || '설정 저장에 실패했습니다.');
+        }
+    } catch (error) {
+        console.error('마케팅 수신 동의 저장 오류:', error);
+        checkbox.checked = !checked; // 실패 시 체크 상태 복원
+        showNotification('설정 저장 중 오류가 발생했습니다.');
+    }
 }
 
 // 수정 버튼 클릭 처리
