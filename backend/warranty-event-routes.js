@@ -460,13 +460,15 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
             if (units.length > 0) {
                 const unit = units[0];
                 
-                // stock_units 정보
+                // stock_units 정보 (serial_number, rot_code, warranty_bottom_code는 token_master에 있음)
                 let stockUnit = null;
                 if (unit.stock_unit_id) {
                     const [stocks] = await connection.execute(
-                        `SELECT stock_unit_id, serial_number, rot_code, warranty_bottom_code, status
-                         FROM stock_units
-                         WHERE stock_unit_id = ?`,
+                        `SELECT su.stock_unit_id, su.status, su.token_pk,
+                                tm.serial_number, tm.rot_code, tm.warranty_bottom_code
+                         FROM stock_units su
+                         LEFT JOIN token_master tm ON su.token_pk = tm.token_pk
+                         WHERE su.stock_unit_id = ?`,
                         [unit.stock_unit_id]
                     );
                     if (stocks.length > 0) {
