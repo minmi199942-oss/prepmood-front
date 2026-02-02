@@ -11,6 +11,88 @@
     <link rel="stylesheet" href="assets/css/page.css">
     <link rel="stylesheet" href="assets/css/responsive.css">
     <link rel="stylesheet" href="assets/css/register.css">
+    <style>
+        .consent-item-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0 4px;
+            font-size: clamp(11px, 2.5vw, 13px);
+        }
+        .consent-item-row .consent-checkbox { margin-bottom: 0; }
+        .consent-fullview-btn {
+            flex-shrink: 0;
+            margin-left: 0;
+            padding: 0;
+            border: none;
+            background: none;
+            font-size: 0.85em;
+            font-weight: 400;
+            cursor: pointer;
+            color: #BF8F00;
+            text-decoration: underline;
+        }
+        .consent-fullview-btn:hover { opacity: 0.85; }
+        .consent-fullview-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .consent-fullview-overlay.is-open { display: flex !important; }
+        .consent-fullview-modal {
+            background: #fff;
+            border-radius: 8px;
+            max-width: 90vw;
+            max-height: 85vh;
+            width: 900px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .consent-fullview-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+        }
+        .consent-fullview-modal-header h2 { margin: 0; font-size: 1.1rem; }
+        .consent-fullview-close {
+            padding: 4px 12px;
+            border: none;
+            background: #333;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .consent-fullview-close:hover { background: #555; }
+        .consent-fullview-body {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            min-height: 0;
+        }
+        .consent-fullview-body .legal-content,
+        .consent-fullview-body .privacy-content {
+            max-width: 100%;
+            padding: 0;
+            box-shadow: none;
+        }
+        .consent-fullview-body h1 { font-size: 1.5rem; margin: 0 0 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #eee; }
+        .consent-fullview-body h2 { font-size: 1.2rem; margin: 1.25rem 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #eee; }
+        .consent-fullview-body h3 { font-size: 1rem; margin: 1rem 0 0.35rem; }
+        .consent-fullview-body p, .consent-fullview-body ul { margin: 0 0 0.75rem; line-height: 1.5; }
+        .consent-fullview-body .legal-section,
+        .consent-fullview-body .privacy-section { margin-bottom: 1.5rem; }
+        .consent-fullview-body .highlight { font-weight: 600; }
+    </style>
 </head>
 <body>
     <!-- 헤더 로드 -->
@@ -91,23 +173,29 @@
 
                     <!-- 개인정보 동의 섹션 (UI 3개: 이용약관, 개인정보 처리방침, 브랜드 소식 수신) -->
                     <div class="consent-section">
-                        <!-- 이용약관 동의 (필수) -->
+                        <!-- 이용약관 동의 (필수) - (전문보기)는 label 밖에 두어 클릭 시 체크박스 안 눌리게 -->
                         <div class="consent-item">
-                            <label class="consent-checkbox">
-                                <input type="checkbox" id="termsConsent" required>
-                                <span class="checkmark"></span>
-                                <span class="consent-text">이용약관에 동의합니다.<span class="required-badge">(필수)</span></span>
-                            </label>
+                            <div class="consent-item-row">
+                                <label class="consent-checkbox">
+                                    <input type="checkbox" id="termsConsent" required>
+                                    <span class="checkmark"></span>
+                                    <span class="consent-text">이용약관에 동의합니다.<span class="required-badge">(필수)</span></span>
+                                </label>
+                                <span role="button" tabindex="0" class="consent-fullview-btn" data-src="legal.html" aria-label="이용약관 전문보기">(전문보기)</span>
+                            </div>
                             <div class="error-message" id="termsConsentError"></div>
                         </div>
 
                         <!-- 개인정보 처리방침 동의 (필수) -->
                         <div class="consent-item">
-                            <label class="consent-checkbox">
-                                <input type="checkbox" id="privacyPolicyConsent" required>
-                                <span class="checkmark"></span>
-                                <span class="consent-text">개인정보 처리방침에 동의합니다.<span class="required-badge">(필수)</span></span>
-                            </label>
+                            <div class="consent-item-row">
+                                <label class="consent-checkbox">
+                                    <input type="checkbox" id="privacyPolicyConsent" required>
+                                    <span class="checkmark"></span>
+                                    <span class="consent-text">개인정보 처리방침에 동의합니다.<span class="required-badge">(필수)</span></span>
+                                </label>
+                                <span role="button" tabindex="0" class="consent-fullview-btn" data-src="privacy.html" aria-label="개인정보 처리방침 전문보기">(전문보기)</span>
+                            </div>
                             <div class="error-message" id="privacyPolicyConsentError"></div>
                         </div>
 
@@ -116,13 +204,8 @@
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="marketingConsent">
                                 <span class="checkmark"></span>
-                                <span class="consent-text">브랜드 소식 및 컬렉션 안내 수신에 동의합니다.<span class="optional">(선택)</span><button type="button" class="consent-toggle" aria-expanded="false" data-target="marketingConsentFull">(전문보기)</button></span>
+                                <span class="consent-text">브랜드 소식 및 컬렉션 안내 수신에 동의합니다.<span class="optional">(선택)</span></span>
                             </label>
-                            <div class="consent-full-text" id="marketingConsentFull" hidden>
-                                <p class="consent-description">
-                                    이후 '프레피무드' 및 제3자의 프레피무드 관련 제품 및 서비스에 대한 프로모션 이메일, SMS, 마케팅 및 이벤트 알림을 받으시려면 아래의 개인정보를 제공받아 사용하시기 바랍니다.
-                                </p>
-                            </div>
                         </div>
                     </div>
 
@@ -137,6 +220,17 @@
             </div>
         </div>
     </main>
+
+    <!-- 전문보기 팝업 (스크립트보다 앞에 두어 DOM 확보) -->
+    <div id="consentFullviewOverlay" class="consent-fullview-overlay" aria-hidden="true">
+        <div class="consent-fullview-modal">
+            <div class="consent-fullview-modal-header">
+                <h2 id="consentFullviewTitle">전문보기</h2>
+                <button type="button" class="consent-fullview-close" id="consentFullviewClose">닫기</button>
+            </div>
+            <div id="consentFullviewContent" class="consent-fullview-body" aria-live="polite"></div>
+        </div>
+    </div>
 
     <script src="utils.js"></script>
     <script src="header-loader.js"></script>
@@ -774,24 +868,66 @@
             }
         }
 
-        // DOM 로드 후 초기화
-        document.addEventListener('DOMContentLoaded', () => {
-            new RegisterForm();
+        // (전문보기) 팝업: DOM과 무관하게 먼저 등록 (이벤트 위임)
+        (function initConsentFullview() {
+            var overlay = document.getElementById('consentFullviewOverlay');
+            var contentEl = document.getElementById('consentFullviewContent');
+            var titleEl = document.getElementById('consentFullviewTitle');
+            var closeBtn = document.getElementById('consentFullviewClose');
+            var titles = { 'legal.html': '이용약관', 'privacy.html': '개인정보 처리방침' };
+            var selectors = { 'legal.html': 'main.legal-content', 'privacy.html': 'main.privacy-content' };
 
-            // (전문보기) 클릭 시 전문 접기/펼치기
-            document.querySelectorAll('.consent-toggle').forEach((btn) => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const id = btn.getAttribute('data-target');
-                    const block = id ? document.getElementById(id) : null;
-                    if (!block) return;
-                    const isOpen = !block.hidden;
-                    block.hidden = isOpen;
-                    btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
-                    btn.textContent = isOpen ? '(전문보기)' : '(접기)';
-                });
+            function openConsentFullview(src) {
+                if (!overlay || !contentEl || !src) return;
+                if (titleEl) titleEl.textContent = titles[src] || '전문보기';
+                overlay.classList.add('is-open');
+                overlay.setAttribute('aria-hidden', 'false');
+                contentEl.innerHTML = '<p style="padding:1rem;color:#666;">로딩 중...</p>';
+                var url = new URL(src, window.location.href).href;
+                fetch(url)
+                    .then(function(r) { return r.text(); })
+                    .then(function(html) {
+                        var parser = new DOMParser();
+                        var doc = parser.parseFromString(html, 'text/html');
+                        var main = doc.querySelector(selectors[src] || 'main');
+                        contentEl.innerHTML = main ? main.outerHTML : '<p>내용을 불러올 수 없습니다.</p>';
+                    })
+                    .catch(function() {
+                        contentEl.innerHTML = '<p style="padding:1rem;color:#c00;">내용을 불러오는 중 오류가 발생했습니다.</p>';
+                    });
+            }
+            function closeConsentFullview() {
+                if (!overlay || !contentEl) return;
+                overlay.classList.remove('is-open');
+                overlay.setAttribute('aria-hidden', 'true');
+                contentEl.innerHTML = '';
+            }
+
+            document.body.addEventListener('click', function(e) {
+                var btn = e.target && e.target.closest && e.target.closest('.consent-fullview-btn');
+                if (!btn) return;
+                e.preventDefault();
+                e.stopPropagation();
+                openConsentFullview(btn.getAttribute('data-src'));
             });
+            document.body.addEventListener('keydown', function(e) {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                var btn = e.target && e.target.closest && e.target.closest('.consent-fullview-btn');
+                if (!btn) return;
+                e.preventDefault();
+                e.stopPropagation();
+                openConsentFullview(btn.getAttribute('data-src'));
+            });
+            var modalEl = document.querySelector('.consent-fullview-modal');
+            if (modalEl) modalEl.addEventListener('click', function(e) { e.stopPropagation(); });
+            if (closeBtn) closeBtn.addEventListener('click', closeConsentFullview);
+            if (overlay) overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeConsentFullview();
+            });
+        })();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            new RegisterForm();
         });
     </script>
   <!-- 푸터 로드 -->
