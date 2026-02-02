@@ -166,13 +166,10 @@ router.post('/admin/warranties/:id/events', authenticateToken, requireAdmin, asy
                 ]
             );
 
-            // 4. warranties 업데이트
+            // 4. warranties 업데이트 (warranties 테이블에는 updated_at 컬럼 없음)
             if (type === 'status_change' || type === 'suspend' || type === 'unsuspend' || type === 'revoke') {
                 await connection.execute(
-                    `UPDATE warranties 
-                     SET status = ?, 
-                         updated_at = NOW()
-                     WHERE id = ?`,
+                    `UPDATE warranties SET status = ? WHERE id = ?`,
                     [newValue.status, id]
                 );
 
@@ -188,10 +185,7 @@ router.post('/admin/warranties/:id/events', authenticateToken, requireAdmin, asy
 
             if (type === 'owner_change') {
                 await connection.execute(
-                    `UPDATE warranties 
-                     SET owner_user_id = ?, 
-                         updated_at = NOW() 
-                     WHERE id = ?`,
+                    `UPDATE warranties SET owner_user_id = ? WHERE id = ?`,
                     [newValue.owner_user_id, id]
                 );
             }
@@ -312,22 +306,25 @@ router.get('/admin/warranties/search', authenticateToken, requireAdmin, async (r
 
         await connection.end();
 
-        // 소유자 정보 조회
+        // 소유자 정보 조회 (중복 제거한 owner_user_id로 IN 조회)
         const warrantyIds = warranties.map(w => w.id);
         if (warrantyIds.length > 0) {
-            connection = await mysql.createConnection(dbConfig);
-            const placeholders = warrantyIds.map(() => '?').join(',');
-            const [owners] = await connection.execute(
-                `SELECT user_id, email, name FROM users WHERE user_id IN (${placeholders})`,
-                warrantyIds.map(w => warranties.find(wa => wa.id === w)?.owner_user_id).filter(Boolean)
-            );
-            await connection.end();
+            const ownerIds = [...new Set(warranties.map(w => w.owner_user_id).filter(Boolean))];
+            if (ownerIds.length > 0) {
+                connection = await mysql.createConnection(dbConfig);
+                const placeholders = ownerIds.map(() => '?').join(',');
+                const [owners] = await connection.execute(
+                    `SELECT user_id, email, name FROM users WHERE user_id IN (${placeholders})`,
+                    ownerIds
+                );
+                await connection.end();
 
-            const ownerMap = new Map(owners.map(o => [o.user_id, o]));
-            warranties = warranties.map(w => ({
-                ...w,
-                owner: w.owner_user_id ? ownerMap.get(w.owner_user_id) || null : null
-            }));
+                const ownerMap = new Map(owners.map(o => [o.user_id, o]));
+                warranties = warranties.map(w => ({
+                    ...w,
+                    owner: w.owner_user_id ? ownerMap.get(w.owner_user_id) || null : null
+                }));
+            }
         }
 
         res.json({
@@ -431,7 +428,7 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
             }
         }
 
-        // 3. 소유자 변경 이력 조회
+        // 3. 소유자 변경 이력 조회 (ownership_transferred는 마이그레이션 081 적용 시 enum에 있음)
         const [ownerEvents] = await connection.execute(
             `SELECT event_id, event_type, old_value, new_value, changed_by, changed_by_id, reason, created_at
              FROM warranty_events
@@ -447,8 +444,8 @@ router.get('/admin/warranties/:id', authenticateToken, requireAdmin, async (req,
             const [units] = await connection.execute(
                 `SELECT oiu.order_item_unit_id, oiu.order_item_id, oiu.order_id, oiu.stock_unit_id,
                         oiu.unit_status,
-                        oi.product_name, oi.quantity, oi.price,
-                        o.order_number, o.order_date, o.status as order_status, 
+                        oi.product_name, oi.quantity, oi.unit_price AS price,
+                        o.order_number, o.order_date, o.status as order_status,
                         o.user_id as order_user_id, o.guest_id as order_guest_id
                  FROM order_item_units oiu
                  JOIN order_items oi ON oiu.order_item_id = oi.order_item_id
