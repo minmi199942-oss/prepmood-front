@@ -203,7 +203,7 @@ router.get('/api/admin/qrcode/download', authenticateToken, requireAdmin, adminD
         });
 
         const [rows] = await connection.execute(
-            `SELECT tm.internal_code
+            `SELECT tm.internal_code, tm.serial_number
              FROM warranties w
              INNER JOIN token_master tm ON w.token_pk = tm.token_pk
              WHERE w.public_id = ? AND w.deleted_at IS NULL`,
@@ -220,6 +220,7 @@ router.get('/api/admin/qrcode/download', authenticateToken, requireAdmin, adminD
         }
 
         const internalCode = rows[0].internal_code;
+        const serialNumber = rows[0].serial_number;
         if (!internalCode || /[\\/]/.test(internalCode)) {
             return res.status(500).json({
                 success: false,
@@ -235,7 +236,9 @@ router.get('/api/admin/qrcode/download', authenticateToken, requireAdmin, adminD
             });
         }
 
-        const safeName = `${internalCode}.png`;
+        // 다운로드 파일명: 시리얼 번호가 있으면 사용(식별 용이), 없으면 internal_code
+        const rawName = (serialNumber && String(serialNumber).trim()) ? String(serialNumber).trim() : internalCode;
+        const safeName = `${rawName.replace(/[\\/:*?"<>|]/g, '_').slice(0, 120) || internalCode}.png`;
         res.setHeader('Content-Type', 'image/png');
         res.setHeader('Content-Disposition', `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`);
         res.sendFile(path.resolve(filePath));
@@ -243,6 +246,7 @@ router.get('/api/admin/qrcode/download', authenticateToken, requireAdmin, adminD
         Logger.log('[QR-DOWNLOAD-SINGLE] 단일 QR 다운로드', {
             public_id: publicId,
             internal_code: internalCode,
+            download_filename: safeName,
             admin_email: req.user?.email
         });
     } catch (error) {

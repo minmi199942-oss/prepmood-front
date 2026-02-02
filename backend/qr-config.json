@@ -1,13 +1,13 @@
 {
   "default": {
-    "width": 400,
-    "margin": 4,
-    "errorCorrectionLevel": "H",
+    "width": 200,
+    "margin": 2,
+    "errorCorrectionLevel": "M",
     "color": {
       "dark": "#000000",
       "light": "#FFFFFF"
     },
-    "description": "기본 설정 (400x400, 얇은 여백)"
+    "description": "Small 사이즈 (200x200, 얇은 여백)"
   },
   "samples": {
     "small": {
