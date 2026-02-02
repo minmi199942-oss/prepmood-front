@@ -89,55 +89,40 @@
                         <div class="error-message" id="confirmPasswordError"></div>
                     </div>
 
-                    <!-- 개인정보 동의 섹션-->
+                    <!-- 개인정보 동의 섹션 (UI 3개: 이용약관, 개인정보 처리방침, 브랜드 소식 수신) -->
                     <div class="consent-section">
-                        <!-- 개인정보 수집 및 이용 동의 (필수) -->
+                        <!-- 이용약관 동의 (필수) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
-                                <input type="checkbox" id="privacyConsent" required>
+                                <input type="checkbox" id="termsConsent" required>
                                 <span class="checkmark"></span>
-                                <span class="consent-text">개인정보 수집 및 이용 동의<span class="required-badge">(필수)</span><button type="button" class="consent-toggle" aria-expanded="false" data-target="privacyConsentFull">(전문보기)</button></span>
+                                <span class="consent-text">이용약관에 동의합니다.<span class="required-badge">(필수)</span></span>
                             </label>
-                            <div class="consent-full-text" id="privacyConsentFull" hidden>
-                                <p class="consent-description">
-                                    회원은 개인정보 수집 및 이용에 동의하며, 프레피무드가 회원의 개인정보를 처리할 수 있도록 설정합니다
-                                </p>
-                            </div>
-                            <div class="error-message" id="privacyConsentError"></div>
+                            <div class="error-message" id="termsConsentError"></div>
                         </div>
 
-                        <!-- 마케팅 정보 수신 동의 (선택) -->
+                        <!-- 개인정보 처리방침 동의 (필수) -->
+                        <div class="consent-item">
+                            <label class="consent-checkbox">
+                                <input type="checkbox" id="privacyPolicyConsent" required>
+                                <span class="checkmark"></span>
+                                <span class="consent-text">개인정보 처리방침에 동의합니다.<span class="required-badge">(필수)</span></span>
+                            </label>
+                            <div class="error-message" id="privacyPolicyConsentError"></div>
+                        </div>
+
+                        <!-- 브랜드 소식 및 컬렉션 안내 수신 (선택) -->
                         <div class="consent-item">
                             <label class="consent-checkbox">
                                 <input type="checkbox" id="marketingConsent">
                                 <span class="checkmark"></span>
-                                <span class="consent-text">마케팅 정보 수신 동의 <span class="optional">(선택)</span><button type="button" class="consent-toggle" aria-expanded="false" data-target="marketingConsentFull">(전문보기)</button></span>
+                                <span class="consent-text">브랜드 소식 및 컬렉션 안내 수신에 동의합니다.<span class="optional">(선택)</span><button type="button" class="consent-toggle" aria-expanded="false" data-target="marketingConsentFull">(전문보기)</button></span>
                             </label>
                             <div class="consent-full-text" id="marketingConsentFull" hidden>
                                 <p class="consent-description">
                                     이후 '프레피무드' 및 제3자의 프레피무드 관련 제품 및 서비스에 대한 프로모션 이메일, SMS, 마케팅 및 이벤트 알림을 받으시려면 아래의 개인정보를 제공받아 사용하시기 바랍니다.
                                 </p>
                             </div>
-                        </div>
-
-                        <!-- 이용약관 동의 (필수) -->
-                        <div class="consent-item">
-                            <label class="consent-checkbox">
-                                <input type="checkbox" id="termsConsent" required>
-                                <span class="checkmark"></span>
-                                <span class="consent-text">이용약관에 동의합니다<span class="required-badge">(필수)</span></span>
-                            </label>
-                            <div class="error-message" id="termsConsentError"></div>
-                        </div>
-
-                        <!-- 개인정보 처리 방침 동의 (필수) -->
-                        <div class="consent-item">
-                            <label class="consent-checkbox">
-                                <input type="checkbox" id="privacyPolicyConsent" required>
-                                <span class="checkmark"></span>
-                                <span class="consent-text">개인정보 처리 방침에 동의합니다<span class="required-badge">(필수)</span></span>
-                            </label>
-                            <div class="error-message" id="privacyPolicyConsentError"></div>
                         </div>
                     </div>
 
@@ -163,6 +148,7 @@
             : ((window.location && window.location.origin)
                 ? window.location.origin.replace(/\/$/, '') + '/api'
                 : '/api');
+        const Logger = window.Logger || console;
 
         // 통합 회원가입 폼 처리 (한 페이지)
         class RegisterForm {
@@ -274,11 +260,6 @@
                 });
                 
                 // ⚠️ 개인정보 동의 체크박스 이벤트 리스너 (에러 메시지 표시 안 함, 버튼 활성화만 체크)
-                document.getElementById('privacyConsent').addEventListener('change', () => {
-                    this.touchedFields.add('privacyConsent');
-                    // 체크박스는 사용 중 에러 메시지 표시 안 함
-                    this.updateRegisterButton();
-                });
                 document.getElementById('termsConsent').addEventListener('change', () => {
                     this.touchedFields.add('termsConsent');
                     // 체크박스는 사용 중 에러 메시지 표시 안 함
@@ -501,10 +482,14 @@
                 const name = document.getElementById('name').value;
                 const countryCode = document.getElementById('countryCode').value;
                 const phone = document.getElementById('phone').value;
-                const privacyConsent = document.getElementById('privacyConsent').checked;
                 const marketingConsent = document.getElementById('marketingConsent').checked;
                 const termsConsent = document.getElementById('termsConsent').checked;
                 const privacyPolicyConsent = document.getElementById('privacyPolicyConsent').checked;
+                // A안: 개인정보 처리방침 동의 시 privacy_consent도 동일값으로 전송 (백엔드 필수 검증 충족)
+                // 백엔드 equals('true') 검증 통과를 위해 문자열 'true'/'false'로 전송
+                const privacyPolicyConsentStr = privacyPolicyConsent ? 'true' : 'false';
+                const marketingConsentStr = marketingConsent ? 'true' : 'false';
+                const termsConsentStr = termsConsent ? 'true' : 'false';
 
                 // 전화번호는 국가코드와 함께 전송
                 const phoneValue = phone ? `${countryCode}${phone.replace(/[^0-9]/g, '')}` : '';
@@ -514,10 +499,10 @@
                     password,
                     name,
                     phone: phoneValue,
-                    privacy_consent: privacyConsent,
-                    marketing_consent: marketingConsent,
-                    terms_consent: termsConsent,
-                    privacy_policy_consent: privacyPolicyConsent
+                    privacy_consent: privacyPolicyConsentStr,
+                    marketing_consent: marketingConsentStr,
+                    terms_consent: termsConsentStr,
+                    privacy_policy_consent: privacyPolicyConsentStr
                 };
             }
 
@@ -676,33 +661,17 @@
             }
 
             validateAll(showErrors = true) {
-                // ⚠️ submit 시에만 모든 필드 검증 및 에러 표시
+                // ⚠️ submit 시에만 모든 필드 검증 및 에러 표시 (동의 UI 3개: terms, privacy_policy, marketing)
                 const emailValid = this.validateEmail(showErrors);
                 const codeValid = this.emailVerified || this.validateVerificationCode(showErrors);
                 const nameValid = this.validateName(showErrors);
                 const phoneValid = this.validatePhone(showErrors);
                 const passwordValid = this.validatePassword(showErrors);
                 const confirmPasswordValid = this.validateConfirmPassword(showErrors);
-                const privacyConsentValid = this.validatePrivacyConsent(showErrors);
                 const termsConsentValid = this.validateTermsConsent(showErrors);
                 const privacyPolicyConsentValid = this.validatePrivacyPolicyConsent(showErrors);
                 
-                return emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && privacyConsentValid && termsConsentValid && privacyPolicyConsentValid && this.emailVerified;
-            }
-
-            validatePrivacyConsent(showError = false) {
-                const privacyConsent = document.getElementById('privacyConsent').checked;
-                
-                if (!privacyConsent) {
-                    // ⚠️ 체크박스는 submit 시에만 에러 표시
-                    if (showError) {
-                        this.showError('privacyConsentError', '개인정보 수집 및 이용 동의가 필요합니다.');
-                    }
-                    return false;
-                } else {
-                    this.hideError('privacyConsentError');
-                    return true;
-                }
+                return emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && termsConsentValid && privacyPolicyConsentValid && this.emailVerified;
             }
 
             validateTermsConsent(showError = false) {
@@ -736,19 +705,17 @@
             }
 
             updateRegisterButton() {
-                // ⚠️ 버튼 활성화 여부만 체크 (에러 메시지 표시 안 함)
-                // touched된 필드만 검증하여 버튼 활성화 여부 결정
+                // ⚠️ 버튼 활성화 여부만 체크 (에러 메시지 표시 안 함, 동의 UI 3개 기준)
                 const emailValid = this.validateEmail(false);
                 const codeValid = this.emailVerified || this.validateVerificationCode(false);
                 const nameValid = this.validateName(false);
                 const phoneValid = this.validatePhone(false);
                 const passwordValid = this.validatePassword(false);
                 const confirmPasswordValid = this.validateConfirmPassword(false);
-                const privacyConsentValid = this.validatePrivacyConsent(false);
                 const termsConsentValid = this.validateTermsConsent(false);
                 const privacyPolicyConsentValid = this.validatePrivacyPolicyConsent(false);
                 
-                const allValid = emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && privacyConsentValid && termsConsentValid && privacyPolicyConsentValid && this.emailVerified;
+                const allValid = emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && termsConsentValid && privacyPolicyConsentValid && this.emailVerified;
                 this.registerBtn.disabled = !allValid;
             }
 
