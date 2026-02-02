@@ -65,10 +65,17 @@
         }
         .consent-fullview-modal-header h2 { margin: 0; font-size: 1.1rem; }
         .consent-fullview-close {
-            padding: 4px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
             border: none;
             background: #333;
             color: #fff;
+            font-size: 1.5rem;
+            line-height: 1;
             cursor: pointer;
             border-radius: 4px;
         }
@@ -76,22 +83,86 @@
         .consent-fullview-body {
             flex: 1;
             overflow: auto;
-            padding: 20px;
+            padding: 40px;
             min-height: 0;
+            font-size: 0.9rem;
         }
+        /* legal.html / privacy.html 본문 폰트·스타일 (팝업용으로 약간 축소) */
         .consent-fullview-body .legal-content,
         .consent-fullview-body .privacy-content {
             max-width: 100%;
             padding: 0;
             box-shadow: none;
+            background-color: transparent;
         }
-        .consent-fullview-body h1 { font-size: 1.5rem; margin: 0 0 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #eee; }
-        .consent-fullview-body h2 { font-size: 1.2rem; margin: 1.25rem 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #eee; }
-        .consent-fullview-body h3 { font-size: 1rem; margin: 1rem 0 0.35rem; }
-        .consent-fullview-body p, .consent-fullview-body ul { margin: 0 0 0.75rem; line-height: 1.5; }
+        .consent-fullview-body .legal-content h1,
+        .consent-fullview-body .privacy-content h1 {
+            font-size: 1.9rem;
+            font-weight: 300;
+            color: #333;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 16px;
+        }
+        .consent-fullview-body .privacy-content h1 { margin-bottom: 8px; }
+        .consent-fullview-body .last-updated {
+            font-size: 0.8rem;
+            color: #777;
+            margin-bottom: 16px;
+        }
         .consent-fullview-body .legal-section,
-        .consent-fullview-body .privacy-section { margin-bottom: 1.5rem; }
-        .consent-fullview-body .highlight { font-weight: 600; }
+        .consent-fullview-body .privacy-section {
+            margin-bottom: 40px;
+        }
+        .consent-fullview-body .privacy-section { margin-bottom: 48px; padding-bottom: 16px; }
+        .consent-fullview-body .legal-section h2,
+        .consent-fullview-body .privacy-section h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .consent-fullview-body .legal-section h3,
+        .consent-fullview-body .privacy-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #444;
+            margin: 20px 0 12px 0;
+        }
+        .consent-fullview-body .legal-section p,
+        .consent-fullview-body .privacy-section p {
+            font-size: inherit;
+            line-height: 1.7;
+            color: #555;
+            margin-bottom: 12px;
+        }
+        .consent-fullview-body .legal-section ul,
+        .consent-fullview-body .privacy-section ul,
+        .consent-fullview-body .privacy-section ol {
+            margin: 12px 0;
+            padding-left: 18px;
+        }
+        .consent-fullview-body .legal-section li,
+        .consent-fullview-body .privacy-section li {
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        .consent-fullview-body .highlight {
+            font-weight: 600;
+            color: #333;
+        }
+        .consent-fullview-body .contact-info {
+            background-color: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .consent-fullview-body .contact-info h3 { font-size: 1rem; color: #333; margin-bottom: 12px; }
+        .consent-fullview-body .contact-item { margin-bottom: 10px; display: flex; align-items: center; }
+        .consent-fullview-body .contact-item strong { min-width: 80px; color: #333; }
     </style>
 </head>
 <body>
@@ -226,7 +297,7 @@
         <div class="consent-fullview-modal">
             <div class="consent-fullview-modal-header">
                 <h2 id="consentFullviewTitle">전문보기</h2>
-                <button type="button" class="consent-fullview-close" id="consentFullviewClose">닫기</button>
+                <button type="button" class="consent-fullview-close" id="consentFullviewClose" aria-label="닫기">×</button>
             </div>
             <div id="consentFullviewContent" class="consent-fullview-body" aria-live="polite"></div>
         </div>
@@ -242,7 +313,7 @@
             : ((window.location && window.location.origin)
                 ? window.location.origin.replace(/\/$/, '') + '/api'
                 : '/api');
-        const Logger = window.Logger || console;
+        var Log = window.Logger || console;
 
         // 통합 회원가입 폼 처리 (한 페이지)
         class RegisterForm {
@@ -527,7 +598,7 @@
                 try {
                     // 실제 회원가입 API 호출
                     const formData = this.getFormData();
-                    Logger.log('회원가입 요청 데이터:', formData);
+                    Log.log('회원가입 요청 데이터:', formData);
                     
                     const response = await fetch(`${API_BASE}/register`, {
                         method: 'POST',
@@ -537,10 +608,10 @@
                         body: JSON.stringify(formData)
                     });
                     
-                    Logger.log('회원가입 응답 상태:', response.status);
+                    Log.log('회원가입 응답 상태:', response.status);
 
                     const data = await response.json();
-                    Logger.log('회원가입 응답 데이터:', data);
+                    Log.log('회원가입 응답 데이터:', data);
 
                     if (data.success) {
                         document.getElementById('successMessage').style.display = 'block';
@@ -842,7 +913,7 @@
 
             showSuccess(message) {
                 // 성공 메시지 표시 (실제로는 토스트 UI 사용)
-                Logger.log('Success:', message);
+                Log.log('Success:', message);
                 // TODO: 나중에 토스트 메시지 UI 구현
             }
 
@@ -868,20 +939,27 @@
             }
         }
 
-        // (전문보기) 팝업: DOM과 무관하게 먼저 등록 (이벤트 위임)
-        (function initConsentFullview() {
+        document.addEventListener('DOMContentLoaded', function() {
+            new RegisterForm();
+
+            // (전문보기) 팝업: 이벤트 위임으로 legal.html / privacy.html 본문만 주입
             var overlay = document.getElementById('consentFullviewOverlay');
             var contentEl = document.getElementById('consentFullviewContent');
             var titleEl = document.getElementById('consentFullviewTitle');
             var closeBtn = document.getElementById('consentFullviewClose');
             var titles = { 'legal.html': '이용약관', 'privacy.html': '개인정보 처리방침' };
             var selectors = { 'legal.html': 'main.legal-content', 'privacy.html': 'main.privacy-content' };
+            var cache = {};
 
             function openConsentFullview(src) {
                 if (!overlay || !contentEl || !src) return;
                 if (titleEl) titleEl.textContent = titles[src] || '전문보기';
                 overlay.classList.add('is-open');
                 overlay.setAttribute('aria-hidden', 'false');
+                if (cache[src]) {
+                    contentEl.innerHTML = cache[src];
+                    return;
+                }
                 contentEl.innerHTML = '<p style="padding:1rem;color:#666;">로딩 중...</p>';
                 var url = new URL(src, window.location.href).href;
                 fetch(url)
@@ -890,7 +968,9 @@
                         var parser = new DOMParser();
                         var doc = parser.parseFromString(html, 'text/html');
                         var main = doc.querySelector(selectors[src] || 'main');
-                        contentEl.innerHTML = main ? main.outerHTML : '<p>내용을 불러올 수 없습니다.</p>';
+                        var htmlStr = main ? main.outerHTML : '<p>내용을 불러올 수 없습니다.</p>';
+                        cache[src] = htmlStr;
+                        contentEl.innerHTML = htmlStr;
                     })
                     .catch(function() {
                         contentEl.innerHTML = '<p style="padding:1rem;color:#c00;">내용을 불러오는 중 오류가 발생했습니다.</p>';
@@ -924,10 +1004,6 @@
             if (overlay) overlay.addEventListener('click', function(e) {
                 if (e.target === overlay) closeConsentFullview();
             });
-        })();
-
-        document.addEventListener('DOMContentLoaded', function() {
-            new RegisterForm();
         });
     </script>
   <!-- 푸터 로드 -->
