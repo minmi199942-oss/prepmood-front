@@ -1034,7 +1034,7 @@
 }
 
 .profile-section-consent .consent-note {
-  margin: 8px 0 0 28px;
+  margin: 0 0 0 28px;
   font-size: clamp(0.75rem, 1.6vw, 0.85rem);
   color: #808080;
   line-height: 1.5;
