@@ -898,7 +898,13 @@ router.get('/admin/products/:productId/options', authenticateToken, requireAdmin
                 is_active: opt.is_active === 1,
                 in_stock_count: parseInt(opt.in_stock_count) || 0,
                 created_at: opt.created_at,
-                updated_at: opt.updated_at
+                updated_at: opt.updated_at,
+                rot_code: opt.rot_code ?? null,
+                warranty_bottom_prefix: opt.warranty_bottom_prefix ?? null,
+                serial_prefix: opt.serial_prefix ?? null,
+                digital_warranty_code: opt.digital_warranty_code ?? null,
+                digital_warranty_collection: opt.digital_warranty_collection ?? null,
+                season_code: opt.season_code ?? null
             }))
         });
         

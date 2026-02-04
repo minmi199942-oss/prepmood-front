@@ -8,7 +8,7 @@ import os
 import sqlite3
 import csv
 import glob
-from datetime import datetimeㅎㅎ
+from datetime import datetime
 from flask import Flask, render_template, jsonify, send_from_directory
 
 app = Flask(__name__)

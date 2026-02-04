@@ -283,7 +283,10 @@
 
         <!-- 토큰 선택 -->
         <div class="form-group">
-          <label>사용 가능한 토큰 *</label>
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <label style="margin-bottom: 0;">사용 가능한 토큰 *</label>
+            <button type="button" class="btn-secondary" id="selectAllTokensBtn" style="display: none; font-size: 0.875rem; padding: 0.35rem 0.75rem;">전체 선택</button>
+          </div>
           <div id="tokenListContainer" style="display: none;">
             <div class="token-list" id="tokenList">
               <!-- 토큰 목록이 JavaScript로 동적 생성됨 -->

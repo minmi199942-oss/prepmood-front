@@ -4,24 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>정품 인증 성공 - Pre.p Mood</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fonts-archive/Paperlogy/Paperlogy.css" type="text/css">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
-        @font-face {
-            font-family: 'Paperlogy';
-            src: url('/static/fonts/Paperlogy-4Regular.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-            font-display: swap;
-        }
-        
-        @font-face {
-            font-family: 'Paperlogy';
-            src: url('/static/fonts/Paperlogy-4Regular.ttf') format('truetype');
-            font-weight: bold;
-            font-style: normal;
-            font-display: swap;
-        }
-        
         @font-face {
             font-family: 'NanumBarunGothic';
             src: url('/static/fonts/NanumBarunGothic.ttf') format('truetype');
@@ -51,6 +36,7 @@
         
         /* 중간 패널(소배경) - 카드 전체를 동일한 간격으로 감싸기 */
         .stage-panel {
+            height: 1033px;
             background: #eeeeee;
             padding: 80px 48px 80px 48px;
             border-radius: 6px;
@@ -61,8 +47,8 @@
         
         .container {
             background: white;
-            max-width: 480px;
-            width: 100%;
+            height: 918px;
+            width: 469.8px;
             border-radius: 0;
             box-shadow: none;
             overflow: visible;
@@ -81,9 +67,12 @@
         
         /* 헤더 바 */
         .header-bar {
+            
+            height: 147.3px;
+            box-sizing: border-box;
             background: #2f2f2f;
             color: white;
-            padding: 50px 24px 50px 24px;
+            padding: 59.7035px 24px 50px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -99,15 +88,16 @@
         }
         
         .header-date {
-            font-size: 14px;
-            font-weight: 400;
+            font-size: 11.6px;
+            letter-spacing: 1.7px;
+            font-weight: 500;
             color: rgba(255, 255, 255, 0.9);
-            margin-right: 30px;
+            margin-right: 34.3px;
         }
         
         /* 카드 내부 컨텐츠 - 흰색 영역 (바코드까지) */
         .card-content {
-            padding: 55px 65px 50px 65px;
+            padding: 52.3px 62.5px 50px 64px;
             background: white;
             position: relative;
         }
@@ -116,7 +106,7 @@
         .card-content::before {
             content: '';
             display: block;
-            height: 1px;
+            height: 0.1px;
             background: #d8d8d8;
             margin: 16px 0 12px 0;
             width: 100%;
@@ -124,7 +114,7 @@
         
         /* 카드 내부 컨텐츠 - 회색 영역 (정품 인증 완료부터) */
         .card-content-bottom {
-            padding: 24px 0px 32px 0px;
+            padding: 24px 0px 0px 0px;
             margin: 0;
             background: #eeeeee;
         }
@@ -139,7 +129,7 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            padding: 14px 0;
+            padding: 7px 0;
             border-bottom: none;
         }
         
@@ -465,19 +455,19 @@
             <div class="info-table">
                 <div class="info-row">
                     <span class="info-label">PRODUCT NAME</span>
-                    <span class="info-value">{{ product.product_name }}</span>
+                    <span class="info-value">{{ product.product_name | default('Tie Solid Suit Slim') }}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">CODE</span>
-                    <span class="info-value">{{ product.internal_code }}</span>
+                    <span class="info-value">{{ product.internal_code | default('ROT-TIE-SLIM-001') }}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">DATE</span>
-                    <span class="info-value">{{ verified_at }}</span>
+                    <span class="info-value">{{ verified_at | default('2025-02-01 14:30:00') }}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">SERIAL NUMBER</span>
-                    <span class="info-value">—</span>
+                    <span class="info-value">{{ product.serial_number | default('SN-TIE-2025-00001') }}</span>
                 </div>
             </div>
             
@@ -535,7 +525,7 @@
         
         // 바코드 생성
         function generateBarcode() {
-            const code = '{{ product.internal_code }}';
+            const code = '{{ product.internal_code | default("ROT-TIE-SLIM-001") }}';
             if (code && typeof JsBarcode !== 'undefined') {
                 try {
                     JsBarcode("#barcode", code, {

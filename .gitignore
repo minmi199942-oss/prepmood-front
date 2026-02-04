@@ -22,6 +22,7 @@ backend/node_modules/
 # 임시 파일
 *.tmp
 *.temp
+prep_server/templates/success-preview.html
 .DS_Store
 Thumbs.db
 

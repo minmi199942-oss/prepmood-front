@@ -365,17 +365,25 @@
 }
 
 .consent-text .required-badge {
-    color: #666; /* (선택)과 동일한 색상 */
+    color: #333; /* 이용약관 문구와 동일한 검정 계열 */
     font-weight: 400;
     font-size: 0.85em; /* 텍스트보다 살짝 작게 */
     margin-left: 4px; /* (필수) 표시이므로 적절한 간격 */
 }
 
 .consent-text .optional {
-    color: #666;
+    color: #333; /* 이용약관 문구와 동일한 검정 계열 */
     font-weight: 400;
     font-size: 0.85em;
     margin-left: 4px;
+}
+
+.consent-item-note {
+    color: #808080;
+    font-size: clamp(11px, 2.2vw, 12px);
+    line-height: 1.4;
+    margin: 6px 0 0 clamp(26px, 5vw, 30px);
+    padding: 0;
 }
 
 .consent-description {

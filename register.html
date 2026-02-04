@@ -242,32 +242,20 @@
                         <div class="error-message" id="confirmPasswordError"></div>
                     </div>
 
-                    <!-- 개인정보 동의 섹션 (UI 3개: 이용약관, 개인정보 처리방침, 브랜드 소식 수신) -->
+                    <!-- 개인정보 동의 섹션 (이용약관+개인정보 통합 1개, 브랜드 소식 1개) -->
                     <div class="consent-section">
-                        <!-- 이용약관 동의 (필수) - (전문보기)는 label 밖에 두어 클릭 시 체크박스 안 눌리게 -->
+                        <!-- 이용약관 및 개인정보 처리방침 동의 (필수) - 전문보기: privacy.html -->
                         <div class="consent-item">
                             <div class="consent-item-row">
                                 <label class="consent-checkbox">
-                                    <input type="checkbox" id="termsConsent" required>
+                                    <input type="checkbox" id="termsAndPrivacyConsent" required>
                                     <span class="checkmark"></span>
-                                    <span class="consent-text">이용약관에 동의합니다.<span class="required-badge">(필수)</span></span>
+                                    <span class="consent-text">이용약관 및 개인정보 처리방침에 동의합니다.<span class="required-badge">(필수)</span></span>
                                 </label>
-                                <span role="button" tabindex="0" class="consent-fullview-btn" data-src="legal.html" aria-label="이용약관 전문보기">(전문보기)</span>
+                                <span role="button" tabindex="0" class="consent-fullview-btn" data-src="privacy.html" aria-label="이용약관 및 개인정보 처리방침 전문보기">(전문보기)</span>
                             </div>
-                            <div class="error-message" id="termsConsentError"></div>
-                        </div>
-
-                        <!-- 개인정보 처리방침 동의 (필수) -->
-                        <div class="consent-item">
-                            <div class="consent-item-row">
-                                <label class="consent-checkbox">
-                                    <input type="checkbox" id="privacyPolicyConsent" required>
-                                    <span class="checkmark"></span>
-                                    <span class="consent-text">개인정보 처리방침에 동의합니다.<span class="required-badge">(필수)</span></span>
-                                </label>
-                                <span role="button" tabindex="0" class="consent-fullview-btn" data-src="privacy.html" aria-label="개인정보 처리방침 전문보기">(전문보기)</span>
-                            </div>
-                            <div class="error-message" id="privacyPolicyConsentError"></div>
+                            <p class="consent-item-note">모든 주문 정보와 디지털 인보이스, 보증서는 Pre.pMood의 보안 시스템을 통해 전자적으로 제공됩니다.</p>
+                            <div class="error-message" id="termsAndPrivacyConsentError"></div>
                         </div>
 
                         <!-- 브랜드 소식 및 컬렉션 안내 수신 (선택) -->
@@ -277,11 +265,11 @@
                                 <span class="checkmark"></span>
                                 <span class="consent-text">브랜드 소식 및 컬렉션 안내 수신에 동의합니다.<span class="optional">(선택)</span></span>
                             </label>
+                            <p class="consent-item-note">Pre.pMood의 새로운 컬렉션과 브랜드 소식을 가장 먼저 받아보세요.<br>수신 설정은 MY페이지에서 언제든지 변경할 수 있습니다.</p>
                         </div>
                     </div>
 
                     <div class="error-message" id="registerError"></div>
-                    <p class="required-notice">* 는 필수 입력 항목입니다.</p>
                     <button type="submit" class="register-btn" id="registerBtn" disabled>회원가입</button>
                 </div>
             </form>
@@ -425,14 +413,8 @@
                 });
                 
                 // ⚠️ 개인정보 동의 체크박스 이벤트 리스너 (에러 메시지 표시 안 함, 버튼 활성화만 체크)
-                document.getElementById('termsConsent').addEventListener('change', () => {
-                    this.touchedFields.add('termsConsent');
-                    // 체크박스는 사용 중 에러 메시지 표시 안 함
-                    this.updateRegisterButton();
-                });
-                document.getElementById('privacyPolicyConsent').addEventListener('change', () => {
-                    this.touchedFields.add('privacyPolicyConsent');
-                    // 체크박스는 사용 중 에러 메시지 표시 안 함
+                document.getElementById('termsAndPrivacyConsent').addEventListener('change', () => {
+                    this.touchedFields.add('termsAndPrivacyConsent');
                     this.updateRegisterButton();
                 });
                 document.getElementById('marketingConsent').addEventListener('change', () => {
@@ -648,13 +630,11 @@
                 const countryCode = document.getElementById('countryCode').value;
                 const phone = document.getElementById('phone').value;
                 const marketingConsent = document.getElementById('marketingConsent').checked;
-                const termsConsent = document.getElementById('termsConsent').checked;
-                const privacyPolicyConsent = document.getElementById('privacyPolicyConsent').checked;
-                // A안: 개인정보 처리방침 동의 시 privacy_consent도 동일값으로 전송 (백엔드 필수 검증 충족)
-                // 백엔드 equals('true') 검증 통과를 위해 문자열 'true'/'false'로 전송
-                const privacyPolicyConsentStr = privacyPolicyConsent ? 'true' : 'false';
+                const termsAndPrivacyConsent = document.getElementById('termsAndPrivacyConsent').checked;
+                // 통합 체크 시 terms_consent, privacy_policy_consent, privacy_consent 모두 동일값 전송 (DB/백엔드 변경 없음)
+                const termsConsentStr = termsAndPrivacyConsent ? 'true' : 'false';
+                const privacyPolicyConsentStr = termsAndPrivacyConsent ? 'true' : 'false';
                 const marketingConsentStr = marketingConsent ? 'true' : 'false';
-                const termsConsentStr = termsConsent ? 'true' : 'false';
 
                 // 전화번호는 국가코드와 함께 전송
                 const phoneValue = phone ? `${countryCode}${phone.replace(/[^0-9]/g, '')}` : '';
@@ -826,45 +806,28 @@
             }
 
             validateAll(showErrors = true) {
-                // ⚠️ submit 시에만 모든 필드 검증 및 에러 표시 (동의 UI 3개: terms, privacy_policy, marketing)
+                // ⚠️ submit 시에만 모든 필드 검증 (동의 UI: 이용약관+개인정보 통합 1개, 브랜드 소식 1개)
                 const emailValid = this.validateEmail(showErrors);
                 const codeValid = this.emailVerified || this.validateVerificationCode(showErrors);
                 const nameValid = this.validateName(showErrors);
                 const phoneValid = this.validatePhone(showErrors);
                 const passwordValid = this.validatePassword(showErrors);
                 const confirmPasswordValid = this.validateConfirmPassword(showErrors);
-                const termsConsentValid = this.validateTermsConsent(showErrors);
-                const privacyPolicyConsentValid = this.validatePrivacyPolicyConsent(showErrors);
+                const termsAndPrivacyValid = this.validateTermsAndPrivacyConsent(showErrors);
                 
-                return emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && termsConsentValid && privacyPolicyConsentValid && this.emailVerified;
+                return emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && termsAndPrivacyValid && this.emailVerified;
             }
 
-            validateTermsConsent(showError = false) {
-                const termsConsent = document.getElementById('termsConsent').checked;
+            validateTermsAndPrivacyConsent(showError = false) {
+                const termsAndPrivacyConsent = document.getElementById('termsAndPrivacyConsent').checked;
                 
-                if (!termsConsent) {
-                    // ⚠️ 체크박스는 submit 시에만 에러 표시
+                if (!termsAndPrivacyConsent) {
                     if (showError) {
-                        this.showError('termsConsentError', '이용약관에 동의해주세요.');
+                        this.showError('termsAndPrivacyConsentError', '이용약관 및 개인정보 처리방침에 동의해주세요.');
                     }
                     return false;
                 } else {
-                    this.hideError('termsConsentError');
-                    return true;
-                }
-            }
-
-            validatePrivacyPolicyConsent(showError = false) {
-                const privacyPolicyConsent = document.getElementById('privacyPolicyConsent').checked;
-                
-                if (!privacyPolicyConsent) {
-                    // ⚠️ 체크박스는 submit 시에만 에러 표시
-                    if (showError) {
-                        this.showError('privacyPolicyConsentError', '개인정보 처리 방침에 동의해주세요.');
-                    }
-                    return false;
-                } else {
-                    this.hideError('privacyPolicyConsentError');
+                    this.hideError('termsAndPrivacyConsentError');
                     return true;
                 }
             }
@@ -877,10 +840,9 @@
                 const phoneValid = this.validatePhone(false);
                 const passwordValid = this.validatePassword(false);
                 const confirmPasswordValid = this.validateConfirmPassword(false);
-                const termsConsentValid = this.validateTermsConsent(false);
-                const privacyPolicyConsentValid = this.validatePrivacyPolicyConsent(false);
+                const termsAndPrivacyValid = this.validateTermsAndPrivacyConsent(false);
                 
-                const allValid = emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && termsConsentValid && privacyPolicyConsentValid && this.emailVerified;
+                const allValid = emailValid && codeValid && nameValid && phoneValid && passwordValid && confirmPasswordValid && termsAndPrivacyValid && this.emailVerified;
                 this.registerBtn.disabled = !allValid;
             }
 
@@ -947,7 +909,7 @@
             var contentEl = document.getElementById('consentFullviewContent');
             var titleEl = document.getElementById('consentFullviewTitle');
             var closeBtn = document.getElementById('consentFullviewClose');
-            var titles = { 'legal.html': '이용약관', 'privacy.html': '개인정보 처리방침' };
+            var titles = { 'legal.html': '이용약관', 'privacy.html': '이용약관 및 개인정보 처리방침' };
             var selectors = { 'legal.html': 'main.legal-content', 'privacy.html': 'main.privacy-content' };
             var cache = {};
 

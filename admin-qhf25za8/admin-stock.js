@@ -44,6 +44,7 @@
     tokenList: document.getElementById('tokenList'),
     tokenListLoading: document.getElementById('tokenListLoading'),
     tokenListEmpty: document.getElementById('tokenListEmpty'),
+    selectAllTokensBtn: document.getElementById('selectAllTokensBtn'),
     cancelAddStockBtn: document.getElementById('cancelAddStockBtn'),
     submitAddStockBtn: document.getElementById('submitAddStockBtn'),
     stockDetailModal: document.getElementById('stockDetailModal'),
@@ -93,6 +94,11 @@
         closeAddStockModal();
       }
     });
+
+    // 전체 선택 / 전체 해제
+    if (elements.selectAllTokensBtn) {
+      elements.selectAllTokensBtn.addEventListener('click', toggleSelectAllTokens);
+    }
 
     elements.stockDetailModal.addEventListener('click', (e) => {
       if (e.target === elements.stockDetailModal) {
@@ -434,9 +440,14 @@
 
         if (availableTokens.length === 0) {
           elements.tokenListEmpty.style.display = 'block';
+          if (elements.selectAllTokensBtn) elements.selectAllTokensBtn.style.display = 'none';
         } else {
           renderTokenList(availableTokens);
           elements.tokenListContainer.style.display = 'block';
+          if (elements.selectAllTokensBtn) {
+            elements.selectAllTokensBtn.style.display = 'inline-block';
+            elements.selectAllTokensBtn.textContent = '전체 선택';
+          }
         }
       }
     } catch (error) {
@@ -479,11 +490,29 @@
   }
 
   // ============================================
+  // 전체 선택 / 전체 해제 토글
+  // ============================================
+  function toggleSelectAllTokens() {
+    const checkboxes = elements.tokenList.querySelectorAll('input[type="checkbox"]');
+    if (checkboxes.length === 0) return;
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => { cb.checked = !allChecked; });
+    if (elements.selectAllTokensBtn) {
+      elements.selectAllTokensBtn.textContent = allChecked ? '전체 선택' : '전체 해제';
+    }
+    updateSubmitButton();
+  }
+
+  // ============================================
   // 제출 버튼 상태 업데이트
   // ============================================
   function updateSubmitButton() {
+    const checkboxes = elements.tokenList.querySelectorAll('input[type="checkbox"]');
     const checked = elements.tokenList.querySelectorAll('input[type="checkbox"]:checked');
     elements.submitAddStockBtn.disabled = checked.length === 0;
+    if (elements.selectAllTokensBtn && checkboxes.length > 0) {
+      elements.selectAllTokensBtn.textContent = checked.length === checkboxes.length ? '전체 해제' : '전체 선택';
+    }
   }
 
   // ============================================
