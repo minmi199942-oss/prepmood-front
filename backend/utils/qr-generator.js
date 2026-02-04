@@ -5,7 +5,6 @@
 
 const path = require('path');
 const fs = require('fs');
-const QRCode = require('qrcode');
 const Logger = require('../logger');
 
 const BACKEND_DIR = path.join(__dirname, '..');
@@ -78,6 +77,7 @@ async function generateOneQR(opts) {
         fs.mkdirSync(outputDir, { recursive: true, mode: 0o755 });
     }
 
+    const QRCode = require('qrcode');
     await QRCode.toFile(filepath, url, {
         errorCorrectionLevel: qrOptions.errorCorrectionLevel || 'H',
         type: 'png',

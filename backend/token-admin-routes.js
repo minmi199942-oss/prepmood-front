@@ -10,7 +10,6 @@ const mysql = require('mysql2/promise');
 const crypto = require('crypto');
 const { authenticateToken, requireAdmin } = require('./auth-middleware');
 const { resolveProductId } = require('./utils/product-id-resolver');
-const { generateOneQR } = require('./utils/qr-generator');
 const Logger = require('./logger');
 require('dotenv').config();
 
@@ -205,6 +204,7 @@ router.post('/admin/tokens', authenticateToken, requireAdmin, async (req, res) =
                     warranty_bottom_code
                 });
                 try {
+                    const { generateOneQR } = require('./utils/qr-generator');
                     await generateOneQR({ token, internal_code });
                 } catch (qrErr) {
                     Logger.error('[ADMIN_TOKENS_CREATE] QR PNG 생성 실패 (토큰은 DB에 저장됨)', {
