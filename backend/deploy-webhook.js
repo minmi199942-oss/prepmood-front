@@ -127,11 +127,17 @@ router.post('/deploy/webhook', async (req, res) => {
         // spawn을 사용하여 완전히 분리된 프로세스로 실행
         // detached: true로 부모 프로세스와 완전히 분리
         // stdio를 파일 디스크립터로 리다이렉트하여 로그 저장
+        // PATH: Node(PM2) spawn 시 자식은 부모와 다른 env일 수 있어 pm2를 못 찾으면 deploy.sh 0단계에서 종료됨 → 앞에 공통 경로 추가
+        const basePath = '/usr/local/bin:/usr/bin:/bin';
+        const safePath = (process.env.PATH && process.env.PATH.length > 10)
+            ? basePath + ':' + process.env.PATH
+            : basePath;
+        const deployEnv = { ...process.env, PATH: safePath };
         const deployProcess = spawn('bash', ['-x', DEPLOY_SCRIPT], {
             cwd: '/root',
             detached: true,  // 부모 프로세스와 완전히 분리
             stdio: ['ignore', logFd, logFd],  // stdin 무시, stdout/stderr는 파일로
-            env: { ...process.env, PATH: process.env.PATH }
+            env: deployEnv
         });
         
         // 파일 디스크립터를 닫지 않음 (자식 프로세스가 사용 중이므로)

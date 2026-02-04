@@ -5,6 +5,15 @@ REPO_DIR="/root/prepmood-repo"
 LIVE_BACKEND="/var/www/html/backend"
 BACKUP_DIR="/root/backups"
 
+# Node spawn 환경에서 pm2 등 명령을 찾을 수 있도록 PATH 보강 (자동 배포 완료 보장)
+export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+if [ -d "${HOME:-/root}/.nvm/versions/node" ]; then
+  NVM_NODE=$(ls "${HOME:-/root}/.nvm/versions/node" 2>/dev/null | tail -1)
+  if [ -n "$NVM_NODE" ]; then
+    export PATH="${HOME:-/root}/.nvm/versions/node/$NVM_NODE/bin:$PATH"
+  fi
+fi
+
 # 배포 락 (중복 실행 방지)
 LOCK="/tmp/prepmood-deploy.lock"
 if [ -e "$LOCK" ]; then
@@ -23,10 +32,12 @@ TIMESTAMP=$(date +%F_%H%M%S)
 
 echo "🚀 배포 시작: $TIMESTAMP"
 
-# 0. PM2 실행 경로 확인
+# 0. PM2 실행 경로 확인 (실패해도 배포는 계속: set +e)
+set +e
 echo "📋 PM2 실행 경로 확인:"
 pm2 describe prepmood-backend 2>/dev/null | grep -E "script|cwd|exec" || echo "⚠️ PM2 프로세스 정보를 가져올 수 없습니다."
 echo ""
+set -e
 
 # 1. Git 업데이트
 cd "$REPO_DIR" || { echo "❌ $REPO_DIR 디렉토리 접근 실패"; exit 1; }
@@ -307,6 +318,18 @@ else
   exit 1
 fi
 
+# 4-2. QR 코드 재생성 (qr-config.json 반영 + 서버 token_master 기준 PNG 생성)
+# - 다운로드되는 PNG 크기는 qr-config.json, 파일은 output_qrcodes/ 에 있음
+# - 스캔 시 가품 경고가 나오지 않으려면 QR에 들어가는 token이 서버 token_master에 있어야 함 → 서버에서 생성하면 일치
+echo "📷 QR 코드 재생성 중 (서버 DB 기준)..."
+set +e
+if (cd "$LIVE_BACKEND" && node generate-qr-codes.js 2>&1); then
+  echo "  ✅ QR 코드 재생성 완료"
+else
+  echo "  ⚠️  QR 코드 재생성 실패 또는 스킵 (DB/토큰 없음 등). 기존 PNG 유지. 배포는 계속합니다."
+fi
+set -e
+
 # 5. 서버 재시작
 echo "🔄 서버 재시작 중..."
 # PM2 재시작을 별도 프로세스로 실행하여 부모 프로세스 종료의 영향을 받지 않도록 함
@@ -343,10 +366,12 @@ fi
 
 echo "✅ PM2 재시작 프로세스 시작 완료 (백그라운드 실행 중)"
 
-# 6. 상태 확인
+# 6. 상태 확인 (실패해도 배포는 계속)
 sleep 2
 echo "🔍 서버 상태 확인..."
-pm2 status prepmood-backend
+set +e
+pm2 status prepmood-backend || true
+set -e
 
 # 7. 헬스체크 (PM2 재시작 후 서버가 완전히 시작될 때까지 대기)
 echo "🏥 헬스체크 중..."
