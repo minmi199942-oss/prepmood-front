@@ -169,6 +169,15 @@ fi
 
 echo "  ✅ backend 동기화 완료"
 
+# 3-1. 알려진 구문 오류 1회 수정 (레포 미반영 시에도 서버 기동 보장)
+QRCODE_ROUTES="$LIVE_BACKEND/qrcode-download-routes.js"
+if [ -f "$QRCODE_ROUTES" ] && grep -q 'files\.map(f => =>' "$QRCODE_ROUTES" 2>/dev/null; then
+  echo "  🔧 qrcode-download-routes.js 구문 오류 수정 중 (f => => 제거)..."
+  sed -i 's/f => => f\.replace(/function (f) { return f.replace(/' "$QRCODE_ROUTES"
+  sed -i '/function (f) { return f\.replace/s/, '\'''\''));/, '\'''\''); });/' "$QRCODE_ROUTES"
+  echo "  ✅ 구문 오류 수정 완료"
+fi
+
 # 3-2. 루트 HTML/JS 파일 동기화 (허용 목록 기반 - 보안 강화)
 echo "📦 루트 HTML/JS 파일 동기화 중..."
 LIVE_ROOT="/var/www/html"
