@@ -830,6 +830,46 @@ router.delete('/admin/products/:id', authenticateToken, requireAdmin, async (req
 // ==================== 관리자: 상품 옵션 관리 API ====================
 // Phase 15-3: 관리자 페이지 옵션 관리 기능
 
+// 옵션 추가 시 사용할 색상/사이즈 추천 목록 (표준값 + 이미 사용 중인 값, 띄어쓰기/대소문자 그대로)
+router.get('/admin/products/option-suggestions', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        const colors = new Set();
+        const sizes = new Set();
+
+        // 1) color_standards 테이블이 있으면 표준 색상 먼저 (Black, Light Blue 등 정확한 표기)
+        try {
+            const [csRows] = await connection.execute(
+                "SELECT color_code FROM color_standards WHERE is_active = 1 ORDER BY color_code"
+            );
+            csRows.forEach(r => colors.add(r.color_code || ''));
+        } catch (e) {
+            if (e.code !== 'ER_NO_SUCH_TABLE') throw e;
+        }
+
+        // 2) product_options에서 실제 사용 중인 color/size (중복 제거, 정확한 표기 유지)
+        const [poRows] = await connection.execute(
+            `SELECT DISTINCT color, size FROM product_options WHERE product_id IS NOT NULL`
+        );
+        poRows.forEach(r => {
+            if (r.color != null && String(r.color).trim() !== '') colors.add(String(r.color).trim());
+            if (r.size != null && String(r.size).trim() !== '') sizes.add(String(r.size).trim());
+        });
+
+        await connection.end();
+        res.json({
+            success: true,
+            colors: Array.from(colors).filter(Boolean).sort(),
+            sizes: Array.from(sizes).filter(Boolean).sort()
+        });
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.error('[ADMIN_OPTION_SUGGESTIONS] 실패', { error: error.message });
+        res.status(500).json({ success: false, message: '추천 목록 조회에 실패했습니다.' });
+    }
+});
+
 // 옵션 조회 (재고 상태 포함)
 router.get('/admin/products/:productId/options', authenticateToken, requireAdmin, async (req, res) => {
     let connection;

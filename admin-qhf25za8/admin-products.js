@@ -683,6 +683,7 @@
       }
     });
 
+    initAddOptionModal();
     await loadProducts();
   }
 
@@ -780,15 +781,77 @@
     `;
   }
   
-  // 옵션 추가 모달 열기
-  function openAddOptionModal(productId) {
-    const color = prompt('색상 (빈 문자열 허용):', '');
-    if (color === null) return;
-    
-    const size = prompt('사이즈 (빈 문자열 허용, 예: S, M, L, XL, XXL, F):', '');
-    if (size === null) return;
-    
-    addProductOption(productId, color || '', size || '');
+  // 옵션 추가 모달 열기 (추천 목록 드롭다운 + 직접 입력)
+  let addOptionProductId = null;
+  async function openAddOptionModal(productId) {
+    if (!productId) return;
+    addOptionProductId = productId;
+    const modal = document.getElementById('addOptionModal');
+    const colorInput = document.getElementById('addOptionColor');
+    const sizeInput = document.getElementById('addOptionSize');
+    const colorList = document.getElementById('addOptionColorList');
+    const sizeList = document.getElementById('addOptionSizeList');
+    if (!modal || !colorInput || !sizeInput) return;
+
+    colorInput.value = '';
+    sizeInput.value = '';
+    colorList.innerHTML = '';
+    sizeList.innerHTML = '';
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/products/option-suggestions`, { credentials: 'include' });
+      const data = await res.json();
+      if (data.success && data.colors) {
+        data.colors.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          colorList.appendChild(opt);
+        });
+      }
+      if (data.success && data.sizes) {
+        data.sizes.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s;
+          sizeList.appendChild(opt);
+        });
+      }
+    } catch (e) {
+      console.warn('옵션 추천 목록 로드 실패', e);
+    }
+
+    modal.classList.add('show');
+    colorInput.focus();
+  }
+
+  function closeAddOptionModal() {
+    const modal = document.getElementById('addOptionModal');
+    if (modal) modal.classList.remove('show');
+    addOptionProductId = null;
+  }
+
+  function initAddOptionModal() {
+    const modal = document.getElementById('addOptionModal');
+    const closeBtn = document.getElementById('addOptionModalClose');
+    const cancelBtn = document.getElementById('addOptionCancelBtn');
+    const submitBtn = document.getElementById('addOptionSubmitBtn');
+    const colorInput = document.getElementById('addOptionColor');
+    const sizeInput = document.getElementById('addOptionSize');
+    if (!modal || !submitBtn) return;
+
+    function doSubmit() {
+      if (!addOptionProductId) return;
+      const color = (colorInput && colorInput.value) ? colorInput.value.trim() : '';
+      const size = (sizeInput && sizeInput.value) ? sizeInput.value.trim() : '';
+      closeAddOptionModal();
+      addProductOption(addOptionProductId, color, size);
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', closeAddOptionModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeAddOptionModal);
+    submitBtn.addEventListener('click', doSubmit);
+    if (colorInput) colorInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); doSubmit(); } });
+    if (sizeInput) sizeInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); doSubmit(); } });
+    modal.addEventListener('click', function(e) { if (e.target === modal) closeAddOptionModal(); });
   }
   
   // 옵션 추가

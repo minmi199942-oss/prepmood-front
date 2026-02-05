@@ -145,6 +145,33 @@
     </div>
   </div>
 
+  <!-- 옵션 추가 모달 (색상/사이즈: 드롭다운 추천 + 직접 입력) -->
+  <div class="modal" id="addOptionModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>옵션 추가</h3>
+        <button type="button" class="modal-close" id="addOptionModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:#666; font-size:0.875rem; margin-bottom:1rem;">아래 목록에서 선택하거나, 직접 입력할 수 있습니다. (색상은 띄어쓰기·대소문자 정확히 맞추세요. 예: Light Blue)</p>
+        <div class="form-group">
+          <label for="addOptionColor">색상</label>
+          <input type="text" id="addOptionColor" list="addOptionColorList" placeholder="선택 또는 직접 입력 (예: Black, Light Blue)" autocomplete="off" style="width:100%;">
+          <datalist id="addOptionColorList"></datalist>
+        </div>
+        <div class="form-group">
+          <label for="addOptionSize">사이즈</label>
+          <input type="text" id="addOptionSize" list="addOptionSizeList" placeholder="선택 또는 직접 입력 (예: S, M, L, F)" autocomplete="off" style="width:100%;">
+          <datalist id="addOptionSizeList"></datalist>
+        </div>
+        <div class="form-actions" style="margin-top:1rem;">
+          <button type="button" class="btn-secondary" id="addOptionCancelBtn">취소</button>
+          <button type="button" class="btn-primary" id="addOptionSubmitBtn">추가</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 공통 레이아웃 스크립트 (헤더/네비게이션) -->
   <script src="admin-layout.js"></script>
   <!-- 페이지별 스크립트 -->
