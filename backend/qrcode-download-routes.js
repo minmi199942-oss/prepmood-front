@@ -67,7 +67,7 @@ router.get('/api/admin/qrcodes/download', authenticateToken, requireAdmin, admin
         }
 
         // internal_code 목록 (확장자 제거)
-        const internalCodes = files.map(f => => f.replace(/\.png$/i, ''));
+        const internalCodes = files.map(function (f) { return f.replace(/\.png$/i, ''); });
 
         // DB에서 internal_code → serial_number, product_name 매핑 조회 (ZIP 내부 파일명용)
         // 파일명 우선순위: serial_number > product_name > internal_code (AUTO-001 등 대신 읽기 쉬운 이름)
