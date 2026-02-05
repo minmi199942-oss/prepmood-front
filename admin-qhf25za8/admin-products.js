@@ -784,7 +784,18 @@
   // 옵션 추가 모달 열기 (추천 목록 드롭다운 + 직접 입력)
   let addOptionProductId = null;
   async function openAddOptionModal(productId) {
-    if (!productId) return;
+    // productId가 비어있거나 문자열 "null"이면 상품 수정 모달의 ID 입력값에서 가져옴 (버그 회피)
+    const raw = (productId != null && productId !== '') ? String(productId).trim() : '';
+    if (!raw || raw === 'null') {
+      const formId = document.querySelector('.modal-overlay #productId')?.value;
+      productId = (formId != null && formId !== '') ? String(formId).trim() : null;
+    } else {
+      productId = raw;
+    }
+    if (!productId) {
+      alert('상품 ID를 확인할 수 없습니다. 상품 수정 화면에서 다시 시도해 주세요.');
+      return;
+    }
     addOptionProductId = productId;
     const modal = document.getElementById('addOptionModal');
     const colorInput = document.getElementById('addOptionColor');
@@ -839,11 +850,15 @@
     if (!modal || !submitBtn) return;
 
     function doSubmit() {
-      if (!addOptionProductId) return;
+      const pid = addOptionProductId;
+      if (!pid || pid === 'null') {
+        alert('상품 ID를 확인할 수 없습니다. 상품 수정 화면을 닫았다가 다시 열어 주세요.');
+        return;
+      }
       const color = (colorInput && colorInput.value) ? colorInput.value.trim() : '';
       const size = (sizeInput && sizeInput.value) ? sizeInput.value.trim() : '';
       closeAddOptionModal();
-      addProductOption(addOptionProductId, color, size);
+      addProductOption(pid, color, size);
     }
 
     if (closeBtn) closeBtn.addEventListener('click', closeAddOptionModal);
@@ -856,6 +871,10 @@
   
   // 옵션 추가
   async function addProductOption(productId, color, size) {
+    if (!productId || String(productId).trim() === '' || String(productId) === 'null') {
+      alert('상품 ID가 없어 옵션을 추가할 수 없습니다.');
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE_URL}/admin/products/${encodeURIComponent(productId)}/options`, {
         method: 'POST',
