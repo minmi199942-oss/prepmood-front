@@ -313,11 +313,8 @@ router.get('/api/admin/qrcode/download', authenticateToken, requireAdmin, adminD
 /**
  * POST /api/admin/auth/revoke
  * 토큰 무효화 (관리자 전용)
- * - SSOT: QR 스캔은 MySQL token_master.is_blocked를 사용하므로 MySQL 반영 필수
- * - SQLite(legacy)도 동기화해 두면 이전 도구/스크립트와의 일관성 유지
+ * - SSOT: QR 스캔은 MySQL token_master.is_blocked만 사용. 추가 저장소(SQLite) 동기화 없음.
  */
-const { revokeToken } = require('./auth-db');
-
 router.post('/api/admin/auth/revoke', authenticateToken, requireAdmin, async (req, res) => {
     let connection = null;
     try {
@@ -347,14 +344,6 @@ router.post('/api/admin/auth/revoke', authenticateToken, requireAdmin, async (re
         connection = null;
 
         const mysqlUpdated = result.affectedRows >= 1;
-        if (mysqlUpdated) {
-            try {
-                revokeToken(token);
-            } catch (sqliteErr) {
-                Logger.warn('[AUTH-REVOKE] SQLite 동기화 실패(무시)', { message: sqliteErr.message });
-            }
-        }
-
         if (mysqlUpdated) {
             const auditInfo = {
                 admin_email: req.user.email,
@@ -386,6 +375,102 @@ router.post('/api/admin/auth/revoke', authenticateToken, requireAdmin, async (re
         return res.status(500).json({
             success: false,
             message: '토큰 무효화 중 오류가 발생했습니다.'
+        });
+    }
+});
+
+/**
+ * POST /api/admin/qrcode/generate
+ * 단건 QR 재생성 (관리자 전용) — token_pk 또는 internal_code로 1건 조회 후 generateOneQR + qr_generated_at/qr_last_error 갱신
+ */
+router.post('/api/admin/qrcode/generate', authenticateToken, requireAdmin, async (req, res) => {
+    const { token_pk, internal_code } = req.body || {};
+    if ((!token_pk && !internal_code) || (token_pk != null && internal_code != null)) {
+        return res.status(400).json({
+            success: false,
+            message: 'token_pk 또는 internal_code 중 하나만 입력해주세요.'
+        });
+    }
+    let connection = null;
+    try {
+        const dbConfig = {
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        };
+        connection = await mysql.createConnection(dbConfig);
+        const byPk = token_pk != null;
+        const [rows] = await connection.execute(
+            byPk
+                ? 'SELECT token_pk, token, internal_code FROM token_master WHERE token_pk = ? LIMIT 1'
+                : 'SELECT token_pk, token, internal_code FROM token_master WHERE internal_code = ? LIMIT 1',
+            byPk ? [token_pk] : [internal_code]
+        );
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '해당 토큰을 찾을 수 없습니다.'
+            });
+        }
+        const row = rows[0];
+        const { generateOneQR } = require('./utils/qr-generator');
+        const filepath = await generateOneQR({ token: row.token, internal_code: row.internal_code });
+        const stat = filepath && fs.existsSync(filepath) ? fs.statSync(filepath) : null;
+        if (stat && stat.size > 0) {
+            await connection.execute(
+                'UPDATE token_master SET qr_generated_at = NOW(), qr_last_error = NULL WHERE token_pk = ?',
+                [row.token_pk]
+            );
+        } else {
+            await connection.execute(
+                'UPDATE token_master SET qr_last_error = ? WHERE token_pk = ?',
+                ['file size 0 or missing', row.token_pk]
+            );
+        }
+        await connection.end();
+        connection = null;
+        return res.json({
+            success: true,
+            message: 'QR 코드가 생성되었습니다.',
+            internal_code: row.internal_code,
+            token_pk: row.token_pk
+        });
+    } catch (err) {
+        if (connection) {
+            try { await connection.end(); } catch (_) {}
+        }
+        const errMsg = (err && err.message) ? String(err.message).slice(0, 255) : 'QR 생성 실패';
+        try {
+            const conn = await mysql.createConnection({
+                host: process.env.DB_HOST,
+                user: process.env.DB_USER,
+                password: process.env.DB_PASSWORD,
+                database: process.env.DB_NAME,
+                port: process.env.DB_PORT || 3306,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+            });
+            const byPk = token_pk != null;
+            const [r] = await conn.execute(
+                byPk
+                    ? 'SELECT token_pk FROM token_master WHERE token_pk = ? LIMIT 1'
+                    : 'SELECT token_pk FROM token_master WHERE internal_code = ? LIMIT 1',
+                byPk ? [token_pk] : [internal_code]
+            );
+            if (r && r.length > 0) {
+                await conn.execute(
+                    'UPDATE token_master SET qr_last_error = ? WHERE token_pk = ?',
+                    [errMsg, r[0].token_pk]
+                );
+            }
+            await conn.end();
+        } catch (_) {}
+        Logger.error('[QR-GENERATE] 단건 QR 생성 실패', { message: err.message });
+        return res.status(500).json({
+            success: false,
+            message: err.message || 'QR 생성 중 오류가 발생했습니다.'
         });
     }
 });

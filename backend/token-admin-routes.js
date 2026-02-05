@@ -6,12 +6,16 @@
 
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const mysql = require('mysql2/promise');
 const crypto = require('crypto');
 const { authenticateToken, requireAdmin } = require('./auth-middleware');
 const { resolveProductId } = require('./utils/product-id-resolver');
 const Logger = require('./logger');
 require('dotenv').config();
+
+const OUTPUT_QR_DIR = path.join(__dirname, '..', 'output_qrcodes');
 
 const dbConfig = {
     host: process.env.DB_HOST,
@@ -166,6 +170,7 @@ router.post('/admin/tokens', authenticateToken, requireAdmin, async (req, res) =
             const existingTokens = new Set();
             const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
             const created = [];
+            const forQr = [];
             let createdCount = 0;
 
             for (let seq = start; seq <= end; seq++) {
@@ -203,15 +208,7 @@ router.post('/admin/tokens', authenticateToken, requireAdmin, async (req, res) =
                     internal_code,
                     warranty_bottom_code
                 });
-                try {
-                    const { generateOneQR } = require('./utils/qr-generator');
-                    await generateOneQR({ token, internal_code });
-                } catch (qrErr) {
-                    Logger.error('[ADMIN_TOKENS_CREATE] QR PNG 생성 실패 (토큰은 DB에 저장됨)', {
-                        internal_code,
-                        message: qrErr.message
-                    });
-                }
+                forQr.push({ token, internal_code, token_pk });
             }
 
             if (createdCount !== count) {
@@ -219,6 +216,36 @@ router.post('/admin/tokens', authenticateToken, requireAdmin, async (req, res) =
             }
 
             await connection.commit();
+
+            const { generateOneQR } = require('./utils/qr-generator');
+            for (const item of forQr) {
+                try {
+                    const filepath = await generateOneQR({ token: item.token, internal_code: item.internal_code });
+                    const stat = filepath && fs.existsSync(filepath) ? fs.statSync(filepath) : null;
+                    if (stat && stat.size > 0) {
+                        await connection.execute(
+                            'UPDATE token_master SET qr_generated_at = NOW(), qr_last_error = NULL WHERE token_pk = ?',
+                            [item.token_pk]
+                        );
+                    } else {
+                        await connection.execute(
+                            'UPDATE token_master SET qr_last_error = ? WHERE token_pk = ?',
+                            ['file size 0 or missing', item.token_pk]
+                        );
+                    }
+                } catch (qrErr) {
+                    const errMsg = (qrErr && qrErr.message) ? String(qrErr.message).slice(0, 255) : 'QR 생성 실패';
+                    await connection.execute(
+                        'UPDATE token_master SET qr_last_error = ? WHERE token_pk = ?',
+                        [errMsg, item.token_pk]
+                    );
+                    Logger.error('[ADMIN_TOKENS_CREATE] QR PNG 생성 실패 (토큰은 DB에 저장됨)', {
+                        internal_code: item.internal_code,
+                        message: qrErr.message
+                    });
+                }
+            }
+
             Logger.log('[ADMIN_TOKENS_CREATE]', {
                 userId: req.user?.user_id,
                 option_id: opt.option_id,

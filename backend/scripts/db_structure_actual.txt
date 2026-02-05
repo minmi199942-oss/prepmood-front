@@ -365,6 +365,8 @@ token_master	first_scanned_at	datetime	YES	MUL	NULL			15
 token_master	last_scanned_at	datetime	YES		NULL			16
 token_master	created_at	datetime	NO		NULL			17
 token_master	updated_at	datetime	NO		NULL			18
+token_master	qr_generated_at	datetime	YES		NULL			19
+token_master	qr_last_error	varchar(255)	YES		NULL			20
 token_variant_sequence	option_id	bigint	NO	PRI	NULL		product_options.option_id 참조	1
 token_variant_sequence	last_number	int	NO		0			2
 token_variant_sequence	updated_at	datetime	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	3
@@ -790,7 +792,7 @@ schema_migrations	7	4	0	7
 shipment_units	3	3	2	0
 shipments	11	6	2	0
 stock_units	11	10	4	3
-token_master	18	14	3	42
+token_master	20	14	3	42
 token_master_backup	15	10	1	42
 transfer_logs	8	7	4	0
 user_addresses	6	2	1	0
