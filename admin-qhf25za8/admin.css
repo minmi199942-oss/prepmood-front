@@ -445,6 +445,11 @@ html {
   padding: 2rem;
 }
 
+/* 옵션 추가 모달: 상품 수정 모달 위에 표시 (수정 모달 열린 상태에서 옵션 추가 시) */
+#addOptionModal.show {
+  z-index: 1100;
+}
+
 .modal-content {
   background: #fff;
   border-radius: 8px;
