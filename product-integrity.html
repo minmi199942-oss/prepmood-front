@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>제품 완결성 및 위생 관리 규정 - Pre.pMood</title>
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/layout-system.css">
+    <link rel="stylesheet" href="assets/css/header.css">
+    <link rel="stylesheet" href="assets/css/page.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+    <script src="header-loader.js" defer></script>
+    <script src="header-scroll.js" defer></script>
+    <script src="footer-loader.js" defer></script>
+    <style>
+        .integrity-page {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            min-height: 80vh;
+        }
+
+        .integrity-content {
+            background-color: white;
+            padding: 60px 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .integrity-content h1 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: #333;
+            margin-bottom: 40px;
+        }
+
+        .integrity-section {
+            margin-bottom: 60px;
+            padding-bottom: 20px;
+        }
+
+        .integrity-section:last-child {
+            margin-bottom: 40px;
+        }
+
+        .integrity-section h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .integrity-section h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #444;
+            margin: 25px 0 15px 0;
+        }
+
+        .integrity-section p {
+            line-height: 1.7;
+            color: #555;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .integrity-section ul {
+            margin: 15px 0;
+            padding-left: 0;
+            list-style: none;
+            text-align: center;
+        }
+
+        /* 불릿(⦁) 같은 위치 정렬용 */
+        .integrity-section ul.list-bullet {
+            display: inline-block;
+            text-align: left;
+        }
+
+        .integrity-section ul.list-bullet li {
+            padding-left: 0;
+        }
+
+        .integrity-section ul.list-bullet li::before {
+            content: "⦁ ";
+            display: inline-block;
+            width: 1.35em;
+            text-align: center;
+        }
+
+        .integrity-section li {
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .integrity-section ol {
+            margin: 15px 0;
+            padding-left: 0;
+            list-style: none;
+            text-align: center;
+            counter-reset: step;
+        }
+
+        .integrity-section ol li {
+            counter-increment: step;
+            margin-bottom: 10px;
+        }
+
+        .integrity-section ol li::before {
+            content: counter(step) ". ";
+            font-weight: 600;
+            color: #333;
+        }
+
+        .section-divider {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 40px auto;
+            max-width: 600px;
+        }
+
+        .highlight {
+            font-weight: 600;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .integrity-page {
+                padding: 20px 10px;
+            }
+
+            .integrity-content {
+                padding: 40px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header-container"></div>
+
+    <div class="integrity-page">
+        <main class="integrity-content">
+            <h1>Product Integrity &amp; Hygiene Protocol<br>제품 완결성 및 위생 관리 규정</h1>
+
+            <section id="section-1" class="integrity-section">
+                <h2>출고 전 검수 및 기록 시스템 <span class="highlight">Visual Archiving System</span></h2>
+                <p>Pre.pMood의 모든 제품은 발송 직전, 전용 검수 센터에서 영상 및 이미지 기반의 디지털 아카이빙을 거칩니다. 제품의 컨디션, 구성품, 패키징 전 과정을 기록하여 모든 고객이 <span class="highlight">‘신품 기준 상태(New Condition Standard)’</span>의 상품을 수령함을 보증합니다.</p>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-2" class="integrity-section">
+                <h2>시착 방지 보안 태그 정책 <span class="highlight">Security-Wear Tag Policy</span></h2>
+                <p>모든 상품에는 육안으로 식별 가능한 위치(소매, 단추 사이 등)에 <span class="highlight">보안 태그(Security Wear Tag)</span>가 부착됩니다.</p>
+                <ul>
+                    <li>⦁ 해당 태그는 절단 시 재부착이 불가능한 특수 구조로 설계되었습니다.</li>
+                    <li>Pre.pMood의 모든 상품은 엄격한 검수 후 태그가 부착되어 발송되며, 해당 태그 제거는 ‘착용 및 사용’으로 간주됩니다.</li>
+                </ul>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-3" class="integrity-section">
+                <h2>반품 승인 절차 <span class="highlight">Return Authorization System</span></h2>
+                <h3>반품 사전 승인제</h3>
+                <p>Pre.pMood는 무분별한 반품으로 인한 제품 가치 하락을 방지하기 위해 사전 승인제를 운영합니다.</p>
+                <ol>
+                    <li><strong>반품 요청 접수:</strong> 공식 채널을 통한 사유 기재</li>
+                    <li><strong>이미지 업로드:</strong> 보안 태그 유지 여부 및 전체 컨디션 확인</li>
+                    <li><strong>검토 및 승인:</strong> 전문 검수팀의 확인 후 수거 진행</li>
+                </ol>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-4" class="integrity-section">
+                <h2>프리미엄 운송사 <span class="highlight">Premium Logistics (VALEX)</span></h2>
+                <h3>지정 특수 택배사 정책</h3>
+                <p>고가 제품의 안전한 이동을 위해 모든 반품 회수는 <span class="highlight">프리미엄 운송사(VALEX)</span>를 통해서만 진행됩니다. 이는 분실 및 파손 리스크를 최소화하고, 전 과정 실물 추적과 보험 적용을 통해 제품의 가치를 보호하기 위함입니다.</p>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-5" class="integrity-section">
+                <h2>왕복 배송비 정책 <span class="highlight">Service Fee Structure</span></h2>
+                <h3>왕복 배송비 및 운영 실비</h3>
+                <p>반품 시 발생하는 비용은 단순 운송료를 넘어, 브랜드 가치 보존을 위한 실비 구조로 책정됩니다.</p>
+                <ul>
+                    <li><strong>포함 항목:</strong> 고가 물품 안심 할증료, 특수 보안 포장재, 전문 검수 인력 운영비</li>
+                    <li>제품 가액 및 운송 조건에 따라 상이하며 실제 발생 비용 기준 청구 구조이며, 사전 고지 후 적용됩니다.</li>
+                </ul>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-6" class="integrity-section">
+                <h2>위생 관리 규정 <span class="highlight">Hygiene Protocol</span></h2>
+                <p>Pre.pMood는 의류를 단순한 소비재가 아닌 개인 위생과 직접 연결된 제품군으로 정의합니다.</p>
+                <p>셔츠, 바지, 상의 등 피부에 직접 접촉하는 의류는 단순 시착만으로도 눈에 보이지 않는 각질, 피지, 미세 먼지, 섬유 이물질이 유입됩니다. 이는 외관상 확인이 불가능하더라도, 제품의 ‘신품 자격(New Condition Qualification)’을 상실시키는 요소입니다.</p>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-7" class="integrity-section">
+                <h2>Brand Integrity Restoration Principle<br>(브랜드 완결성 복원 원칙)</h2>
+                <p class="highlight">“Pre.pMood는 고객에게 '완벽히 정제된 신품'만을 전달하는 것을 타협할 수 없는 원칙으로 삼습니다.”</p>
+                <p>단 한 번이라도 고객의 손길을 거쳐 반품된 상품은 제품의 무결성 측면에서 이미 '신품'으로서의 자격을 상실한 것으로 정의합니다.</p>
+                <p>반품된 제품은 다시 신품 상태로 복원될 수 없으며, 이를 복원하기 위한 과정을 거칩니다.</p>
+                <ul class="list-bullet">
+                    <li>전문 살균 공정</li>
+                    <li>드라이클리닝</li>
+                    <li>위생 복원 처리</li>
+                    <li>재포장 처리</li>
+                </ul>
+                <p>Pre.pMood는 반품 상품을 재판매하지 않으며, 모든 반품 제품은 리퍼(Refurbished) 상품으로 분류됩니다.</p>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-8" class="integrity-section">
+                <h2>리퍼 (Refurbished) 판매 정책</h2>
+                <p>회수된 모든 제품은 위 복원 공정을 마친 후, 신품이 아닌 ‘리퍼비시(Refurbished)’ 상품으로 전격 재분류됩니다.</p>
+                <ul>
+                    <li><strong>Zero-Entry Policy (무관용 원칙):</strong> 어떠한 경우에도 반품 상품을 신품 라인업에 재유입시키는 행위를 엄격히 금지합니다.</li>
+                    <li><strong>Transparent Management (투명한 관리):</strong> 리퍼 제품은 오직 별도의 공식 리퍼비시 채널을 통해서만 유통되며, 신품과는 분리된 가격 체계와 관리 번호로 투명하게 운영됩니다.</li>
+                </ul>
+            </section>
+
+            <hr class="section-divider">
+
+            <section id="section-9" class="integrity-section">
+                <h2>패키징 무결성 정책 <span class="highlight">Packaging Integrity System</span></h2>
+                <p><strong>Unboxing Integrity:</strong> Pre.pMood의 패키지는 일체형 개봉 구조로 설계되어, 개봉 시 흔적이 영구적으로 남습니다. 훼손된 패키지는 자동으로 정밀 검수 대상이 됩니다.</p>
+                <p><strong>Seal Sticker System:</strong> 모든 출고 박스에 봉인 스티커(Seal Sticker)가 부착됩니다. 부착된 봉인 씰 훼손 시, 내부 구성품 및 미세 스크래치에 대한 강화 검수 프로세스가 적용됩니다.</p>
+            </section>
+
+            <hr class="section-divider">
+
+            <section class="integrity-section">
+                <p>Pre.pMood의 반품 정책은 ‘편의 중심 구조’가 아닌 브랜드 완결성 보호 구조를 기반으로 설계되었습니다.</p>
+                <p>모든 제품은 ‘신품의 정제된 상태’로만 유통되며, 한 번 고객의 손길이 닿은 제품은 다시 신품의 가치로 유통하지 않는 것, 그것이 Pre.pMood가 지키는 최고의 예우입니다.</p>
+            </section>
+
+            <div style="height: 60px;"></div>
+        </main>
+    </div>
+
+    <div id="footer-container"></div>
+</body>
+</html>
