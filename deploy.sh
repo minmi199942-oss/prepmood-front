@@ -202,6 +202,9 @@ rsync -av \
   --include="invoice-detail.html" \
   --include="invoice-detail-grid.css" \
   --include="invoice-detail-grid.js" \
+  --include="invoice-detail-pagination.html" \
+  --include="one-unit-one-record.html" \
+  --include="product-integrity.html" \
   --include="complete-profile.html" \
   --include="google-callback.html" \
   --include="catalog.html" \

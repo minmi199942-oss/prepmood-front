@@ -472,10 +472,9 @@
                     var basePath = window.matchMedia('(min-width: 769px)').matches ? '/image/barcode/' : '/image/mobilebarcode/';
                     img.src = basePath + encodeURIComponent(digitalWarrantyCode) + '.webp';
                     img.onerror = function() {
-                        img.style.display = 'none';
                         var svg = document.createElement('svg');
                         svg.id = 'barcode';
-                        img.parentNode.appendChild(svg);
+                        img.parentNode.replaceChild(svg, img);
                         if (typeof JsBarcode !== 'undefined' && internalCode) {
                             try {
                                 JsBarcode('#barcode', internalCode, { format: 'CODE128', width: 2, height: 60, displayValue: false, margin: 10 });
