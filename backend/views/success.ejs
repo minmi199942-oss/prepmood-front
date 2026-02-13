@@ -397,7 +397,7 @@
                 <div class="ticket-divider-wrap"></div>
                 
                 <div class="barcode-section">
-                    <div class="barcode-container">
+                    <div class="barcode-container" id="barcode-data" data-has-image="<%= product.digital_warranty_code ? '1' : '0' %>" data-digital-code="<%= (product.digital_warranty_code || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') %>" data-internal-code="<%= (product.internal_code || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') %>">
                         <% if (product.digital_warranty_code) { %>
                         <img id="barcode" src="" alt="바코드">
                         <% } else { %>
@@ -414,18 +414,23 @@
                         <div class="check-icon">
                             <img src="/image/checkicon.jpg" alt="" class="check-icon-img">
                         </div>
-                        <span>정품 인증 완료</span>
+                        <span><%= typeof is_activation !== 'undefined' && is_activation ? '보증서 활성화 완료' : '정품 인증 완료' %></span>
                     </div>
                 </div>
                 
                 <div class="info-text">
+                    <% if (typeof is_activation !== 'undefined' && is_activation) { %>
+                    <p>보증서가 성공적으로 활성화되었습니다.</p>
+                    <p>활성화된 보증서는 양도 및 환불 정책이 적용됩니다.</p>
+                    <% } else { %>
                     <p>디지털 보증서가 발급되었습니다.</p>
                     <p>발급된 보증서는 마이페이지 → 내 보증서에서 언제든 확인할 수 있습니다.</p>
+                    <% } %>
                 </div>
                 
                 <div class="button-section">
                     <% if (typeof warranty_public_id !== 'undefined' && warranty_public_id) { %>
-                    <a href="/digital-warranty.html" class="btn btn-primary">보증서 확인하기</a>
+                    <a href="<%= typeof is_activation !== 'undefined' && is_activation ? '/my-warranties.html' : '/digital-warranty.html' %>" class="btn btn-primary"><%= typeof is_activation !== 'undefined' && is_activation ? '보증서 목록 보기' : '보증서 확인하기' %></a>
                     <% } %>
                     <a href="/index.html" class="btn btn-secondary">홈으로 돌아가기</a>
                 </div>
@@ -443,9 +448,10 @@
         }
         
         (function() {
-            var hasBarcodeImage = <%= JSON.stringify(!!(product.digital_warranty_code)) %>;
-            var digitalWarrantyCode = <%= JSON.stringify((product.digital_warranty_code || '').trim()) %>;
-            var internalCode = <%= JSON.stringify((product.internal_code || '').trim()) %>;
+            var dataEl = document.getElementById('barcode-data');
+            var hasBarcodeImage = dataEl && dataEl.getAttribute('data-has-image') === '1';
+            var digitalWarrantyCode = ((dataEl && dataEl.getAttribute('data-digital-code')) || '').trim();
+            var internalCode = ((dataEl && dataEl.getAttribute('data-internal-code')) || '').trim();
             
             function barcodeDisplayText() {
                 if (digitalWarrantyCode) {
