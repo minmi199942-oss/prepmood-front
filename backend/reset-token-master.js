@@ -87,7 +87,7 @@ async function resetTokenMaster() {
         }
         
         Logger.log('[RESET] ✅ token_master 테이블 초기화 완료');
-        Logger.log('[RESET] 다음 단계: node init-token-master-from-xlsx.js 실행하여 새 데이터 추가');
+        Logger.log('[RESET] 다음 단계: 토큰은 관리자 UI에서 생성하세요.');
         
     } catch (error) {
         Logger.error('[RESET] ❌ 초기화 실패:', {

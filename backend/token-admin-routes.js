@@ -41,7 +41,7 @@ function normalizeColor(color) {
     return normalized;
 }
 
-/** 20자 랜덤 토큰 (init-token-master-from-xlsx.js와 동일) */
+/** 20자 랜덤 토큰 */
 function generateToken() {
     const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     let token = '';

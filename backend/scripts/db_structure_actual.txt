@@ -36,6 +36,7 @@ stock_units	BASE TABLE	InnoDB	3	16384	147456	2026-01-13 08:20:58	NULL
 token_master	BASE TABLE	InnoDB	42	16384	196608	2026-01-13 08:05:05	2026-01-13 11:45:13
 token_variant_sequence	BASE TABLE	InnoDB	0	16384	0	NULL	NULL
 token_master_backup	BASE TABLE	InnoDB	42	16384	147456	2026-01-08 18:59:56	NULL
+token_admin_audit_logs	BASE TABLE	InnoDB	0	16384	0	NULL	NULL
 transfer_logs	BASE TABLE	InnoDB	0	16384	98304	2025-12-30 18:05:26	NULL
 user_addresses	BASE TABLE	InnoDB	0	16384	16384	2025-10-01 11:28:58	NULL
 users	BASE TABLE	InnoDB	11	16384	65536	2026-01-07 18:31:08	NULL
@@ -385,6 +386,16 @@ token_master_backup	first_scanned_at	datetime	YES	MUL	NULL			12
 token_master_backup	last_scanned_at	datetime	YES		NULL			13
 token_master_backup	created_at	datetime	NO		NULL			14
 token_master_backup	updated_at	datetime	NO		NULL			15
+token_admin_audit_logs	id	bigint	NO	PRI	NULL	auto_increment		1
+token_admin_audit_logs	token_pk	int	NO	MUL	NULL	수정된 token_master.token_pk	2
+token_admin_audit_logs	admin_user_id	int	NO	MUL	NULL	수정한 관리자 users.user_id	3
+token_admin_audit_logs	changed_at	datetime(6)	NO		CURRENT_TIMESTAMP(6)	변경 시각(마이크로초)	4
+token_admin_audit_logs	column_name	varchar(100)	NO		NULL	변경된 token_master 컬럼명	5
+token_admin_audit_logs	old_value	text	YES		NULL	변경 전 값	6
+token_admin_audit_logs	new_value	text	YES		NULL	변경 후 값	7
+token_admin_audit_logs	request_id	varchar(64)	YES		NULL	요청 추적용 (선택)	8
+token_admin_audit_logs	ip	varchar(45)	YES		NULL	요청 IP (선택)	9
+token_admin_audit_logs	user_agent	text	YES		NULL	User-Agent (선택)	10
 transfer_logs	id	int	NO	PRI	NULL	auto_increment		1
 transfer_logs	warranty_public_id	char(36)	NO	MUL	NULL			2
 transfer_logs	token	varchar(20)	NO	MUL	NULL			3
@@ -652,6 +663,11 @@ token_master_backup	idx_rot_code	rot_code	1	1	BTREE
 token_master_backup	idx_serial_number	serial_number	1	1	BTREE	
 token_master_backup	idx_warranty_bottom_code	warranty_bottom_code	1	1	BTREE	
 token_master_backup	PRIMARY	token	1	0	BTREE	
+token_admin_audit_logs	idx_token_pk_changed_at	token_pk	1	1	BTREE	
+token_admin_audit_logs	idx_token_pk_changed_at	changed_at	2	1	BTREE	
+token_admin_audit_logs	idx_admin_user_id_changed_at	admin_user_id	1	1	BTREE	
+token_admin_audit_logs	idx_admin_user_id_changed_at	changed_at	2	1	BTREE	
+token_admin_audit_logs	PRIMARY	id	1	0	BTREE	
 transfer_logs	idx_admin_user_id	admin_user_id	1	1	BTREE	
 transfer_logs	idx_created_at	created_at	1	1	BTREE	
 transfer_logs	idx_from_user_id	from_user_id	1	1	BTREE	
@@ -744,6 +760,8 @@ token_master	fk_tm_option_id	option_id	product_options	option_id	NO ACTION	SET N
 token_master	token_master_ibfk_product_id	product_id	admin_products	id	NO ACTION	RESTRICT
 token_variant_sequence	fk_tvs_option_id	option_id	product_options	option_id	NO ACTION	RESTRICT	CASCADE
 token_master_backup	token_master_backup_ibfk_1	owner_user_id	users	user_id	NO ACTION	SET NULL
+token_admin_audit_logs	fk_taal_token_pk	token_pk	token_master	token_pk	NO ACTION	RESTRICT
+token_admin_audit_logs	fk_taal_admin_user_id	admin_user_id	users	user_id	NO ACTION	RESTRICT
 transfer_logs	transfer_logs_ibfk_1	warranty_public_id	warranties	public_id	NO ACTION	RESTRICT
 transfer_logs	transfer_logs_ibfk_2	from_user_id	users	user_id	NO ACTION	SET NULL
 transfer_logs	transfer_logs_ibfk_3	to_user_id	users	user_id	NO ACTION	RESTRICT
@@ -794,6 +812,7 @@ shipments	11	6	2	0
 stock_units	11	10	4	3
 token_master	20	14	3	42
 token_master_backup	15	10	1	42
+token_admin_audit_logs	10	3	2	0
 transfer_logs	8	7	4	0
 user_addresses	6	2	1	0
 users	16	5	0	11

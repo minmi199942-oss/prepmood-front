@@ -28,8 +28,9 @@ echo "=== Step 3: FK 제약 제거 ==="
 mysql -u prepmood_user -p prepmood < migrations/044_init_token_master_with_fk_handling.sql
 
 echo ""
-echo "=== Step 4: token_master 완전 초기화 ==="
-node init-token-master-from-xlsx.js
+echo "=== Step 4: token_master 데이터 추가 안내 ==="
+echo "※ init-token-master-from-xlsx.js는 폐기되었습니다."
+echo "   token_master 데이터는 관리자 UI 또는 (추가 예정) 대량 업로드로만 추가하세요."
 
 echo ""
 echo "=== Step 5: FK 제약 복원 ==="
