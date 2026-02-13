@@ -379,7 +379,8 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                     title: '정품 인증 성공 - Pre.p Mood',
                     product: {
                         product_name: tokenMaster.product_name,
-                        internal_code: tokenMaster.internal_code
+                        internal_code: tokenMaster.internal_code,
+                        digital_warranty_code: tokenMaster.digital_warranty_code || null
                     },
                     verified_at: formatDateForTemplate(now),
                     warranty_public_id: warranty.public_id,
@@ -391,6 +392,7 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                     product: {
                         product_name: tokenMaster.product_name,
                         internal_code: tokenMaster.internal_code,
+                        digital_warranty_code: tokenMaster.digital_warranty_code || null,
                         scan_count: tokenMaster.scan_count || 0
                     },
                     first_verified_at: formatDateForTemplate(tokenMaster.first_scanned_at),

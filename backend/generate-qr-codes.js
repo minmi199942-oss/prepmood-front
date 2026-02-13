@@ -1,13 +1,17 @@
 /**
  * QR 코드 생성 스크립트
- * 
+ *
  * 역할:
  * 1. DB에서 모든 토큰 조회
- * 2. 각 토큰마다 QR 코드 이미지 생성
- * 3. output_qrcodes/ 폴더에 저장
- * 
+ * 2. 각 토큰마다 QR 코드 이미지 생성 (qr-config.json의 default 프리셋 사용)
+ * 3. output_qrcodes/ 폴더에 {internal_code}.png 로 저장
+ *
  * 실행 방법:
- * node generate-qr-codes.js
+ *   node generate-qr-codes.js
+ *
+ * 중요: qr-config.json(예: default.width) 변경 후에는 서버에서 이 스크립트를
+ * 다시 실행해야 디스크의 PNG 크기가 반영됩니다. 다운로드 API는 디스크의 기존
+ * 파일을 그대로 서빙하므로, 크기 변경 후 반드시 재실행이 필요합니다.
  */
 
 require('dotenv').config();
