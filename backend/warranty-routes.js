@@ -928,7 +928,10 @@ router.get('/warranty-activate-success', requireAuthForHTML, async (req, res) =>
                 w.created_at,
                 tm.token,
                 tm.product_name,
-                tm.internal_code
+                tm.internal_code,
+                tm.rot_code,
+                tm.serial_number,
+                tm.digital_warranty_code
             FROM warranties w
             INNER JOIN token_master tm ON w.token_pk = tm.token_pk
             WHERE w.public_id = ? AND w.owner_user_id = ?`,
@@ -968,12 +971,15 @@ router.get('/warranty-activate-success', requireAuthForHTML, async (req, res) =>
             product: {
                 product_name: warranty.product_name || '제품명 없음',
                 internal_code: warranty.internal_code || null,
-                token: warranty.token // 바코드 생성용
+                rot_code: warranty.rot_code || null,
+                serial_number: warranty.serial_number || null,
+                digital_warranty_code: warranty.digital_warranty_code || null,
+                token: warranty.token
             },
             verified_at: formatDateForTemplate(warranty.activated_at || warranty.created_at),
             warranty_public_id: warranty.public_id,
             warranty_status: warranty.status,
-            is_activation: true // 보증서 활성화 성공임을 표시
+            is_activation: true
         });
         
     } catch (error) {

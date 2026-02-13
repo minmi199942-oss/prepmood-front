@@ -380,6 +380,8 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                     product: {
                         product_name: tokenMaster.product_name,
                         internal_code: tokenMaster.internal_code,
+                        rot_code: tokenMaster.rot_code || null,
+                        serial_number: tokenMaster.serial_number || null,
                         digital_warranty_code: tokenMaster.digital_warranty_code || null
                     },
                     verified_at: formatDateForTemplate(now),
@@ -392,6 +394,8 @@ router.get('/a/:token', authLimiter, requireAuthForHTML, async (req, res) => {
                     product: {
                         product_name: tokenMaster.product_name,
                         internal_code: tokenMaster.internal_code,
+                        rot_code: tokenMaster.rot_code || null,
+                        serial_number: tokenMaster.serial_number || null,
                         digital_warranty_code: tokenMaster.digital_warranty_code || null,
                         scan_count: tokenMaster.scan_count || 0
                     },
