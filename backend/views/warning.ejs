@@ -202,10 +202,12 @@
             text-align: center;
         }
         
-        /* 바코드 이미지/ SVG 중앙 정렬 (block 요소는 text-align 무시하므로 margin auto) */
+        /* 컨테이너 안에 맞추고 중앙 정렬 (max-width 100%로 넘침 방지) */
         .barcode-container img,
         .barcode-container svg {
             display: block;
+            max-width: 100%;
+            height: auto;
             margin-left: auto;
             margin-right: auto;
             padding-right: 14px;
