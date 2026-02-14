@@ -191,7 +191,6 @@
         }
         
         .barcode-section {
-            --barcode-width: 320px;
             text-align: center;
             margin: 37px -64px 32px -63.7px;
             width: calc(100% + 64px + 63.7px);
@@ -199,7 +198,7 @@
         }
         
         .barcode-container {
-            width: var(--barcode-width);
+            width: var(--barcode-width, auto);
             margin: 0 12px 0 12px;
             text-align: center;
         }

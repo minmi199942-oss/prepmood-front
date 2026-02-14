@@ -206,9 +206,8 @@
             overflow: hidden;
         }
         
-        /* 바코드: --barcode-width(px) 한 값만 바꾸면 이미지 가로 크기가 실제로 커지거나 줄어듦 (EJS와 동일 320px) */
+        /* 바코드: 아래 --barcode-width(px) 한 값만 바꾸면 이미지 가로 크기가 실제로 커지거나 줄어듦 (미정의 시 컨테이너 전체 폭, 이미지 중앙 정렬) */
         .barcode-section {
-            --barcode-width: 320px;
             text-align: center;
             margin: 37px -64px 32px -63.7px;
             width: calc(100% + 64px + 63.7px);
@@ -216,7 +215,7 @@
         }
         
         .barcode-container {
-            width: var(--barcode-width);
+            width: var(--barcode-width, auto);
             margin: 0 12px 0 12px;
             text-align: center;
         }
