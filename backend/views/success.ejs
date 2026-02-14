@@ -380,7 +380,7 @@
         <div class="container">
             <div class="header-bar">
                 <div class="brand-name">
-                    <img src="/image/prep.png" alt="Pre.pMood" style="height: 35.5px; width: auto;">
+                    <img src="/image/prep.png" alt="Pre.pMood" style="height: 35.5px; width: auto;" loading="eager" decoding="async">
                 </div>
                 <div class="header-date" id="header-date"></div>
             </div>
@@ -408,7 +408,7 @@
                 <div class="ticket-divider-wrap"></div>
                 
                 <div class="barcode-section">
-                    <div class="barcode-container" id="barcode-data" data-has-image="<%= product.digital_warranty_code ? '1' : '0' %>" data-digital-code="<%= (product.digital_warranty_code || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') %>" data-internal-code="<%= (product.internal_code || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') %>">
+                    <div class="barcode-container" id="barcode-data" data-has-image="<%= product.digital_warranty_code ? '1' : '0' %>" data-digital-code="<%= (product.digital_warranty_code || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;') %>" data-internal-code="<%= (product.internal_code || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;') %>">
                         <% if (product.digital_warranty_code) { %>
                         <img id="barcode" src="" alt="바코드">
                         <% } else { %>

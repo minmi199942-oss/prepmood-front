@@ -390,7 +390,7 @@
         <div class="container">
             <div class="header-bar">
                 <div class="brand-name">
-                    <img src="/image/prepred.png" alt="Pre.pMood" style="height: 35.5px; width: auto;">
+                    <img src="/image/prepred.png" alt="Pre.pMood" style="height: 35.5px; width: auto;" loading="eager" decoding="async">
                 </div>
                 <div class="header-date" id="header-date"></div>
             </div>
@@ -464,8 +464,8 @@
         
         (function() {
             var hasBarcodeImage = <%= JSON.stringify(!!(product.digital_warranty_code)) %>;
-            var digitalWarrantyCode = <%= JSON.stringify((product.digital_warranty_code || '').trim()) %>;
-            var internalCode = <%= JSON.stringify((product.internal_code || '').trim()) %>;
+            var digitalWarrantyCode = <%- JSON.stringify((product.digital_warranty_code || '').trim()).replace(/&/g, '\\u0026').replace(/<\//g, '\\u003c/') %>;
+            var internalCode = <%- JSON.stringify((product.internal_code || '').trim()).replace(/&/g, '\\u0026').replace(/<\//g, '\\u003c/') %>;
             
             function barcodeDisplayText() {
                 if (digitalWarrantyCode) {
