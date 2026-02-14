@@ -1,6 +1,7 @@
 /**
  * token-admin-routes.js
  * 관리자 토큰 생성 API (POST /api/admin/tokens)
+ * 관리자 토큰 수정 API (PATCH /api/admin/tokens/:tokenPk) — TOKEN_XLSX_REMOVAL_AND_ADMIN_SSOT.md §6
  * 설계: ADMIN_TOKEN_PRODUCT_STOCK_DESIGN.md §3.2.1, §3.2.2
  */
 
@@ -273,6 +274,238 @@ router.post('/admin/tokens', authenticateToken, requireAdmin, async (req, res) =
         return res.status(500).json({
             success: false,
             message: error.message || '토큰 생성 중 오류가 발생했습니다.'
+        });
+    } finally {
+        if (connection) {
+            try { await connection.end(); } catch (_) {}
+        }
+    }
+});
+
+/** §6.2 허용 컬럼 (화이트리스트) */
+const PATCH_ALLOWED_COLUMNS = [
+    'product_name',
+    'rot_code',
+    'serial_number',
+    'warranty_bottom_code',
+    'digital_warranty_code',
+    'digital_warranty_collection'
+];
+
+/** §6.2 컬럼별 최대 길이 (db_structure_actual.txt 기준) */
+const PATCH_COLUMN_MAX_LEN = {
+    product_name: 255,
+    rot_code: 100,
+    serial_number: 100,
+    warranty_bottom_code: 100,
+    digital_warranty_code: 100,
+    digital_warranty_collection: 100
+};
+
+/**
+ * PATCH /api/admin/tokens/:tokenPk
+ * 관리자 token_master 수정. TOKEN_XLSX_REMOVAL_AND_ADMIN_SSOT.md §6.5 순서 준수.
+ * Body: 허용 컬럼만 { product_name?, rot_code?, serial_number?, warranty_bottom_code?, digital_warranty_code?, digital_warranty_collection? }
+ */
+router.patch('/admin/tokens/:tokenPk', authenticateToken, requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const tokenPk = parseInt(req.params.tokenPk, 10);
+        if (Number.isNaN(tokenPk) || tokenPk < 1) {
+            return res.status(422).json({ success: false, message: 'tokenPk는 양의 정수여야 합니다.', code: 'INVALID_TOKEN_PK' });
+        }
+
+        const body = req.body && typeof req.body === 'object' ? req.body : {};
+        const keys = Object.keys(body);
+
+        // §6.5 1) 화이트리스트 — 허용 컬럼 외 포함 시 422
+        const invalidKeys = keys.filter(k => !PATCH_ALLOWED_COLUMNS.includes(k));
+        if (invalidKeys.length > 0) {
+            return res.status(422).json({
+                success: false,
+                message: '허용되지 않은 컬럼이 포함되어 있습니다.',
+                code: 'WHITELIST_VIOLATION',
+                invalid_keys: invalidKeys
+            });
+        }
+
+        if (keys.length === 0) {
+            return res.status(422).json({ success: false, message: '수정할 필드가 없습니다.', code: 'NO_FIELDS' });
+        }
+
+        // 값 검증: string 또는 null만 허용, 길이 제한
+        const updates = {};
+        for (const k of keys) {
+            const v = body[k];
+            if (v !== null && typeof v !== 'string') {
+                return res.status(422).json({
+                    success: false,
+                    message: `컬럼 값은 문자열 또는 null이어야 합니다: ${k}`,
+                    code: 'INVALID_TYPE'
+                });
+            }
+            const str = v == null ? '' : String(v).trim();
+            const maxLen = PATCH_COLUMN_MAX_LEN[k];
+            if (str.length > maxLen) {
+                return res.status(422).json({
+                    success: false,
+                    message: `컬럼 길이 초과: ${k} (최대 ${maxLen})`,
+                    code: 'MAX_LENGTH'
+                });
+            }
+            updates[k] = v == null ? null : str || null;
+        }
+
+        // 단일 커넥션·단일 트랜잭션: FOR UPDATE 잠금이 유효하도록 모든 쿼리를 이 connection으로만 실행(pool 혼용 금지)
+        connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+
+        try {
+            // §6.5 2) 행 잠금
+            const [rows] = await connection.execute(
+                `SELECT token_pk, token, scan_count, product_name, rot_code, serial_number,
+                        warranty_bottom_code, digital_warranty_code, digital_warranty_collection
+                 FROM token_master WHERE token_pk = ? FOR UPDATE`,
+                [tokenPk]
+            );
+            if (rows.length === 0) {
+                await connection.rollback();
+                return res.status(404).json({ success: false, message: '해당 토큰을 찾을 수 없습니다.', code: 'NOT_FOUND' });
+            }
+
+            const row = rows[0];
+
+            // §6.5 3) §6.1 조건: scan_count=0
+            if (row.scan_count !== 0) {
+                await connection.rollback();
+                return res.status(409).json({
+                    success: false,
+                    message: '이미 스캔된 토큰은 수정할 수 없습니다.',
+                    code: 'SCAN_COUNT_NOT_ZERO'
+                });
+            }
+
+            // scan_logs 불일치 검사
+            const [scanRows] = await connection.execute(
+                'SELECT 1 FROM scan_logs WHERE token = ? LIMIT 1',
+                [row.token]
+            );
+            if (scanRows.length > 0) {
+                await connection.rollback();
+                return res.status(409).json({
+                    success: false,
+                    message: '데이터 불일치 점검 필요 (scan_count=0인데 scan_logs에 기록 존재).',
+                    code: 'SCAN_LOGS_MISMATCH'
+                });
+            }
+
+            const hasCustomerFacing = ['rot_code', 'serial_number', 'warranty_bottom_code', 'digital_warranty_code', 'digital_warranty_collection']
+                .some(c => keys.includes(c));
+
+            if (hasCustomerFacing) {
+                const [w] = await connection.execute('SELECT 1 FROM warranties WHERE token_pk = ? LIMIT 1', [tokenPk]);
+                const [s] = await connection.execute('SELECT 1 FROM stock_units WHERE token_pk = ? LIMIT 1', [tokenPk]);
+                const [o] = await connection.execute('SELECT 1 FROM order_item_units WHERE token_pk = ? LIMIT 1', [tokenPk]);
+                if (w.length > 0 || s.length > 0 || o.length > 0) {
+                    await connection.rollback();
+                    return res.status(409).json({
+                        success: false,
+                        message: '이미 보증/재고/주문에 연결된 토큰의 고객 노출값은 수정할 수 없습니다.',
+                        code: 'LINKED_TOKEN'
+                    });
+                }
+            } else {
+                // product_name만 변경: warranties, order_item_units 미연결이면 허용 (stock_units 허용)
+                const [w] = await connection.execute('SELECT 1 FROM warranties WHERE token_pk = ? LIMIT 1', [tokenPk]);
+                const [o] = await connection.execute('SELECT 1 FROM order_item_units WHERE token_pk = ? LIMIT 1', [tokenPk]);
+                if (w.length > 0 || o.length > 0) {
+                    await connection.rollback();
+                    return res.status(409).json({
+                        success: false,
+                        message: '이미 보증/주문에 연결된 토큰은 수정할 수 없습니다.',
+                        code: 'LINKED_TOKEN'
+                    });
+                }
+            }
+
+            // 실제 변경분만 추출 (old_value === new_value면 미기록)
+            const adminUserId = req.user?.userId;
+            if (adminUserId == null) {
+                await connection.rollback();
+                return res.status(403).json({ success: false, message: '인증 정보가 없습니다.', code: 'UNAUTHORIZED' });
+            }
+
+            const auditRows = [];
+            const setParts = [];
+            const setValues = [];
+
+            for (const col of keys) {
+                const oldVal = row[col] != null ? String(row[col]) : '';
+                const newVal = updates[col] != null ? String(updates[col]) : '';
+                if (oldVal === newVal) continue;
+                auditRows.push({ column_name: col, old_value: row[col], new_value: updates[col] });
+                setParts.push(`${col} = ?`);
+                setValues.push(updates[col]);
+            }
+
+            if (auditRows.length === 0) {
+                await connection.rollback();
+                return res.json({ success: true, message: '변경 없음', updated: [] });
+            }
+
+            // §6.5 4) 감사 로그 N행 INSERT
+            // 출처: request_id=X-Request-Id 헤더(없으면 null), ip=req.ip|connection.remoteAddress, user_agent=req.get('User-Agent')
+            // 운영 조회 예시: SELECT * FROM token_admin_audit_logs WHERE token_pk=? ORDER BY changed_at DESC LIMIT 20 (idx_token_pk_changed_at)
+            const requestId = req.headers['x-request-id'] ? String(req.headers['x-request-id']).slice(0, 64) : null;
+            const ip = req.ip || req.connection?.remoteAddress || null;
+            const userAgent = req.get('User-Agent') || null;
+
+            for (const a of auditRows) {
+                await connection.execute(
+                    `INSERT INTO token_admin_audit_logs
+                     (token_pk, admin_user_id, column_name, old_value, new_value, request_id, ip, user_agent)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        tokenPk,
+                        adminUserId,
+                        a.column_name,
+                        a.old_value ?? null,
+                        a.new_value ?? null,
+                        requestId,
+                        ip ? String(ip).slice(0, 45) : null,
+                        userAgent
+                    ]
+                );
+            }
+
+            // §6.5 5) token_master UPDATE
+            setParts.push('updated_at = NOW()');
+            await connection.execute(
+                `UPDATE token_master SET ${setParts.join(', ')} WHERE token_pk = ?`,
+                [...setValues, tokenPk]
+            );
+
+            await connection.commit();
+
+            Logger.log('[ADMIN_TOKENS_PATCH]', {
+                userId: adminUserId,
+                tokenPk,
+                columns: auditRows.map(a => a.column_name)
+            });
+
+            return res.json({
+                success: true,
+                updated: auditRows.map(a => ({ column: a.column_name, old_value: a.old_value, new_value: a.new_value }))
+            });
+        } catch (txErr) {
+            await connection.rollback();
+            throw txErr;
+        }
+    } catch (error) {
+        Logger.error('[ADMIN_TOKENS_PATCH] 실패', { message: error.message, stack: error.stack });
+        return res.status(500).json({
+            success: false,
+            message: error.message || '토큰 수정 중 오류가 발생했습니다.'
         });
     } finally {
         if (connection) {
