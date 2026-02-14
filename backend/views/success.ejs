@@ -306,76 +306,83 @@
         .btn-secondary { background: white; color: #1a1a1a; border: 1px solid #E6E6E6; }
         .btn-secondary:hover { background: #f9f9f9; }
         
+        /* 모바일 (768px 이하): C안 335×611, success-preview와 동일 */
         @media (max-width: 768px) {
-            body { padding: 35px 24px; align-items: flex-start; }
+            html { overflow-x: hidden; }
+            body {
+                padding: 35px 20px;
+                align-items: flex-start;
+                overflow-x: hidden;
+                max-width: 100vw;
+            }
             .stage-panel {
-                width: 276px;
-                height: 492px;
-                max-width: 276px;
-                padding: 39px 23.5px 39px 24.2px;
+                width: 335px;
+                height: 611px;
+                max-width: 335px;
+                padding: 47px 28px 48px 29px;
                 border-radius: 2px;
             }
-            .container { width: 229px; height: 447.8px; }
+            .container { width: 278px; max-width: 278px; height: 544px; min-height: 278px; }
             .header-bar {
-                height: 71px;
-                min-height: 71px;
-                padding: 21px 14px 16px 14.5px;
+                height: 86px;
+                min-height: 86px;
+                padding: 25px 17px 19px 18px;
                 flex-shrink: 0;
                 flex-grow: 0;
             }
-            .brand-name { margin: 1px 0 0 16px; }
-            .brand-name img { height: 17.2px !important; width: auto !important; object-fit: contain; }
-            .header-date { font-size: 5.7px; letter-spacing: 0.8px; margin-right: 15.2px; margin-bottom: 0; }
-            .card-content { padding: 25px 32px 9px 30.5px; flex-shrink: 0; }
+            .brand-name { margin: 1px 0 0 19px; }
+            .brand-name img { height: 21px !important; width: auto !important; object-fit: contain; }
+            .header-date { font-size: 7px; letter-spacing: 0.8px; margin-right: 18px; margin-bottom: 0; }
+            .card-content { padding: 30px 38px 11px 37px; flex-shrink: 0; min-height: 0; }
             .card-content::before { margin: 9px 0 0 0; height: 0.1px; }
-            .info-table { margin-bottom: 26.5px; margin-top: 2px; }
-            .info-table .info-row { padding: 10px 0 0 1.3px; }
-            .info-table .info-row:nth-child(2) { padding: 12px 0 0 1.3px; }
-            .info-table .info-row:nth-child(3) { padding: 11.5px 0 0 1.3px; }
-            .info-table .info-row:nth-child(4) { padding: 11.3px 0 0 1.3px; }
-            .info-label { font-size: 5.7px; min-width: 54px; letter-spacing: 0.8px; }
-            .info-value { font-size: 5.7px; letter-spacing: 0.75px; padding-right: 0; }
+            .info-table { margin-bottom: 32px; margin-top: 2px; }
+            .info-table .info-row { padding: 12px 0 0 1.6px; }
+            .info-table .info-row:nth-child(2) { padding: 14px 0 0 1.6px; }
+            .info-table .info-row:nth-child(3) { padding: 14px 0 0 1.6px; }
+            .info-table .info-row:nth-child(4) { padding: 14px 0 0 1.6px; }
+            .info-label { font-size: 7px; min-width: 66px; letter-spacing: 0.8px; }
+            .info-value { font-size: 7px; letter-spacing: 0.75px; padding-right: 0; }
             .ticket-divider-wrap {
-                margin: 10px -17px 8px -17px;
+                margin: 12px -21px 10px -21px;
                 height: 1px;
                 background-image: repeating-linear-gradient(to right, #d0d0d0 0px, #d0d0d0 6px, transparent 6px, transparent 15px);
                 background-size: 20px 1px;
             }
-            .ticket-divider-wrap::before { width: 19px; height: 17px; left: -24px; }
-            .ticket-divider-wrap::after { width: 17px; height: 17px; right: -23.5px; }
+            .ticket-divider-wrap::before { width: 23px; height: 21px; left: -29px; }
+            .ticket-divider-wrap::after { width: 21px; height: 21px; right: -29px; }
             .barcode-section {
-                margin: 18px -16px 12px -16px;
-                width: calc(100% + 32px);
+                margin: 22px -19px 15px -19px;
+                width: calc(100% + 38px);
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 text-align: center;
             }
-            .barcode-container { margin: 0 6px; display: flex; justify-content: center; }
-            .barcode-container img { padding-right: 6px; }
-            .barcode-text { font-size: 5.9px; letter-spacing: 1.4px; margin: 4px 16px -12px 16px; padding-top: 5px; }
+            .barcode-container { margin: 0 8px; display: flex; justify-content: center; }
+            .barcode-container img { padding-right: 8px; }
+            .barcode-text { font-size: 7px; letter-spacing: 1.4px; margin: 5px 19px -15px 19px; padding-top: 4px; }
             .verified-pill {
-                width: 83px;
-                height: 27px;
-                border-radius: 20px;
-                font-size: 5.6px;
+                width: 101px;
+                height: 33px;
+                border-radius: 24px;
+                font-size: 7px;
                 letter-spacing: 0.8px;
-                gap: 4px;
-                margin-top: 6px;
-                margin-bottom: -24px;
-                padding-right: 3px;
+                gap: 5px;
+                margin-top: 7px;
+                margin-bottom: -29px;
+                padding-right: 4px;
                 padding-bottom: 1px;
             }
-            .verified-pill .check-icon { transform: translateX(-4.5px); }
-            .verified-pill .check-icon-img { width: 9px; height: 9px; }
-            .verified-pill span { padding-top: 1px; }
-            .info-text { padding: 8px 12px 6.3px 11.5px; margin: 10px 0 0; border: 1px solid rgba(0,0,0,0.31); border-radius: 5px; }
-            .info-text p { font-size: 5.2px; letter-spacing: 0.7px; margin-bottom: 2px; }
-            .button-section { margin-top: 17px; }
-            .btn { padding: 10px; font-size: 5.5px; letter-spacing: 0.8px; border-radius: 5px; font-weight: 400; }
-            .btn-primary { margin-bottom: 6px; }
+            .verified-pill .check-icon { transform: translateX(-5.5px); }
+            .verified-pill .check-icon-img { width: 11px; height: 11px; }
+            .verified-pill span { padding-top: 2px; }
+            .info-text { padding: 10px 15px 8px 14px; margin: 11px 0 0; border: 1px solid rgba(0,0,0,0.31); border-radius: 6px; }
+            .info-text p { font-size: 6px; letter-spacing: 0.9px; margin-bottom: 2px; }
+            .button-section { margin-top: 19px; }
+            .btn { padding: 12px 12px 13px 12px; font-size: 7px; letter-spacing: 0.8px; border-radius: 6px; font-weight: 400; }
+            .btn-primary { margin-bottom: 7px; }
             .btn-secondary { border: none; }
-            .card-content-bottom { padding-bottom: 13px; }
+            .card-content-bottom { padding-bottom: 16px; }
         }
     </style>
 </head>
