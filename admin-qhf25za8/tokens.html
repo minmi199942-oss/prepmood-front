@@ -93,6 +93,55 @@
         토큰 생성은 옵션 메타(rot_code, warranty_bottom_prefix, serial_prefix, digital_warranty_code, digital_warranty_collection)가 모두 설정된 옵션에서만 가능합니다.
         메타가 비어 있으면 "메타 설정"에서 입력 후 저장하세요.
       </p>
+
+      <div class="token-create-card" style="margin-top:2rem;">
+        <h3 style="margin-top:0;">토큰 수정</h3>
+        <p style="color:#6c757d; font-size:0.875rem; margin-bottom:1rem;">수정 가능한 토큰만 변경됩니다(스캔 전·보증/재고/주문 미연결). §6 정책.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editTokenPk">token_pk</label>
+            <input type="number" id="editTokenPk" min="1" placeholder="예: 65" style="width:100px;">
+          </div>
+          <div class="form-group">
+            <button type="button" id="loadTokenBtn" class="btn-secondary">조회</button>
+          </div>
+        </div>
+        <div id="tokenEditFormWrap" style="display:none;">
+          <div class="form-group">
+            <label for="editProductName">product_name</label>
+            <input type="text" id="editProductName" maxlength="255" placeholder="상품명">
+          </div>
+          <details style="margin-top:1rem;">
+            <summary style="cursor:pointer; font-weight:600;">고급 (고객 노출값)</summary>
+            <div style="margin-top:0.5rem;">
+              <div class="form-group">
+                <label for="editRotCode">rot_code</label>
+                <input type="text" id="editRotCode" maxlength="100">
+              </div>
+              <div class="form-group">
+                <label for="editSerialNumber">serial_number</label>
+                <input type="text" id="editSerialNumber" maxlength="100">
+              </div>
+              <div class="form-group">
+                <label for="editWarrantyBottomCode">warranty_bottom_code</label>
+                <input type="text" id="editWarrantyBottomCode" maxlength="100">
+              </div>
+              <div class="form-group">
+                <label for="editDigitalWarrantyCode">digital_warranty_code</label>
+                <input type="text" id="editDigitalWarrantyCode" maxlength="100">
+              </div>
+              <div class="form-group">
+                <label for="editDigitalWarrantyCollection">digital_warranty_collection</label>
+                <input type="text" id="editDigitalWarrantyCollection" maxlength="100">
+              </div>
+            </div>
+          </details>
+          <div class="form-row" style="margin-top:1rem;">
+            <button type="button" id="saveTokenEditBtn" class="btn-primary">저장</button>
+            <span id="editTokenMessage" style="margin-left:1rem; font-size:0.875rem;"></span>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 

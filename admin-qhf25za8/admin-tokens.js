@@ -33,7 +33,18 @@
     metaDigitalWarrantyCode: document.getElementById('metaDigitalWarrantyCode'),
     metaDigitalWarrantyCollection: document.getElementById('metaDigitalWarrantyCollection'),
     metaSeasonCode: document.getElementById('metaSeasonCode'),
-    cancelOptionMetaBtn: document.getElementById('cancelOptionMetaBtn')
+    cancelOptionMetaBtn: document.getElementById('cancelOptionMetaBtn'),
+    editTokenPk: document.getElementById('editTokenPk'),
+    loadTokenBtn: document.getElementById('loadTokenBtn'),
+    tokenEditFormWrap: document.getElementById('tokenEditFormWrap'),
+    editProductName: document.getElementById('editProductName'),
+    editRotCode: document.getElementById('editRotCode'),
+    editSerialNumber: document.getElementById('editSerialNumber'),
+    editWarrantyBottomCode: document.getElementById('editWarrantyBottomCode'),
+    editDigitalWarrantyCode: document.getElementById('editDigitalWarrantyCode'),
+    editDigitalWarrantyCollection: document.getElementById('editDigitalWarrantyCollection'),
+    saveTokenEditBtn: document.getElementById('saveTokenEditBtn'),
+    editTokenMessage: document.getElementById('editTokenMessage')
   };
 
   function isOptionMetaOk(opt) {
@@ -66,6 +77,8 @@
     elements.cancelOptionMetaBtn.addEventListener('click', closeOptionMetaModal);
     elements.optionMetaModal.addEventListener('click', (e) => { if (e.target === elements.optionMetaModal) closeOptionMetaModal(); });
     elements.optionMetaForm.addEventListener('submit', saveOptionMeta);
+    if (elements.loadTokenBtn) elements.loadTokenBtn.addEventListener('click', loadTokenForEdit);
+    if (elements.saveTokenEditBtn) elements.saveTokenEditBtn.addEventListener('click', saveTokenEdit);
   }
 
   async function loadProducts() {
@@ -209,6 +222,79 @@
       alert('토큰 생성 중 오류가 발생했습니다.');
     } finally {
       updateMetaStatusAndButtons();
+    }
+  }
+
+  async function loadTokenForEdit() {
+    const pk = elements.editTokenPk && elements.editTokenPk.value ? parseInt(elements.editTokenPk.value, 10) : 0;
+    if (!pk || pk < 1) {
+      if (elements.editTokenMessage) elements.editTokenMessage.textContent = 'token_pk를 입력하세요 (1 이상).';
+      return;
+    }
+    if (elements.editTokenMessage) elements.editTokenMessage.textContent = '';
+    try {
+      const res = await fetch(`${API_BASE}/admin/tokens/${pk}`, { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (elements.editTokenMessage) elements.editTokenMessage.textContent = data.message || '조회 실패';
+        if (elements.tokenEditFormWrap) elements.tokenEditFormWrap.style.display = 'none';
+        return;
+      }
+      const t = data.token || {};
+      if (elements.editProductName) elements.editProductName.value = t.product_name ?? '';
+      if (elements.editRotCode) elements.editRotCode.value = t.rot_code ?? '';
+      if (elements.editSerialNumber) elements.editSerialNumber.value = t.serial_number ?? '';
+      if (elements.editWarrantyBottomCode) elements.editWarrantyBottomCode.value = t.warranty_bottom_code ?? '';
+      if (elements.editDigitalWarrantyCode) elements.editDigitalWarrantyCode.value = t.digital_warranty_code ?? '';
+      if (elements.editDigitalWarrantyCollection) elements.editDigitalWarrantyCollection.value = t.digital_warranty_collection ?? '';
+      if (elements.tokenEditFormWrap) elements.tokenEditFormWrap.style.display = 'block';
+      if (elements.editTokenMessage) elements.editTokenMessage.textContent = t.scan_count > 0 ? '이미 스캔된 토큰입니다. 수정 시 409가 반환될 수 있습니다.' : '';
+    } catch (e) {
+      console.error('토큰 조회 실패:', e.message);
+      if (elements.editTokenMessage) elements.editTokenMessage.textContent = '조회 중 오류가 발생했습니다.';
+    }
+  }
+
+  async function saveTokenEdit() {
+    const pk = elements.editTokenPk && elements.editTokenPk.value ? parseInt(elements.editTokenPk.value, 10) : 0;
+    if (!pk || pk < 1) {
+      if (elements.editTokenMessage) elements.editTokenMessage.textContent = 'token_pk를 입력한 뒤 조회하세요.';
+      return;
+    }
+    const body = {};
+    if (elements.editProductName) body.product_name = elements.editProductName.value.trim() || null;
+    if (elements.editRotCode) body.rot_code = elements.editRotCode.value.trim() || null;
+    if (elements.editSerialNumber) body.serial_number = elements.editSerialNumber.value.trim() || null;
+    if (elements.editWarrantyBottomCode) body.warranty_bottom_code = elements.editWarrantyBottomCode.value.trim() || null;
+    if (elements.editDigitalWarrantyCode) body.digital_warranty_code = elements.editDigitalWarrantyCode.value.trim() || null;
+    if (elements.editDigitalWarrantyCollection) body.digital_warranty_collection = elements.editDigitalWarrantyCollection.value.trim() || null;
+    const keys = Object.keys(body).filter(k => body[k] !== undefined);
+    if (keys.length === 0) {
+      if (elements.editTokenMessage) elements.editTokenMessage.textContent = '수정할 필드를 하나 이상 입력하세요.';
+      return;
+    }
+    const send = {};
+    keys.forEach(k => { send[k] = body[k]; });
+    if (elements.editTokenMessage) elements.editTokenMessage.textContent = '저장 중...';
+    if (elements.saveTokenEditBtn) elements.saveTokenEditBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/admin/tokens/${pk}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(send)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (elements.editTokenMessage) elements.editTokenMessage.textContent = data.updated && data.updated.length ? `저장됨 (${data.updated.length}개 필드)` : (data.message || '저장됨');
+      } else {
+        if (elements.editTokenMessage) elements.editTokenMessage.textContent = data.message || `오류 ${res.status}`;
+      }
+    } catch (e) {
+      console.error('토큰 수정 실패:', e.message);
+      if (elements.editTokenMessage) elements.editTokenMessage.textContent = '저장 중 오류가 발생했습니다.';
+    } finally {
+      if (elements.saveTokenEditBtn) elements.saveTokenEditBtn.disabled = false;
     }
   }
 

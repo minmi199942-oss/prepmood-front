@@ -282,6 +282,50 @@ router.post('/admin/tokens', authenticateToken, requireAdmin, async (req, res) =
     }
 });
 
+/**
+ * GET /api/admin/tokens/:tokenPk
+ * 수정 폼 로딩용 단건 조회. §6 허용 컬럼 + scan_count 반환.
+ */
+router.get('/admin/tokens/:tokenPk', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const tokenPk = parseInt(req.params.tokenPk, 10);
+        if (Number.isNaN(tokenPk) || tokenPk < 1) {
+            return res.status(422).json({ success: false, message: 'tokenPk는 양의 정수여야 합니다.', code: 'INVALID_TOKEN_PK' });
+        }
+        const connection = await mysql.createConnection(dbConfig);
+        try {
+            const [rows] = await connection.execute(
+                `SELECT token_pk, product_name, rot_code, serial_number, warranty_bottom_code,
+                        digital_warranty_code, digital_warranty_collection, scan_count
+                 FROM token_master WHERE token_pk = ?`,
+                [tokenPk]
+            );
+            if (rows.length === 0) {
+                return res.status(404).json({ success: false, message: '해당 토큰을 찾을 수 없습니다.', code: 'NOT_FOUND' });
+            }
+            const row = rows[0];
+            return res.json({
+                success: true,
+                token: {
+                    token_pk: row.token_pk,
+                    product_name: row.product_name ?? '',
+                    rot_code: row.rot_code ?? '',
+                    serial_number: row.serial_number ?? '',
+                    warranty_bottom_code: row.warranty_bottom_code ?? '',
+                    digital_warranty_code: row.digital_warranty_code ?? '',
+                    digital_warranty_collection: row.digital_warranty_collection ?? '',
+                    scan_count: row.scan_count ?? 0
+                }
+            });
+        } finally {
+            await connection.end();
+        }
+    } catch (error) {
+        Logger.error('[ADMIN_TOKENS_GET] 실패', { message: error.message });
+        return res.status(500).json({ success: false, message: error.message || '토큰 조회 중 오류가 발생했습니다.' });
+    }
+});
+
 /** §6.2 허용 컬럼 (화이트리스트) */
 const PATCH_ALLOWED_COLUMNS = [
     'product_name',
