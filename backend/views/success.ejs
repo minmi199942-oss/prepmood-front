@@ -200,13 +200,16 @@
         
         .barcode-container {
             width: var(--barcode-width);
-            margin: 0 12px;
+            margin: 0 12px 0 12px;
+            text-align: center;
         }
         
+        /* 바코드 이미지/ SVG 중앙 정렬 (block 요소는 text-align 무시하므로 margin auto) */
         .barcode-container img,
         .barcode-container svg {
-            max-width: 100%;
-            height: auto;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
             padding-right: 14px;
         }
         
