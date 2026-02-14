@@ -44,7 +44,15 @@
     editDigitalWarrantyCode: document.getElementById('editDigitalWarrantyCode'),
     editDigitalWarrantyCollection: document.getElementById('editDigitalWarrantyCollection'),
     saveTokenEditBtn: document.getElementById('saveTokenEditBtn'),
-    editTokenMessage: document.getElementById('editTokenMessage')
+    editTokenMessage: document.getElementById('editTokenMessage'),
+    bulkFile: document.getElementById('bulkFile'),
+    bulkDryRun: document.getElementById('bulkDryRun'),
+    bulkSubmitBtn: document.getElementById('bulkSubmitBtn'),
+    bulkResultWrap: document.getElementById('bulkResultWrap'),
+    bulkSummary: document.getElementById('bulkSummary'),
+    bulkErrors: document.getElementById('bulkErrors'),
+    bulkDownloadRow: document.getElementById('bulkDownloadRow'),
+    bulkDownloadCsv: document.getElementById('bulkDownloadCsv')
   };
 
   function isOptionMetaOk(opt) {
@@ -79,6 +87,7 @@
     elements.optionMetaForm.addEventListener('submit', saveOptionMeta);
     if (elements.loadTokenBtn) elements.loadTokenBtn.addEventListener('click', loadTokenForEdit);
     if (elements.saveTokenEditBtn) elements.saveTokenEditBtn.addEventListener('click', saveTokenEdit);
+    if (elements.bulkSubmitBtn) elements.bulkSubmitBtn.addEventListener('click', bulkSubmit);
   }
 
   async function loadProducts() {
@@ -252,6 +261,72 @@
     } catch (e) {
       console.error('토큰 조회 실패:', e.message);
       if (elements.editTokenMessage) elements.editTokenMessage.textContent = '조회 중 오류가 발생했습니다.';
+    }
+  }
+
+  async function bulkSubmit() {
+    const fileEl = elements.bulkFile;
+    if (!fileEl || !fileEl.files || !fileEl.files[0]) {
+      alert('CSV 또는 XLSX 파일을 선택하세요.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', fileEl.files[0]);
+    formData.append('dry_run', elements.bulkDryRun && elements.bulkDryRun.checked ? 'true' : 'false');
+    if (elements.bulkSubmitBtn) elements.bulkSubmitBtn.disabled = true;
+    if (elements.bulkResultWrap) elements.bulkResultWrap.style.display = 'none';
+    if (elements.bulkDownloadRow) elements.bulkDownloadRow.style.display = 'none';
+    try {
+      const res = await fetch(`${API_BASE}/admin/tokens/bulk`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!elements.bulkResultWrap) return;
+      elements.bulkResultWrap.style.display = 'block';
+      if (!res.ok) {
+        elements.bulkSummary.textContent = data.message || '요청 실패';
+        if (elements.bulkErrors) {
+          elements.bulkErrors.textContent = JSON.stringify(data, null, 2);
+          elements.bulkErrors.style.display = 'block';
+        }
+        return;
+      }
+      const s = data.summary || {};
+      elements.bulkSummary.textContent = data.message || `총 ${s.total || 0}건: 생성 ${s.created || 0}, 실패 ${s.failed || 0}${data.dry_run ? ' (미리보기)' : ''}`;
+      if (data.errors && data.errors.length) {
+        elements.bulkErrors.textContent = data.errors.map(e => `행 ${e.row} option_id=${e.option_id}: ${e.reason}`).join('\n');
+        elements.bulkErrors.style.display = 'block';
+      } else {
+        elements.bulkErrors.style.display = 'none';
+      }
+      if (data.results && data.results.length) {
+        const headers = ['row', 'option_id', 'token_pk', 'token', 'internal_code', 'product_name', 'warranty_bottom_code', 'serial_number', 'status'];
+        const rows = [headers.join(',')].concat(
+          data.results.map(r => headers.map(h => {
+            const v = r[h];
+            const str = v == null ? '' : String(v);
+            return str.indexOf(',') >= 0 || str.indexOf('"') >= 0 ? '"' + str.replace(/"/g, '""') + '"' : str;
+          }).join(','))
+        );
+        const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = elements.bulkDownloadCsv;
+        if (a) {
+          a.href = url;
+          a.download = 'token_bulk_create_' + new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '').replace('T', '_') + '.csv';
+          elements.bulkDownloadRow.style.display = 'block';
+        }
+      }
+    } catch (e) {
+      console.error('대량 등록 실패:', e.message);
+      if (elements.bulkResultWrap) {
+        elements.bulkResultWrap.style.display = 'block';
+        if (elements.bulkSummary) elements.bulkSummary.textContent = '요청 중 오류: ' + e.message;
+      }
+    } finally {
+      if (elements.bulkSubmitBtn) elements.bulkSubmitBtn.disabled = false;
     }
   }
 

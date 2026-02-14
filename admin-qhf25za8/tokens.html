@@ -95,6 +95,32 @@
       </p>
 
       <div class="token-create-card" style="margin-top:2rem;">
+        <h3 style="margin-top:0;">대량 등록 (§7)</h3>
+        <p style="color:#6c757d; font-size:0.875rem; margin-bottom:1rem;">CSV 또는 XLSX: 첫 행에 <code>option_id</code> 컬럼, 1행 = 1토큰. 최대 500건.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="bulkFile">파일</label>
+            <input type="file" id="bulkFile" accept=".csv,.xlsx,.xls">
+          </div>
+          <div class="form-group" style="align-items:center;">
+            <label for="bulkDryRun" style="margin-bottom:0;">
+              <input type="checkbox" id="bulkDryRun" checked> 미리보기만 (실제 생성 안 함)
+            </label>
+          </div>
+          <div class="form-group">
+            <button type="button" id="bulkSubmitBtn" class="btn-primary">대량 등록</button>
+          </div>
+        </div>
+        <div id="bulkResultWrap" style="display:none; margin-top:1rem;">
+          <p id="bulkSummary" style="font-weight:600;"></p>
+          <pre id="bulkErrors" style="display:none; background:#f8d7da; padding:0.5rem; border-radius:4px; font-size:0.8rem; max-height:120px; overflow:auto;"></pre>
+          <p id="bulkDownloadRow" style="display:none; margin-top:0.5rem;">
+            <a id="bulkDownloadCsv" href="#" download="token_bulk_create.csv" class="btn-secondary">결과 CSV 다운로드</a>
+          </p>
+        </div>
+      </div>
+
+      <div class="token-create-card" style="margin-top:2rem;">
         <h3 style="margin-top:0;">토큰 수정</h3>
         <p style="color:#6c757d; font-size:0.875rem; margin-bottom:1rem;">수정 가능한 토큰만 변경됩니다(스캔 전·보증/재고/주문 미연결). §6 정책.</p>
         <div class="form-row">

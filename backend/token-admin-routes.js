@@ -11,10 +11,15 @@ const path = require('path');
 const fs = require('fs');
 const mysql = require('mysql2/promise');
 const crypto = require('crypto');
+const multer = require('multer');
+const XLSX = require('xlsx');
 const { authenticateToken, requireAdmin } = require('./auth-middleware');
 const { resolveProductId } = require('./utils/product-id-resolver');
 const Logger = require('./logger');
 require('dotenv').config();
+
+const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB
+const BULK_MAX_ROWS = 500;
 
 const OUTPUT_QR_DIR = path.join(__dirname, '..', 'output_qrcodes');
 
@@ -81,6 +86,73 @@ function generateInternalCode() {
 function maskToken(token) {
     if (!token || token.length < 8) return token;
     return token.substring(0, 4) + '...' + token.substring(token.length - 4);
+}
+
+/**
+ * option_id로 product_options + admin_products 조인하여 옵션 메타 반환 (대량 등록용)
+ * @returns {Promise<object|null>} { option_id, product_id, product_name, rot_code, warranty_bottom_prefix, serial_prefix, digital_warranty_code, digital_warranty_collection } 또는 null
+ */
+async function getOptionByOptionId(connection, optionId) {
+    if (optionId == null || String(optionId).trim() === '') return null;
+    const [rows] = await connection.execute(
+        `SELECT po.option_id, po.product_id, po.rot_code, po.warranty_bottom_prefix, po.serial_prefix,
+                po.digital_warranty_code, po.digital_warranty_collection, ap.name AS product_name
+         FROM product_options po
+         INNER JOIN admin_products ap ON ap.id = po.product_id
+         WHERE po.option_id = ? AND po.is_active = 1
+         LIMIT 1`,
+        [String(optionId).trim()]
+    );
+    if (rows.length === 0) return null;
+    const opt = rows[0];
+    const required = ['rot_code', 'warranty_bottom_prefix', 'serial_prefix', 'digital_warranty_code', 'digital_warranty_collection'];
+    for (const key of required) {
+        if (opt[key] == null || String(opt[key]).trim() === '') return null;
+    }
+    return opt;
+}
+
+/**
+ * 대량 등록 파일 파싱: CSV 또는 XLSX, 헤더에서 option_id 컬럼 사용, 1행 = 1토큰
+ * @returns {{ rows: Array<{ rowIndex: number, option_id: string }>, error?: string }}
+ */
+function parseBulkFile(buffer, filename) {
+    const name = (filename || '').toLowerCase();
+    if (name.endsWith('.csv')) {
+        const text = buffer.toString('utf8').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const lines = text.split('\n').filter(l => l.trim() !== '');
+        if (lines.length < 2) return { rows: [], error: 'CSV에 헤더 외 데이터 행이 없습니다.' };
+        const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const colIndex = header.findIndex(h => h === 'option_id');
+        if (colIndex === -1) return { rows: [], error: 'CSV에 option_id 컬럼이 없습니다.' };
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(',');
+            const raw = (parts[colIndex] != null ? String(parts[colIndex]).trim() : '');
+            if (raw === '') continue;
+            rows.push({ rowIndex: i + 1, option_id: raw });
+        }
+        return { rows };
+    }
+    if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+        const wb = XLSX.read(buffer, { type: 'buffer' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        if (!ws) return { rows: [], error: '엑셀 시트를 읽을 수 없습니다.' };
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (!data.length) return { rows: [], error: '엑셀에 데이터가 없습니다.' };
+        const header = (data[0] || []).map(h => String(h).trim().toLowerCase());
+        const colIndex = header.findIndex(h => h === 'option_id');
+        if (colIndex === -1) return { rows: [], error: '엑셀에 option_id 컬럼이 없습니다.' };
+        const rows = [];
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i] || [];
+            const raw = (row[colIndex] != null ? String(row[colIndex]).trim() : '');
+            if (raw === '') continue;
+            rows.push({ rowIndex: i + 1, option_id: raw });
+        }
+        return { rows };
+    }
+    return { rows: [], error: '지원 형식: .csv, .xlsx (파일명으로 판단)' };
 }
 
 /**
@@ -280,6 +352,159 @@ router.post('/admin/tokens', authenticateToken, requireAdmin, async (req, res) =
             try { await connection.end(); } catch (_) {}
         }
     }
+});
+
+/**
+ * POST /api/admin/tokens/bulk
+ * §7 대량 등록: CSV/XLSX (option_id 1열), dry_run 지원, 결과 요약 + results(CSV 다운로드용)
+ * multipart: file, dry_run (선택, 'true'이면 미리보기만)
+ */
+router.post('/admin/tokens/bulk', authenticateToken, requireAdmin, uploadMemory.single('file'), async (req, res) => {
+    if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ success: false, message: '파일이 없습니다. multipart 필드명: file' });
+    }
+    const dryRun = req.body.dry_run === 'true' || req.body.dry_run === true;
+    const { rows, error: parseError } = parseBulkFile(req.file.buffer, req.file.originalname || '');
+    if (parseError) {
+        return res.status(400).json({ success: false, message: parseError });
+    }
+    if (rows.length === 0) {
+        return res.status(400).json({ success: false, message: '유효한 option_id 행이 없습니다.' });
+    }
+    if (rows.length > BULK_MAX_ROWS) {
+        return res.status(400).json({
+            success: false,
+            message: `한 번에 최대 ${BULK_MAX_ROWS}건까지 가능합니다. (현재 ${rows.length}건)`
+        });
+    }
+
+    const summary = { created: 0, failed: 0, would_create: 0 };
+    const errors = [];
+    const results = [];
+
+    if (dryRun) {
+        let connection;
+        try {
+            connection = await mysql.createConnection(dbConfig);
+            for (const { rowIndex, option_id } of rows) {
+                const opt = await getOptionByOptionId(connection, option_id);
+                if (!opt) {
+                    summary.failed++;
+                    errors.push({ row: rowIndex, option_id, reason: '옵션 없음 또는 메타 미설정' });
+                } else {
+                    summary.would_create++;
+                }
+            }
+        } finally {
+            if (connection) try { await connection.end(); } catch (_) {}
+        }
+        return res.json({
+            success: true,
+            dry_run: true,
+            summary: { ...summary, total: rows.length },
+            errors: errors.length ? errors : undefined,
+            message: `미리보기: ${summary.would_create}건 생성 가능, ${summary.failed}건 실패`
+        });
+    }
+
+    for (const { rowIndex, option_id } of rows) {
+        let connection;
+        try {
+            connection = await mysql.createConnection(dbConfig);
+            const opt = await getOptionByOptionId(connection, option_id);
+            if (!opt) {
+                summary.failed++;
+                errors.push({ row: rowIndex, option_id, reason: '옵션 없음 또는 메타 미설정' });
+                continue;
+            }
+            const productName = (opt.product_name && String(opt.product_name).trim()) || '';
+            await connection.beginTransaction();
+            try {
+                await connection.execute(
+                    `INSERT INTO token_variant_sequence (option_id, last_number)
+                     VALUES (?, 0)
+                     ON DUPLICATE KEY UPDATE last_number = last_number`,
+                    [opt.option_id]
+                );
+                const [seqRows] = await connection.execute(
+                    'SELECT last_number FROM token_variant_sequence WHERE option_id = ? FOR UPDATE',
+                    [opt.option_id]
+                );
+                const oldLast = seqRows[0] ? seqRows[0].last_number : 0;
+                const nextNum = oldLast + 1;
+                await connection.execute(
+                    'UPDATE token_variant_sequence SET last_number = ? WHERE option_id = ?',
+                    [nextNum, opt.option_id]
+                );
+                const existingTokens = new Set();
+                const token = await generateUniqueToken(connection, existingTokens);
+                const internal_code = generateInternalCode();
+                const warranty_bottom_code = (opt.warranty_bottom_prefix || '') + String(nextNum).padStart(6, '0');
+                const serial_number = (opt.serial_prefix || '') + String(nextNum).padStart(6, '0');
+                const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                const [insertResult] = await connection.execute(
+                    `INSERT INTO token_master (
+                      token, internal_code, product_name, product_id, option_id,
+                      serial_number, rot_code, warranty_bottom_code, digital_warranty_code, digital_warranty_collection,
+                      is_blocked, scan_count, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`,
+                    [
+                        token,
+                        internal_code,
+                        productName,
+                        opt.product_id,
+                        opt.option_id,
+                        serial_number,
+                        opt.rot_code,
+                        warranty_bottom_code,
+                        opt.digital_warranty_code,
+                        opt.digital_warranty_collection,
+                        now,
+                        now
+                    ]
+                );
+                const tokenPk = insertResult.insertId;
+                await connection.commit();
+                summary.created++;
+                results.push({
+                    row: rowIndex,
+                    option_id: opt.option_id,
+                    token_pk: tokenPk,
+                    token,
+                    internal_code,
+                    product_name: productName,
+                    warranty_bottom_code,
+                    serial_number,
+                    status: 'created'
+                });
+            } catch (txErr) {
+                await connection.rollback();
+                summary.failed++;
+                errors.push({ row: rowIndex, option_id, reason: txErr.message || 'DB 오류' });
+            }
+        } catch (err) {
+            summary.failed++;
+            errors.push({ row: rowIndex, option_id, reason: err.message || '연결/조회 오류' });
+        } finally {
+            if (connection) try { await connection.end(); } catch (_) {}
+        }
+    }
+
+    Logger.log('[ADMIN_TOKENS_BULK]', {
+        userId: req.user?.user_id,
+        total: rows.length,
+        created: summary.created,
+        failed: summary.failed
+    });
+
+    return res.json({
+        success: true,
+        dry_run: false,
+        summary: { ...summary, total: rows.length },
+        errors: errors.length ? errors : undefined,
+        results: results.length ? results : undefined,
+        message: `완료: ${summary.created}건 생성, ${summary.failed}건 실패`
+    });
 });
 
 /**
