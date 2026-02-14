@@ -104,6 +104,10 @@ if (process.env.NODE_ENV !== 'production') {
 // 정적 파일 서빙 (폰트 등)
 app.use('/static', express.static(path.join(__dirname, '..', 'prep_server', 'static')));
 
+// 정적 파일 서빙 (EJS 정품 인증/경고 페이지용 로고·아이콘·바코드 이미지)
+// 필요 파일: image/prepred.png(warning 로고), image/prep.png(success 로고), image/warning.png, image/checkicon.jpg, image/barcode/*.webp 등
+app.use('/image', express.static(path.join(__dirname, '..', 'image')));
+
 // Nginx를 우회한 직접 접근 차단 (관리자 HTML 파일)
 // 루트의 admin*.html만 차단, 서브디렉토리는 허용
 app.all(/^\/admin(-[^/]+)?\.html$/, (req, res) => {

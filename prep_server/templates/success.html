@@ -65,14 +65,13 @@
             }
         }
         
-        /* 헤더 바 */
+        /* 헤더 바 (success-preview와 동일) */
         .header-bar {
-            
             height: 147.3px;
             box-sizing: border-box;
-            background: #2f2f2f;
+            background: rgba(51, 51, 51, 1);
             color: white;
-            padding: 59.7035px 24px 50px 24px;
+            padding: 58px 24px 50px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -80,11 +79,15 @@
         }
         
         .brand-name {
-            font-family: 'Times New Roman', serif;
-            font-size: 36px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-left: 30px;
+            margin-left: 38px;
+            margin-bottom: 2px;
+        }
+        
+        .brand-name img {
+            height: 35.5px;
+            width: auto;
+            display: block;
+            object-fit: contain;
         }
         
         .header-date {
@@ -92,7 +95,7 @@
             letter-spacing: 1.7px;
             font-weight: 500;
             color: rgba(255, 255, 255, 0.9);
-            margin-right: 34.3px;
+            margin-right: 36px;
         }
         
         /* 카드 내부 컨텐츠 - 흰색 영역 (바코드까지) */
@@ -234,29 +237,35 @@
             overflow: hidden;
         }
         
-        /* 바코드 영역 */
+        /* 바코드 영역 (success-preview와 동일) */
         .barcode-section {
+            --barcode-width: 320px;
             text-align: center;
-            margin: 32px 0;
+            margin: 37px -64px 32px -63.7px;
+            width: calc(100% + 64px + 63.7px);
+            box-sizing: border-box;
         }
         
         .barcode-container {
-            margin-bottom: 12px;
+            width: var(--barcode-width);
+            margin: 0 12px 0 12px;
         }
         
+        .barcode-container img,
         .barcode-container svg {
             max-width: 100%;
             height: auto;
+            padding-right: 14px;
         }
         
         .barcode-text {
-            font-size: 14px;
-            color: #666;
-            letter-spacing: 1px;
-            font-family: 'Courier New', monospace;
-            font-weight: 500;
-            margin-top: 8px;
-            margin-bottom: -30px;
+            font-size: 12.5px;
+            padding-top: 9px;
+            color: #231815;
+            letter-spacing: 2.55px;
+            font-family: 'Paperlogy';
+            font-weight: 400;
+            margin: 8px 64px -30px 63.7px;
         }
         
         /* 정품 인증 완료 pill */
@@ -444,7 +453,7 @@
         <!-- 헤더 바 -->
         <div class="header-bar">
             <div class="brand-name">
-                <img src="/image/prep.png  " alt="Pre.pMood" style="height: 40px; width: auto;">
+                <img src="/image/prep.png" alt="Pre.pMood" style="height: 35.5px; width: auto;">
             </div>
             <div class="header-date" id="header-date"></div>
         </div>

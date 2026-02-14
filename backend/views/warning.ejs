@@ -72,6 +72,12 @@
         }
         
         .brand-name { margin-left: 38px; margin-bottom: 3px; }
+        .brand-name img {
+            height: 35.5px;
+            width: auto;
+            display: block;
+            object-fit: contain;
+        }
         .header-date {
             font-size: 11.6px;
             letter-spacing: 1.7px;
@@ -183,6 +189,7 @@
         }
         
         .barcode-section {
+            --barcode-width: 320px;
             text-align: center;
             margin: 37px -64px 32px -63.7px;
             width: calc(100% + 64px + 63.7px);
@@ -190,12 +197,16 @@
         }
         
         .barcode-container {
-            width: var(--barcode-width, 280px);
+            width: var(--barcode-width);
             margin: 0 12px;
         }
         
         .barcode-container img,
-        .barcode-container svg { padding-right: 14px; }
+        .barcode-container svg {
+            max-width: 100%;
+            height: auto;
+            padding-right: 14px;
+        }
         
         .barcode-text {
             font-size: 12.5px;

@@ -55,6 +55,13 @@
     bulkDownloadCsv: document.getElementById('bulkDownloadCsv')
   };
 
+  function escapeHtml(text) {
+    if (text == null) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   function isOptionMetaOk(opt) {
     if (!opt) return false;
     const s = (v) => (v != null && String(v).trim() !== '');
@@ -220,7 +227,7 @@
       const list = data.created || [];
       let html = '<table><thead><tr><th>token_pk</th><th>토큰(마스킹)</th><th>internal_code</th><th>warranty_bottom_code</th></tr></thead><tbody>';
       list.forEach(t => {
-        html += `<tr><td>${t.token_pk}</td><td>${t.token_masked || '-'}</td><td>${t.internal_code || '-'}</td><td>${t.warranty_bottom_code || '-'}</td></tr>`;
+        html += `<tr><td>${escapeHtml(String(t.token_pk))}</td><td>${escapeHtml(t.token_masked || '-')}</td><td>${escapeHtml(t.internal_code || '-')}</td><td>${escapeHtml(t.warranty_bottom_code || '-')}</td></tr>`;
       });
       html += '</tbody></table>';
       elements.createdTokenList.innerHTML = html;
@@ -302,6 +309,10 @@
         elements.bulkErrors.style.display = 'none';
       }
       if (data.results && data.results.length) {
+        if (window._bulkCsvBlobUrl) {
+          try { URL.revokeObjectURL(window._bulkCsvBlobUrl); } catch (_) {}
+          window._bulkCsvBlobUrl = null;
+        }
         const headers = ['row', 'option_id', 'token_pk', 'token', 'internal_code', 'product_name', 'warranty_bottom_code', 'serial_number', 'status'];
         const rows = [headers.join(',')].concat(
           data.results.map(r => headers.map(h => {
@@ -312,6 +323,7 @@
         );
         const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
         const url = URL.createObjectURL(blob);
+        window._bulkCsvBlobUrl = url;
         const a = elements.bulkDownloadCsv;
         if (a) {
           a.href = url;

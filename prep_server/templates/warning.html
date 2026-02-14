@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>이미 인증된 제품 - Pre.p Mood</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fonts-archive/Paperlogy/Paperlogy.css" type="text/css">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
         @font-face {
@@ -49,24 +50,26 @@
             padding: 60px 24px;
         }
         
-        /* 중간 패널(소배경) - 카드 전체를 동일한 간격으로 감싸기 */
+        /* 중간 패널 (warning-preview와 동일) */
         .stage-panel {
-            background: #eeeeee;
-            padding: 48px;
-            border-radius: 6px;
+            height: 1033px;
+            background: #E6E6E6;
+            padding: 78px 48px 80px 48px;
+            border-radius: 2px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-            width: 100%;
             max-width: 616px;
             animation: fadeIn 0.5s ease-in;
         }
         
         .container {
-            background: white;
-            max-width: 520px;
-            width: 100%;
+            background: #E6E6E6;
+            height: 918px;
+            width: 469.8px;
             border-radius: 0;
             box-shadow: none;
             overflow: visible;
+            display: flex;
+            flex-direction: column;
         }
         
         @keyframes fadeIn {
@@ -80,11 +83,13 @@
             }
         }
         
-        /* 헤더 바 */
+        /* 헤더 바 (warning-preview와 동일: #310809, 로고+날짜) */
         .header-bar {
-            background: #3a1418;
+            height: 147.3px;
+            box-sizing: border-box;
+            background: #310809;
             color: white;
-            padding: 50px 24px;
+            padding: 58px 24px 50px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -92,252 +97,225 @@
         }
         
         .brand-name {
-            font-family: 'Times New Roman', serif;
-            font-size: 36px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-left: 30px;
+            margin-left: 38px;
+            margin-bottom: 3px;
+        }
+        
+        .brand-name img {
+            height: 35.5px;
+            width: auto;
+            display: block;
+            object-fit: contain;
         }
         
         .header-date {
-            font-size: 14px;
-            font-weight: 400;
+            font-size: 11.6px;
+            letter-spacing: 1.7px;
+            font-weight: 500;
             color: rgba(255, 255, 255, 0.9);
-            margin-right: 30px;
+            margin-right: 36px;
         }
         
-        /* 카드 내부 컨텐츠 - 흰색 영역 (바코드까지) */
+        /* 카드 내부 컨텐츠 (warning-preview와 동일) */
         .card-content {
-            padding: 30px 24px;
+            padding: 51px 64px 10px 63.7px;
             background: white;
             position: relative;
+            min-height: 405px;
         }
         
-        /* PRODUCT NAME 위 구분선 */
         .card-content::before {
             content: '';
             display: block;
-            height: 1px;
+            height: 0.1px;
             background: #d8d8d8;
-            margin: 36px 0 24px 0;
+            margin: 16px 0 0 0;
             width: 100%;
         }
         
-        /* 카드 내부 컨텐츠 - 회색 영역 (정품 인증 완료부터) */
         .card-content-bottom {
-            padding: 24px 0px 32px 0px;
             margin: 0;
-            background: #eeeeee;
+            background: #E6E6E6;
+            flex: 1;
+            padding-top: 5px;
+            padding-bottom: 24px;
+            box-sizing: border-box;
         }
         
-        /* 정보 테이블 */
         .info-table {
             width: 100%;
-            margin-bottom: 24px;
+            margin-bottom: 53px;
         }
         
         .info-row {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            padding: 14px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .info-row:last-of-type {
+            padding: 26.5px 0 0 2px;
             border-bottom: none;
         }
         
+        .info-table .info-row:nth-child(2) { padding: 24px 0 0 2px; }
+        .info-table .info-row:nth-child(3) { padding: 24px 0 0 2px; }
+        .info-table .info-row:nth-child(4) { padding: 24px 0 0 2px; }
+        
         .info-label {
             font-size: 12px;
-            color: #666;
-            font-weight: 500;
+            color: rgba(128, 128, 128, 1);
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
             min-width: 100px;
+            letter-spacing: 1.5px;
         }
         
         .info-value {
-            font-size: 14px;
-            color: #1a1a1a;
+            font-size: 12px;
+            letter-spacing: 1.35px;
+            padding-right: 1px;
+            color: rgba(128, 128, 128, 1);
             font-weight: 500;
             text-align: right;
             flex: 1;
             word-break: break-word;
         }
         
-        /* 점선 컷팅 라인 래퍼 */
+        /* 점선 컷팅 라인 (warning-preview와 동일) */
         .ticket-divider-wrap {
             position: relative;
-            margin: 22px 0 18px 0;
-            height: 0;
-            border-top: 3px dashed #d0d0d0;
+            margin: 22px -65px 18px -65px;
+            height: 2px;
+            border-top: none;
+            background-image: repeating-linear-gradient(
+                to right,
+                #d0d0d0 0px,
+                #d0d0d0 10px,
+                transparent 10px,
+                transparent 20px
+            );
+            background-size: 30px 2px;
+            background-position: 0 0;
+            background-repeat: repeat-x;
             overflow: visible;
         }
         
-        /* ============================================
-           좌측 노치 설정 (직접 수정 가능)
-           ============================================ */
         .ticket-divider-wrap::before {
             content: '';
             position: absolute;
-            /* left 값 조정: 
-               - 값이 작을수록(예: -20px) 노치가 더 왼쪽으로 이동 (더 많이 카드 밖으로)
-               - 값이 클수록(예: -10px) 노치가 더 오른쪽으로 이동 (카드 안으로 더 들어옴)
-               - 현재: -14px = 노치 중심이 카드 왼쪽 테두리에서 14px 밖에 위치
-               - 반원 효과: 노치 지름의 절반만큼 음수로 설정 (예: 지름 28px → -14px) */
-            left: -35px;
-            
-            /* top: 50% + transform = 점선 라인의 정확한 중앙 높이에 배치 */
+            left: calc(-36px / 2);
             top: 50%;
             transform: translateY(-50%);
-            
-            /* 노치 크기 조정:
-               - width/height 값을 키우면 노치가 더 크게 보임 (예: 32px, 36px)
-               - 값을 줄이면 노치가 더 작게 보임 (예: 24px, 20px)
-               - left 값도 함께 조정 필요 (left = -width/2) */
-            width: 28px;
-            height: 28px;
-            
+            width: 36px;
+            height: 33px;
             border-radius: 50%;
-            
-            /* 노치 색상: 소배경(stage-panel) 배경색과 동일하게 설정하면 카드가 파인 것처럼 보임 */
-            background: #eeeeee;
-            
+            background: #E6E6E6;
             z-index: 10;
         }
         
-        /* ============================================
-           우측 노치 설정 (직접 수정 가능)
-           ============================================ */
         .ticket-divider-wrap::after {
             content: '';
             position: absolute;
-            /* right 값 조정:
-               - 값이 작을수록(예: -20px) 노치가 더 오른쪽으로 이동 (더 많이 카드 밖으로)
-               - 값이 클수록(예: -10px) 노치가 더 왼쪽으로 이동 (카드 안으로 더 들어옴)
-               - 현재: -14px = 노치 중심이 카드 오른쪽 테두리에서 14px 밖에 위치
-               - 반원 효과: 노치 지름의 절반만큼 음수로 설정 (예: 지름 28px → -14px) */
-            right: -37px;
-            
-            /* top: 50% + transform = 점선 라인의 정확한 중앙 높이에 배치 */
+            right: calc(-36px / 2);
             top: 50%;
             transform: translateY(-50%);
-            
-            /* 노치 크기 조정:
-               - width/height 값을 키우면 노치가 더 크게 보임 (예: 32px, 36px)
-               - 값을 줄이면 노치가 더 작게 보임 (예: 24px, 20px)
-               - right 값도 함께 조정 필요 (right = -width/2) */
-            width: 28px;
-            height: 28px;
-            
+            width: 36px;
+            height: 33px;
             border-radius: 50%;
-            
-            /* 노치 색상: 소배경(stage-panel) 배경색과 동일하게 설정하면 카드가 파인 것처럼 보임 */
-            background: #eeeeee;
-            
+            background: #E6E6E6;
             z-index: 10;
         }
         
-        /* ============================================
-           카드 컨테이너 설정 (반원 효과를 위한 overflow)
-           ============================================
-           overflow: hidden → 카드 밖의 노치 부분이 잘려서 반원처럼 보임
-           overflow: visible → 노치 전체가 보임 (완전한 원)
-           */
         .card-content {
             overflow: hidden;
         }
         
-        /* 바코드 영역 */
+        /* 바코드 영역 (warning-preview와 동일) */
         .barcode-section {
+            --barcode-width: 320px;
             text-align: center;
-            margin: 32px 0;
+            margin: 37px -64px 32px -63.7px;
+            width: calc(100% + 64px + 63.7px);
+            box-sizing: border-box;
         }
         
         .barcode-container {
-            margin-bottom: 12px;
+            width: var(--barcode-width);
+            margin: 0 12px 0 12px;
         }
         
+        .barcode-container img,
         .barcode-container svg {
             max-width: 100%;
             height: auto;
+            padding-right: 14px;
         }
         
         .barcode-text {
-            font-size: 14px;
-            color: #666;
-            letter-spacing: 1px;
-            font-family: 'Courier New', monospace;
-            font-weight: 500;
-            margin-top: 8px;
-            margin-bottom: -30px;
+            font-size: 12.5px;
+            padding-top: 5.6px;
+            color: #231815;
+            letter-spacing: 2.55px;
+            font-family: 'Paperlogy';
+            font-weight: 400;
+            margin: 8px 64px -30px 63.7px;
         }
         
-        /* 정품 인증 완료 pill */
-        .verified-pill {
+        /* 등록 불가 안내 바 (warning-preview와 동일) */
+        .warning-bar {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
-            background: #3a1418;
+            width: 168px;
+            height: 56px;
+            background: #310809;
             color: white;
-            padding: 12px 20px;
-            border-radius: 24px;
-            font-size: 14px;
+            border-radius: 28px;
+            font-size: 11.5px;
+            letter-spacing: 1.6px;
             font-weight: 500;
-            margin: 24px auto;
             text-align: center;
-            margin-top: -30px;
-            margin-bottom: -30px;
+            margin-top: 13px;
+            margin-bottom: -50px;
+            box-sizing: border-box;
+            padding-right: 6px;
+            padding-bottom: 2px;
         }
         
-        .verified-pill .check-icon {
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 50%;
+        .warning-bar .warning-icon {
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            transform: translateX(-9px);
         }
         
-        .verified-pill .check-icon svg {
-            width: 12px;
-            height: 12px;
-            stroke: #3a1418;
-            stroke-width: 2.5;
+        .warning-bar .warning-icon-img {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+            display: block;
         }
         
-        /* 안내 문구 */
         .info-text {
             background: #f5f5f5;
-            padding: 20px;
+            padding: 17.5px 18px 15px 26.2px;
             border-radius: 8px;
-            margin: 24px 0;
+            margin: 23px 0 0px 0;
             text-align: left;
-            font-family: 'NanumBarunGothic', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            font-family: 'Paperlogy';
+            border: 1px solid rgba(0, 0, 0, 0.31);
         }
         
         .info-text p {
-            font-size: 13px;
+            font-size: 10.6px;
+            font-weight: 400;
+            letter-spacing: 1.37px;
             color: #666;
             line-height: 1.8;
-            margin-bottom: 8px;
-            font-family: 'NanumBarunGothic', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            margin-bottom: 3px;
+            font-family: 'Paperlogy';
         }
         
-        .info-text p:first-child {
-            font-weight: 700;
-        }
-        
-        .info-text p:last-child {
-            margin-bottom: 0;
-        }
-        
-        /* 하단 영역 (정품 인증 완료부터 버튼까지) - 이미 card-content-bottom에서 처리 */
-        
-        /* 버튼 영역 */
         .button-section {
             margin-top: 32px;
         }
@@ -345,90 +323,73 @@
         .btn {
             display: block;
             width: 100%;
-            padding: 16px;
+            padding: 20px 14px 22px 16px;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 11.5px;
+            letter-spacing: 1.6px;
             font-weight: 500;
             text-align: center;
             text-decoration: none;
             cursor: pointer;
             transition: all 0.2s;
-            margin-bottom: 12px;
             border: none;
             font-family: inherit;
         }
         
-        .btn:last-child {
-            margin-bottom: 0;
-        }
+        .btn:last-child { margin-bottom: 0; }
         
         .btn-primary {
+            margin-bottom: 11px;
             background: #1a1a1a;
             color: white;
         }
         
-        .btn-primary:hover {
-            background: #333;
-        }
+        .btn-primary:hover { background: #333; }
         
         .btn-secondary {
             background: white;
             color: #1a1a1a;
-            border: 1px solid #ddd;
+            border: 1px solid #E6E6E6;
         }
         
-        .btn-secondary:hover {
-            background: #f9f9f9;
-        }
+        .btn-secondary:hover { background: #f9f9f9; }
         
-        @media (max-width: 480px) {
-            body {
-                padding: 40px 16px;
-            }
-            
+        @media (max-width: 768px) {
             .stage-panel {
-                padding: 32px 20px;
+                width: 100%;
+                max-width: 276px;
+                height: auto;
+                min-height: 498px;
+                padding: 38px 23.5px 39px 24.2px;
             }
-            
             .container {
-                max-width: 100%;
-                margin: 0;
+                width: 100%;
+                max-width: 229px;
+                height: auto;
+                min-height: 447.8px;
             }
-            
-            .card-content {
-                padding: 24px 20px;
-            }
-            
             .header-bar {
-                padding: 40px 20px;
+                height: 71px;
+                min-height: 71px;
+                padding: 21px 14px 16px 14.5px;
             }
-            
-            .brand-name {
-                font-size: 28px;
-            }
-            
-            .card-content-bottom {
-                padding: 20px 20px 24px 20px;
-                margin: 0;
-            }
-            
-            .info-label {
-                font-size: 11px;
-                min-width: 80px;
-            }
-            
-            .info-value {
-                font-size: 13px;
-            }
+            .brand-name { margin-left: 16px; }
+            .brand-name img { height: 17.2px !important; width: auto !important; }
+            .header-date { font-size: 5.7px; letter-spacing: 0.8px; margin-right: 15.2px; }
+            .card-content { padding: 25px 31.5px 9px 31.5px; min-height: 0; }
+            .barcode-section { --barcode-width: 180px; margin: 18px -16px 12px -16px; width: calc(100% + 32px); }
+            .barcode-text { font-size: 5.9px; margin: 4px 16px -12px 16px; }
         }
     </style>
 </head>
 <body>
     <div class="stage-panel">
         <div class="container">
-        <!-- 헤더 바 -->
+        <!-- 헤더 바 (warning-preview와 동일: 로고 이미지 + 날짜) -->
         <div class="header-bar">
-            <div class="brand-name">Pre.pMood</div>
+            <div class="brand-name">
+                <img src="/image/prepred.png" alt="Pre.pMood" style="height: 35.5px; width: auto;">
+            </div>
             <div class="header-date" id="header-date"></div>
         </div>
         
@@ -466,16 +427,12 @@
             </div>
         </div>
         
-        <!-- 하단 영역 (정품 인증 완료부터 버튼까지) -->
+        <!-- 하단 영역 (warning-preview와 동일: warning-bar + 아이콘) -->
         <div class="card-content-bottom">
-            <!-- 정품 인증 완료 pill -->
             <div style="text-align: center;">
-                <div class="verified-pill">
-                    <div class="check-icon">
-                        <svg viewBox="0 0 24 24" fill="none">
-                            <path d="M12 2L2 22h20L12 2z" fill="#3a1418"/>
-                            <path d="M12 8v4M12 16h.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
+                <div class="warning-bar">
+                    <div class="warning-icon">
+                        <img src="/image/warning.png" alt="" class="warning-icon-img">
                     </div>
                     <span>등록 불가 안내</span>
                 </div>
