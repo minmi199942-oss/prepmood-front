@@ -40,11 +40,11 @@
             /* 원본 Figma: 492.7px × 703.9px (비율 1.428) */
             /* 조정된 비율: 1.0 (정사각형에 가까운 비율) */
             --card-aspect-ratio: 1.0;
-            --card-width: 650px;
+            --card-width: 653px;
             --card-height: calc(var(--card-width) * var(--card-aspect-ratio));
             
             /* === 봉투 본체 높이 === */
-            --envelope-body-height: 320px;
+            --envelope-body-height: 255.5px;
             
             /* === 뚜껑 높이 === */
             --envelope-flap-height: 200px;
@@ -53,21 +53,24 @@
             --letter-content-height: 180px;
             
             /* === 씰 위치 조정 === */
-            --seal-bottom-bottom: 280px;
+            --seal-bottom-bottom: 220px;
             --seal-bottom-left: 50%;
             --seal-bottom-translate-x: -50%;
-            --seal-top-bottom: 375px;
+            --seal-top-bottom: 315px;
             --seal-top-left: 50%;
             --seal-top-translate-x: -50%;
             
-            /* === 그레이 레이어 (씰 연결선) === */
-            --greylayer-bottom: 280px;
+            /* === 그레이 레이어 (씰 연결선) - Figma처럼 얇게 === */
+            --greylayer-bottom: 222px;
             --greylayer-left: 50%;
             --greylayer-translate-x: -50%;
             --greylayer-width: 60px;
             --greylayer-height: 153px;
             
             /* === 호버 애니메이션 이동 거리 === */
+            /* 뚜껑만 조정: 낮출수록 뚜껑이 덜 올라감 (page-header 가림 방지) */
+            --hover-lift-distance-flap: -25px;
+            /* 씰·그레이 레이어: 뚜껑과 따로 조정 가능 (편지 열리는 느낌) */
             --hover-lift-distance: 180px;
         }
 
@@ -86,7 +89,7 @@
             height: var(--card-height);
         }
 
-        /* 하단 고정 - 회색 봉투 본체 */
+        /* 하단 고정 - 회색 봉투 본체 (흰색 stroke) */
         .invoice-envelope-body {
             position: absolute;
             bottom: 0;
@@ -95,7 +98,7 @@
             height: var(--envelope-body-height);
             background-color: rgba(230, 230, 230, 1);
             box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            border: 1px solid #fff;
             z-index: 10;
         }
 
@@ -319,8 +322,8 @@
         .invoice-card-info-footer .status {
             font-family: 'Paperlogy', 'Georgia', serif;
             font-size: 12.5px;
-            font-style: normal;
-            font-weight: 600;
+            
+            
             line-height: calc(14px * 1.4); /* font-size × 1.4 */
             letter-spacing: 2px;
             color: #808080;
@@ -336,7 +339,7 @@
         .invoice-card-info-footer .info-label,
         .invoice-card-info-footer .status-label {
             font-weight: 600;
-            color: #808080;
+            color: rgba(128, 128, 128, 1);
             flex-shrink: 0;
             min-width: 0;
             text-align: left;
@@ -345,8 +348,8 @@
         /* 값 (제품명, 날짜, 상태) - 공통 스타일 */
         .invoice-card-info-footer .info-value,
         .invoice-card-info-footer .status-value {
-            font-weight: 600;
-            color: #808080;
+            font-weight: 500;
+            color: rgba(128, 128, 128, 1);
         }
 
         /* 값 우측 정렬 (info-value만) */
@@ -398,7 +401,7 @@
             color: #310809;
         }
 
-        /* 상단 뚜껑 */
+        /* 상단 뚜껑 Figma 순서: 흰색 stroke(바깥) → 검은색 stroke(안쪽) → 회색 봉투, 하단 흰색 stroke만 숨김 */
         .invoice-envelope-flap {
             position: absolute;
             left: 0;
@@ -406,16 +409,16 @@
             bottom: var(--envelope-body-height);
             height: var(--envelope-flap-height);
             background-color: rgba(230, 230, 230, 1);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            border-bottom: 2px solid #E0E0E0;
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            border: 1px solid #fff;
+            border-bottom-color: transparent;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1), inset 0 0 0 2px #E6E6E6, inset 0 0 0 3px #000000;
             z-index: 20;
             transition: all 700ms ease-out;
         }
 
         .invoice-letter-card:hover .invoice-envelope-flap {
-            bottom: calc(var(--envelope-body-height) + var(--envelope-flap-height) + var(--hover-lift-distance));
-            box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.25);
+            bottom: calc(var(--envelope-body-height) + var(--envelope-flap-height) + var(--hover-lift-distance-flap));
+            box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.25), inset 0 0 0 2px #E6E6E6, inset 0 0 0 3px #000000;
         }
 
         /* ============================================

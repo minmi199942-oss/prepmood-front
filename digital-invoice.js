@@ -7,14 +7,19 @@ const API_BASE = window.API_BASE ||
 // 모바일 감지
 const isMobile = window.matchMedia('(pointer: coarse)').matches;
 
+// 개발 환경 감지 (스크립트 로드 시점에 한 번만 판별, loadInvoices 등에서 사용)
+// localhost / 127.0.0.1 일 때만 true. 운영에서는 절대 true 되지 않음.
+function isDevEnvironment() {
+  if (typeof window === 'undefined' || !window.location || !window.location.hostname) {
+    return false;
+  }
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1';
+}
+const isDevMode = isDevEnvironment();
+
 document.addEventListener('DOMContentLoaded', async function() {
-  console.log('디지털 인보이스 목록 페이지 로드됨');
-  
-  // 개발 모드: localhost/127.0.0.1에서만 로그인 체크 우회
-  // 운영 환경에서는 ?dev=true 파라미터를 무시 (보안)
-  const isLocalhost = window.location.hostname === 'localhost' || 
-                      window.location.hostname === '127.0.0.1';
-  const isDevMode = isLocalhost; // localhost에서만 개발 모드 활성화
+  console.log('디지털 인보이스 목록 페이지 로드됨', { isDevMode, hostname: window.location.hostname });
   
   let userInfo = null;
   
@@ -103,6 +108,18 @@ function formatIssueDate(date = new Date()) {
   return `${day} ${month} ${year}`;
 }
 
+// 로컬 전용 더미 인보이스 (편지 디자인 수정용)
+function getDummyInvoice() {
+  const issuedAt = new Date('2025-02-15T14:30:00');
+  return {
+    invoiceId: 0,
+    invoiceNumber: generateInvoiceNo(issuedAt),
+    issuedAt: issuedAt.toISOString(),
+    productName: 'Pre.p Mood 테넌 솔리드 니트 (Light Blue / M)',
+    status: 'issued'
+  };
+}
+
 // DATE 포맷 함수 (YYYY-MM-DD HH:MM:SS)
 function formatDateTime(date = new Date()) {
   const year = date.getFullYear();
@@ -172,17 +189,19 @@ async function loadInvoices() {
         noInvoices.style.display = 'none';
       }
     } else {
-      // 인보이스가 없는 경우
-      renderInvoices([]);
+      // 인보이스가 없는 경우 (개발 환경에서만 더미 1장 표시하여 편지 디자인 수정 가능)
+      const invoicesToRender = (isDevMode ? [getDummyInvoice()] : []);
+      renderInvoices(invoicesToRender);
       if (noInvoices) {
-        noInvoices.style.display = 'block';
+        noInvoices.style.display = invoicesToRender.length > 0 ? 'none' : 'block';
       }
     }
   } catch (error) {
     console.error('인보이스 목록 로드 오류:', error);
-    renderInvoices([]);
+    const invoicesToRender = (isDevMode ? [getDummyInvoice()] : []);
+    renderInvoices(invoicesToRender);
     if (noInvoices) {
-      noInvoices.style.display = 'block';
+      noInvoices.style.display = invoicesToRender.length > 0 ? 'none' : 'block';
     }
   } finally {
     if (loadingInvoices) {
@@ -266,11 +285,9 @@ function createInvoiceCard(invoice, index) {
         </svg>
       </div>
 
-      <!-- 그레이 레이어 (상단 씰과 하단 씰을 이어주는 레이어) -->
+      <!-- 그레이 레이어 (greylayer.png) -->
       <div class="invoice-greylayer">
-        <svg class="invoice-greylayer-img" viewBox="0 0 56 156" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-          <path d="M52.496 27.9979C52.496 14.4681 41.5279 3.5 27.998 3.5C14.4681 3.5 3.5 14.4681 3.5 27.9979V127.525C3.5 141.055 14.4681 152.023 27.998 152.023C41.5279 152.023 52.496 141.055 52.496 127.525V27.9979Z" stroke="white" stroke-width="7" stroke-miterlimit="10"/>
-        </svg>
+        <img src="/image/greylayer.png" alt="" class="invoice-greylayer-img" width="56" height="156">
       </div>
 
       <!-- 중간 - 인보이스 내용 영역 -->
