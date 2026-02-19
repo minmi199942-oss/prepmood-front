@@ -303,6 +303,7 @@ function validateReturnTo(returnTo) {
             returnTo === '/digital-invoice.html' ||
         returnTo === '/my-orders.html' ||
         returnTo === '/my-reservations.html' ||
+        returnTo === '/checkout-review.html' ||
         returnTo.startsWith('/a/');  // /a/:token 형식 (쿼리 포함 가능)
 
     return allowed ? returnTo : null;

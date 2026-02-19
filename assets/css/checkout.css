@@ -83,32 +83,100 @@
   gap: 8px;
 }
 
+.input-readonly {
+  background-color: transparent;
+  cursor: not-allowed;
+}
+
 .form-group label {
   font-size: 14px;
   font-weight: 500;
   color: #333;
 }
 
-.form-group input,
-.form-group select {
+/* 밑줄(언더라인) 형태 입력란 — 포커스 시 왼쪽→오른쪽 채워짐, 블러 시 오른쪽→왼쪽 비워짐 */
+.form-group input {
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 10px 0 8px 0;
+  border: none;
+  border-bottom: 1px solid #444;
+  border-radius: 0;
+  background-image: linear-gradient(#111, #111);
+  background-size: 0% 1px;
+  background-repeat: no-repeat;
+  background-position: left bottom;
   font-size: 14px;
   font-family: inherit;
-  transition: border-color 0.2s ease;
+  transition: background-size 0.28s ease;
   box-sizing: border-box;
 }
 
-.form-group input:focus,
+.form-group input:focus {
+  outline: none;
+  background-size: 100% 1px;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 10px 20px 8px 0;
+  border: none;
+  border-bottom: 1px solid #444;
+  border-radius: 0;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23444' d='M6 8L1 3h10z'/%3E%3C/svg%3E"), linear-gradient(#111, #111);
+  background-size: 12px 12px, 0% 1px;
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 50%, left bottom;
+  font-size: 14px;
+  font-family: inherit;
+  transition: background-size 0.28s ease;
+  box-sizing: border-box;
+}
+
 .form-group select:focus {
   outline: none;
-  border-color: #111;
+  background-size: 12px 12px, 100% 1px;
 }
 
 .form-group input::placeholder {
   color: #999;
+}
+
+/* 오류 메시지 (register.html과 동일 형식) */
+.error-message {
+  font-size: clamp(0.7rem, 1.6vw, 0.8rem);
+  color: #ff3b30;
+  margin-top: clamp(2px, 0.5vw, 4px);
+  margin-bottom: 0;
+  padding: 0;
+  display: none;
+  border: none;
+  background: none;
+  text-align: left;
+}
+/* 오류 시에도 밑줄은 기본색 유지 (메시지만 빨간색) */
+.form-group input.error,
+.form-group select.error {
+  border-bottom-color: #444;
+}
+.form-group input.error:focus {
+  background-size: 100% 1px;
+  background-image: linear-gradient(#111, #111);
+}
+.form-group select.error:focus {
+  background-size: 12px 12px, 100% 1px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23444' d='M6 8L1 3h10z'/%3E%3C/svg%3E"), linear-gradient(#111, #111);
+}
+
+/* 자동입력(autofill) 시 파란/노란 배경 제거 */
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus,
+.form-group input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+  box-shadow: 0 0 0 1000px #fff inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* ===== 체크아웃 액션 ===== */
@@ -834,6 +902,191 @@
   .payment-option-card:has(input[type="radio"]:checked) {
     border-width: 2px;
   }
+}
+
+/* ===== 이메일 한 줄 + 코드 보내기 버튼 (다른 form-group과 동일 여백) ===== */
+.checkout-email-field {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;  /* 입력란~오류 메시지 간격 */
+  margin: 0;  /* 외부 CSS/인라인 margin 없음 — 부모 gap만 적용 */
+}
+.checkout-email-field .error-message {
+  margin-top: 0;
+}
+.checkout-email-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* page.css 등 외부 .form-group { margin-bottom: 20px } 제거 — 행이 입력란 밑줄 아래까지만 차지하도록 */
+.checkout-email-row .form-group {
+  margin-bottom: 0;
+}
+.checkout-email-row .checkout-email-input-wrap {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.checkout-email-row .checkout-email-btn-wrap {
+  flex: 0 0 auto;
+}
+.checkout-email-btn-label {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+/* 버튼 높이를 입력란과 동일하게 맞춰 행 높이가 다른 form-group과 같아지도록 */
+.checkout-email-row .checkout-email-btn-wrap .btn-secondary {
+  min-width: 125px;
+  min-height: 0;
+  padding: 10px 14px 8px;  /* input과 동일한 상하 패딩(10px 0 8px) */
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  background: #111;
+  color: #fff;
+  border: 1px solid #111;
+}
+.checkout-email-row .checkout-email-btn-wrap .btn-secondary:hover {
+  background: #333;
+  color: #fff;
+  border-color: #333;
+}
+@media (max-width: 480px) {
+  .checkout-email-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .checkout-email-row .checkout-email-btn-wrap .btn-secondary {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* ===== 주소 한 줄 + 주소 찾기 (이메일 행과 동일 레이아웃) ===== */
+.checkout-address-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.checkout-address-field .error-message {
+  margin-top: 0;
+}
+.checkout-address-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.checkout-address-row .form-group {
+  margin-bottom: 0;
+}
+.checkout-address-row .checkout-address-input-wrap {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.checkout-address-row .checkout-address-btn-wrap {
+  flex: 0 0 auto;
+}
+.checkout-address-row .checkout-address-btn-wrap .btn-secondary {
+  min-width: 100px;
+  min-height: 0;
+  padding: 10px 14px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  background: #111;
+  color: #fff;
+  border: 1px solid #111;
+}
+.checkout-address-row .checkout-address-btn-wrap .btn-secondary:hover {
+  background: #333;
+  color: #fff;
+  border-color: #333;
+}
+@media (max-width: 480px) {
+  .checkout-address-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .checkout-address-row .checkout-address-btn-wrap .btn-secondary {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* ===== 체크아웃 이메일 인증 블록 ===== */
+.checkout-email-verify-block {
+  padding: 14px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+.section-subtitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+}
+.form-hint {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 12px 0;
+}
+.form-hint-email-readonly {
+  color: #0a7ea4;
+}
+.email-verified-badge {
+  font-size: 14px;
+  color: #27ae60;
+  font-weight: 600;
+}
+
+/* ===== 이미 가입된 이메일 모달 ===== */
+.checkout-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+.checkout-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+.checkout-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 12px 0;
+}
+.checkout-modal-text {
+  font-size: 15px;
+  color: #444;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+}
+.checkout-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.checkout-modal-actions .btn-primary,
+.checkout-modal-actions .btn-secondary {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 15px;
 }
 
 

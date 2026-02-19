@@ -87,16 +87,20 @@ async function initializeCheckoutPage() {
     keys: Object.keys(item)
   })));
   
-  // 장바구니가 비어있는지 확인
+  // 장바구니가 비어있는지 확인 (개발 환경에서는 빈 장바구니로 페이지 표시 허용)
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   if (!cartItems || cartItems.length === 0) {
-    console.warn('⚠️ 장바구니가 비어있음');
-    alert('장바구니가 비어있습니다. 상품을 추가한 후 다시 시도해주세요.');
-    window.location.href = 'catalog.html';
-    return;
+    if (!isDev) {
+      console.warn('⚠️ 장바구니가 비어있음');
+      alert('장바구니가 비어있습니다. 상품을 추가한 후 다시 시도해주세요.');
+      window.location.href = 'catalog.html';
+      return;
+    }
+    console.warn('⚠️ [개발] 장바구니 비어있음 - 체크아웃 페이지 표시 허용');
   }
-  
+
   // 주문 아이템 렌더링
-  renderOrderItems(cartItems);
+  renderOrderItems(cartItems || []);
   
   // 이벤트 리스너 등록
   bindEventListeners(cartItems);
@@ -121,10 +125,6 @@ async function initializeCheckoutPage() {
     if (phoneInput) {
       phoneInput.placeholder = currentCountryRule.phoneHint;
       phoneInput.title = currentCountryRule.phoneHint;
-      // 한국 전화번호 자동 하이픈 포맷팅
-      if (selectedCountry === 'KR') {
-        setupPhoneAutoFormat(phoneInput);
-      }
     }
   }
   
@@ -133,6 +133,9 @@ async function initializeCheckoutPage() {
   
   // 국가 변경 이벤트 리스너 등록
   setupCountryChangeListener();
+  
+  // 한국일 때 전화번호 자동 하이픈 적용 (초기화 마지막에 한 번 더 적용)
+  syncPhoneAutoFormat();
   
   console.log('✅ 체크아웃 페이지 초기화 완료');
 }
@@ -177,13 +180,72 @@ function setupCountryChangeListener() {
       if (cartItems.length > 0) {
         renderOrderItems(cartItems);
       }
+      // 주소 찾기 버튼: 한국일 때만 표시
+      updateAddressSearchButtonVisibility();
+      // 전화번호 자동 하이픈: 한국일 때만
+      syncPhoneAutoFormat();
     });
+  }
+  updateAddressSearchButtonVisibility();
+}
+
+/** 현재 국가에 맞춰 전화번호 자동 하이픈 포맷 적용/해제 */
+function syncPhoneAutoFormat() {
+  const countrySelect = document.getElementById('country');
+  const phoneInput = document.getElementById('phone');
+  if (!countrySelect || !phoneInput) return;
+  var country = (countrySelect.value || '').trim();
+  // 국가 미선택 시 기본 한국으로 포맷 적용
+  if (country === 'KR' || country === '') {
+    setupPhoneAutoFormat(phoneInput);
+  } else {
+    phoneInput.removeEventListener('input', formatKoreanPhone);
   }
 }
 
+/** 국가가 한국(KR)일 때만 주소 찾기 버튼 표시 */
+function updateAddressSearchButtonVisibility() {
+  const wrap = document.getElementById('checkout-address-btn-wrap');
+  const countrySelect = document.getElementById('country');
+  if (!wrap || !countrySelect) return;
+  wrap.style.display = (countrySelect.value === 'KR') ? '' : 'none';
+}
+
+/** 카카오 우편번호 API로 주소 검색 후 입력란에 반영 */
+function handleAddressSearch() {
+  const countrySelect = document.getElementById('country');
+  if (countrySelect && countrySelect.value !== 'KR') {
+    alert('한국 주소만 검색할 수 있습니다. 국가를 대한민국으로 선택해 주세요.');
+    return;
+  }
+  if (typeof kakao === 'undefined' || !kakao.Postcode) {
+    alert('주소 검색 서비스를 불러올 수 없습니다. 페이지를 새로고침 후 다시 시도해 주세요.');
+    return;
+  }
+  new kakao.Postcode({
+    oncomplete: function (data) {
+      var addr = data.roadAddress || data.jibunAddress || '';
+      if (data.buildingName) {
+        addr += (addr ? ' ' : '') + data.buildingName;
+      }
+      var postalEl = document.getElementById('postalCode');
+      var addressEl = document.getElementById('address');
+      var cityEl = document.getElementById('city');
+      if (postalEl) postalEl.value = data.zonecode || '';
+      if (addressEl) addressEl.value = addr.trim();
+      if (cityEl && (data.sido || data.sigungu)) {
+        cityEl.value = [data.sido, data.sigungu].filter(Boolean).join(' ');
+      }
+      clearCheckoutError('checkout-addressError');
+      clearCheckoutError('checkout-postalCodeError');
+      if (addressEl) addressEl.focus();
+    }
+  }).open();
+}
+
 async function fillUserInfo() {
+  window.__checkout_is_logged_in__ = false;
   try {
-    // 사용자 정보 가져오기
     const response = await fetch(`${API_BASE}/auth/me`, {
       credentials: 'include'
     });
@@ -194,27 +256,37 @@ async function fillUserInfo() {
       if (data.success && data.user) {
         const user = data.user;
         
-        // 이름 설정
         if (user.name) {
           document.getElementById('name').value = user.name;
         }
-        
-        // 이메일 설정
         if (user.email) {
-          document.getElementById('email').value = user.email;
+          const emailEl = document.getElementById('email');
+          emailEl.value = user.email;
+          emailEl.setAttribute('readonly', 'readonly');
+          emailEl.classList.add('input-readonly');
         }
-        
-        // 전화번호 설정
         if (user.phone) {
           document.getElementById('phone').value = user.phone;
         }
         
-        console.log('✅ 사용자 정보 자동 입력 완료');
+        const hint = document.getElementById('email-readonly-hint');
+        if (hint) hint.style.display = 'block';
+        const verifyBlock = document.getElementById('checkout-email-verify-block');
+        if (verifyBlock) verifyBlock.style.display = 'none';
+        
+        window.__checkout_is_logged_in__ = true;
+        console.log('✅ 사용자 정보 자동 입력 완료 (회원, 이메일 읽기 전용)');
+      } else {
+        window.__checkout_is_logged_in__ = false;
       }
+    } else {
+      window.__checkout_is_logged_in__ = false;
     }
   } catch (error) {
     console.error('❌ 사용자 정보 가져오기 실패:', error);
+    window.__checkout_is_logged_in__ = false;
   }
+  updateCheckoutCTAState();
 }
 
 function renderOrderItems(cartItems) {
@@ -296,6 +368,72 @@ function bindEventListeners(cartItems) {
   if (cvvInput) {
     cvvInput.addEventListener('input', formatCVV);
   }
+  
+  // 이미 가입된 이메일 모달: 로그인 / 다른 이메일
+  const modalLoginBtn = document.getElementById('checkout-modal-login-btn');
+  if (modalLoginBtn) {
+    modalLoginBtn.addEventListener('click', function() {
+      window.location.href = '/login.html?returnTo=' + encodeURIComponent('/checkout-review.html');
+    });
+  }
+  const modalOtherBtn = document.getElementById('checkout-modal-other-email-btn');
+  if (modalOtherBtn) {
+    modalOtherBtn.addEventListener('click', function() {
+      const modal = document.getElementById('checkout-already-registered-modal');
+      if (modal) modal.style.display = 'none';
+      resetEmailVerificationUI();
+      const emailEl = document.getElementById('email');
+      if (emailEl) emailEl.focus();
+    });
+  }
+  
+  // 이메일 변경 시 인증 UI 초기화
+  const emailEl = document.getElementById('email');
+  if (emailEl) {
+    emailEl.addEventListener('input', resetEmailVerificationUI);
+    emailEl.addEventListener('change', resetEmailVerificationUI);
+  }
+  // 배송 폼 입력 시 폼 오류 메시지 및 해당 필드 error 클래스 제거
+  const shippingForm = document.getElementById('shipping-form');
+  if (shippingForm) {
+    shippingForm.addEventListener('input', function (e) {
+      if (e.target && (e.target.id === 'verify-code' || e.target.id === 'email')) return;
+      clearCheckoutError('checkout-formError');
+      if (e.target && e.target.classList && e.target.classList.contains('error')) e.target.classList.remove('error');
+    });
+    shippingForm.addEventListener('change', function (e) {
+      clearCheckoutError('checkout-formError');
+      if (e.target && e.target.classList && e.target.classList.contains('error')) e.target.classList.remove('error');
+    });
+  }
+  // 입력란 focus 시 해당 필드 오류 메시지 즉시 숨김 (register.html과 동일)
+  ['name', 'email', 'country', 'phone', 'address', 'city', 'postalCode'].forEach(function (fieldId) {
+    const el = document.getElementById(fieldId);
+    if (el) {
+      el.addEventListener('focus', function () { clearCheckoutError('checkout-' + fieldId + 'Error'); });
+      el.addEventListener('blur', function () { validateFieldOnBlur(fieldId); });
+    }
+  });
+  const verifyCodeEl = document.getElementById('verify-code');
+  if (verifyCodeEl) {
+    verifyCodeEl.addEventListener('focus', function () { clearCheckoutError('checkout-codeError'); });
+    verifyCodeEl.addEventListener('input', function () { clearCheckoutError('checkout-codeError'); if (verifyCodeEl.classList.contains('error')) verifyCodeEl.classList.remove('error'); });
+  }
+  
+  // 코드 보내기 (이메일 우측 버튼)
+  const requestVerifyBtn = document.getElementById('checkout-request-verify-btn');
+  if (requestVerifyBtn) {
+    requestVerifyBtn.addEventListener('click', handleRequestVerify);
+  }
+  const confirmVerifyBtn = document.getElementById('checkout-confirm-verify-btn');
+  if (confirmVerifyBtn) {
+    confirmVerifyBtn.addEventListener('click', handleConfirmVerify);
+  }
+  // 주소 찾기 (카카오 우편번호)
+  const addressSearchBtn = document.getElementById('checkout-address-search-btn');
+  if (addressSearchBtn) {
+    addressSearchBtn.addEventListener('click', handleAddressSearch);
+  }
 }
 
 function setupFormValidation() {
@@ -332,98 +470,368 @@ function formatCVV(e) {
   e.target.value = value;
 }
 
-function handleCompleteOrder() {
+async function handleCompleteOrder() {
   console.log('✅ 1단계: 배송 정보 확인');
   
-  // 중복 클릭 방지
   const completeOrderBtn = document.getElementById('complete-order-btn');
   if (completeOrderBtn && completeOrderBtn.disabled) {
     console.warn('⚠️ 이미 처리 중입니다. 중복 클릭 무시');
     return;
   }
   
-  // 폼 유효성 검사 (카드 필드 제외)
   if (!validateShippingForms()) {
     return;
   }
   
-  // 배송 데이터 수집
-  const shippingData = collectShippingData();
+  const isLoggedIn = window.__checkout_is_logged_in__ === true;
+  const emailEl = document.getElementById('email');
+  const email = (emailEl && emailEl.value) ? emailEl.value.trim().toLowerCase() : '';
   
+  if (!isLoggedIn && email) {
+    try {
+      completeOrderBtn.disabled = true;
+      completeOrderBtn.textContent = '확인 중...';
+      const checkRes = await fetch(`${API_BASE}/auth/check-email?email=${encodeURIComponent(email)}`, { credentials: 'include' });
+      const checkData = await checkRes.json();
+      if (!checkData.success) {
+        showCheckoutError('checkout-emailError', checkData.message || '이메일 확인 중 오류가 발생했습니다.');
+        return;
+      }
+      if (checkData.registered) {
+        showAlreadyRegisteredModal();
+        return;
+      }
+      const verified = getCheckoutEmailVerified();
+      if (verified !== email) {
+        showCheckoutError('checkout-formError', '이메일 인증을 완료해주세요. 아래에서 인증 요청 후 코드를 입력해 주세요.');
+        const block = document.getElementById('checkout-email-verify-block');
+        if (block) block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    } finally {
+      completeOrderBtn.disabled = false;
+      completeOrderBtn.textContent = '확인';
+    }
+  }
+  
+  const shippingData = collectShippingData();
+  if (!isLoggedIn) {
+    shippingData.email_verified = true;
+  }
   console.log('📋 배송 데이터:', shippingData);
   
-  // 데이터를 세션 스토리지에 저장
   sessionStorage.setItem('checkoutShippingData', JSON.stringify(shippingData));
-  
-  // 2단계로 이동
   window.location.href = 'checkout-review.html';
 }
 
+function getCheckoutEmailVerified() {
+  try {
+    const raw = sessionStorage.getItem('checkoutEmailVerified');
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (obj && obj.email && obj.at && (Date.now() - obj.at < 30 * 60 * 1000)) {
+      return obj.email.trim().toLowerCase();
+    }
+    sessionStorage.removeItem('checkoutEmailVerified');
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCheckoutEmailVerified(email) {
+  sessionStorage.setItem('checkoutEmailVerified', JSON.stringify({
+    email: (email || '').trim().toLowerCase(),
+    at: Date.now()
+  }));
+}
+
+function clearCheckoutEmailVerified() {
+  sessionStorage.removeItem('checkoutEmailVerified');
+}
+
+/** 오류 메시지 표시 (register.html과 동일 형식) */
+var CHECKOUT_ERROR_INPUT_MAP = {
+  'checkout-emailError': 'email', 'checkout-codeError': 'verify-code',
+  'checkout-nameError': 'name', 'checkout-countryError': 'country',
+  'checkout-phoneError': 'phone', 'checkout-addressError': 'address',
+  'checkout-cityError': 'city', 'checkout-postalCodeError': 'postalCode'
+};
+
+function showCheckoutError(elementId, message) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.textContent = message;
+  el.style.display = 'block';
+  const inputId = CHECKOUT_ERROR_INPUT_MAP[elementId];
+  if (inputId) {
+    const input = document.getElementById(inputId);
+    if (input) input.classList.add('error');
+  }
+}
+
+function clearCheckoutError(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.textContent = '';
+  el.style.display = 'none';
+  const inputId = CHECKOUT_ERROR_INPUT_MAP[elementId];
+  if (inputId) {
+    const input = document.getElementById(inputId);
+    if (input) input.classList.remove('error');
+  }
+}
+
+function clearAllCheckoutErrors() {
+  Object.keys(CHECKOUT_ERROR_INPUT_MAP).forEach(clearCheckoutError);
+  clearCheckoutError('checkout-formError');
+  document.querySelectorAll('.form-group input.error, .form-group select.error').forEach(function (el) { el.classList.remove('error'); });
+}
+
+/** blur 시 해당 필드만 검사해 입력란 밑에 빨간 오류 메시지 표시 */
+function validateFieldOnBlur(fieldId) {
+  const field = document.getElementById(fieldId);
+  const errorEl = document.getElementById('checkout-' + fieldId + 'Error');
+  if (!field || !errorEl) return;
+  var value = (field.value || '').trim();
+  var rule = currentCountryRule;
+  var countrySelect = document.getElementById('country');
+  if (countrySelect && countrySelect.value) {
+    rule = COUNTRY_RULES[countrySelect.value] || COUNTRY_RULES.KR;
+  }
+  if (fieldId === 'name') {
+    if (!value) { showCheckoutError('checkout-nameError', '이름을 입력해주세요.'); return; }
+    clearCheckoutError('checkout-nameError');
+    return;
+  }
+  if (fieldId === 'email') {
+    if (!value) { showCheckoutError('checkout-emailError', '이메일을 입력해주세요.'); return; }
+    if (!isValidEmail(value)) { showCheckoutError('checkout-emailError', '유효한 이메일 주소를 입력해주세요.'); return; }
+    clearCheckoutError('checkout-emailError');
+    return;
+  }
+  if (fieldId === 'country') {
+    if (!value) { showCheckoutError('checkout-countryError', '국가를 선택해주세요.'); return; }
+    clearCheckoutError('checkout-countryError');
+    return;
+  }
+  if (fieldId === 'phone') {
+    if (!value) { showCheckoutError('checkout-phoneError', '전화번호를 입력해주세요.'); return; }
+    if (!rule.phoneRe.test(value)) { showCheckoutError('checkout-phoneError', '전화번호 형식이 올바르지 않습니다 (예: ' + rule.phoneHint + ')'); return; }
+    clearCheckoutError('checkout-phoneError');
+    return;
+  }
+  if (fieldId === 'address') {
+    if (!value) { showCheckoutError('checkout-addressError', '주소를 입력해주세요.'); return; }
+    if (value.length < 10 || value.length > 200) { showCheckoutError('checkout-addressError', '주소는 10자 이상 200자 이하여야 합니다 (현재: ' + value.length + '자).'); return; }
+    clearCheckoutError('checkout-addressError');
+    return;
+  }
+  if (fieldId === 'city') {
+    if (!value) { showCheckoutError('checkout-cityError', '도시를 입력해주세요.'); return; }
+    clearCheckoutError('checkout-cityError');
+    return;
+  }
+  if (fieldId === 'postalCode') {
+    if (!value) { showCheckoutError('checkout-postalCodeError', '우편번호를 입력해주세요.'); return; }
+    if (!rule.postalRe.test(value)) { showCheckoutError('checkout-postalCodeError', '우편번호 형식이 올바르지 않습니다 (예: ' + rule.postalHint + ')'); return; }
+    clearCheckoutError('checkout-postalCodeError');
+  }
+}
+
+/** 이메일 변경 시 인증 UI 초기화: 블록 숨김, 코드/버튼/뱃지 리셋, 모달 닫기 */
+function resetEmailVerificationUI() {
+  clearCheckoutEmailVerified();
+  clearCheckoutError('checkout-emailError');
+  clearCheckoutError('checkout-codeError');
+  const verifyBlock = document.getElementById('checkout-email-verify-block');
+  if (verifyBlock) verifyBlock.style.display = 'none';
+  const codeInput = document.getElementById('verify-code');
+  if (codeInput) codeInput.value = '';
+  const confirmBtn = document.getElementById('checkout-confirm-verify-btn');
+  if (confirmBtn) confirmBtn.style.display = 'none';
+  const badge = document.getElementById('email-verified-badge');
+  if (badge) badge.style.display = 'none';
+  const requestBtn = document.getElementById('checkout-request-verify-btn');
+  if (requestBtn) requestBtn.disabled = false;
+  const modal = document.getElementById('checkout-already-registered-modal');
+  if (modal) modal.style.display = 'none';
+  updateCheckoutCTAState();
+}
+
+/** 비회원 + 미가입 이메일 + 미인증 시 확인 버튼 비활성 및 안내 문구 표시 */
+function updateCheckoutCTAState() {
+  const btn = document.getElementById('complete-order-btn');
+  const hint = document.getElementById('checkout-cta-hint');
+  if (!btn) return;
+  const isLoggedIn = window.__checkout_is_logged_in__ === true;
+  const emailEl = document.getElementById('email');
+  const email = (emailEl && emailEl.value) ? emailEl.value.trim().toLowerCase() : '';
+  const verified = getCheckoutEmailVerified();
+  const needVerify = !isLoggedIn && email && verified !== email;
+  if (needVerify) {
+    btn.disabled = true;
+    if (hint) hint.style.display = 'block';
+  } else {
+    btn.disabled = false;
+    if (hint) hint.style.display = 'none';
+  }
+}
+
+async function handleRequestVerify() {
+  const emailEl = document.getElementById('email');
+  const email = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
+  clearCheckoutError('checkout-emailError');
+  if (!email || !isValidEmail(email)) {
+    showCheckoutError('checkout-emailError', '유효한 이메일을 입력해주세요.');
+    return;
+  }
+  const btn = document.getElementById('checkout-request-verify-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const checkRes = await fetch(`${API_BASE}/auth/check-email?email=${encodeURIComponent(email)}`, { credentials: 'include' });
+    const checkData = await checkRes.json();
+    if (checkData.registered) {
+      showAlreadyRegisteredModal();
+      return;
+    }
+    const sendRes = await fetch(`${API_BASE}/send-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email: email })
+    });
+    const sendData = await sendRes.json();
+    if (sendData.success) {
+      const verifyBlock = document.getElementById('checkout-email-verify-block');
+      if (verifyBlock) verifyBlock.style.display = 'block';
+      document.getElementById('checkout-confirm-verify-btn').style.display = 'inline-block';
+      document.getElementById('verify-code').focus();
+      alert('인증 코드가 발송되었습니다. 이메일을 확인해주세요.');
+    } else {
+      showCheckoutError('checkout-emailError', sendData.message || '인증 코드 발송에 실패했습니다.');
+    }
+  } catch (e) {
+    showCheckoutError('checkout-emailError', '요청 중 오류가 발생했습니다.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function handleConfirmVerify() {
+  const emailEl = document.getElementById('email');
+  const codeEl = document.getElementById('verify-code');
+  const email = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
+  const code = (codeEl && codeEl.value) ? codeEl.value.replace(/\D/g, '') : '';
+  clearCheckoutError('checkout-codeError');
+  if (!email || !isValidEmail(email)) {
+    showCheckoutError('checkout-emailError', '이메일을 확인해주세요.');
+    return;
+  }
+  if (code.length !== 6) {
+    showCheckoutError('checkout-codeError', '6자리 인증 코드를 입력해주세요.');
+    return;
+  }
+  const btn = document.getElementById('checkout-confirm-verify-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/verify-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email: email, code: code })
+    });
+    const data = await res.json();
+    if (data.success) {
+      setCheckoutEmailVerified(email);
+      document.getElementById('email-verified-badge').style.display = 'inline-block';
+      document.getElementById('checkout-confirm-verify-btn').style.display = 'none';
+      updateCheckoutCTAState();
+      alert('인증이 완료되었습니다.');
+    } else {
+      showCheckoutError('checkout-codeError', data.message || '인증 코드가 일치하지 않습니다.');
+    }
+  } catch (e) {
+    showCheckoutError('checkout-codeError', '확인 중 오류가 발생했습니다.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function saveCheckoutSnapshotForLogin(shippingData) {
+  sessionStorage.setItem('checkoutShippingData', JSON.stringify(shippingData));
+  const draft = {
+    data: shippingData,
+    expiresAt: Date.now() + 30 * 60 * 1000
+  };
+  try {
+    localStorage.setItem('checkoutShippingDataDraft', JSON.stringify(draft));
+  } catch (e) {
+    Logger.warn('checkout draft localStorage 저장 실패', e);
+  }
+}
+
+function showAlreadyRegisteredModal() {
+  const modal = document.getElementById('checkout-already-registered-modal');
+  if (!modal) return;
+  const shippingData = collectShippingData();
+  saveCheckoutSnapshotForLogin(shippingData);
+  modal.style.display = 'flex';
+}
+
 function validateShippingForms() {
-  // 배송 정보만 검증 (카드 정보 제외)
   const requiredFields = [
     'name', 'email', 'phone', 'address', 'city', 'postalCode', 'country'
   ];
-  
   let isValid = true;
   const errors = {};
-  
-  // 필수 필드 검증
-  requiredFields.forEach(fieldId => {
+  clearCheckoutError('checkout-formError');
+  requiredFields.forEach(function (fieldId) {
     const field = document.getElementById(fieldId);
-    if (!field) return; // 필드가 없으면 건너뛰기 (카드 필드 등)
+    if (!field) return;
     if (!field.value.trim()) {
       isValid = false;
-      field.style.borderColor = '#e74c3c';
+      field.classList.add('error');
     } else {
-      field.style.borderColor = '#ddd';
+      field.classList.remove('error');
     }
   });
-  
-  // 이메일 형식 검사
   const email = document.getElementById('email');
   if (email && email.value && !isValidEmail(email.value)) {
     isValid = false;
-    email.style.borderColor = '#e74c3c';
-    errors.email = '유효한 이메일 주소를 입력해주세요';
+    email.classList.add('error');
+    errors.email = '유효한 이메일 주소를 입력해주세요.';
   }
-  
-  // 국가별 postalCode 검증
   const postalCode = document.getElementById('postalCode');
   if (postalCode && postalCode.value && !currentCountryRule.postalRe.test(postalCode.value)) {
     isValid = false;
-    postalCode.style.borderColor = '#e74c3c';
-    errors.postalCode = `우편번호 형식이 올바르지 않습니다 (예: ${currentCountryRule.postalHint})`;
+    postalCode.classList.add('error');
+    errors.postalCode = '우편번호 형식이 올바르지 않습니다 (예: ' + currentCountryRule.postalHint + ')';
   }
-  
-  // 국가별 phone 검증
   const phone = document.getElementById('phone');
   if (phone && phone.value && !currentCountryRule.phoneRe.test(phone.value)) {
     isValid = false;
-    phone.style.borderColor = '#e74c3c';
-    errors.phone = `전화번호 형식이 올바르지 않습니다 (예: ${currentCountryRule.phoneHint})`;
+    phone.classList.add('error');
+    errors.phone = '전화번호 형식이 올바르지 않습니다 (예: ' + currentCountryRule.phoneHint + ')';
   }
-  
-  // 주소 길이 검증 (10-200자)
   const address = document.getElementById('address');
   if (address && address.value) {
     const addressLength = address.value.trim().length;
     if (addressLength < 10 || addressLength > 200) {
       isValid = false;
-      address.style.borderColor = '#e74c3c';
-      errors.address = `주소는 10자 이상 200자 이하여야 합니다 (현재: ${addressLength}자)`;
+      address.classList.add('error');
+      errors.address = '주소는 10자 이상 200자 이하여야 합니다 (현재: ' + addressLength + '자).';
     }
   }
-  
   if (!isValid) {
     const errorMessages = Object.values(errors);
-    if (errorMessages.length > 0) {
-      alert('입력 오류:\n' + errorMessages.join('\n'));
-    } else {
-      alert('모든 필수 항목을 올바르게 입력해주세요.');
+    const formErrorEl = document.getElementById('checkout-formError');
+    if (formErrorEl) {
+      formErrorEl.textContent = errorMessages.length > 0 ? errorMessages.join(' ') : '모든 필수 항목을 올바르게 입력해주세요.';
+      formErrorEl.style.display = 'block';
+      formErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
-  
   return isValid;
 }
 

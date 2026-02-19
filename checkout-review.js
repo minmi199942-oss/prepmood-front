@@ -3,8 +3,21 @@
 document.addEventListener('DOMContentLoaded', function() {
   console.log('📋 2단계: 배송 정보 확인 페이지 로드됨');
   
-  // 세션 스토리지에서 배송 데이터 가져오기
-  const shippingDataStr = sessionStorage.getItem('checkoutShippingData');
+  let shippingDataStr = sessionStorage.getItem('checkoutShippingData');
+  
+  if (!shippingDataStr) {
+    try {
+      const draftStr = localStorage.getItem('checkoutShippingDataDraft');
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        if (draft && draft.data && draft.expiresAt && Date.now() < draft.expiresAt) {
+          sessionStorage.setItem('checkoutShippingData', JSON.stringify(draft.data));
+          shippingDataStr = JSON.stringify(draft.data);
+          localStorage.removeItem('checkoutShippingDataDraft');
+        }
+      }
+    } catch (e) {}
+  }
   
   if (!shippingDataStr) {
     alert('배송 정보를 찾을 수 없습니다. 처음부터 다시 시작해주세요.');

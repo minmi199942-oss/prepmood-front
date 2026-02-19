@@ -3,7 +3,7 @@ const cors = require('cors');
 const mysql = require('mysql2/promise');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
-const { body, validationResult } = require('express-validator');
+const { body, query, validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
 const cookieParser = require('cookie-parser');
 const { sendVerificationEmail, testConnection } = require('./mailer');
@@ -503,6 +503,34 @@ app.post('/api/register', [
             success: false,
             message: '회원가입 중 오류가 발생했습니다.'
         });
+    }
+});
+
+// 체크아웃용 이메일 가입 여부 확인 (비회원 주문 시 UX: 로그인 유도 vs 이메일 인증)
+// rate limit: generalLimiter 적용됨
+app.get('/api/auth/check-email', [
+    query('email').isEmail().normalizeEmail().withMessage('올바른 이메일 형식이 아닙니다.')
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ success: false, registered: false, message: errors.array()[0]?.msg || '이메일을 확인해주세요.' });
+        }
+        const email = (req.query.email || '').trim().toLowerCase();
+        const connection = await mysql.createConnection(dbConfig);
+        try {
+            const [rows] = await connection.execute(
+                'SELECT user_id FROM users WHERE email = ? LIMIT 1',
+                [email]
+            );
+            const registered = rows.length > 0;
+            return res.json({ success: true, registered });
+        } finally {
+            await connection.end();
+        }
+    } catch (err) {
+        Logger.log('check-email 오류:', { error: err.message });
+        return res.status(500).json({ success: false, registered: false, message: '확인 중 오류가 발생했습니다.' });
     }
 });
 

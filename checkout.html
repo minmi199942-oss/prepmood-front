@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="assets/css/page.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
   <link rel="stylesheet" href="assets/css/checkout.css">
+  <script src="//t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
   <script defer src="utils.js"></script>
   <script defer src="utils/checkout-utils.js"></script>
   <script defer src="catalog-data.js"></script>
@@ -39,31 +40,37 @@
             <div class="form-group">
               <label for="name">이름 *</label>
               <input type="text" id="name" name="name" required>
+              <div class="error-message" id="checkout-nameError"></div>
             </div>
             
-            <div class="form-group">
-              <label for="email">이메일 *</label>
-              <input type="email" id="email" name="email" required>
-            </div>
-            
-            <div class="form-group">
-              <label for="phone">전화번호 *</label>
-              <input type="tel" id="phone" name="phone" required>
-            </div>
-            
-            <div class="form-group">
-              <label for="address">주소 *</label>
-              <input type="text" id="address" name="address" required>
-            </div>
-            
-            <div class="form-row">
-              <div class="form-group">
-                <label for="city">도시 *</label>
-                <input type="text" id="city" name="city" required>
+            <!-- 이메일 한 줄 + 코드 보내기 + 오류 (다른 필드와 동일한 여백) -->
+            <div class="checkout-email-field">
+              <div class="checkout-email-row">
+                <div class="form-group checkout-email-input-wrap">
+                  <label for="email">이메일 *</label>
+                  <input type="email" id="email" name="email" required>
+                  <p class="form-hint form-hint-email-readonly" id="email-readonly-hint" style="display:none;">로그인된 계정의 이메일입니다.</p>
+                </div>
+                <div class="form-group checkout-email-btn-wrap">
+                  <label class="checkout-email-btn-label">&nbsp;</label>
+                  <button type="button" class="btn-secondary" id="checkout-request-verify-btn">코드 보내기</button>
+                </div>
               </div>
+              <div class="error-message" id="checkout-emailError"></div>
+            </div>
+            
+            <!-- 비회원 전용: 이메일 인증 블록 (코드 보내기 성공 시에만 표시) -->
+            <div class="form-section checkout-email-verify-block" id="checkout-email-verify-block" style="display:none;">
+              <h3 class="section-subtitle">이메일 인증</h3>
+              <p class="form-hint">가입되지 않은 이메일입니다. 인증 후 다음 단계로 진행할 수 있습니다.</p>
               <div class="form-group">
-                <label for="postalCode">우편번호 *</label>
-                <input type="text" id="postalCode" name="postalCode" required>
+                <label for="verify-code">인증 코드</label>
+                <input type="text" id="verify-code" name="verifyCode" placeholder="6자리 숫자" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+                <div class="error-message" id="checkout-codeError"></div>
+              </div>
+              <div class="form-group" style="margin-top:8px;">
+                <button type="button" class="btn-secondary" id="checkout-confirm-verify-btn" style="display:none;">인증 확인</button>
+                <span class="email-verified-badge" id="email-verified-badge" style="display:none;">✓ 인증 완료</span>
               </div>
             </div>
             
@@ -76,40 +83,50 @@
                 <option value="JP">일본</option>
                 <option value="CN">중국</option>
               </select>
+              <div class="error-message" id="checkout-countryError"></div>
             </div>
-          </form>
-        </div>
-        
-        <!-- 결제 정보 (프로덕션에서는 제거됨) -->
-        <div class="form-section" id="payment-form">
-          <h2 class="section-title">결제 정보</h2>
-          <form class="checkout-form">
+            
             <div class="form-group">
-              <label for="cardNumber">카드 번호 *</label>
-              <input type="text" id="cardNumber" name="cardNumber" placeholder="1234 5678 9012 3456" required>
+              <label for="phone">전화번호 *</label>
+              <input type="tel" id="phone" name="phone" required>
+              <div class="error-message" id="checkout-phoneError"></div>
+            </div>
+            
+            <!-- 주소 한 줄 + 주소 찾기 (한국 선택 시에만 버튼 표시) -->
+            <div class="checkout-address-field">
+              <div class="checkout-address-row">
+                <div class="form-group checkout-address-input-wrap">
+                  <label for="address">주소 *</label>
+                  <input type="text" id="address" name="address" required>
+                </div>
+                <div class="form-group checkout-address-btn-wrap" id="checkout-address-btn-wrap">
+                  <label class="checkout-email-btn-label">&nbsp;</label>
+                  <button type="button" class="btn-secondary" id="checkout-address-search-btn">주소 찾기</button>
+                </div>
+              </div>
+              <div class="error-message" id="checkout-addressError"></div>
             </div>
             
             <div class="form-row">
               <div class="form-group">
-                <label for="expiryDate">만료일 *</label>
-                <input type="text" id="expiryDate" name="expiryDate" placeholder="MM/YY" required>
+                <label for="city">도시 *</label>
+                <input type="text" id="city" name="city" required>
+                <div class="error-message" id="checkout-cityError"></div>
               </div>
               <div class="form-group">
-                <label for="cvv">CVV *</label>
-                <input type="text" id="cvv" name="cvv" placeholder="123" required>
+                <label for="postalCode">우편번호 *</label>
+                <input type="text" id="postalCode" name="postalCode" required>
+                <div class="error-message" id="checkout-postalCodeError"></div>
               </div>
-            </div>
-            
-            <div class="form-group">
-              <label for="cardName">카드 소유자명 *</label>
-              <input type="text" id="cardName" name="cardName" required>
             </div>
           </form>
         </div>
         
         <!-- 확인 버튼 (배송 정보 검증 후 2단계로 이동) -->
         <div class="checkout-actions">
+          <div class="error-message" id="checkout-formError"></div>
           <button class="complete-order-btn" id="complete-order-btn">확인</button>
+          <p class="form-hint checkout-cta-hint" id="checkout-cta-hint" style="display:none; margin-top:8px;">이메일 인증이 필요합니다.</p>
         </div>
       </div>
 
@@ -117,11 +134,9 @@
       <div class="order-summary-section">
         <div class="order-summary">
           <h2 class="summary-title">주문 요약</h2>
-          
           <div class="order-items" id="order-items">
             <!-- 주문 아이템들이 여기에 표시됩니다 -->
           </div>
-          
           <div class="order-totals">
             <div class="total-row">
               <span>소계</span>
@@ -136,7 +151,6 @@
               <span id="total">₩0</span>
             </div>
           </div>
-          
           <div class="shipping-info">
             <h3>배송 정보</h3>
             <p>• 무료 배송 (3-5 영업일)</p>
@@ -151,13 +165,17 @@
   <!-- 푸터 컨테이너 -->
   <div id="footer-container"></div>
 
-  <!-- 프로덕션에서 카드 입력 UI 제거 -->
-  <script>
-    // localhost가 아닌 경우 카드 입력 UI 완전 제거
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      document.getElementById('payment-form')?.remove();
-    }
-  </script>
+  <!-- 이미 가입된 이메일 안내 모달 -->
+  <div class="checkout-modal-overlay" id="checkout-already-registered-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-modal-title" style="display:none;">
+    <div class="checkout-modal">
+      <h2 class="checkout-modal-title" id="checkout-modal-title">이미 가입된 계정입니다</h2>
+      <p class="checkout-modal-text">입력하신 이메일은 이미 가입된 계정입니다. 로그인하시면 지금 입력하신 내용 그대로 주문을 이어가실 수 있습니다.</p>
+      <div class="checkout-modal-actions">
+        <button type="button" class="btn-primary" id="checkout-modal-login-btn">로그인하고 주문 이어가기</button>
+        <button type="button" class="btn-secondary" id="checkout-modal-other-email-btn">다른 이메일로 주문하기</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 
