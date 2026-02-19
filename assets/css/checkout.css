@@ -928,8 +928,10 @@
   flex: 1 1 200px;
   min-width: 0;
 }
+/* 버튼을 입력란 하단에 맞춤 (프로덕션에서 다른 CSS가 align-items 덮어써도 유지) */
 .checkout-email-row .checkout-email-btn-wrap {
   flex: 0 0 auto;
+  align-self: flex-end;
 }
 .checkout-email-btn-label {
   display: block;
@@ -991,6 +993,7 @@
 }
 .checkout-address-row .checkout-address-btn-wrap {
   flex: 0 0 auto;
+  align-self: flex-end;
 }
 .checkout-address-row .checkout-address-btn-wrap .btn-secondary {
   min-width: 100px;

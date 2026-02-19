@@ -268,12 +268,10 @@ async function fillUserInfo() {
         if (user.phone) {
           document.getElementById('phone').value = user.phone;
         }
-        
-        const hint = document.getElementById('email-readonly-hint');
-        if (hint) hint.style.display = 'block';
+        var emailBtnWrap = document.getElementById('checkout-email-btn-wrap');
+        if (emailBtnWrap) emailBtnWrap.style.display = 'none';
         const verifyBlock = document.getElementById('checkout-email-verify-block');
         if (verifyBlock) verifyBlock.style.display = 'none';
-        
         window.__checkout_is_logged_in__ = true;
         console.log('✅ 사용자 정보 자동 입력 완료 (회원, 이메일 읽기 전용)');
       } else {
@@ -286,8 +284,11 @@ async function fillUserInfo() {
     console.error('❌ 사용자 정보 가져오기 실패:', error);
     window.__checkout_is_logged_in__ = false;
   }
+  var emailBtnWrap = document.getElementById('checkout-email-btn-wrap');
+  if (emailBtnWrap) emailBtnWrap.style.display = (window.__checkout_is_logged_in__ === true) ? 'none' : '';
   updateCheckoutCTAState();
 }
+
 
 function renderOrderItems(cartItems) {
   console.log('🎨 주문 아이템 렌더링 시작');
@@ -373,7 +374,7 @@ function bindEventListeners(cartItems) {
   const modalLoginBtn = document.getElementById('checkout-modal-login-btn');
   if (modalLoginBtn) {
     modalLoginBtn.addEventListener('click', function() {
-      window.location.href = '/login.html?returnTo=' + encodeURIComponent('/checkout-review.html');
+      window.location.href = '/login.html?returnTo=' + encodeURIComponent('/checkout.html');
     });
   }
   const modalOtherBtn = document.getElementById('checkout-modal-other-email-btn');
