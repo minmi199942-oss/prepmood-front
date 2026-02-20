@@ -31,17 +31,15 @@
 
   <!-- 결제 방법 선택 페이지 -->
   <main class="checkout-payment-page">
-    <!-- Breadcrumb -->
-    <div class="checkout-breadcrumb">
-      <a href="checkout.html">1. 배송</a>
-      <span class="separator">></span>
-      <span class="current">2. 결제 방법</span>
-      <span class="separator">></span>
-      <span>3. 주문 확인</span>
-    </div>
-
     <div class="checkout-payment-layout">
       <section class="checkout-payment-main" aria-labelledby="checkout-payment-title">
+        <nav class="checkout-breadcrumb" aria-label="결제 단계">
+          <a href="checkout-review.html" class="step step-completed">1. 배송</a>
+          <span class="separator" aria-hidden="true">&gt;</span>
+          <span class="step step-current">2. 결제 방법</span>
+          <span class="separator" aria-hidden="true">&gt;</span>
+          <span class="step step-disabled">3. 주문 확인</span>
+        </nav>
         <header class="checkout-payment-header">
           <h1 class="checkout-payment-title" id="checkout-payment-title">2. 결제 방법을 선택해 주세요.</h1>
           <p class="checkout-payment-subtitle">사용할 결제 수단을 선택한 뒤 ‘확인 및 진행’을 눌러 결제를 계속 진행해주세요.</p>

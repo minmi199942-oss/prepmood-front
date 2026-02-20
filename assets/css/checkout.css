@@ -18,8 +18,13 @@
 
 .checkout-page {
   min-height: calc(100vh - var(--header-height, 72px) - 200px);
-  padding: clamp(20px, 4vw, 40px) clamp(16px, 3vw, 24px);
+  padding: 0 clamp(16px, 3vw, 24px) clamp(20px, 4vw, 40px);
   background-color: #fff;
+}
+
+/* 본문 상단 여백 (스테퍼는 좌측 컬럼 맨 위에 있음) */
+.checkout-page .checkout-container {
+  padding-top: clamp(20px, 4vw, 40px);
 }
 
 .checkout-container {
@@ -351,7 +356,7 @@
   }
   
   .order-summary-section {
-    position: static;
+    display: none;
   }
 }
 
@@ -389,26 +394,69 @@
 
 .checkout-payment-page {
   min-height: calc(100vh - var(--header-height, 72px));
+  padding: 0 clamp(16px, 3vw, 24px) 0;
   background-color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   font-weight: 300;
   letter-spacing: 0.01em;
 }
 
-/* Breadcrumb */
+/* ===== 결제 단계 스테퍼: 세 페이지 동일 세로 위치 (헤더 바로 아래) ===== */
+.checkout-page .checkout-breadcrumb,
+.checkout-payment-page .checkout-breadcrumb {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+}
+
 .checkout-breadcrumb {
   max-width: 1400px;
-  margin: 0 auto;
+  margin-left: auto;
+  margin-right: auto;
   padding: 24px clamp(16px, 3vw, 32px) 16px;
   font-size: 13px;
-  color: #666;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.checkout-breadcrumb .step {
+  color: #999;
+}
+
+.checkout-breadcrumb .step-current {
+  color: #111;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.checkout-breadcrumb a.step-current {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.checkout-breadcrumb .step-completed {
+  color: #444;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.checkout-breadcrumb .step-completed:hover {
+  color: #111;
+}
+
+.checkout-breadcrumb .step-disabled {
+  color: #999;
+  cursor: default;
 }
 
 .checkout-breadcrumb a {
-  color: #666;
+  color: inherit;
   text-decoration: none;
   transition: color 0.2s ease;
 }
@@ -420,18 +468,36 @@
 .checkout-breadcrumb .separator {
   color: #ccc;
   margin: 0 4px;
+  font-weight: 300;
 }
 
+/* 기존 .current 호환 */
 .checkout-breadcrumb .current {
   color: #111;
-  font-weight: 400;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
-/* 2:1 그리드 컨테이너 */
+/* 좌측 컬럼 안 스테퍼: 체크아웃/배송확인/결제 제목 바로 위, 왼쪽 정렬 (base 규칙보다 나중에 두어 확실히 적용) */
+.checkout-form-section > .checkout-breadcrumb,
+.checkout-payment-main > .checkout-breadcrumb {
+  margin: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+  padding: 0 clamp(16px, 3vw, 32px) 12px 0 !important;
+  justify-content: flex-start !important;
+  max-width: none;
+  flex-shrink: 0;
+}
+
+/* 2:1 그리드 컨테이너 (스테퍼 아래 여백은 스테퍼와 동일한 톤으로) */
 .checkout-payment-layout {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 40px clamp(24px, 6vw, 64px) 100px;
+  padding: 24px clamp(24px, 6vw, 64px) 100px;
   display: grid;
   grid-template-columns: minmax(0, 2.5fr) minmax(360px, 1fr);
   gap: clamp(48px, 6vw, 88px);
@@ -758,8 +824,8 @@
 }
 
 .shipping-info-list {
-  list-style: disc;
-  padding-left: 1.2em;
+  list-style: none;
+  padding-left: 0;
   margin: 0;
   font-size: 13px;
   color: #666;
@@ -767,7 +833,16 @@
 }
 
 .shipping-info-list li {
+  position: relative;
+  padding-left: 1em;
   margin-bottom: 4px;
+}
+
+.shipping-info-list li::before {
+  content: '\2022';
+  position: absolute;
+  left: 0;
+  color: inherit;
 }
 
 .shipping-info-list li:last-child {
@@ -863,9 +938,7 @@
   }
   
   .order-summary-section {
-    position: static;
-    max-width: 100%;
-    margin-left: 0;
+    display: none;
   }
   
   .checkout-actions-mobile {
@@ -879,8 +952,9 @@
     padding-top: 16px;
   }
   
-  .checkout-breadcrumb {
-    padding: 16px 16px 12px;
+  .checkout-form-section > .checkout-breadcrumb,
+  .checkout-payment-main > .checkout-breadcrumb {
+    padding: 0 16px 12px 0 !important;
     font-size: 12px;
   }
   
@@ -918,10 +992,6 @@
 }
 
 @media (max-width: 480px) {
-  .checkout-payment-breadcrumb {
-    padding: 16px;
-  }
-  
   .payment-option-card {
     padding: 0;
   }
