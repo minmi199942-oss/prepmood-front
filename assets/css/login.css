@@ -4,9 +4,10 @@ body {
   padding-top: 0px;
 }
 
+/* 톤 2단계: 배경 옅은 그레이 + 중앙 카드 화이트 (회원가입/체크아웃과 동일) */
 .login-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  background: #f8f8f8;
   display: flex;
   flex-direction: column;
   font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
@@ -69,12 +70,12 @@ body {
 
 .login-box {
   background: #fff;
-  border-radius: var(--radius-medium);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  border-radius: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   padding: clamp(32px, 6vw, 48px) clamp(28px, 5vw, 40px);
   width: 100%;
   max-width: clamp(350px, 70vw, 420px);
-  border: 1px solid #f0f0f0;
+  border: none;
   position: relative;
 }
 
@@ -86,7 +87,7 @@ body {
   right: 0;
   height: 4px;
   background: linear-gradient(90deg, #000 0%, #333 100%);
-  border-radius: var(--radius-medium) var(--radius-medium) 0 0;
+  border-radius: 0;
 }
 
 /* ===== 소셜 로그인 컨테이너 ===== */

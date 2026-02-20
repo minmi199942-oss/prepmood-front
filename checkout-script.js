@@ -238,9 +238,21 @@ function handleAddressSearch() {
       }
       clearCheckoutError('checkout-addressError');
       clearCheckoutError('checkout-postalCodeError');
-      if (addressEl) addressEl.focus();
+      var detailEl = document.getElementById('addressDetail');
+      if (detailEl) detailEl.focus();
+      else if (addressEl) addressEl.focus();
     }
   }).open();
+}
+
+/** 기본주소 + 상세주소를 합쳐 서버에 보낼 주소 문자열 반환 */
+function getFullAddress() {
+  var addr = document.getElementById('address');
+  var detail = document.getElementById('addressDetail');
+  var base = (addr && addr.value) ? addr.value.trim() : '';
+  var extra = (detail && detail.value) ? detail.value.trim() : '';
+  if (!extra) return base;
+  return base ? base + ' ' + extra : extra;
 }
 
 async function fillUserInfo() {
@@ -326,12 +338,13 @@ function renderOrderItems(cartItems) {
         imageSrc = '/image/default.jpg';
       }
       
+      const detailText = [item.color, item.quantity + '개'].filter(Boolean).map(function (v) { return escapeHtml(String(v)); }).join(' · ');
       return `
       <div class="order-item">
         <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" class="order-item-image" onerror="this.src='/image/default.jpg'">
         <div class="order-item-info">
-          <div class="order-item-name">${escapeHtml(item.name)}</div>
-          <div class="order-item-details">색상: ${escapeHtml(item.color)} | 수량: ${escapeHtml(item.quantity)}</div>
+          <div class="order-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+          <div class="order-item-details">${detailText}</div>
         </div>
         <div class="order-item-price">${formatPrice(item.price * item.quantity)}</div>
       </div>
@@ -408,7 +421,7 @@ function bindEventListeners(cartItems) {
     });
   }
   // 입력란 focus 시 해당 필드 오류 메시지 즉시 숨김 (register.html과 동일)
-  ['name', 'email', 'country', 'phone', 'address', 'city', 'postalCode'].forEach(function (fieldId) {
+  ['name', 'email', 'country', 'phone', 'address', 'addressDetail', 'city', 'postalCode'].forEach(function (fieldId) {
     const el = document.getElementById(fieldId);
     if (el) {
       el.addEventListener('focus', function () { clearCheckoutError('checkout-' + fieldId + 'Error'); });
@@ -556,6 +569,7 @@ var CHECKOUT_ERROR_INPUT_MAP = {
   'checkout-emailError': 'email', 'checkout-codeError': 'verify-code',
   'checkout-nameError': 'name', 'checkout-countryError': 'country',
   'checkout-phoneError': 'phone', 'checkout-addressError': 'address',
+  'checkout-addressDetailError': 'addressDetail',
   'checkout-cityError': 'city', 'checkout-postalCodeError': 'postalCode'
 };
 
@@ -622,10 +636,13 @@ function validateFieldOnBlur(fieldId) {
     clearCheckoutError('checkout-phoneError');
     return;
   }
-  if (fieldId === 'address') {
-    if (!value) { showCheckoutError('checkout-addressError', '주소를 입력해주세요.'); return; }
-    if (value.length < 10 || value.length > 200) { showCheckoutError('checkout-addressError', '주소는 10자 이상 200자 이하여야 합니다 (현재: ' + value.length + '자).'); return; }
+  if (fieldId === 'address' || fieldId === 'addressDetail') {
+    var full = getFullAddress();
+    if (!full) { showCheckoutError('checkout-addressError', '주소를 입력해주세요.'); return; }
+    if (full.length < 10) { showCheckoutError('checkout-addressError', '주소는 10자 이상 200자 이하여야 합니다 (현재: ' + full.length + '자).'); return; }
+    if (full.length > 200) { showCheckoutError('checkout-addressDetailError', '전체 주소가 200자를 초과합니다 (현재: ' + full.length + '자).'); return; }
     clearCheckoutError('checkout-addressError');
+    clearCheckoutError('checkout-addressDetailError');
     return;
   }
   if (fieldId === 'city') {
@@ -815,13 +832,32 @@ function validateShippingForms() {
     phone.classList.add('error');
     errors.phone = '전화번호 형식이 올바르지 않습니다 (예: ' + currentCountryRule.phoneHint + ')';
   }
-  const address = document.getElementById('address');
-  if (address && address.value) {
-    const addressLength = address.value.trim().length;
+  const fullAddress = getFullAddress();
+  if (fullAddress) {
+    const addressLength = fullAddress.length;
     if (addressLength < 10 || addressLength > 200) {
       isValid = false;
-      address.classList.add('error');
-      errors.address = '주소는 10자 이상 200자 이하여야 합니다 (현재: ' + addressLength + '자).';
+      const addressEl = document.getElementById('address');
+      const detailEl = document.getElementById('addressDetail');
+      if (addressEl) addressEl.classList.add('error');
+      if (detailEl) detailEl.classList.add('error');
+      errors.address = addressLength > 200
+        ? '전체 주소가 200자를 초과합니다 (현재: ' + addressLength + '자).'
+        : '주소는 10자 이상 200자 이하여야 합니다 (현재: ' + addressLength + '자).';
+      if (addressLength > 200) {
+        clearCheckoutError('checkout-addressError');
+        showCheckoutError('checkout-addressDetailError', errors.address);
+      } else {
+        clearCheckoutError('checkout-addressDetailError');
+        showCheckoutError('checkout-addressError', errors.address);
+      }
+    }
+  } else {
+    const addressEl = document.getElementById('address');
+    if (addressEl && !addressEl.value.trim()) {
+      isValid = false;
+      addressEl.classList.add('error');
+      errors.address = '주소를 입력해주세요.';
     }
   }
   if (!isValid) {
@@ -851,7 +887,7 @@ function collectShippingData() {
       recipient_name: document.getElementById('name').value.trim(),
       email: document.getElementById('email').value,
       phone: document.getElementById('phone').value,
-      address: document.getElementById('address').value,
+      address: getFullAddress(),
       city: document.getElementById('city').value,
       postal_code: document.getElementById('postalCode').value,
       country: document.getElementById('country').value,
@@ -874,7 +910,7 @@ function collectOrderData() {
       recipient_name: document.getElementById('name').value.trim(),
       email: document.getElementById('email').value,
       phone: document.getElementById('phone').value,
-      address: document.getElementById('address').value,
+      address: getFullAddress(),
       city: document.getElementById('city').value,
       postal_code: document.getElementById('postalCode').value,
       country: document.getElementById('country').value,

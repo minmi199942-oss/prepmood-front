@@ -31,10 +31,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // 배송 정보 표시
   renderShippingInfo(data.shipping);
   
-  // 주문 상품 표시
+  // 주문 상품 표시 (좌측)
   renderOrderItems(data.items);
   
-  // 주문 요약 업데이트
+  // 우측 주문 요약에 상품 목록(이미지 포함) 채우기
+  renderOrderSummaryItems(data.items);
+  
+  // 주문 요약 금액 업데이트
   updateOrderSummary(data.items);
   
   // 이벤트 바인딩
@@ -93,11 +96,49 @@ function renderOrderItems(items) {
   }).join('');
 }
 
+/** 우측 주문 요약 박스에 상품 목록(이미지·이름·수량·금액) 렌더링 */
+function renderOrderSummaryItems(items) {
+  const container = document.getElementById('order-items');
+  if (!container) return;
+  if (!items || items.length === 0) {
+    container.innerHTML = '<p class="order-summary-empty">주문할 상품이 없습니다.</p>';
+    return;
+  }
+  let imageSrc;
+  container.innerHTML = items.map(item => {
+    imageSrc = item.image || '';
+    if (imageSrc.startsWith('/uploads/')) {
+      // keep
+    } else if (imageSrc.startsWith('/image/')) {
+      // keep
+    } else if (imageSrc) {
+      imageSrc = imageSrc.startsWith('image/') ? '/' + imageSrc : '/image/' + imageSrc;
+    } else {
+      imageSrc = '/image/default.jpg';
+    }
+    const name = escapeHtml(item.name);
+    const detailParts = [item.color, item.size, item.quantity + '개'].filter(Boolean).map(function (v) { return escapeHtml(String(v)); });
+    const detailText = detailParts.join(' · ');
+    const price = new Intl.NumberFormat('ko-KR').format(item.price * item.quantity);
+    return `
+      <div class="order-item">
+        <img src="${escapeHtml(imageSrc)}" alt="${name}" class="order-item-image" onerror="this.src='/image/default.jpg'">
+        <div class="order-item-info">
+          <div class="order-item-name" title="${name}">${name}</div>
+          <div class="order-item-details">${detailText}</div>
+        </div>
+        <div class="order-item-price">₩${price}</div>
+      </div>
+    `;
+  }).join('');
+}
+
 function updateOrderSummary(items) {
   const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-  document.getElementById('subtotal').textContent = `₩${new Intl.NumberFormat('ko-KR').format(totalPrice)}`;
-  document.getElementById('total').textContent = `₩${new Intl.NumberFormat('ko-KR').format(totalPrice)}`;
+  const subtotalEl = document.getElementById('subtotal');
+  const totalEl = document.getElementById('total');
+  if (subtotalEl) subtotalEl.textContent = `₩${new Intl.NumberFormat('ko-KR').format(totalPrice)}`;
+  if (totalEl) totalEl.textContent = `₩${new Intl.NumberFormat('ko-KR').format(totalPrice)}`;
 }
 
 function bindEventListeners() {
