@@ -63,20 +63,19 @@
                 </div>
               </div>
               <div class="error-message" id="checkout-emailError"></div>
+              <p class="checkout-email-sent-hint" id="checkout-email-sent-hint" style="display:none;">입력하신 이메일로 인증 코드가 발송되었습니다.</p>
             </div>
             
-            <!-- 비회원 전용: 이메일 인증 블록 (코드 보내기 성공 시에만 표시) -->
+            <!-- 비회원 전용: 이메일 인증 블록 (코드 보내기 성공 시에만 표시, 6자리 입력 시 자동 인증) -->
             <div class="form-section checkout-email-verify-block" id="checkout-email-verify-block" style="display:none;">
-              <h3 class="section-subtitle">이메일 인증</h3>
-              <p class="form-hint">가입되지 않은 이메일입니다. 인증 후 다음 단계로 진행할 수 있습니다.</p>
-              <div class="form-group">
+              <div class="form-group checkout-verify-code-wrap">
                 <label for="verify-code">인증 코드</label>
-                <input type="text" id="verify-code" name="verifyCode" placeholder="6자리 숫자" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+                <div class="checkout-verify-code-input-wrap">
+                  <input type="text" id="verify-code" name="verifyCode" placeholder="6자리 숫자" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+                  <span class="checkout-verify-code-spinner" id="checkout-verify-code-spinner" aria-hidden="true"></span>
+                  <span class="checkout-verify-code-check" id="checkout-verify-code-check" aria-hidden="true">✓</span>
+                </div>
                 <div class="error-message" id="checkout-codeError"></div>
-              </div>
-              <div class="form-group" style="margin-top:8px;">
-                <button type="button" class="btn-secondary" id="checkout-confirm-verify-btn" style="display:none;">인증 확인</button>
-                <span class="email-verified-badge" id="email-verified-badge" style="display:none;">✓ 인증 완료</span>
               </div>
             </div>
             

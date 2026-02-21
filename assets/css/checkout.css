@@ -59,7 +59,7 @@
 .form-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 34px;
 }
 
 .section-title {
@@ -72,7 +72,14 @@
 .checkout-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 34px;
+}
+/* page.css form-group margin 제거 — gap으로만 세로 간격 통일 */
+.checkout-form > .form-group,
+.checkout-form > .checkout-email-field,
+.checkout-form > .checkout-address-field,
+.checkout-form > .form-section {
+  margin: 0;
 }
 
 /* ===== 폼 그룹 ===== */
@@ -85,7 +92,7 @@
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
 }
 
 .input-readonly {
@@ -384,9 +391,11 @@
     padding: 16px;
   }
   
-  .form-group input,
+  .form-group input {
+    padding: 10px 0 8px 0;
+  }
   .form-group select {
-    padding: 10px 12px;
+    padding: 10px 20px 8px 0;
   }
 }
 
@@ -1028,6 +1037,12 @@
 .checkout-email-field .error-message {
   margin-top: 0;
 }
+.checkout-email-sent-hint {
+  font-size: 12px;
+  color: #555;
+  margin: 4px 0 0;
+  font-weight: 400;
+}
 .checkout-email-row {
   display: flex;
   align-items: flex-end;
@@ -1073,12 +1088,25 @@
 }
 @media (max-width: 480px) {
   .checkout-email-row {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .checkout-email-row .checkout-email-input-wrap {
+    flex: 1 1 0;
+    min-width: 0;
   }
   .checkout-email-row .checkout-email-btn-wrap .btn-secondary {
-    width: 100%;
-    min-width: 0;
+    width: auto;
+    min-width: 90px;
+    padding: 10px 12px 8px;
+    flex-shrink: 0;
+  }
+  .checkout-email-field {
+    gap: 8px;
+  }
+  .checkout-email-sent-hint {
+    margin-top: 0;
   }
 }
 
@@ -1129,20 +1157,135 @@
   .checkout-address-row {
     flex-direction: column;
     align-items: stretch;
+    gap: 8px;
+  }
+  .checkout-address-row .checkout-address-input-wrap {
+    flex: 1 1 auto;
+  }
+  .checkout-address-row .checkout-address-btn-wrap .checkout-email-btn-label {
+    display: none;
+  }
+  .checkout-address-row .checkout-address-btn-wrap {
+    align-self: stretch;
   }
   .checkout-address-row .checkout-address-btn-wrap .btn-secondary {
     width: 100%;
     min-width: 0;
+    padding: 10px 0 8px;
+  }
+  .checkout-address-field {
+    gap: 8px;
   }
 }
 
-/* ===== 체크아웃 이메일 인증 블록 ===== */
+/* ===== 체크아웃 이메일 인증 블록 (다른 입력란과 동일하게 밑줄 형식, 간격 통일) ===== */
 .checkout-email-verify-block {
-  padding: 14px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #eee;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  gap: 0;
 }
+.checkout-email-verify-block .form-group {
+  margin-bottom: 0;
+}
+/* 인증코드 블록 다음 국가 필드 — checkout-form gap과 동일한 간격 확보 */
+.checkout-email-verify-block + .form-group {
+  margin-top: 0;
+}
+.checkout-email-verify-block .form-group input {
+  width: 100%;
+  padding: 10px 0 8px 0;
+  border: none;
+  border-bottom: 1px solid #444;
+  border-radius: 0;
+  background-image: linear-gradient(#111, #111);
+  background-size: 0% 1px;
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  font-size: 14px;
+  font-family: inherit;
+  transition: background-size 0.28s ease;
+  box-sizing: border-box;
+}
+.checkout-email-verify-block .form-group input:focus {
+  outline: none;
+  background-size: 100% 1px;
+}
+.checkout-email-verify-block .form-group input::placeholder {
+  color: #999;
+}
+.checkout-email-verify-block .form-group input.error {
+  border-bottom-color: #444;
+}
+.checkout-email-verify-block .form-group input.error:focus {
+  background-size: 100% 1px;
+  background-image: linear-gradient(#111, #111);
+}
+
+/* 인증 코드 입력 래퍼 (우측 체크/스피너) */
+.checkout-verify-code-input-wrap {
+  position: relative;
+  width: 100%;
+}
+.checkout-verify-code-input-wrap input {
+  padding-right: 36px;
+}
+.checkout-verify-code-check,
+.checkout-verify-code-spinner {
+  position: absolute;
+  right: 0;
+  bottom: 8px;
+  font-size: 14px;
+  color: #111;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.checkout-verify-code-check.is-visible,
+.checkout-verify-code-spinner.is-visible {
+  opacity: 1;
+}
+.checkout-verify-code-check {
+  font-weight: 600;
+  color: #0C3008;
+}
+.checkout-verify-code-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e0e0e0;
+  border-top-color: #111;
+  border-radius: 50%;
+  animation: checkout-verify-spin 0.7s linear infinite;
+}
+@keyframes checkout-verify-spin {
+  to { transform: rotate(360deg); }
+}
+.checkout-verify-success-hint {
+  font-size: 13px;
+  color: #333;
+  margin: 6px 0 0;
+  font-weight: 500;
+}
+/* 인증 코드 오류: 톤 다운된 붉은색 */
+.checkout-verify-code-wrap .error-message {
+  color: #C94C4C;
+}
+/* 실패 시 입력창 흔들림 */
+.checkout-verify-shake {
+  animation: checkout-verify-shake 0.45s ease-in-out;
+}
+@keyframes checkout-verify-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  30% { transform: translateX(6px); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+  90% { transform: translateX(2px); }
+}
+
 .section-subtitle {
   font-size: 15px;
   font-weight: 600;

@@ -16,6 +16,12 @@ const COUNTRY_RULES = {
 // 현재 선택된 국가 규칙
 let currentCountryRule = COUNTRY_RULES.KR;
 
+// 인증 코드 재발송 타이머 (이메일 변경 시 클리어)
+let checkoutResendTimerId = null;
+let checkoutResendTimeoutId = null;
+// 자동 인증 진행 중 플래그 (중복 요청 방지)
+let checkoutVerifyInProgress = false;
+
 // UUID v4 생성 함수
 function uuidv4() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -40,7 +46,20 @@ const API_BASE = (window.API_BASE)
 document.addEventListener('DOMContentLoaded', function() {
   console.log('💳 체크아웃 페이지 로드됨');
   console.log(`🔧 결제 모드: ${window.__PAYMENT_MODE__}`);
-  
+
+  // 개발 환경: 인증 UI(발송 안내·인증 블록)를 처음부터 표시해 디자인 수정 가능하도록
+  const isDevForDesign = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || (typeof URLSearchParams !== 'undefined' && new URLSearchParams(window.location.search).get('dev') === '1');
+  if (isDevForDesign) {
+    const sentHint = document.getElementById('checkout-email-sent-hint');
+    if (sentHint) sentHint.style.display = 'block';
+    const verifyBlock = document.getElementById('checkout-email-verify-block');
+    if (verifyBlock) verifyBlock.style.display = 'block';
+    const codeInput = document.getElementById('verify-code');
+    const codeCheck = document.getElementById('checkout-verify-code-check');
+    if (codeInput) { codeInput.value = '123456'; codeInput.readOnly = true; }
+    if (codeCheck) codeCheck.classList.add('is-visible');
+  }
+
   // 미니 카트가 로드될 때까지 대기
   if (window.miniCart) {
     initializeCheckoutPage();
@@ -431,7 +450,6 @@ function bindEventListeners(cartItems) {
   const verifyCodeEl = document.getElementById('verify-code');
   if (verifyCodeEl) {
     verifyCodeEl.addEventListener('focus', function () { clearCheckoutError('checkout-codeError'); });
-    verifyCodeEl.addEventListener('input', function () { clearCheckoutError('checkout-codeError'); if (verifyCodeEl.classList.contains('error')) verifyCodeEl.classList.remove('error'); });
   }
   
   // 코드 보내기 (이메일 우측 버튼)
@@ -439,9 +457,15 @@ function bindEventListeners(cartItems) {
   if (requestVerifyBtn) {
     requestVerifyBtn.addEventListener('click', handleRequestVerify);
   }
-  const confirmVerifyBtn = document.getElementById('checkout-confirm-verify-btn');
-  if (confirmVerifyBtn) {
-    confirmVerifyBtn.addEventListener('click', handleConfirmVerify);
+  // 인증 코드 6자리 입력 시 자동 인증 (버튼 없음)
+  if (verifyCodeEl) {
+    verifyCodeEl.addEventListener('input', function () {
+      let val = verifyCodeEl.value.replace(/\D/g, '');
+      verifyCodeEl.value = val;
+      clearCheckoutError('checkout-codeError');
+      if (verifyCodeEl.classList.contains('error')) verifyCodeEl.classList.remove('error');
+      if (val.length === 6) handleAutoVerify();
+    });
   }
   // 주소 찾기 (카카오 우편번호)
   const addressSearchBtn = document.getElementById('checkout-address-search-btn');
@@ -657,21 +681,37 @@ function validateFieldOnBlur(fieldId) {
   }
 }
 
-/** 이메일 변경 시 인증 UI 초기화: 블록 숨김, 코드/버튼/뱃지 리셋, 모달 닫기 */
+/** 이메일 변경 시 인증 UI 초기화: 블록 숨김, 코드/버튼/뱃지 리셋, 재발송 타이머·인라인 안내 클리어 */
 function resetEmailVerificationUI() {
   clearCheckoutEmailVerified();
   clearCheckoutError('checkout-emailError');
   clearCheckoutError('checkout-codeError');
+  if (checkoutResendTimerId) {
+    clearInterval(checkoutResendTimerId);
+    checkoutResendTimerId = null;
+  }
+  if (checkoutResendTimeoutId) {
+    clearTimeout(checkoutResendTimeoutId);
+    checkoutResendTimeoutId = null;
+  }
+  const sentHint = document.getElementById('checkout-email-sent-hint');
+  if (sentHint) sentHint.style.display = 'none';
   const verifyBlock = document.getElementById('checkout-email-verify-block');
   if (verifyBlock) verifyBlock.style.display = 'none';
   const codeInput = document.getElementById('verify-code');
-  if (codeInput) codeInput.value = '';
-  const confirmBtn = document.getElementById('checkout-confirm-verify-btn');
-  if (confirmBtn) confirmBtn.style.display = 'none';
-  const badge = document.getElementById('email-verified-badge');
-  if (badge) badge.style.display = 'none';
+  if (codeInput) {
+    codeInput.value = '';
+    codeInput.readOnly = false;
+  }
+  const codeCheck = document.getElementById('checkout-verify-code-check');
+  if (codeCheck) codeCheck.classList.remove('is-visible');
+  const codeSpinner = document.getElementById('checkout-verify-code-spinner');
+  if (codeSpinner) codeSpinner.classList.remove('is-visible');
   const requestBtn = document.getElementById('checkout-request-verify-btn');
-  if (requestBtn) requestBtn.disabled = false;
+  if (requestBtn) {
+    requestBtn.disabled = false;
+    requestBtn.textContent = '코드 보내기';
+  }
   const modal = document.getElementById('checkout-already-registered-modal');
   if (modal) modal.style.display = 'none';
   updateCheckoutCTAState();
@@ -706,6 +746,7 @@ async function handleRequestVerify() {
   }
   const btn = document.getElementById('checkout-request-verify-btn');
   if (btn) btn.disabled = true;
+  let sendSuccess = false;
   try {
     const checkRes = await fetch(`${API_BASE}/auth/check-email?email=${encodeURIComponent(email)}`, { credentials: 'include' });
     const checkData = await checkRes.json();
@@ -721,37 +762,68 @@ async function handleRequestVerify() {
     });
     const sendData = await sendRes.json();
     if (sendData.success) {
+      sendSuccess = true;
       const verifyBlock = document.getElementById('checkout-email-verify-block');
       if (verifyBlock) verifyBlock.style.display = 'block';
-      document.getElementById('checkout-confirm-verify-btn').style.display = 'inline-block';
       document.getElementById('verify-code').focus();
-      alert('인증 코드가 발송되었습니다. 이메일을 확인해주세요.');
+      // 인라인 피드백: 안내 문구 표시, 버튼 상태 변경 (발송 완료 → 재발송 타이머)
+      const sentHint = document.getElementById('checkout-email-sent-hint');
+      if (sentHint) sentHint.style.display = 'block';
+      if (btn) {
+        btn.textContent = '발송 완료';
+        btn.disabled = true;
+      }
+      if (checkoutResendTimerId) clearInterval(checkoutResendTimerId);
+      if (checkoutResendTimeoutId) clearTimeout(checkoutResendTimeoutId);
+      const RESEND_COOLDOWN_SEC = 180;
+      let remaining = RESEND_COOLDOWN_SEC;
+      const updateResendLabel = () => {
+        if (remaining <= 0) {
+          clearInterval(checkoutResendTimerId);
+          checkoutResendTimerId = null;
+          if (btn) {
+            btn.textContent = '코드 보내기';
+            btn.disabled = false;
+          }
+          return;
+        }
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        if (btn) btn.textContent = '재발송(' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s + ')';
+        remaining--;
+      };
+      checkoutResendTimeoutId = setTimeout(function () {
+        checkoutResendTimeoutId = null;
+        updateResendLabel();
+        checkoutResendTimerId = setInterval(updateResendLabel, 1000);
+      }, 2000);
     } else {
       showCheckoutError('checkout-emailError', sendData.message || '인증 코드 발송에 실패했습니다.');
     }
   } catch (e) {
     showCheckoutError('checkout-emailError', '요청 중 오류가 발생했습니다.');
   } finally {
-    if (btn) btn.disabled = false;
+    if (!sendSuccess && btn) btn.disabled = false;
   }
 }
 
-async function handleConfirmVerify() {
+/** 6자리 입력 시 자동 인증: 로딩 → 성공(체크+완료 문구) 또는 실패(셰이크+에러+입력 초기화) */
+async function handleAutoVerify() {
   const emailEl = document.getElementById('email');
   const codeEl = document.getElementById('verify-code');
-  const email = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
+  const email = (emailEl && emailEl.value) ? emailEl.value.trim().toLowerCase() : '';
   const code = (codeEl && codeEl.value) ? codeEl.value.replace(/\D/g, '') : '';
+  if (!email || !isValidEmail(email) || code.length !== 6) return;
+  if (getCheckoutEmailVerified() === email) return;
+  if (checkoutVerifyInProgress) return;
+
+  checkoutVerifyInProgress = true;
   clearCheckoutError('checkout-codeError');
-  if (!email || !isValidEmail(email)) {
-    showCheckoutError('checkout-emailError', '이메일을 확인해주세요.');
-    return;
-  }
-  if (code.length !== 6) {
-    showCheckoutError('checkout-codeError', '6자리 인증 코드를 입력해주세요.');
-    return;
-  }
-  const btn = document.getElementById('checkout-confirm-verify-btn');
-  if (btn) btn.disabled = true;
+  const spinner = document.getElementById('checkout-verify-code-spinner');
+  const checkEl = document.getElementById('checkout-verify-code-check');
+  if (spinner) spinner.classList.add('is-visible');
+  if (checkEl) checkEl.classList.remove('is-visible');
+
   try {
     const res = await fetch(`${API_BASE}/verify-code`, {
       method: 'POST',
@@ -762,17 +834,29 @@ async function handleConfirmVerify() {
     const data = await res.json();
     if (data.success) {
       setCheckoutEmailVerified(email);
-      document.getElementById('email-verified-badge').style.display = 'inline-block';
-      document.getElementById('checkout-confirm-verify-btn').style.display = 'none';
+      if (spinner) spinner.classList.remove('is-visible');
+      if (checkEl) checkEl.classList.add('is-visible');
+      if (codeEl) {
+        codeEl.classList.remove('error');
+        codeEl.readOnly = true;
+      }
       updateCheckoutCTAState();
-      alert('인증이 완료되었습니다.');
     } else {
-      showCheckoutError('checkout-codeError', data.message || '인증 코드가 일치하지 않습니다.');
+      if (spinner) spinner.classList.remove('is-visible');
+      showCheckoutError('checkout-codeError', data.message || '인증 코드가 일치하지 않습니다. 다시 확인해 주세요.');
+      if (codeEl) {
+        codeEl.classList.add('error', 'checkout-verify-shake');
+        codeEl.value = '';
+        codeEl.focus();
+        setTimeout(function () { codeEl.classList.remove('checkout-verify-shake'); }, 500);
+      }
     }
   } catch (e) {
+    if (spinner) spinner.classList.remove('is-visible');
     showCheckoutError('checkout-codeError', '확인 중 오류가 발생했습니다.');
+    if (codeEl) codeEl.classList.remove('error');
   } finally {
-    if (btn) btn.disabled = false;
+    checkoutVerifyInProgress = false;
   }
 }
 
