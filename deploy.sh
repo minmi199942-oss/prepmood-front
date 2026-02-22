@@ -202,7 +202,6 @@ rsync -av \
   --include="invoice-detail.html" \
   --include="invoice-detail-grid.css" \
   --include="invoice-detail-grid.js" \
-  --include="invoice-detail-pagination.html" \
   --include="one-unit-one-record.html" \
   --include="product-integrity.html" \
   --include="complete-profile.html" \
@@ -229,7 +228,6 @@ rsync -av \
   --include="warranty-detail.js" \
   --include="digital-warranty.js" \
   --include="digital-invoice.js" \
-  --include="invoice-detail.js" \
   --include="header-loader.js" \
   --include="header-scroll.js" \
   --include="footer-loader.js" \

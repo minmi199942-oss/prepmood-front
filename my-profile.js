@@ -739,13 +739,16 @@ function initializeNavigation() {
 function handleNavigation(page) {
     switch (page) {
         case 'orders':
-            window.location.href = 'my-orders.html';
+            window.location.href = '/my-orders.html';
             break;
         case 'reservations':
-            window.location.href = 'my-reservations.html';
+            window.location.href = '/my-reservations.html';
             break;
-        case 'warranties':
-            window.location.href = 'my-warranties.html';
+        case 'invoice':
+            window.location.href = '/digital-invoice.html';
+            break;
+        case 'warranty':
+            window.location.href = '/digital-warranty.html';
             break;
         case 'profile':
             // 현재 프로필 페이지이므로 이동 없음
