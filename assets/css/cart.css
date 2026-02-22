@@ -43,6 +43,7 @@
 /* ===== 장바구니 아이템 ===== */
 .cart-item {
   display: flex;
+  align-items: flex-start;
   gap: 20px;
   padding: 20px;
   border: 1px solid #f0f0f0;
@@ -53,6 +54,32 @@
 
 .cart-item:hover {
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.cart-select-all {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.cart-select-all-checkbox {
+  cursor: pointer;
+}
+
+.cart-select-all label {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.cart-item-checkbox {
+  flex-shrink: 0;
+  margin-top: 6px;
+  cursor: pointer;
 }
 
 .cart-item-image {

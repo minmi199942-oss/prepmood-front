@@ -96,7 +96,20 @@ async function initializeCheckoutPage() {
   await window.miniCart.loadCartFromServer();
   
   // 미니카트에서 장바구니 아이템 가져오기
-  const cartItems = window.miniCart.getCartItems();
+  let cartItems = window.miniCart.getCartItems() || [];
+  // 선택된 항목만 체크아웃: sessionStorage의 pm_checkout_selected_ids로 필터링
+  const selectedIdsStr = sessionStorage.getItem('pm_checkout_selected_ids');
+  if (selectedIdsStr) {
+    try {
+      const selectedIds = JSON.parse(selectedIdsStr);
+      if (Array.isArray(selectedIds) && selectedIds.length > 0) {
+        const idSet = new Set(selectedIds.map(String));
+        cartItems = cartItems.filter(item => idSet.has(String(item.item_id || item.id)));
+      }
+    } catch (e) {
+      console.warn('pm_checkout_selected_ids 파싱 실패:', e);
+    }
+  }
   console.log('📦 miniCart에서 장바구니 가져옴:', cartItems);
   console.log('📦 장바구니 길이:', cartItems.length);
   console.log('📦 장바구니 아이템 구조 확인:', cartItems.map(item => ({
@@ -106,13 +119,13 @@ async function initializeCheckoutPage() {
     keys: Object.keys(item)
   })));
   
-  // 장바구니가 비어있는지 확인 (개발 환경에서는 빈 장바구니로 페이지 표시 허용)
+  // 장바구니가 비어있는지 확인 (선택 필터 후에도 비어있을 수 있음)
   const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   if (!cartItems || cartItems.length === 0) {
     if (!isDev) {
-      console.warn('⚠️ 장바구니가 비어있음');
-      alert('장바구니가 비어있습니다. 상품을 추가한 후 다시 시도해주세요.');
-      window.location.href = 'catalog.html';
+      console.warn('⚠️ 선택한 항목이 없거나 장바구니가 비어있음');
+      alert('선택한 항목이 없습니다. 장바구니에서 주문할 상품을 선택해주세요.');
+      window.location.href = 'cart.html';
       return;
     }
     console.warn('⚠️ [개발] 장바구니 비어있음 - 체크아웃 페이지 표시 허용');

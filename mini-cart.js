@@ -178,9 +178,58 @@ class MiniCart {
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) {
       checkoutBtn.addEventListener('click', () => {
-        window.location.href = 'checkout.html';
+        this.handleMiniCartCheckout();
       });
     }
+
+    // 체크박스 변경 시 선택 항목 수/총계 업데이트 (이벤트 위임)
+    const miniCartContent = document.getElementById('mini-cart-content');
+    if (miniCartContent) {
+      miniCartContent.addEventListener('change', (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('mini-cart-item-checkbox')) {
+          this.updateMiniCartSelectionDisplay();
+        }
+      });
+    }
+  }
+
+  /** 미니 카트에서 체크아웃 클릭 시: 선택된 항목만 sessionStorage에 저장 후 이동 */
+  handleMiniCartCheckout() {
+    const content = document.getElementById('mini-cart-content');
+    if (!content) return;
+    const checked = content.querySelectorAll('.mini-cart-item-checkbox:checked');
+    const selectedIds = Array.from(checked).map(cb => cb.value).filter(Boolean);
+    if (selectedIds.length === 0) {
+      alert('선택한 항목이 없습니다.');
+      return;
+    }
+    try {
+      sessionStorage.setItem('pm_checkout_selected_ids', JSON.stringify(selectedIds));
+    } catch (e) {
+      console.warn('pm_checkout_selected_ids 저장 실패:', e);
+    }
+    window.location.href = 'checkout.html';
+  }
+
+  /** 미니 카트: 체크된 항목 기준으로 헤더/총계 갱신 */
+  updateMiniCartSelectionDisplay() {
+    const content = document.getElementById('mini-cart-content');
+    const totalEl = document.getElementById('mini-cart-total');
+    const headerTitle = document.querySelector('.mini-cart-header h3');
+    if (!content || !totalEl) return;
+    const checked = content.querySelectorAll('.mini-cart-item-checkbox:checked');
+    const items = content.querySelectorAll('.mini-cart-item[data-item-id]');
+    let selectedCount = 0;
+    let selectedPrice = 0;
+    checked.forEach(cb => {
+      const wrapper = cb.closest('.mini-cart-item');
+      const qty = parseInt(wrapper.getAttribute('data-quantity'), 10) || 1;
+      const price = parseFloat(wrapper.getAttribute('data-price')) || 0;
+      selectedCount += qty;
+      selectedPrice += price * qty;
+    });
+    if (headerTitle) headerTitle.textContent = `선택 항목 (${selectedCount})`;
+    totalEl.textContent = this.formatPrice(selectedPrice);
   }
 
   toggleMiniCart() {
@@ -956,7 +1005,7 @@ class MiniCart {
     const totalItems = this.cartItems.reduce((sum, item) => sum + item.quantity, 0);
     if (count) count.textContent = totalItems;
     
-    // 헤더 제목 업데이트: "선택 항목 (3)" 형태로 변경
+    // 헤더 제목 업데이트: "선택 항목 (N)" 형태
     if (headerTitle) {
       headerTitle.textContent = `선택 항목 (${totalItems})`;
     }
@@ -967,7 +1016,7 @@ class MiniCart {
 
     debugLog('📊 장바구니 통계:', { totalItems, totalPrice });
 
-    // 아이템 렌더링
+    // 아이템 렌더링 (체크박스 포함)
     if (this.cartItems.length === 0) {
       content.innerHTML = '<div class="empty-cart">장바구니가 비어있습니다.</div>';
       debugLog('📭 장바구니가 비어있습니다');
@@ -978,30 +1027,29 @@ class MiniCart {
       // 이미지 경로 처리: /uploads/로 시작하면 그대로 사용, 아니면 /image/ 추가
       let imageSrc = item.image || '';
       if (imageSrc.startsWith('/uploads/')) {
-        // 업로드된 이미지 (새로 추가/수정된 이미지)
         imageSrc = imageSrc;
       } else if (imageSrc.startsWith('/image/')) {
-        // 기존 이미지 경로
         imageSrc = imageSrc;
       } else if (imageSrc) {
-        // 상대 경로인 경우
         imageSrc = imageSrc.startsWith('image/') ? '/' + imageSrc : '/image/' + imageSrc;
       } else {
-        // 이미지가 없는 경우 기본 이미지
         imageSrc = '/image/default.jpg';
       }
-      
+      const itemId = String(item.item_id || item.id || '');
+      const qty = item.quantity || 1;
+      const price = item.price || 0;
       return `
-      <div class="mini-cart-item">
+      <div class="mini-cart-item" data-item-id="${escapeHtml(itemId)}" data-quantity="${qty}" data-price="${price}">
+        <input type="checkbox" class="mini-cart-item-checkbox" value="${escapeHtml(itemId)}" checked aria-label="체크아웃에 포함">
         <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" onerror="this.src='/image/default.jpg'">
         <div class="mini-cart-item-info">
           <div class="mini-cart-item-name">${escapeHtml(item.name)}</div>
           <div class="mini-cart-item-details">
             <div class="mini-cart-item-color">색상: ${escapeHtml(item.color || 'DEFAULT')}</div>
-            <div class="mini-cart-item-quantity">수량: ${escapeHtml(item.quantity)}</div>
+            <div class="mini-cart-item-quantity">수량: ${escapeHtml(qty)}</div>
           </div>
-          <div class="mini-cart-item-price">${this.formatPrice(item.price)}</div>
-          <button class="mini-cart-item-remove" onclick="miniCart.removeFromCart('${escapeHtml(item.item_id)}')">제거</button>
+          <div class="mini-cart-item-price">${this.formatPrice(price)}</div>
+          <button class="mini-cart-item-remove" onclick="miniCart.removeFromCart('${escapeHtml(itemId)}')">제거</button>
         </div>
       </div>
       `;

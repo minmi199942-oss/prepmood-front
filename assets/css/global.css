@@ -192,6 +192,13 @@ body {
   margin-bottom: 20px;
   padding-bottom: 20px;
   border-bottom: 1px solid #f0f0f0;
+  align-items: flex-start;
+}
+
+.mini-cart-item-checkbox {
+  flex-shrink: 0;
+  margin-top: 4px;
+  cursor: pointer;
 }
 
 .mini-cart-item:last-child {
