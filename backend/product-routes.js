@@ -562,12 +562,12 @@ router.post('/admin/products', authenticateToken, requireAdmin, async (req, res)
             });
         }
         
-        // 형식 검증 (영문 대문자, 숫자, 하이픈만 허용)
-        const validPattern = /^[A-Z0-9-]+$/;
+        // 형식 검증 (영문 대소문자, 숫자, 하이픈만 허용 — URL-safe)
+        const validPattern = /^[A-Za-z0-9-]+$/;
         if (!validPattern.test(id)) {
             return res.status(400).json({
                 success: false,
-                message: '상품 ID는 영문 대문자, 숫자, 하이픈(-)만 사용 가능합니다.'
+                message: '상품 ID는 영문, 숫자, 하이픈(-)만 사용 가능합니다.'
             });
         }
         

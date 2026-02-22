@@ -3,7 +3,8 @@
 (function(){
   function qs(key){ return new URLSearchParams(location.search).get(key); }
 
-  const category = (qs('category') || 'tops').toLowerCase();
+  const collection = qs('collection');
+  const category = (qs('category') || (collection ? null : 'tops'))?.toLowerCase();
   const type = qs('type') ? qs('type').toLowerCase() : null;
 
   const title = document.getElementById('catalog-title');
@@ -14,14 +15,18 @@
     
     let list = [];
 
-    // type이 없으면 해당 카테고리의 모든 하위 항목 합치기
-    if (!type || type === 'all') {
-      // 카테고리의 모든 하위 타입 데이터 합치기
+    // Collection 뷰: collection 파라미터 있으면 해당 연도 전체 상품 표시
+    if (collection) {
+      const catalogData = window.CATALOG_DATA || {};
+      list = Object.values(catalogData).flatMap(cat => Object.values(cat || {}).flat());
+      title.textContent = `Collection ${collection}`;
+    }
+    // 카테고리 뷰
+    else if (!type || type === 'all') {
       const categoryData = (window.CATALOG_DATA || {})[category] || {};
       list = Object.values(categoryData).flat();
       title.textContent = `${capitalize(category)} · All`;
     } else {
-      // 특정 타입만 가져오기
       list = ((window.CATALOG_DATA || {})[category] || {})[type] || [];
       title.textContent = `${capitalize(category)} · ${humanize(type)}`;
     }

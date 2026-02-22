@@ -21,7 +21,11 @@ const logger = window.Logger || {
 // API에서 상품 데이터 로드
 async function loadProducts() {
   try {
-    const response = await fetch('/api/products');
+    const urlParams = new URLSearchParams(window.location.search);
+    const collectionYear = urlParams.get('collection') || '2026';
+    const category = urlParams.get('category');
+    const apiUrl = `/api/products?collection_year=${collectionYear}` + (category ? `&category=${encodeURIComponent(category)}` : '');
+    const response = await fetch(apiUrl);
     
     // 응답 상태 확인
     if (!response.ok) {
