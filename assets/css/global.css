@@ -40,6 +40,11 @@
 /* ===== CSS Variables ===== */
 :root { 
   --header-height: 72px; /* 데스크톱 기본값 (패딩 포함) */
+  /* 장바구니/체크아웃 공통 레이아웃 (좌측·우측 너비 동일) */
+  --cart-checkout-max-width: 1200px;
+  --cart-checkout-sidebar-width: 400px;
+  --cart-checkout-gap: clamp(40px, 6vw, 80px);
+  --cart-checkout-page-padding-x: clamp(16px, 3vw, 24px);
   /* Footer 위치 조정 변수 */
   --footer-container-max-width: 3000px; /* Footer 컨테이너 최대 너비 */
   --footer-align: flex-end; /* Footer 정렬: flex-start (좌측), center (중앙), flex-end (우측) */
@@ -136,8 +141,8 @@ body {
 .mini-cart {
   position: fixed;
   top: var(--header-height);
-  right: -400px;
-  width: 400px;
+  right: -480px;
+  width: 480px;
   height: calc(100vh - var(--header-height));
   background: #fff;
   box-shadow: -2px 0 10px rgba(0,0,0,0.1);
@@ -207,8 +212,8 @@ body {
 }
 
 .mini-cart-item img {
-  width: 80px;
-  height: 80px;
+  width: 96px;
+  height: 96px;
   object-fit: cover;
   border-radius: 4px;
 }

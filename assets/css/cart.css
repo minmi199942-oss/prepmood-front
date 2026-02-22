@@ -2,16 +2,17 @@
 
 .cart-page {
   min-height: calc(100vh - var(--header-height, 72px) - 200px);
-  padding: clamp(20px, 4vw, 40px) clamp(16px, 3vw, 24px);
+  padding: clamp(20px, 4vw, 40px) var(--cart-checkout-page-padding-x);
   background-color: #fff;
 }
 
+/* 좌측이 체크아웃(720px)과 같아지도록: 1200+80=1280에서 1fr=720, 우측 480px */
 .cart-container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: clamp(40px, 6vw, 80px);
+  grid-template-columns: 1fr 480px;
+  gap: var(--cart-checkout-gap);
   align-items: start;
 }
 
@@ -28,7 +29,7 @@
 }
 
 .cart-title {
-  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-size: clamp(1.125rem, 2.2vw, 1.375rem);
   font-weight: 700;
   color: #111;
   margin: 0;
