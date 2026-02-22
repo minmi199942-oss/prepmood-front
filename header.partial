@@ -5,8 +5,8 @@
     <div class="logo">
       <a href="/index.html" style="text-decoration: none;">
         <div class="brand-text">
-          <strong style="font-size: 1rem; color: #111;">Pre.pMood</strong>
-          <div class="slogan" style="font-size: 0.65rem; color: #444; font-weight: 300; margin-top: 1px;">Timeless lines, Refined Vibes</div>
+          <strong style="font-size: 0.9rem; color: #111;">Pre.pMood</strong>
+          <div class="slogan" style="font-size: 0.58rem; color: #444; font-weight: 300; margin-top: 1px;">Timeless lines, Refined Vibes</div>
         </div>
       </a>
     </div>
@@ -19,43 +19,43 @@
             </div>
           </div>
         </li>
-        <li class="has-mega"><a href="/catalog.html?category=tops">상의(Top)</a>
+        <li class="has-mega"><a href="/catalog.html?category=tops">상의</a>
           <div class="mega-menu">
             <div class="mega-col">
               <a href="/catalog.html?category=tops">전체보기(View All)</a>
             </div>
           </div>
         </li>
-        <li class="has-mega"><a href="/catalog.html?category=bottoms">하의(Bottom)</a>
+        <li class="has-mega"><a href="/catalog.html?category=bottoms">하의</a>
           <div class="mega-menu">
             <div class="mega-col">
               <a href="/catalog.html?category=bottoms">전체보기(View All)</a>
             </div>
           </div>
         </li>
-        <li class="has-mega"><a href="/catalog.html?category=outer">아우터(Outer)</a>
+        <li class="has-mega"><a href="/catalog.html?category=outer">아우터</a>
           <div class="mega-menu">
             <div class="mega-col">
               <a href="/catalog.html?category=outer">전체보기(View All)</a>
             </div>
           </div>
         </li>
-        <li class="has-mega"><a href="/catalog.html?category=bags">가방(Bag)</a>
+        <li class="has-mega"><a href="/catalog.html?category=bags">가방</a>
           <div class="mega-menu">
             <div class="mega-col">
               <a href="/catalog.html?category=bags">전체보기(View All)</a>
             </div>
           </div>
         </li>
-        <li class="has-mega"><a href="/catalog.html?category=accessories">액세서리(Accessories)</a>
+        <li class="has-mega"><a href="/catalog.html?category=accessories">액세서리</a>
           <div class="mega-menu">
             <div class="mega-col">
               <a href="/catalog.html?category=accessories">전체보기(View All)</a>
-              <a href="/catalog.html?category=accessories&type=caps">모자(Cap)</a>
-              <a href="/catalog.html?category=accessories&type=wallets">지갑(Wallet)</a>
-              <a href="/catalog.html?category=accessories&type=ties">넥타이(Tie)</a>
-              <a href="/catalog.html?category=accessories&type=scarves">목도리(Scarf)</a>
-              <a href="/catalog.html?category=accessories&type=belts">벨트(Belt)</a>
+              <a href="/catalog.html?category=accessories&type=caps">모자</a>
+              <a href="/catalog.html?category=accessories&type=wallets">지갑</a>
+              <a href="/catalog.html?category=accessories&type=ties">넥타이</a>
+              <a href="/catalog.html?category=accessories&type=scarves">목도리</a>
+              <a href="/catalog.html?category=accessories&type=belts">벨트</a>
             </div>
           </div>
         </li>
@@ -118,11 +118,11 @@
       <div class="search-filters">
         <select id="category-filter">
           <option value="">전체 카테고리</option>
-          <option value="tops">상의(Top)</option>
-          <option value="bottoms">하의(Bottom)</option>
-          <option value="outer">아우터(Outer)</option>
-          <option value="bags">가방(Bag)</option>
-          <option value="accessories">액세서리(Accessories)</option>
+          <option value="tops">상의</option>
+          <option value="bottoms">하의</option>
+          <option value="outer">아우터</option>
+          <option value="bags">가방</option>
+          <option value="accessories">액세서리</option>
         </select>
         <select id="price-filter">
           <option value="">가격대</option>
@@ -179,11 +179,11 @@
   <nav class="mobile-menu-nav">
     <ul class="mobile-menu-list">
       <li><a href="/catalog.html?collection=2025">Collection 2025<span class="menu-arrow">></span></a></li>
-      <li><a href="/catalog.html?category=tops">상의(Top)<span class="menu-arrow">></span></a></li>
-      <li><a href="/catalog.html?category=bottoms">하의(Bottom)<span class="menu-arrow">></span></a></li>
-      <li><a href="/catalog.html?category=outer">아우터(Outer)<span class="menu-arrow">></span></a></li>
-      <li><a href="/catalog.html?category=bags">가방(Bag)<span class="menu-arrow">></span></a></li>
-      <li><a href="/catalog.html?category=accessories">액세서리(Accessories)<span class="menu-arrow">></span></a></li>
+      <li><a href="/catalog.html?category=tops">상의<span class="menu-arrow">></span></a></li>
+      <li><a href="/catalog.html?category=bottoms">하의<span class="menu-arrow">></span></a></li>
+      <li><a href="/catalog.html?category=outer">아우터<span class="menu-arrow">></span></a></li>
+      <li><a href="/catalog.html?category=bags">가방<span class="menu-arrow">></span></a></li>
+      <li><a href="/catalog.html?category=accessories">액세서리<span class="menu-arrow">></span></a></li>
     </ul>
   </nav>
   <div class="mobile-menu-divider"></div>

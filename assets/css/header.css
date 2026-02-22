@@ -70,7 +70,7 @@ header.main-header .header-container {
   width: 100%;
   max-width: 100%; /* 모바일: 전체 폭 사용 */
   margin: 0 auto;
-  padding: clamp(12px, 1.5vw, 16px) 20px;
+  padding: clamp(6px, 1vw, 10px) 20px;
   box-sizing: border-box;
   height: 100%; /* 부모 높이에 맞춤 */
   display: flex;
@@ -82,7 +82,7 @@ header.main-header .header-container {
 @media (min-width: 768px) {
   header.main-header .header-container {
     max-width: 100%; /* 태블릿: 전체 폭 사용 */
-    padding: clamp(12px, 1.5vw, 16px) 32px;
+    padding: clamp(6px, 1vw, 10px) 32px;
   }
 }
 
@@ -90,7 +90,7 @@ header.main-header .header-container {
 @media (min-width: 1024px) {
   header.main-header .header-container {
     max-width: 1280px; /* 데스크탑: 넓은 기준 */
-    padding: clamp(12px, 1.5vw, 18px) clamp(40px, 4vw, 56px);
+    padding: clamp(6px, 1vw, 10px) clamp(40px, 4vw, 56px);
   }
 }
 
@@ -98,7 +98,13 @@ header.main-header .header-container {
 @media (min-width: 1600px) {
   header.main-header .header-container {
     max-width: 2400px; /* 큰 화면: 더 넓게 */
-    padding: clamp(12px, 1.5vw, 18px) clamp(48px, 4vw, 64px);
+    padding: clamp(4px, 0.8vw, 8px) clamp(48px, 4vw, 64px);
+  }
+
+  /* 큰 화면 우측 아이콘 조금 더 키움 */
+  .main-header .header-actions .action-link .action-icon {
+    width: 30px !important;
+    height: 30px !important;
   }
 }
 
@@ -167,7 +173,7 @@ header.main-header .main-nav {
 .action-link {
   text-decoration: none;
   color: #111;
-  font-size: clamp(0.8rem, 2vw, 0.9rem);
+  font-size: clamp(0.7rem, 1.8vw, 0.8rem);
   font-weight: 400;
   transition: color 0.2s ease;
 }
@@ -177,8 +183,8 @@ header.main-header .main-nav {
 }
 
 .action-icon {
-  width: clamp(18px, 3vw, 24px);
-  height: clamp(18px, 3vw, 24px);
+  width: 20px;
+  height: 20px;
   object-fit: contain;
   transition: opacity 0.2s ease;
 }
@@ -223,7 +229,7 @@ header.main-header nav ul li a,
   text-decoration: none;
   color: #333;
   font-weight: 500;
-  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  font-size: clamp(0.75rem, 1.8vw, 0.85rem);
 }
 
 header.main-header nav ul li a:hover,
@@ -332,7 +338,7 @@ header.main-header .has-mega:hover::before,
 
 header.main-header .mega-col h4,
 .main-nav .mega-col h4 {
-  font-size: clamp(1rem, 2.2vw, 1.1rem);
+  font-size: clamp(0.9rem, 2vw, 1rem);
   font-weight: 700;
   color: #111;
   margin-bottom: 0.5rem;
@@ -342,7 +348,7 @@ header.main-header .mega-col a,
 .main-nav .mega-col a {
   display: block;
   padding: clamp(6px, 1vw, 8px) 0;
-  font-size: clamp(0.8rem, 1.8vw, 0.9rem);
+  font-size: clamp(0.72rem, 1.6vw, 0.82rem);
   color: #333;
   font-weight: 500;
   line-height: 1.6;
@@ -462,8 +468,8 @@ header.main-header .mega-menu.show,
 }
 
 .burger-icon {
-  width: clamp(16px, 3vw, 22px);
-  height: clamp(16px, 3vw, 22px);
+  width: 18px;
+  height: 18px;
   object-fit: contain;
 }
 
@@ -684,8 +690,8 @@ header.main-header .mega-menu.show,
   }
   
   .mobile-menu-toggle .burger-icon {
-    width: clamp(14px, 3vw, 18px);
-    height: clamp(14px, 3vw, 18px);
+    width: 14px;
+    height: 14px;
   }
   
   /* 모바일 헤더 조정 */
@@ -698,13 +704,13 @@ header.main-header .mega-menu.show,
   
   /* 모바일 헤더 아이콘 크기 조정 */
   .main-header .header-actions .action-link .action-icon {
-    width: clamp(24px, 5vw, 32px) !important;
-    height: clamp(24px, 5vw, 32px) !important;
+    width: 20px !important;
+    height: 20px !important;
   }
   
   /* 로고 및 브랜드 조정 (헤더 스코프로 제한) */
   header.main-header .logo-img {
-    height: clamp(22px, 5vw, 28px);
+    height: clamp(18px, 4vw, 24px);
     margin-right: clamp(6px, 1.5vw, 8px);
   }
   
@@ -718,12 +724,12 @@ header.main-header .mega-menu.show,
   header.main-header .mega-col a,
   .main-nav .mega-col a {
     padding: clamp(4px, 1.2vw, 6px) 0;
-    font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+    font-size: clamp(0.68rem, 2vw, 0.78rem);
   }
   
   header.main-header .mega-col h4,
   .main-nav .mega-col h4 {
-    font-size: clamp(0.9rem, 2.5vw, 1.05rem);
+    font-size: clamp(0.82rem, 2.2vw, 0.95rem);
   }
 }
 
@@ -743,6 +749,12 @@ header.main-header .mega-menu.show,
   /* 데스크탑에서 모든 액션 표시 */
   .header-actions {
     display: flex !important;
+  }
+  
+  /* 데스크탑 우측 아이콘 크기 축소 */
+  .main-header .header-actions .action-link .action-icon {
+    width: 18px !important;
+    height: 18px !important;
   }
   
   .mypage-container,

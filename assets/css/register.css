@@ -9,14 +9,14 @@
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
 }
 
-/* 콘테이너 너비: 패딩 제외 내용 454px (좌우 패딩 50px 시 총 554px) */
+/* 콘테이너 너비: 패딩 제외 내용 654px (좌우 패딩 50px 시 총 754px) */
 .register-container {
     background: #fff;
     border-radius: 0;
     box-shadow: none;
     padding: 32px clamp(35px, 7vw, 50px) clamp(24px, 5vw, 36px) clamp(35px, 7vw, 50px);
     width: 100%;
-    max-width: 554px;
+    max-width: 754px;
     border: none;
     position: relative;
 }
@@ -34,7 +34,7 @@
 }
 
 .register-welcome-line {
-    font-size: clamp(0.8rem, 1.8vw, 0.95rem);
+    font-size: clamp(0.72rem, 1.5vw, 0.85rem);
     color: #666;
     font-weight: 400;
     margin: 0;
@@ -145,13 +145,7 @@
     color: #333;
 }
 
-.form-group label .required {
-    color: #c62828; /* 톤 다운된 레드 (에러 레드보다 부드러움) */
-    font-weight: 500;
-    font-size: 0.9em; /* 텍스트보다 살짝 작게 */
-    margin-left: 2px; /* 괄호 없이 바로 붙이므로 간격 최소화 */
-}
-
+/* checkout 스타일: * 는 라벨 뒤 공백 + 일반 텍스트 (색상 #333 상속) */
 .form-group label .optional {
     color: #666;
     font-weight: 400;
@@ -588,6 +582,13 @@
     .register-container {
         padding: clamp(24px, 5vw, 32px) clamp(18px, 4vw, 24px);
         margin: 0;
+    }
+
+    /* (필수)/(전문보기) 모바일에서 높이 동일 */
+    .consent-item-row,
+    .consent-item-row .consent-checkbox,
+    .consent-item-row .consent-fullview-btn {
+        line-height: 1.4;
     }
 
     .verify-btn {

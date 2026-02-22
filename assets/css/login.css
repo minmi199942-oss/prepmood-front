@@ -1,93 +1,51 @@
 /* ===== 로그인 페이지 전용 스타일 ===== */
-/* 로그인 페이지에서만 body 상단 여백 축소 (global.css 72px → 30px) */
-body {
-  padding-top: 0px;
-}
+/* 기본 헤더 사용 시 global.css의 body padding-top: var(--header-height) 유지 */
 
-/* 톤 2단계: 배경 옅은 그레이 + 중앙 카드 화이트 (회원가입/체크아웃과 동일) */
+/* 흰색 배경 통일 */
 .login-container {
   min-height: 100vh;
-  background: #f8f8f8;
+  background: #fff;
   display: flex;
   flex-direction: column;
   font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
 }
 
-/* ===== 로그인 헤더 ===== */
-.login-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: clamp(8px, 1.5vw, 12px);
-  padding-bottom: clamp(8px, 1.5vw, 12px);
-  padding-left: clamp(20px, 4vw, 32px);
-  padding-right: clamp(20px, 4vw, 120px);
-  background: #fff;
-  border-bottom: 1px solid #eee;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  min-height: 50px;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: #666;
-  font-size: clamp(0.9rem, 2vw, 1rem);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: clamp(4px, 1vw, 8px);
-  transition: color 0.2s ease;
-}
-
-.close-btn:hover {
-  color: #111;
-}
-
-.close-btn span {
-  font-size: clamp(1.2rem, 2.5vw, 1.4rem);
-  font-weight: bold;
-}
-
-.login-title {
-  font-size: clamp(1.2rem, 2.8vw, 1.4rem);
-  font-weight: 600;
-  color: #111;
-  margin: 0;
-  line-height: 1.2;
-}
-
 /* ===== 로그인 메인 영역 ===== */
+/* register와 동일: 헤더-본문 거리 56px (24 + 32) */
 .login-main {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: clamp(20px, 4vw, 40px) clamp(16px, 3vw, 24px);
+  padding-top: 56px;
+  padding-bottom: clamp(20px, 4vw, 40px);
+  padding-left: clamp(16px, 3vw, 24px);
+  padding-right: clamp(16px, 3vw, 24px);
 }
 
+/* register-header와 동일: 제목 폰트 크기 */
+.login-header {
+  text-align: center;
+  margin-bottom: clamp(30px, 6vw, 40px);
+}
+
+.login-header h1 {
+  font-size: clamp(1.125rem, 2.2vw, 1.375rem);
+  font-weight: 700;
+  color: #111;
+  margin: 0;
+}
+
+/* 입력 영역(패딩 제외) 654px — 좌우 40px 패딩 시 총 734px */
 .login-box {
   background: #fff;
   border-radius: 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  padding: clamp(32px, 6vw, 48px) clamp(28px, 5vw, 40px);
+  box-shadow: none;
+  /* 상단 0: 헤더-본문 거리는 login-main padding-top만 사용 (checkout과 동일) */
+  padding: 0 clamp(28px, 5vw, 40px) clamp(32px, 6vw, 48px);
   width: 100%;
-  max-width: clamp(350px, 70vw, 420px);
+  max-width: 734px;
   border: none;
-  position: relative;
-}
-
-.login-box::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #000 0%, #333 100%);
-  border-radius: 0;
 }
 
 /* ===== 소셜 로그인 컨테이너 ===== */
@@ -116,19 +74,18 @@ body {
 /* ===== 소셜 로그인 버튼 기본 스타일 ===== */
 .social-login-btn {
   width: 100%;
-  padding: clamp(14px, 3vw, 18px);
-  border: 2px solid transparent;
-  border-radius: var(--radius-small);
-  font-size: clamp(0.9rem, 2.2vw, 1rem);
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(8px, 1.5vw, 12px);
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
+  gap: 10px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  font-family: inherit;
 }
 
 .social-login-btn svg {
@@ -136,8 +93,7 @@ body {
 }
 
 .social-login-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #ccc;
 }
 
 /* ===== 구글 로그인 버튼 ===== */
@@ -229,38 +185,53 @@ body {
 }
 
 .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin-bottom: clamp(20px, 4vw, 24px);
 }
 
 .input-group label {
-  display: block;
-  font-size: clamp(0.85rem, 2vw, 0.9rem);
+  font-size: 14px;
   font-weight: 500;
-  color: #111;
-  margin-bottom: clamp(8px, 1.5vw, 10px);
-  letter-spacing: 0.5px;
+  color: #333;
 }
 
 .input-group input {
   width: 100%;
-  padding: clamp(12px, 2.5vw, 16px) clamp(12px, 2.5vw, 16px);
-  font-size: clamp(0.9rem, 2vw, 1rem);
-  border: 2px solid #eee;
-  border-radius: var(--radius-small);
-  background-color: #fff;
-  transition: border-color 0.2s ease;
+  padding: 10px 0 8px 0;
+  font-size: 14px;
+  border: none;
+  border-bottom: 1px solid #444;
+  border-radius: 0;
+  background-color: transparent;
+  background-image: linear-gradient(#111, #111);
+  background-size: 0% 1px;
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  transition: background-size 0.28s ease;
   font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   font-weight: 300;
+  box-sizing: border-box;
 }
 
 .input-group input:focus {
   outline: none;
-  border-color: #0071e3;
+  background-size: 100% 1px;
 }
 
 .input-group input::placeholder {
-  color: #bbb;
+  color: #999;
   font-weight: 300;
+}
+
+.input-group input:-webkit-autofill,
+.input-group input:-webkit-autofill:hover,
+.input-group input:-webkit-autofill:focus,
+.input-group input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+  box-shadow: 0 0 0 1000px #fff inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* ===== 비밀번호 찾기 링크 ===== */
@@ -280,36 +251,28 @@ body {
   text-decoration: underline;
 }
 
-/* ===== 로그인 버튼 ===== */
+/* ===== 로그인 버튼 (checkout/register 스타일) ===== */
 .login-btn {
   width: 100%;
-  padding: clamp(14px, 3vw, 18px);
-  background-color: #ccc;
-  color: #666;
-  border: none;
-  border-radius: var(--radius-small);
-  font-size: clamp(0.9rem, 2.2vw, 1rem);
+  padding: 16px;
+  font-size: 16px;
   font-weight: 600;
-  cursor: not-allowed;
-  transition: all 0.2s ease;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.login-btn.active {
-  background-color: #000;
+  background-color: #111;
   color: #fff;
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-family: inherit;
 }
 
-.login-btn.active:hover {
+.login-btn:hover {
   background-color: #333;
-  transform: translateY(-1px);
 }
 
 .login-btn:disabled {
   background-color: #ccc;
-  color: #666;
+  color: #fff;
   cursor: not-allowed;
 }
 
@@ -343,22 +306,20 @@ body {
 
 .create-account-btn {
   background: none;
-  border: 2px solid #000;
-  color: #000;
-  padding: clamp(12px, 2.5vw, 16px) clamp(24px, 5vw, 32px);
-  border-radius: var(--radius-small);
-  font-size: clamp(0.85rem, 2vw, 0.9rem);
+  border: 1px solid #111;
+  color: #111;
+  padding: 14px 24px;
+  border-radius: 4px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  font-family: inherit;
 }
 
 .create-account-btn:hover {
-  background-color: #000;
+  background-color: #111;
   color: #fff;
-  transform: translateY(-1px);
 }
 
 /* ===== 반응형 디자인 ===== */
@@ -384,13 +345,9 @@ body {
     font-size: clamp(0.85rem, 2vw, 0.95rem);
   }
   
-  .input-group input {
-    padding: clamp(10px, 2vw, 14px) clamp(10px, 2vw, 14px);
-  }
-  
   .login-btn {
-    padding: clamp(12px, 2.5vw, 16px);
-    font-size: clamp(0.85rem, 2vw, 0.95rem);
+    padding: 16px;
+    font-size: 16px;
   }
 }
 
