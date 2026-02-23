@@ -460,6 +460,49 @@ router.get('/products/options', async (req, res) => {
     }
 });
 
+// 상품별 재고 가능 수량 조회 (공개 API)
+// color는 paid-order-processor/options와 동일하게 정규화하여 매칭
+function normalizeColorForStock(color) {
+    if (!color) return null;
+    const t = String(color).trim();
+    if (!t) return null;
+    const map = { 'LightBlue': 'Light Blue', 'Light-Blue': 'Light Blue', 'LB': 'Light Blue',
+        'LightGrey': 'Light Grey', 'Light-Grey': 'Light Grey', 'LG': 'Light Grey', 'LGY': 'Light Grey',
+        'BK': 'Black', 'NV': 'Navy', 'WH': 'White', 'WT': 'White', 'GY': 'Grey', 'Gray': 'Grey' };
+    return map[t] || t;
+}
+router.get('/products/stock-count', async (req, res) => {
+    let connection;
+    try {
+        const { product_id, size, color } = req.query;
+        if (!product_id) {
+            return res.status(400).json({ success: false, message: 'product_id가 필요합니다.' });
+        }
+        connection = await mysql.createConnection(dbConfig);
+        const canonicalId = await resolveProductId(product_id, connection);
+        if (!canonicalId) {
+            await connection.end();
+            return res.status(404).json({ success: false, message: '상품을 찾을 수 없습니다.' });
+        }
+        const sizeVal = (size || '').trim();
+        const colorVal = normalizeColorForStock(color || '') || '';
+        const [rows] = await connection.execute(
+            `SELECT COUNT(*) as cnt FROM stock_units
+             WHERE product_id = ? AND status = 'in_stock'
+               AND (size = ? OR (? = '' AND (size IS NULL OR size = '')))
+               AND (color = ? OR (? = '' AND (color IS NULL OR color = '')))`,
+            [canonicalId, sizeVal, sizeVal, colorVal, colorVal]
+        );
+        const availableCount = parseInt(rows[0]?.cnt || 0, 10);
+        await connection.end();
+        res.json({ success: true, available_count: availableCount });
+    } catch (error) {
+        if (connection) await connection.end();
+        console.error('❌ 재고 수량 조회 오류:', error);
+        res.status(500).json({ success: false, message: '재고 수량 조회에 실패했습니다.' });
+    }
+});
+
 // 특정 상품 조회
 router.get('/products/:id', async (req, res) => {
     let connection;

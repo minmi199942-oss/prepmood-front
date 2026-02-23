@@ -937,7 +937,12 @@ class MiniCart {
   // 로그아웃 시 장바구니 숨기기
   async hideCartForLogout() {
     this.isLoggedIn = false;
-    this.cartItems = [];
+    const isDev = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isDev) {
+      this.loadCartFromLocalStorage();
+    } else {
+      this.cartItems = [];
+    }
     this.updateCartDisplay();
     this.renderMiniCart();
     // ⚠️ 로그아웃 시 동기화 완료 플래그 초기화 (다음 로그인에서 다시 동기화 가능하도록)
@@ -1023,17 +1028,16 @@ class MiniCart {
       return;
     }
 
+    const isDev = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const devFallbackImg = '/image/hat.jpg';
     content.innerHTML = this.cartItems.map(item => {
-      // 이미지 경로 처리: /uploads/로 시작하면 그대로 사용, 아니면 /image/ 추가
-      let imageSrc = item.image || '';
-      if (imageSrc.startsWith('/uploads/')) {
-        imageSrc = imageSrc;
-      } else if (imageSrc.startsWith('/image/')) {
-        imageSrc = imageSrc;
+      let imageSrc = (item.image || '').toString().trim();
+      if (imageSrc.startsWith('/uploads/') || imageSrc.startsWith('/image/')) {
+        // 유지
       } else if (imageSrc) {
         imageSrc = imageSrc.startsWith('image/') ? '/' + imageSrc : '/image/' + imageSrc;
       } else {
-        imageSrc = '/image/default.jpg';
+        imageSrc = isDev ? devFallbackImg : '/image/default.jpg';
       }
       const itemId = String(item.item_id || item.id || '');
       const qty = item.quantity || 1;
@@ -1041,7 +1045,7 @@ class MiniCart {
       return `
       <div class="mini-cart-item" data-item-id="${escapeHtml(itemId)}" data-quantity="${qty}" data-price="${price}">
         <input type="checkbox" class="mini-cart-item-checkbox" value="${escapeHtml(itemId)}" checked aria-label="체크아웃에 포함">
-        <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" onerror="this.src='/image/default.jpg'">
+        <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" onerror="this.src='${escapeHtml(isDev ? devFallbackImg : '/image/default.jpg')}'; this.onerror=null;">
         <div class="mini-cart-item-info">
           <div class="mini-cart-item-name">${escapeHtml(item.name)}</div>
           <div class="mini-cart-item-details">

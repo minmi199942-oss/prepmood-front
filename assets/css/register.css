@@ -561,7 +561,7 @@
 }
 
 .register-page .phone-input .form-input {
-    padding-left: 0;
+    padding-left: 3px;
     padding-right: 0;
     min-width: 0;
     background-color: transparent;

@@ -204,6 +204,7 @@ body {
   flex-shrink: 0;
   margin-top: 4px;
   cursor: pointer;
+  accent-color: #111;
 }
 
 .mini-cart-item:last-child {
