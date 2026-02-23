@@ -226,20 +226,9 @@ async function removeCartItem(itemId) {
   Logger.log('🗑️ 장바구니 아이템 제거:', itemId);
   hideRemoveConfirmModal();
 
-  if (isDevHost() && window.miniCart) {
-    try {
-      const raw = localStorage.getItem(GUEST_CART_KEY) || '[]';
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) {
-        const next = arr.filter(function (item) { return String(item.item_id || item.id) !== String(itemId); });
-        localStorage.setItem(GUEST_CART_KEY, JSON.stringify(next));
-        window.miniCart.loadCartFromLocalStorage();
-        await renderCartItems();
-        return;
-      }
-    } catch (e) {
-      Logger.warn('개발용 장바구니 제거 실패', e);
-    }
+  if (!window.miniCart || typeof window.miniCart.removeFromCart !== 'function') {
+    Logger.warn('removeCartItem: miniCart.removeFromCart 없음');
+    return;
   }
   await window.miniCart.removeFromCart(itemId);
   await renderCartItems();
