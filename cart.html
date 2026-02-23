@@ -25,12 +25,12 @@
   <!-- 장바구니 페이지 -->
   <main class="cart-page">
     <div class="cart-container">
+      <!-- 장바구니 제목: 컨테이너 전체 너비, 밑줄 아래에 좌/우 콘텐츠 -->
+      <div class="cart-header">
+        <h1 class="cart-title">장바구니 (<span id="cart-item-count">0</span>)</h1>
+      </div>
       <!-- 좌측: 장바구니 아이템 목록 -->
       <div class="cart-items-section">
-        <div class="cart-header">
-          <h1 class="cart-title">장바구니 (<span id="cart-item-count">0</span>)</h1>
-        </div>
-        
         <div class="cart-items" id="cart-items">
           <!-- 장바구니 아이템들이 여기에 표시됩니다 -->
         </div>
@@ -39,15 +39,20 @@
           <a href="wishlist.html" class="wishlist-link">위시리스트로 이동</a>
         </div>
       </div>
-
-      <!-- 우측: 주문 요약 -->
+      <!-- 우측: 주문 요약 (장바구니 밑줄 아래 정렬) -->
       <div class="order-summary-section">
         <div class="order-summary">
           <h2 class="summary-title">소계</h2>
-          <div class="summary-total">
-            <span id="cart-total">₩0</span>
+          <div class="summary-rows">
+            <div class="summary-row">
+              <span>배송 비용:</span>
+              <span>무료</span>
+            </div>
+            <div class="summary-row summary-total">
+              <span>예상 총액:</span>
+              <span id="cart-total">₩0</span>
+            </div>
           </div>
-          
           <button class="checkout-btn" id="checkout-btn">체크아웃 진행</button>
           
           <div class="help-section">
@@ -68,46 +73,29 @@
       <!-- 푸터 컨테이너 -->
       <div id="footer-container"></div>
 
-      <!-- 수정 모달 -->
-      <div id="edit-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2>상품 수정</h2>
-            <button class="modal-close" id="modal-close">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label for="edit-size">사이즈</label>
-              <select id="edit-size" class="form-control">
-                <option value="">사이즈 선택</option>
-                <option value="S">S</option>
-                <option value="M">M</option>
-                <option value="L">L</option>
-                <option value="XL">XL</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="edit-color">색상</label>
-              <select id="edit-color" class="form-control">
-                <option value="">색상 선택</option>
-                <option value="Black">Black</option>
-                <option value="White">White</option>
-                <option value="Navy">Navy</option>
-                <option value="Gray">Gray</option>
-                <option value="Brown">Brown</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="edit-quantity">수량</label>
-              <input type="number" id="edit-quantity" class="form-control" min="1" value="1">
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" id="modal-cancel">취소</button>
-            <button class="btn-primary" id="modal-save">저장</button>
+  <!-- 제거 확인 모달: 제거할 카드 아이템 내용 + 취소/네 -->
+  <div id="cart-remove-modal" class="modal cart-remove-modal" role="dialog" aria-labelledby="cart-remove-modal-title" aria-modal="true" style="display: none;">
+    <div class="modal-content cart-remove-modal-content">
+      <div class="modal-header cart-remove-modal-header">
+        <h2 id="cart-remove-modal-title" class="cart-remove-modal-title">장바구니에서 제품 삭제</h2>
+        <button type="button" class="modal-close cart-remove-modal-close" aria-label="닫기">&times;</button>
+      </div>
+      <div class="cart-remove-modal-body">
+        <div class="cart-remove-modal-card">
+          <img id="cart-remove-modal-image" class="cart-remove-modal-image" src="" alt="">
+          <div class="cart-remove-modal-info">
+            <h3 id="cart-remove-modal-name" class="cart-remove-modal-name"></h3>
+            <p id="cart-remove-modal-color" class="cart-remove-modal-color"></p>
+            <p id="cart-remove-modal-price" class="cart-remove-modal-price"></p>
           </div>
         </div>
       </div>
+      <div class="cart-remove-modal-footer">
+        <button type="button" class="cart-remove-modal-cancel">취소</button>
+        <button type="button" class="cart-remove-modal-confirm">네</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 
