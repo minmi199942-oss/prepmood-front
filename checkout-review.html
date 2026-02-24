@@ -22,11 +22,11 @@
   <!-- 공통 헤더 -->
   <div id="header-container"></div>
 
-  <!-- 배송 정보 확인 페이지 -->
+  <!-- 배송 정보 확인 페이지 (checkout.html과 동일: 브레드크럼 풀폭+밑줄, 배송 정보·주문 요약 같은 높이) -->
   <main class="checkout-page">
     <div class="checkout-container">
-      <!-- 좌측: 배송 정보 확인 -->
-      <div class="checkout-form-section">
+      <!-- 1행: 브레드크럼 — 좌·우 전체 너비, 밑줄로 구분 -->
+      <div class="checkout-breadcrumb-row">
         <nav class="checkout-breadcrumb" aria-label="결제 단계">
           <a href="checkout.html" class="step step-current">1. 배송</a>
           <span class="separator" aria-hidden="true">&gt;</span>
@@ -34,10 +34,9 @@
           <span class="separator" aria-hidden="true">&gt;</span>
           <span class="step step-disabled">3. 주문 확인</span>
         </nav>
-        <div class="checkout-header">
-          <h1 class="checkout-title">배송 정보 확인</h1>
-        </div>
-        
+      </div>
+      <!-- 좌측: 배송 정보·주문 상품 (밑줄 아래 배송 정보와 우측 주문 요약 같은 높이) -->
+      <div class="checkout-form-section">
         <!-- 배송 정보 표시 -->
         <div class="form-section">
           <h2 class="section-title">배송 정보</h2>
@@ -48,52 +47,42 @@
             <a href="checkout.html" class="edit-link">수정</a>
           </div>
         </div>
-        
-        <!-- 주문 요약 -->
-        <div class="form-section" style="margin-top: 40px;">
-          <h2 class="section-title">주문 상품</h2>
-          <div id="order-items-review">
-            <!-- JavaScript로 동적 생성 -->
-          </div>
-        </div>
-        
         <!-- 확인 및 진행 버튼 -->
-        <div class="checkout-actions" style="margin-top: 40px;">
+        <div class="checkout-actions">
           <button class="complete-order-btn" id="proceed-to-payment">확인 및 진행</button>
         </div>
       </div>
 
-      <!-- 우측: 주문 요약 -->
+      <!-- 우측: 주문 요약 (checkout.html과 동일 구조) -->
       <div class="order-summary-section">
         <div class="order-summary">
           <h2 class="summary-title">주문 요약</h2>
-          
           <div class="order-items" id="order-items">
             <!-- 주문 아이템들이 여기에 표시됩니다 -->
           </div>
-          
-          <div class="order-totals">
-            <div class="total-row">
+          <div class="summary-rows">
+            <div class="summary-row">
               <span>소계</span>
               <span id="subtotal">₩0</span>
             </div>
-            <div class="total-row">
-              <span>배송비</span>
-              <span>무료</span>
+            <div class="summary-row">
+              <span>배송</span>
+              <span id="shipping">무료</span>
             </div>
-            <div class="total-row final">
+            <div class="summary-row summary-total">
               <span>총계</span>
               <span id="total">₩0</span>
             </div>
           </div>
-          
-          <div class="shipping-info-box">
-            <h3>배송 정보</h3>
-            <ul class="shipping-info-list">
-              <li>무료 배송 (3-5 영업일)</li>
-              <li>안전한 포장</li>
-              <li>배송 추적 가능</li>
-            </ul>
+          <div class="help-section">
+            <div class="help-item">
+              <span>도움이 필요하세요?</span>
+              <span class="chevron" aria-hidden="true">▼</span>
+            </div>
+            <div class="help-item">
+              <span>무료 배송 및 반품</span>
+              <span class="chevron" aria-hidden="true">▼</span>
+            </div>
           </div>
         </div>
       </div>

@@ -94,6 +94,20 @@
   margin: 0;
 }
 
+/* checkout-review: 배송 정보 확인(이름~국가) — checkout.html 폼 라벨/입력과 동일 14px */
+#shipping-info-review {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+#shipping-info-review p {
+  margin: 0 0 6px 0;
+}
+
+#shipping-info-review p:last-child {
+  margin-bottom: 0;
+}
+
 .checkout-form {
   display: flex;
   flex-direction: column;
@@ -1059,7 +1073,7 @@
 
 .edit-link {
   font-size: 12px;
-  font-weight: 300;
+  font-weight: 500;
   color: #111;
   text-decoration: underline;
   text-underline-offset: 3px;
