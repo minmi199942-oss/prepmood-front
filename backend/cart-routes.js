@@ -218,12 +218,15 @@ router.put('/cart/:itemId', authenticateToken, async (req, res) => {
     const { itemId } = req.params;
     const { size, color, quantity } = req.body;
 
-    if (!size || !color) {
-      return res.status(400).json({ 
-        success: false, 
-        message: '사이즈와 색상을 입력해주세요.' 
+    // DB: cart_items.size, color는 VARCHAR nullable — '' 저장 가능. 없을 때만 400.
+    if (size === undefined || color === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: '사이즈와 색상을 입력해주세요.'
       });
     }
+    const sizeVal = (size === null || size === undefined) ? '' : String(size).trim();
+    const colorVal = (color === null || color === undefined) ? '' : String(color).trim();
 
     if (!quantity || quantity < 1) {
       return res.status(400).json({ 
@@ -251,7 +254,7 @@ router.put('/cart/:itemId', authenticateToken, async (req, res) => {
       // 장바구니 아이템 수정
       await connection.execute(
         'UPDATE cart_items SET size = ?, color = ?, quantity = ?, updated_at = NOW() WHERE item_id = ?',
-        [size, color, quantity, itemId]
+        [sizeVal, colorVal, quantity, itemId]
       );
 
       Logger.log(`장바구니 아이템 수정: 사용자${req.user.userId} - 아이템${itemId}`);

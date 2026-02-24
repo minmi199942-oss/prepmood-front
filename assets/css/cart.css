@@ -109,7 +109,8 @@
   margin: 0;
 }
 
-.cart-item-color {
+.cart-item-color,
+.cart-item-option {
   font-size: 13px;
   font-weight: 500;
   color: #333;
@@ -192,11 +193,8 @@
   gap: 6px;
 }
 
-/* 색상 편집: 접혔다가 부드럽게 내려오는 애니메이션, 밑줄은 색상란과 동일 구간 */
-.cart-color-edit-area {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* 편집 영역: 색상/사이즈 동적 행 (접었다가 부드럽게 펼침) */
+.cart-item-edit-area {
   margin-top: 6px;
   max-height: 0;
   overflow: hidden;
@@ -204,8 +202,8 @@
   transition: max-height 0.35s ease, opacity 0.25s ease;
 }
 
-.cart-color-edit-area.is-open {
-  max-height: 120px;
+.cart-item-edit-area.is-open {
+  max-height: 280px;
   opacity: 1;
   padding-bottom: 6px;
   margin-bottom: 0;
@@ -213,26 +211,32 @@
   width: 100%;
   max-width: 320px;
   box-sizing: border-box;
+  overflow: visible;
+}
+
+.cart-item-edit-area.is-open:has(.cart-color-custom.is-dropdown-open),
+.cart-item-edit-area.is-open:has(.cart-size-custom.is-dropdown-open) {
+  max-height: 340px;
+}
+
+.cart-edit-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cart-edit-row {
   position: relative;
   min-height: 32px;
   padding-left: 40px;
 }
 
-/* 드롭다운이 열리면 편집 영역이 잘리지 않도록 높이 확장 */
-.cart-color-edit-area.is-open:has(.cart-color-custom.is-dropdown-open) {
-  max-height: 320px;
-  overflow: visible;
-}
-
-.cart-color-label {
+.cart-edit-label {
   font-size: 14px;
   color: #333;
   font-weight: 500;
   flex-shrink: 0;
   line-height: 1.4;
-}
-
-.cart-color-edit-area.is-open .cart-color-label {
   position: absolute;
   left: 0;
   top: 0;
@@ -241,8 +245,9 @@
   cursor: pointer;
 }
 
-/* 커스텀 드롭다운: 밑줄과 동일 폭, 화살표 V(닫힘) / ^(열림), 열릴 때 약간 텀 두고 슬라이드 */
-.cart-color-custom {
+/* 커스텀 드롭다운: 편집 행 내에서 동일 폭, 화살표 V(닫힘) / ^(열림) */
+.cart-edit-row .cart-color-custom,
+.cart-edit-row .cart-size-custom {
   position: absolute;
   left: 0;
   right: 0;
@@ -346,6 +351,105 @@
 
 .cart-color-option.is-out-of-stock:hover,
 .cart-color-option:disabled:hover {
+  background: transparent;
+}
+
+/* 사이즈 편집 (색상과 동일 스타일) */
+.cart-size-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 0 0 0 0;
+  padding-left: 40px;
+  padding-right: 6px;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #111;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.cart-size-trigger:focus {
+  outline: none;
+}
+
+.cart-size-trigger-arrow {
+  flex-shrink: 0;
+  margin-left: 8px;
+  color: #888;
+  transition: transform 0.2s ease;
+}
+
+.cart-size-custom.is-dropdown-open .cart-size-trigger-arrow {
+  transform: rotate(180deg);
+}
+
+.cart-size-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 0;
+  background: #fff;
+  border-width: 0 1px 1px 1px;
+  border-style: solid;
+  border-color: #ccc;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: max-height 0.24s ease, opacity 0.28s ease, transform 0.28s ease;
+  transition-delay: 0s;
+  z-index: 10;
+}
+
+.cart-size-custom.is-dropdown-open .cart-size-dropdown {
+  max-height: 240px;
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.04s;
+  overflow-y: auto;
+}
+
+.cart-size-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px 8px 20px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #111;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.cart-size-option:hover {
+  background: #f0f0f0;
+}
+
+.cart-size-option.is-selected {
+  background: #f0f0f0;
+}
+
+.cart-size-option.is-out-of-stock,
+.cart-size-option:disabled {
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.cart-size-option.is-out-of-stock:hover,
+.cart-size-option:disabled:hover {
   background: transparent;
 }
 
@@ -548,7 +652,8 @@
     font-size: 12px;
   }
   
-  .cart-item-color {
+  .cart-item-color,
+  .cart-item-option {
     font-size: 12px;
   }
   
@@ -960,4 +1065,29 @@
 .cart-remove-modal-confirm:hover {
   background: #333;
   border-color: #333;
+}
+
+/* 장바구니 토스트 (옵션 로드 실패 / 편집 불가 안내) */
+.cart-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  padding: 12px 20px;
+  max-width: min(90vw, 360px);
+  font-size: 14px;
+  color: #111;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 10000;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.cart-toast--visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }

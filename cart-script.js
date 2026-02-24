@@ -9,6 +9,26 @@ const API_BASE = (window.API_BASE)
 const GUEST_CART_KEY = 'pm_cart_v1';
 const isDevHost = () => (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
+/** 장바구니 페이지용 간단 토스트 (3번 이슈: 옵션 로드 실패/편집 불가 시 피드백) */
+function showCartToast(message) {
+  const text = typeof message === 'string' ? message : '알 수 없는 오류';
+  const el = document.createElement('div');
+  el.setAttribute('class', 'cart-toast');
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.textContent = text;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('cart-toast--visible'));
+  setTimeout(() => {
+    el.classList.remove('cart-toast--visible');
+    setTimeout(() => el.remove(), 300);
+  }, 2800);
+  el.addEventListener('click', () => {
+    el.classList.remove('cart-toast--visible');
+    setTimeout(() => el.remove(), 300);
+  }, { once: true });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   Logger.log('🛒 장바구니 페이지 로드됨');
   
@@ -30,47 +50,95 @@ document.addEventListener('DOMContentLoaded', function() {
 let globalCartItems = [];
 let cartEventListenersBound = false;
 
-// 편집 버튼 클릭 시 색상 드롭다운 토글
-async function toggleColorEdit(itemId) {
+// 편집 버튼 클릭 시: 옵션 개수에 따라 색상만/사이즈만/둘 다 표시
+async function toggleCartItemEdit(itemId) {
   const item = globalCartItems.find(i => String(i.item_id || i.id) === String(itemId));
   if (!item) return;
 
   const cartItem = Array.from(document.querySelectorAll('.cart-item')).find(el => el.getAttribute('data-item-id') === String(itemId));
-  const colorEditArea = cartItem ? cartItem.querySelector('.cart-color-edit-area') : null;
-  if (!colorEditArea) return;
+  const editArea = cartItem ? cartItem.querySelector('.cart-item-edit-area') : null;
+  const editRows = cartItem ? cartItem.querySelector('.cart-edit-rows') : null;
+  if (!editArea || !editRows) return;
 
-  const isShown = colorEditArea.classList.contains('is-open');
+  const isShown = editArea.classList.contains('is-open');
   if (isShown) {
-    colorEditArea.classList.remove('is-open');
+    editArea.classList.remove('is-open');
     return;
   }
 
-  // 커스텀 드롭다운: 해당 상품의 모든 색상 표시, 재고 없으면 품절 표시 및 선택 불가
   const productId = item.product_id || item.id;
-  const size = item.size || '';
+  const currentSize = item.size || '';
   const currentColor = item.color || '';
-  const colorList = await getColorsForCartEdit(productId, size, currentColor);
+  const options = await fetchProductOptions(productId);
+  if (options.error) {
+    showCartToast('옵션을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
+    return;
+  }
+  const hasMultipleColors = options.colors.length > 1;
+  const hasMultipleSizes = options.sizes.length > 1;
+  if (!hasMultipleColors && !hasMultipleSizes) {
+    showCartToast('편집할 옵션이 없습니다.');
+    return;
+  }
 
-  const triggerText = colorEditArea.querySelector('.cart-color-trigger-text');
-  const dropdown = colorEditArea.querySelector('.cart-color-dropdown');
-  const triggerBtn = colorEditArea.querySelector('.cart-color-trigger');
-  const customWrap = colorEditArea.querySelector('.cart-color-custom');
-  if (triggerText) triggerText.textContent = currentColor || '';
-  if (dropdown) {
-    dropdown.innerHTML = colorList.map(({ color, inStock }) => {
-      const selected = (item.color || '') === color;
+  // 다른 아이템의 편집 영역은 닫기 (한 번에 하나만 열림)
+  document.querySelectorAll('.cart-item-edit-area.is-open').forEach(function(area) {
+    if (area !== editArea) area.classList.remove('is-open');
+  });
+
+  const rows = [];
+
+  if (hasMultipleColors) {
+    const colorList = await getColorsForCartEdit(productId, currentSize, currentColor, options);
+    const colorOptionsHtml = colorList.map(({ color, inStock }) => {
+      const selected = (currentColor || '') === color;
       const label = inStock ? escapeHtml(color) : `${escapeHtml(color)} (품절)`;
       const extraClass = inStock ? '' : ' is-out-of-stock';
       const disabled = inStock ? '' : ' disabled aria-disabled="true"';
       return `<button type="button" class="cart-color-option${selected ? ' is-selected' : ''}${extraClass}" data-color="${escapeHtml(color)}" data-in-stock="${inStock ? 'true' : 'false'}" role="option"${selected ? ' aria-selected="true"' : ''}${disabled}>${label}</button>`;
     }).join('');
+    rows.push(`
+      <div class="cart-edit-row cart-color-edit-row">
+        <label class="cart-edit-label">색상:</label>
+        <div class="cart-color-custom" data-item-id="${escapeHtml(itemId)}" data-type="color">
+          <button type="button" class="cart-color-trigger" aria-expanded="false" aria-haspopup="listbox" aria-label="색상 선택">
+            <span class="cart-color-trigger-text">${escapeHtml(String(currentColor).trim())}</span>
+            <span class="cart-color-trigger-arrow" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4H2z"/></svg></span>
+          </button>
+          <div class="cart-color-dropdown" role="listbox">${colorOptionsHtml}</div>
+        </div>
+      </div>
+    `);
   }
-  if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'false');
-  if (customWrap) customWrap.classList.remove('is-dropdown-open');
 
-  colorEditArea.offsetHeight;
+  if (hasMultipleSizes) {
+    const sizeList = await getSizesForCartEdit(productId, currentColor, currentSize, options);
+    const sizeOptionsHtml = sizeList.map(({ size, inStock }) => {
+      const sizeStr = String(size).trim();
+      const selected = (currentSize || '') === sizeStr;
+      const label = inStock ? escapeHtml(sizeStr || '-') : `${escapeHtml(sizeStr || '-')} (품절)`;
+      const extraClass = inStock ? '' : ' is-out-of-stock';
+      const disabled = inStock ? '' : ' disabled aria-disabled="true"';
+      return `<button type="button" class="cart-size-option${selected ? ' is-selected' : ''}${extraClass}" data-size="${escapeHtml(sizeStr)}" data-in-stock="${inStock ? 'true' : 'false'}" role="option"${selected ? ' aria-selected="true"' : ''}${disabled}>${label}</button>`;
+    }).join('');
+    rows.push(`
+      <div class="cart-edit-row cart-size-edit-row">
+        <label class="cart-edit-label">사이즈:</label>
+        <div class="cart-size-custom" data-item-id="${escapeHtml(itemId)}" data-type="size">
+          <button type="button" class="cart-size-trigger" aria-expanded="false" aria-haspopup="listbox" aria-label="사이즈 선택">
+            <span class="cart-size-trigger-text">${escapeHtml(String(currentSize).trim()) || '-'}</span>
+            <span class="cart-size-trigger-arrow" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4H2z"/></svg></span>
+          </button>
+          <div class="cart-size-dropdown" role="listbox">${sizeOptionsHtml}</div>
+        </div>
+      </div>
+    `);
+  }
+
+  editRows.innerHTML = rows.join('');
+  editArea.offsetHeight;
   requestAnimationFrame(() => {
-    colorEditArea.classList.add('is-open');
+    editArea.classList.add('is-open');
   });
 }
 
@@ -90,26 +158,41 @@ async function fetchProductStockCount(productId, size, color) {
   }
 }
 
-// 상품별 사용 가능 색상 조회 (API 기준, fallback 없음)
-async function fetchProductColors(productId) {
-  if (!productId) return [];
+// 상품별 옵션 한 번에 조회 (색상·사이즈 목록만, 재고 여부는 별도)
+// 실패 시 { colors, sizes, error: true } 반환 → 토스트로 일시 오류 안내
+async function fetchProductOptions(productId) {
+  if (!productId) return { colors: [], sizes: [] };
   try {
     const res = await fetch(`${API_BASE}/products/options?product_id=${encodeURIComponent(productId)}`, { credentials: 'include' });
     const data = await res.json();
-    if (data.success && data.options && Array.isArray(data.options.colors)) {
-      const colors = data.options.colors.map(c => (typeof c === 'string' ? c : c.color)).filter(Boolean);
-      return colors;
+    if (!data.success || !data.options) {
+      Logger.warn('옵션 조회 실패: success 또는 options 없음');
+      return { colors: [], sizes: [], error: true };
     }
+    const colors = Array.isArray(data.options.colors)
+      ? data.options.colors.map(c => (typeof c === 'string' ? c : c.color)).filter(Boolean)
+      : [];
+    const sizes = Array.isArray(data.options.sizes)
+      ? data.options.sizes.map(s => (typeof s === 'string' ? s : s.size)).filter(Boolean)
+      : [];
+    return { colors, sizes };
   } catch (e) {
-    Logger.warn('색상 옵션 조회 실패:', e.message);
+    Logger.warn('옵션 조회 실패:', e.message);
+    return { colors: [], sizes: [], error: true };
   }
-  return [];
+}
+
+// 하위 호환: 색상만 필요할 때
+async function fetchProductColors(productId) {
+  const { colors } = await fetchProductOptions(productId);
+  return colors;
 }
 
 // 장바구니 색상 편집용: 해당 상품의 모든 색상 + 선택한 사이즈 기준 재고 여부 반환
 // 반환: { color: string, inStock: boolean }[]
-async function getColorsForCartEdit(productId, size, currentColor) {
-  const productColors = await fetchProductColors(productId);
+// options: 선택. 넘기면 fetchProductOptions 재호출 없이 사용 (호출 횟수 절감)
+async function getColorsForCartEdit(productId, size, currentColor, options) {
+  const productColors = (options && Array.isArray(options.colors)) ? options.colors : await fetchProductColors(productId);
   const list = [];
   const seen = new Set();
   for (const color of productColors) {
@@ -121,6 +204,26 @@ async function getColorsForCartEdit(productId, size, currentColor) {
   if (currentColor && !seen.has(currentColor)) {
     const count = await fetchProductStockCount(productId, size, currentColor);
     list.unshift({ color: currentColor, inStock: count > 0 });
+  }
+  return list;
+}
+
+// 장바구니 사이즈 편집용: 해당 상품의 모든 사이즈 + 선택한 색상 기준 재고 여부
+// options: 선택. 넘기면 fetchProductOptions 재호출 없이 사용 (호출 횟수 절감)
+async function getSizesForCartEdit(productId, color, currentSize, options) {
+  const sizes = (options && Array.isArray(options.sizes)) ? options.sizes : (await fetchProductOptions(productId)).sizes;
+  const list = [];
+  const seen = new Set();
+  for (const size of sizes) {
+    const key = (size || '').trim();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const count = await fetchProductStockCount(productId, size, color);
+    list.push({ size: size || '', inStock: count > 0 });
+  }
+  if (currentSize !== undefined && currentSize !== null && currentSize !== '' && !seen.has(String(currentSize).trim())) {
+    const count = await fetchProductStockCount(productId, currentSize, color);
+    list.unshift({ size: String(currentSize).trim(), inStock: count > 0 });
   }
   return list;
 }
@@ -182,6 +285,57 @@ async function updateCartColor(itemId, newColor) {
   }
 }
 
+async function updateCartSize(itemId, newSize) {
+  const item = globalCartItems.find(i => String(i.item_id || i.id) === String(itemId));
+  if (!item) return;
+
+  const useGuest = window.miniCart && typeof window.miniCart.checkLoginStatus === 'function'
+    ? (await window.miniCart.checkLoginStatus()).status === 'guest'
+    : isDevHost();
+
+  if (useGuest) {
+    try {
+      const raw = localStorage.getItem(GUEST_CART_KEY) || '[]';
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        const idx = arr.findIndex(i => String(i.item_id || i.id) === String(itemId));
+        if (idx >= 0) {
+          arr[idx].size = newSize;
+          localStorage.setItem(GUEST_CART_KEY, JSON.stringify(arr));
+          if (window.miniCart) window.miniCart.loadCartFromLocalStorage();
+          await renderCartItems();
+          return;
+        }
+      }
+    } catch (e) {
+      Logger.warn('비회원 사이즈 업데이트 실패', e);
+      return;
+    }
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/cart/${itemId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        size: newSize,
+        color: item.color || '',
+        quantity: item.quantity || 1
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await renderCartItems();
+    } else {
+      alert(data.message || '사이즈 변경에 실패했습니다.');
+    }
+  } catch (e) {
+    Logger.error('사이즈 업데이트 오류:', e);
+    alert('사이즈 변경 중 오류가 발생했습니다.');
+  }
+}
+
 function showRemoveConfirmModal(itemId) {
   const item = globalCartItems.find(i => String(i.item_id || i.id) === String(itemId));
   if (!item) return;
@@ -235,7 +389,8 @@ async function removeCartItem(itemId) {
 }
 
 // 즉시 전역에 노출
-window.toggleColorEdit = toggleColorEdit;
+window.toggleColorEdit = toggleCartItemEdit;
+window.toggleCartItemEdit = toggleCartItemEdit;
 window.removeCartItem = removeCartItem;
 
 async function initializeCartPage() {
@@ -384,7 +539,7 @@ async function renderCartItems() {
         <img src="${escapeHtml(imageSrc(item))}" alt="${escapeHtml(item.name)}" class="cart-item-image" onerror="this.src='/image/hat.jpg'; this.onerror=null;">
         <div class="cart-item-info">
           <h3 class="cart-item-name">${escapeHtml(item.name)}</h3>
-          ${(item.color || '').trim() ? `<p class="cart-item-color">${escapeHtml(String(item.color).trim())}</p>` : ''}
+          ${(item.color || '').trim() || (item.size || '').trim() ? `<p class="cart-item-option">${[item.color, item.size].filter(Boolean).map(x => escapeHtml(String(x).trim())).join(' · ')}</p>` : ''}
           <div class="cart-item-details">
             <div class="cart-item-quantity-row">
               <span class="cart-item-quantity-label">수량</span>
@@ -395,15 +550,8 @@ async function renderCartItems() {
               </div>
             </div>
             ${showLimitMsg ? '<p class="cart-qty-limit-msg">이 제품의 제한 수량에 도달했습니다.</p>' : ''}
-            <div class="cart-color-edit-area">
-              <label class="cart-color-label">색상:</label>
-              <div class="cart-color-custom" data-item-id="${escapeHtml(id)}">
-                <button type="button" class="cart-color-trigger" aria-expanded="false" aria-haspopup="listbox" aria-label="색상 선택">
-                  <span class="cart-color-trigger-text">${escapeHtml(String(item.color || '').trim())}</span>
-                  <span class="cart-color-trigger-arrow" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 4l4 4 4-4H2z"/></svg></span>
-                </button>
-                <div class="cart-color-dropdown" role="listbox"></div>
-              </div>
+            <div class="cart-item-edit-area">
+              <div class="cart-edit-rows"></div>
             </div>
           </div>
           <div class="cart-item-actions">
@@ -422,7 +570,8 @@ async function renderCartItems() {
       </div>
     ` : '';
     cartItemsContainer.innerHTML = selectAllHtml + itemsHtml;
-    
+    updateCartSelectionDisplay();
+
     // 이벤트 위임으로 편집/제거/수량 버튼에 이벤트 리스너 추가 (한 번만)
     if (!cartEventListenersBound && cartItemsContainer) {
       cartItemsContainer.addEventListener('click', function(e) {
@@ -433,7 +582,7 @@ async function renderCartItems() {
         
         if (editBtn) {
           e.preventDefault();
-          toggleColorEdit(editBtn.getAttribute('data-item-id'));
+          toggleCartItemEdit(editBtn.getAttribute('data-item-id'));
         }
         if (removeBtn) {
           e.preventDefault();
@@ -455,13 +604,14 @@ async function renderCartItems() {
       cartItemsContainer.addEventListener('click', function(e) {
         const trigger = e.target.closest('.cart-color-trigger');
         const option = e.target.closest('.cart-color-option');
-        const colorLabel = e.target.closest('.cart-color-label');
+        const colorLabel = e.target.closest('.cart-edit-label');
+        const colorRow = e.target.closest('.cart-color-edit-row');
         const customWrap = e.target.closest('.cart-color-custom');
-        const editArea = e.target.closest('.cart-color-edit-area');
-        if ((trigger && customWrap) || (colorLabel && editArea)) {
+        const editArea = e.target.closest('.cart-item-edit-area');
+        if ((trigger && customWrap) || (colorLabel && colorRow && colorRow.contains(colorLabel))) {
           e.preventDefault();
           e.stopPropagation();
-          const wrap = customWrap || editArea.querySelector('.cart-color-custom');
+          const wrap = customWrap || (colorRow && colorRow.querySelector('.cart-color-custom'));
           const trig = wrap ? wrap.querySelector('.cart-color-trigger') : null;
           if (wrap) {
             const isOpen = wrap.classList.toggle('is-dropdown-open');
@@ -475,11 +625,41 @@ async function renderCartItems() {
           if (option.getAttribute('data-in-stock') === 'false') return;
           const itemId = customWrap.getAttribute('data-item-id');
           const newColor = option.getAttribute('data-color');
-          if (itemId && newColor) {
+          if (itemId && newColor !== null) {
             customWrap.classList.remove('is-dropdown-open');
             const t = customWrap.querySelector('.cart-color-trigger');
             if (t) t.setAttribute('aria-expanded', 'false');
             updateCartColor(itemId, newColor);
+          }
+          return;
+        }
+        const sizeTrigger = e.target.closest('.cart-size-trigger');
+        const sizeOption = e.target.closest('.cart-size-option');
+        const sizeRow = e.target.closest('.cart-size-edit-row');
+        const sizeWrap = e.target.closest('.cart-size-custom');
+        const sizeLabel = e.target.closest('.cart-edit-label');
+        if ((sizeTrigger && sizeWrap) || (sizeLabel && sizeRow && sizeRow.contains(sizeLabel))) {
+          e.preventDefault();
+          e.stopPropagation();
+          const wrap = sizeWrap || (sizeRow && sizeRow.querySelector('.cart-size-custom'));
+          const trig = wrap ? wrap.querySelector('.cart-size-trigger') : null;
+          if (wrap) {
+            const isOpen = wrap.classList.toggle('is-dropdown-open');
+            if (trig) trig.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          }
+          return;
+        }
+        if (sizeOption && sizeWrap) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (sizeOption.getAttribute('data-in-stock') === 'false') return;
+          const itemId = sizeWrap.getAttribute('data-item-id');
+          const newSize = sizeOption.getAttribute('data-size');
+          if (itemId && newSize !== null) {
+            sizeWrap.classList.remove('is-dropdown-open');
+            const t = sizeWrap.querySelector('.cart-size-trigger');
+            if (t) t.setAttribute('aria-expanded', 'false');
+            updateCartSize(itemId, newSize);
           }
           return;
         }
@@ -508,10 +688,15 @@ async function renderCartItems() {
     if (cartItemsContainer && !document.body.hasAttribute('data-cart-color-dropdown-bound')) {
       document.body.setAttribute('data-cart-color-dropdown-bound', '1');
       document.addEventListener('click', function(e) {
-        if (e.target.closest('.cart-color-custom')) return;
+        if (e.target.closest('.cart-color-custom') || e.target.closest('.cart-size-custom')) return;
         document.querySelectorAll('.cart-color-custom.is-dropdown-open').forEach(function(el) {
           el.classList.remove('is-dropdown-open');
           const t = el.querySelector('.cart-color-trigger');
+          if (t) t.setAttribute('aria-expanded', 'false');
+        });
+        document.querySelectorAll('.cart-size-custom.is-dropdown-open').forEach(function(el) {
+          el.classList.remove('is-dropdown-open');
+          const t = el.querySelector('.cart-size-trigger');
           if (t) t.setAttribute('aria-expanded', 'false');
         });
       });
