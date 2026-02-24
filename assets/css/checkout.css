@@ -18,7 +18,8 @@
 
 .checkout-page {
   min-height: calc(100vh - var(--header-height, 72px) - 200px);
-  padding: 0 clamp(16px, 3vw, 24px) clamp(20px, 4vw, 40px);
+  /* 좌우 여백 최소 40px (2열일 때 답답하지 않도록) */
+  padding: 0 clamp(80px, 4vw, 48px) clamp(20px, 4vw, 40px);
   background-color: #fff;
 }
 
@@ -27,13 +28,31 @@
   padding-top: clamp(20px, 4vw, 40px);
 }
 
+/* 2열: 좌 3fr·우 2fr (1280px 기준 좌 720·우 480), 줄어들면 둘 다 비율대로 축소. 768px 이하에서만 1열 */
 .checkout-container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: clamp(40px, 6vw, 80px);
+  grid-template-columns: 3fr 2fr;
+  column-gap: var(--cart-checkout-gap);
+  row-gap: 8px; /* 밑줄 ~ 배송 정보 간격 32px 되도록 (좌측 padding-top 24px + row-gap 8px) */
   align-items: start;
+}
+
+/* 1행: 브레드크럼 — 좌·우 컬럼 전체 너비, 밑줄로 구분 후 그 아래 배송 정보·주문 요약 */
+.checkout-breadcrumb-row {
+  grid-column: 1 / -1;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 32px;
+}
+
+.checkout-breadcrumb-row .checkout-breadcrumb {
+  margin: 0 !important;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+  padding: 0 clamp(16px, 3vw, 32px) 0 0 !important;
+  justify-content: flex-start !important;
+  max-width: none;
 }
 
 /* ===== 좌측: 체크아웃 폼 섹션 ===== */
@@ -43,13 +62,19 @@
   gap: 32px;
 }
 
+/* checkout.html: 브레드크럼 밑 2행 — 배송 정보·주문 요약 같은 높이 (우측 .order-summary padding 24px와 맞춤) */
+.checkout-container > .checkout-form-section {
+  padding-top: 24px;
+}
+
+/* checkout-review 등 다른 페이지용 (checkout.html에서는 배송 정보만 표시) */
 .checkout-header {
   border-bottom: 1px solid #eee;
   padding-bottom: 16px;
 }
 
 .checkout-title {
-  font-size: clamp(1.125rem, 2.2vw, 1.375rem);
+  font-size: 15px;
   font-weight: 700;
   color: #111;
   margin: 0;
@@ -63,7 +88,7 @@
 }
 
 .section-title {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   color: #111;
   margin: 0;
@@ -197,14 +222,15 @@
   text-align: left;
 }
 
+/* cart.html .checkout-btn와 동일 크기 (padding 12px 24px, font-size 14px) */
 .complete-order-btn {
   width: 100%;
-  padding: 16px;
+  padding: 12px 24px;
   background-color: #111;
   color: #fff;
   border: none;
   border-radius: 4px;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -220,15 +246,21 @@
   cursor: not-allowed;
 }
 
-/* ===== 우측: 주문 요약 섹션 ===== */
-.order-summary-section {
+/* ===== 우측: 주문 요약 섹션 (2fr 셀, 최대 480px — 그리드가 3fr 2fr이라 1280px에서 480) ===== */
+/* "주문 요약"과 "배송 정보"가 동일 높이: section padding-top 0 + .order-summary padding 24px, 좌측 20px와 시각 정렬 */
+.checkout-container > .order-summary-section {
   position: sticky;
   top: calc(var(--header-height, 72px) + 20px);
+  max-width: 480px; /* 넓은 화면에서 480 초과 방지 */
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding-top: 0;
 }
 
 .order-summary {
   background-color: #fff;
-  border: 1px solid #f0f0f0;
+  border: none;
   border-radius: 8px;
   padding: 24px;
   display: flex;
@@ -236,14 +268,148 @@
   gap: 24px;
 }
 
+/* checkout.html 전용: cart와 디자인 유사 — gap·2행·도움말 스타일 */
+.checkout-container .order-summary {
+  gap: 20px;
+}
+
+.checkout-container .order-summary .summary-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.checkout-container .order-summary .summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #333;
+}
+
+.checkout-container .order-summary .summary-row.summary-total {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.checkout-container .order-summary .help-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.checkout-container .order-summary .help-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #111;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.checkout-container .order-summary .help-item:hover {
+  color: #666;
+}
+
+.checkout-container .order-summary .chevron {
+  font-size: 12px;
+  color: #999;
+}
+
+/* checkout 우측 주문 상품: cart.html과 동일 스타일 (상품명·가격, 색상·사이즈(있는 것만), 수량) */
+.checkout-container .order-summary .order-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.checkout-container .order-summary .order-items .cart-item.checkout-summary-item {
+  display: flex;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: flex-start;
+}
+
+.checkout-container .order-summary .order-items .cart-item.checkout-summary-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.checkout-container .order-summary .order-items .cart-item-image {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.checkout-container .order-summary .order-items .cart-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checkout-container .order-summary .order-items .cart-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  line-height: 1.4;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: keep-all;
+}
+
+.checkout-container .order-summary .order-items .cart-item-option {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.checkout-container .order-summary .order-items .cart-item-details {
+  margin-top: 2px;
+}
+
+.checkout-container .order-summary .order-items .cart-item-quantity-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #333;
+}
+
+.checkout-container .order-summary .order-items .cart-item-quantity-label {
+  font-weight: 500;
+}
+
+.checkout-container .order-summary .order-items .cart-item-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-left: auto;
+}
+
 .summary-title {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: #111;
   margin: 0;
 }
 
-/* ===== 주문 아이템 ===== */
+/* ===== 주문 아이템 (결제 페이지 등) ===== */
 .order-items {
   display: flex;
   flex-direction: column;
@@ -356,31 +522,35 @@
 }
 
 /* ===== 반응형 디자인 ===== */
+/* 1024px 이하: 1열로 전환, 좌측(배송 정보)이 전체 너비 사용 */
 @media (max-width: 1024px) {
   .checkout-container {
     grid-template-columns: 1fr;
-    gap: 40px;
+    row-gap: 24px;
+    column-gap: var(--cart-checkout-gap);
   }
-  
-  .order-summary-section {
-    display: none;
+
+  .checkout-container > .checkout-form-section {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .checkout-container > .order-summary-section {
+    max-width: none;
+    width: 100%;
   }
 }
 
 @media (max-width: 768px) {
   .checkout-page {
-    padding: 16px;
+    padding: 16px 20px;
   }
-  
-  .checkout-container {
-    gap: 24px;
-  }
-  
+
   .form-row {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .order-summary {
     padding: 20px;
   }
@@ -704,8 +874,8 @@
   opacity: 0.6;
 }
 
-/* 우측: 주문 요약 (sticky, max-width 360px) */
-.order-summary-section {
+/* 우측: 주문 요약 (결제 페이지 전용: sticky, max-width 360px) */
+.checkout-payment-layout .order-summary-section {
   position: sticky;
   top: calc(var(--header-height, 72px) + 32px);
   max-width: 360px;
@@ -714,14 +884,14 @@
 
 .order-summary {
   background: #fff;
-  border: 1px solid #e5e5e5;
+  border: none;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
-.summary-title {
+.checkout-payment-layout .order-summary .summary-title {
   font-size: 16px;
   font-weight: 300;
   color: #111;
@@ -945,11 +1115,7 @@
   .payment-option-card {
     padding: 0;
   }
-  
-  .order-summary-section {
-    display: none;
-  }
-  
+
   .checkout-actions-mobile {
     display: block;
   }

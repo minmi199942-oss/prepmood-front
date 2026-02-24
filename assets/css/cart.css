@@ -28,11 +28,11 @@
 .cart-header {
   grid-column: 1 / -1;
   border-bottom: 1px solid #eee;
-  padding-bottom: 16px;
+  padding-bottom: 32px; /* 장바구니 제목과 밑줄 간격 32px */
 }
 
 .cart-title {
-  font-size: clamp(1.125rem, 2.2vw, 1.375rem);
+  font-size: 15px;
   font-weight: 700;
   color: #111;
   margin: 0;
@@ -59,12 +59,14 @@
 }
 
 
+/* 체크박스+전체선택: 위·아래 여백 각 20px */
 .cart-select-all {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px 0;
-  margin-bottom: 8px;
+  margin-top: -12px; /* row-gap 32px → 20px로 */
+  margin-bottom: 8px; /* 8px + .cart-items gap 12px = 20px */
 }
 
 .cart-select-all-checkbox {

@@ -342,43 +342,63 @@ function renderOrderItems(cartItems) {
   const subtotalElement = document.getElementById('subtotal');
   const totalElement = document.getElementById('total');
   
-  // 총 가격 계산
-  const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-  // 소계 업데이트
-  if (subtotalElement) {
-    subtotalElement.textContent = formatPrice(totalPrice);
-  }
-  
-  // 총계 업데이트 (배송비 무료)
-  if (totalElement) {
-    totalElement.textContent = formatPrice(totalPrice);
-  }
-  
-  // 주문 아이템 렌더링
+  // 소계 = 상품 합계, 배송 = 무료, 총계 = 소계
+  const subtotalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  if (subtotalElement) subtotalElement.textContent = formatPrice(subtotalPrice);
+  if (totalElement) totalElement.textContent = formatPrice(subtotalPrice);
+
+  // 주문 아이템 렌더링 (cart.html과 동일 스타일: 상품명·가격, 색상·사이즈(있는 것만), 수량)
   if (orderItemsContainer) {
+    const isDevHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (cartItems.length === 0 && isDevHost) {
+      orderItemsContainer.innerHTML = `
+      <div class="cart-item checkout-summary-item">
+        <img src="/image/hat.jpg" alt="디자인용 샘플" class="cart-item-image" onerror="this.src='/image/default.jpg'">
+        <div class="cart-item-info">
+          <h3 class="cart-item-name">디자인용 샘플 상품</h3>
+          <p class="cart-item-option">Black · M</p>
+          <div class="cart-item-details">
+            <div class="cart-item-quantity-row">
+              <span class="cart-item-quantity-label">수량</span>
+              <span class="cart-qty-value">1</span>
+            </div>
+          </div>
+        </div>
+        <div class="cart-item-price">${formatPrice(25000)}</div>
+      </div>
+      `;
+      if (subtotalElement) subtotalElement.textContent = formatPrice(25000);
+      if (totalElement) totalElement.textContent = formatPrice(25000);
+      console.log('🎨 개발 환경: 주문 아이템 비어 있음 — hat.jpg 샘플 표시');
+      return;
+    }
     orderItemsContainer.innerHTML = cartItems.map(item => {
-      // ⚠️ 이미지 경로 처리: /uploads/products/로 시작하면 그대로 사용, 아니면 /image/ 추가
       let imageSrc = item.image || '';
-      if (imageSrc.startsWith('/uploads/')) {
-        imageSrc = imageSrc;
-      } else if (imageSrc.startsWith('/image/')) {
-        imageSrc = imageSrc;
+      if (imageSrc.startsWith('/uploads/') || imageSrc.startsWith('/image/')) {
+        // no change
       } else if (imageSrc) {
         imageSrc = imageSrc.startsWith('image/') ? '/' + imageSrc : '/image/' + imageSrc;
       } else {
         imageSrc = '/image/default.jpg';
       }
-      
-      const detailText = [item.color, item.quantity + '개'].filter(Boolean).map(function (v) { return escapeHtml(String(v)); }).join(' · ');
+      const optionParts = [item.color, item.size].filter(function (v) { return (v || '').toString().trim(); }).map(function (v) { return escapeHtml(String(v).trim()); });
+      const optionHtml = optionParts.length ? `<p class="cart-item-option">${optionParts.join(' · ')}</p>` : '';
+      const qty = item.quantity || 1;
+      const lineTotal = (item.price || 0) * qty;
       return `
-      <div class="order-item">
-        <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" class="order-item-image" onerror="this.src='/image/default.jpg'">
-        <div class="order-item-info">
-          <div class="order-item-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
-          <div class="order-item-details">${detailText}</div>
+      <div class="cart-item checkout-summary-item">
+        <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" class="cart-item-image" onerror="this.src='/image/default.jpg'">
+        <div class="cart-item-info">
+          <h3 class="cart-item-name">${escapeHtml(item.name)}</h3>
+          ${optionHtml}
+          <div class="cart-item-details">
+            <div class="cart-item-quantity-row">
+              <span class="cart-item-quantity-label">수량</span>
+              <span class="cart-qty-value">${qty}</span>
+            </div>
+          </div>
         </div>
-        <div class="order-item-price">${formatPrice(item.price * item.quantity)}</div>
+        <div class="cart-item-price">${formatPrice(lineTotal)}</div>
       </div>
     `;
     }).join('');
