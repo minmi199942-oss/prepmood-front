@@ -8,6 +8,7 @@ const { verifyCSRF } = require('./csrf-middleware');
 const { body, validationResult } = require('express-validator');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { sendInquiryReplyEmail } = require('./mailer');
+const Logger = require('./logger');
 const https = require('https');
 require('dotenv').config();
 
@@ -109,17 +110,17 @@ function validateMessage(message) {
  * @returns {Promise<{success: boolean, hostname?: string, error?: string}>}
  */
 async function verifyRecaptcha(token) {
-    console.log('[reCAPTCHA] verifyRecaptcha called, token length:', (token || '').length);
+    Logger.log('[reCAPTCHA] verifyRecaptcha called, token length:', (token || '').length);
     
     const secretKey = process.env.RECAPTCHA_SECRET_KEY;
     
     if (!secretKey) {
-        console.warn('⚠️ RECAPTCHA_SECRET_KEY가 설정되지 않았습니다.');
+        Logger.warn('⚠️ RECAPTCHA_SECRET_KEY가 설정되지 않았습니다.');
         return { success: false, error: 'reCAPTCHA 설정 오류' };
     }
 
     if (!token) {
-        console.log('[reCAPTCHA] token missing');
+        Logger.log('[reCAPTCHA] token missing');
         return { success: false, error: 'reCAPTCHA 토큰이 없습니다.' };
     }
 
@@ -140,7 +141,7 @@ async function verifyRecaptcha(token) {
             let data = '';
 
             // HTTP 상태 코드 로그
-            console.log(`[reCAPTCHA] Google siteverify HTTP status: ${res.statusCode}`);
+            Logger.log(`[reCAPTCHA] Google siteverify HTTP status: ${res.statusCode}`);
 
             res.on('data', (chunk) => {
                 data += chunk;
@@ -151,7 +152,7 @@ async function verifyRecaptcha(token) {
                     const result = JSON.parse(data);
                     
                     // Google 응답 상세 로그
-                    console.log('[reCAPTCHA] Google 응답:', {
+                    Logger.log('[reCAPTCHA] Google 응답:', {
                         success: result.success,
                         hostname: result.hostname || '(없음)',
                         'error-codes': result['error-codes'] || [],
@@ -160,7 +161,7 @@ async function verifyRecaptcha(token) {
                     
                     // success 확인
                     if (!result.success) {
-                        console.error('[reCAPTCHA] ❌ 검증 실패:', result['error-codes']?.join(', ') || '알 수 없는 오류');
+                        Logger.error('[reCAPTCHA] ❌ 검증 실패:', result['error-codes']?.join(', ') || '알 수 없는 오류');
                         return resolve({
                             success: false,
                             error: result['error-codes']?.join(', ') || 'reCAPTCHA 검증 실패'
@@ -172,10 +173,10 @@ async function verifyRecaptcha(token) {
                     if (result.hostname && result.hostname !== expectedHostname && result.hostname !== `www.${expectedHostname}`) {
                         // 개발 환경에서는 localhost 허용
                         if (result.hostname !== 'localhost' && !result.hostname.includes('127.0.0.1')) {
-                            console.warn(`⚠️ reCAPTCHA hostname 불일치: ${result.hostname} (예상: ${expectedHostname})`);
+                            Logger.warn(`⚠️ reCAPTCHA hostname 불일치: ${result.hostname} (예상: ${expectedHostname})`);
                             // 개발 환경에서는 경고만 하고 통과
                             if (process.env.NODE_ENV === 'production') {
-                                console.error('[reCAPTCHA] ❌ hostname 검증 실패 (프로덕션)');
+                                Logger.error('[reCAPTCHA] ❌ hostname 검증 실패 (프로덕션)');
                                 return resolve({
                                     success: false,
                                     error: 'reCAPTCHA hostname 검증 실패'
@@ -184,14 +185,14 @@ async function verifyRecaptcha(token) {
                         }
                     }
 
-                    console.log('[reCAPTCHA] ✅ 검증 성공, hostname:', result.hostname);
+                    Logger.log('[reCAPTCHA] ✅ 검증 성공, hostname:', result.hostname);
                     resolve({
                         success: true,
                         hostname: result.hostname
                     });
                 } catch (error) {
-                    console.error('[reCAPTCHA] ❌ 응답 파싱 오류:', error.message);
-                    console.error('[reCAPTCHA] 원본 응답 데이터:', data.substring(0, 200));
+                    Logger.error('[reCAPTCHA] ❌ 응답 파싱 오류:', error.message);
+                    Logger.error('[reCAPTCHA] 원본 응답 데이터:', data.substring(0, 200));
                     resolve({
                         success: false,
                         error: 'reCAPTCHA 검증 응답 오류'
@@ -201,7 +202,7 @@ async function verifyRecaptcha(token) {
         });
 
         req.on('error', (error) => {
-            console.error('[reCAPTCHA] ❌ Google 서버 요청 오류:', error.message);
+            Logger.error('[reCAPTCHA] ❌ Google 서버 요청 오류:', error.message);
             resolve({
                 success: false,
                 error: 'reCAPTCHA 검증 서버 오류'
@@ -209,7 +210,7 @@ async function verifyRecaptcha(token) {
         });
 
         req.setTimeout(5000, () => {
-            console.error('[reCAPTCHA] ❌ 검증 시간 초과 (5초)');
+            Logger.error('[reCAPTCHA] ❌ 검증 시간 초과 (5초)');
             req.destroy();
             resolve({
                 success: false,
@@ -267,7 +268,7 @@ router.post('/inquiries',
             }
 
             // 디버그 로그: recaptcha_token 수신 확인
-            console.log('[INQUIRY] recaptcha_token received, length:', (req.body.recaptcha_token || '').length);
+            Logger.log('[INQUIRY] recaptcha_token received, length:', (req.body.recaptcha_token || '').length);
 
             // 허니팟 필드 체크
             if (req.body.honeypot && req.body.honeypot !== '') {
@@ -349,7 +350,7 @@ router.post('/inquiries',
             }
 
         } catch (error) {
-            console.error('❌ 문의 접수 오류:', error);
+            Logger.error('❌ 문의 접수 오류:', error);
             res.status(500).json({
                 success: false,
                 message: '문의 접수 중 오류가 발생했습니다.'
@@ -372,12 +373,15 @@ router.get('/admin/inquiries', authenticateToken, requireAdmin, async (req, res)
         const {
             status,
             category,
-            search,
             date_from,
             date_to,
             limit = 20,
             offset = 0
         } = req.query;
+        const searchTrimmed = (req.query.search != null ? String(req.query.search) : '').trim();
+        if (req.query.search !== undefined && req.query.search !== null && searchTrimmed === '') {
+            return res.status(400).json({ success: false, message: '검색어가 비어 있습니다.' });
+        }
 
         const limitNum = Math.min(parseInt(limit, 10) || 20, 200);
         const offsetNum = Math.max(parseInt(offset, 10) || 0, 0);
@@ -417,9 +421,9 @@ router.get('/admin/inquiries', authenticateToken, requireAdmin, async (req, res)
             params.push(date_to);
         }
 
-        if (search) {
+        if (searchTrimmed) {
             query += ' AND (email LIKE ? OR inquiry_number LIKE ? OR name LIKE ?)';
-            const searchPattern = `%${search}%`;
+            const searchPattern = `%${searchTrimmed}%`;
             params.push(searchPattern, searchPattern, searchPattern);
         }
 
@@ -446,7 +450,7 @@ router.get('/admin/inquiries', authenticateToken, requireAdmin, async (req, res)
         });
 
     } catch (error) {
-        console.error('❌ 문의 목록 조회 오류:', error);
+        Logger.error('❌ 문의 목록 조회 오류:', error);
         res.status(500).json({
             success: false,
             message: '문의 목록을 불러오는데 실패했습니다.'
@@ -483,7 +487,7 @@ router.get('/admin/inquiries/stats', authenticateToken, requireAdmin, async (req
         });
 
     } catch (error) {
-        console.error('❌ 통계 조회 오류:', error);
+        Logger.error('❌ 통계 조회 오류:', error);
         res.status(500).json({
             success: false,
             message: '통계를 불러오는데 실패했습니다.'
@@ -536,7 +540,7 @@ router.get('/admin/inquiries/:id', authenticateToken, requireAdmin, async (req, 
         });
 
     } catch (error) {
-        console.error('❌ 문의 상세 조회 오류:', error);
+        Logger.error('❌ 문의 상세 조회 오류:', error);
         res.status(500).json({
             success: false,
             message: '문의 상세를 불러오는데 실패했습니다.'
@@ -582,7 +586,7 @@ router.get('/admin/inquiries/:id/replies', authenticateToken, requireAdmin, asyn
         });
 
     } catch (error) {
-        console.error('❌ 답변 이력 조회 오류:', error);
+        Logger.error('❌ 답변 이력 조회 오류:', error);
         res.status(500).json({
             success: false,
             message: '답변 이력을 불러오는데 실패했습니다.'
@@ -671,7 +675,7 @@ router.post('/admin/inquiries/:id/reply',
                         replyMessage: replyMessage
                     });
                 } catch (emailError) {
-                    console.error('❌ 이메일 발송 오류:', emailError);
+                    Logger.error('❌ 이메일 발송 오류:', emailError);
                     emailResult = { success: false, error: emailError.message };
                 }
 
@@ -704,7 +708,7 @@ router.post('/admin/inquiries/:id/reply',
             }
 
         } catch (error) {
-            console.error('❌ 답변 전송 오류:', error);
+            Logger.error('❌ 답변 전송 오류:', error);
             res.status(500).json({
                 success: false,
                 message: '답변 전송 중 오류가 발생했습니다.'
@@ -767,7 +771,7 @@ router.put('/admin/inquiries/:id/status',
             });
 
         } catch (error) {
-            console.error('❌ 상태 변경 오류:', error);
+            Logger.error('❌ 상태 변경 오류:', error);
             res.status(500).json({
                 success: false,
                 message: '상태 변경 중 오류가 발생했습니다.'
@@ -830,7 +834,7 @@ router.put('/admin/inquiries/:id/memo',
             });
 
         } catch (error) {
-            console.error('❌ 메모 저장 오류:', error);
+            Logger.error('❌ 메모 저장 오류:', error);
             res.status(500).json({
                 success: false,
                 message: '메모 저장 중 오류가 발생했습니다.'

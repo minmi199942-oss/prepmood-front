@@ -1,5 +1,38 @@
 // checkout-payment.js - 3단계: 결제 방법 선택 및 결제 진행
 
+function isDevHost() {
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1';
+}
+
+/** 배송 정보에서 결제/주문에 쓸 수령인 이름 (recipient_name 우선, 없으면 first/last 조합) */
+function getShippingDisplayName(shipping) {
+  if (!shipping) return '';
+  const name = (shipping.recipient_name || '').trim();
+  if (name) return name;
+  const first = (shipping.recipient_first_name || '').trim();
+  const last = (shipping.recipient_last_name || '').trim();
+  return [first, last].filter(Boolean).join(' ').trim() || '';
+}
+
+/** 개발 환경 전용 샘플 데이터 (디자인 확인용) */
+function getDevSampleData() {
+  return {
+    shipping: {
+      recipient_first_name: '길동',
+      recipient_last_name: '홍',
+      address: '서울시 강남구 테헤란로 123',
+      city: '서울',
+      postal_code: '06134',
+      country: '대한민국',
+      phone: '010-1234-5678'
+    },
+    items: [
+      { name: '디자인용 샘플 상품', image: '/image/hat.jpg', color: 'Black', size: 'M', quantity: 1, price: 25000 }
+    ]
+  };
+}
+
 const API_BASE = (window.API_BASE)
   ? window.API_BASE
   : ((window.location && window.location.origin)
@@ -45,6 +78,13 @@ document.addEventListener('DOMContentLoaded', async function() {
   const failCode = urlParams.get('code');
   const failMessage = urlParams.get('message');
   
+  // 재고 부족으로 결제 확인 실패한 경우 (이니시스 등 리다이렉트, 7번 UX)
+  if (failCode === 'INSUFFICIENT_STOCK') {
+    alert('고객님, 대단히 죄송합니다. 결제를 진행하시는 동안 선택하신 상품의 재고가 모두 소진되었습니다. 장바구니에서 다시 확인해 주세요.');
+    window.history.replaceState({}, '', window.location.pathname);
+    window.location.href = 'cart.html';
+    return;
+  }
   // 결제 실패 URL에서 온 경우
   if (failStatus === 'fail' || failCode) {
     showPaymentFailureMessage(failCode, failMessage);
@@ -53,128 +93,112 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
   
   // 세션 스토리지에서 배송 데이터 가져오기
-  const shippingDataStr = sessionStorage.getItem('checkoutShippingData');
-  
-  if (!shippingDataStr) {
+  let shippingDataStr = sessionStorage.getItem('checkoutShippingData');
+  let data;
+
+  if (shippingDataStr) {
+    data = JSON.parse(shippingDataStr);
+  } else if (isDevHost()) {
+    data = getDevSampleData();
+    Logger.log('🎨 개발 환경: 샘플 데이터로 결제 페이지 디자인 확인');
+  } else {
     alert('배송 정보를 찾을 수 없습니다. 처음부터 다시 시작해주세요.');
     window.location.href = 'checkout.html';
     return;
   }
-  
-  const data = JSON.parse(shippingDataStr);
-  
-  // 주문 요약 업데이트
+
+  // 좌측 배송 정보 (review와 동일 형식)
+  renderShippingInfoLeft(data.shipping);
+  // 우측 주문 요약 (review와 동일 구조: cart-item, summary-rows)
   renderOrderItems(data.items);
   updateOrderSummary(data.items);
-  renderShippingSummary(data.shipping);
-  
+
   // 이벤트 바인딩
   bindEventListeners(data);
 });
 
+/** 우측 주문 요약: checkout-review와 동일 구조 (cart-item, summary-rows용) */
 function renderOrderItems(items) {
   const container = document.getElementById('order-items');
-  
-  if (!container) {
-    return;
-  }
-  
+  const subtotalEl = document.getElementById('subtotal');
+  const totalEl = document.getElementById('total');
+  if (!container) return;
+
+  const fmt = typeof formatPrice === 'function' ? formatPrice : function (n) { return '₩' + new Intl.NumberFormat('ko-KR').format(n); };
+
   if (!items || items.length === 0) {
-    container.innerHTML = '<p style="font-size: 13px; color: #666;">주문할 상품이 없습니다.</p>';
+    container.innerHTML = '<p class="order-summary-empty">주문할 상품이 없습니다.</p>';
+    if (subtotalEl) subtotalEl.textContent = fmt(0);
+    if (totalEl) totalEl.textContent = fmt(0);
     return;
   }
-  
+
+  const subtotalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  if (subtotalEl) subtotalEl.textContent = fmt(subtotalPrice);
+  if (totalEl) totalEl.textContent = fmt(subtotalPrice);
+
   container.innerHTML = items.map(item => {
-    const formattedPrice = new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(item.price * item.quantity);
-    
-    // ⚠️ 이미지 경로 처리: /uploads/products/로 시작하면 그대로 사용, 아니면 /image/ 추가
     let imageSrc = item.image || '';
-    if (imageSrc.startsWith('/uploads/')) {
-      // 업로드된 이미지 (새로 추가/수정된 이미지)
-      imageSrc = imageSrc;
-    } else if (imageSrc.startsWith('/image/')) {
-      // 기존 이미지 경로
-      imageSrc = imageSrc;
+    if (imageSrc.startsWith('/uploads/') || imageSrc.startsWith('/image/')) {
+      // keep
     } else if (imageSrc) {
-      // 상대 경로인 경우
       imageSrc = imageSrc.startsWith('image/') ? '/' + imageSrc : '/image/' + imageSrc;
     } else {
-      // 이미지가 없는 경우 기본 이미지
       imageSrc = '/image/default.jpg';
     }
-    
-    return `
-      <div class="order-item">
-        <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" onerror="this.src='/image/default.jpg'">
-        <div class="item-details">
-          <div class="item-name">${escapeHtml(item.name)}</div>
-          <div class="item-meta">${escapeHtml(item.size || '')} ${escapeHtml(item.color || '')} · 수량 ${item.quantity}</div>
-        </div>
-        <div class="item-price">${formattedPrice}</div>
-      </div>
-    `;
+    const optionParts = [item.color, item.size].filter(function (v) { return (v || '').toString().trim(); }).map(function (v) { return escapeHtml(String(v).trim()); });
+    const optionHtml = optionParts.length ? '<p class="cart-item-option">' + optionParts.join(' · ') + '</p>' : '';
+    const qty = item.quantity || 1;
+    const lineTotal = (item.price || 0) * qty;
+    return (
+      '<div class="cart-item checkout-summary-item">' +
+      '<img src="' + escapeHtml(imageSrc) + '" alt="' + escapeHtml(item.name) + '" class="cart-item-image" onerror="this.src=\'/image/default.jpg\'">' +
+      '<div class="cart-item-info">' +
+      '<h3 class="cart-item-name">' + escapeHtml(item.name) + '</h3>' +
+      optionHtml +
+      '<div class="cart-item-details">' +
+      '<div class="cart-item-quantity-row"><span class="cart-item-quantity-label">수량</span><span class="cart-qty-value">' + qty + '</span></div>' +
+      '</div></div>' +
+      '<div class="cart-item-price">' + fmt(lineTotal) + '</div></div>'
+    );
   }).join('');
 }
 
 function updateOrderSummary(items) {
-  const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-  const formattedTotal = new Intl.NumberFormat('ko-KR', {
-    style: 'currency',
-    currency: 'KRW',
-    maximumFractionDigits: 0
-  }).format(totalPrice);
-  
+  const totalPrice = items && items.length ? items.reduce((sum, item) => sum + (item.price * item.quantity), 0) : 0;
+  const fmt = typeof formatPrice === 'function' ? formatPrice : function (n) { return '₩' + new Intl.NumberFormat('ko-KR').format(n); };
   const subtotalEl = document.getElementById('subtotal');
   const totalEl = document.getElementById('total');
-  
-  if (subtotalEl) {
-    subtotalEl.textContent = formattedTotal;
-  }
-  
-  if (totalEl) {
-    totalEl.textContent = formattedTotal;
-  }
+  if (subtotalEl) subtotalEl.textContent = fmt(totalPrice);
+  if (totalEl) totalEl.textContent = fmt(totalPrice);
 }
 
-function renderShippingSummary(shipping) {
-  const container = document.getElementById('shipping-details');
-  
-  if (!container) {
-    return;
-  }
-  
+/** 좌측 배송 정보 (checkout-review와 동일 형식: 이름, 이메일, 전화번호, 주소, 도시, 우편번호, 국가) */
+function renderShippingInfoLeft(shipping) {
+  const container = document.getElementById('shipping-info-payment-left');
+  if (!container) return;
+  const name = shipping.recipient_name || [shipping.recipient_first_name, shipping.recipient_last_name].filter(Boolean).join(' ').trim() || '-';
   container.innerHTML = `
-    ${escapeHtml(shipping.recipient_first_name)} ${escapeHtml(shipping.recipient_last_name)}<br>
-    ${escapeHtml(shipping.address)}, ${escapeHtml(shipping.city)}<br>
-    ${escapeHtml(shipping.postal_code)}, ${escapeHtml(shipping.country)}<br>
-    ${escapeHtml(shipping.phone)}
+    <div style="line-height: 1.8;">
+      <p><strong>이름:</strong> ${escapeHtml(name)}</p>
+      <p><strong>이메일:</strong> ${escapeHtml(shipping.email || '-')}</p>
+      <p><strong>전화번호:</strong> ${escapeHtml(shipping.phone || '')}</p>
+      <p><strong>주소:</strong> ${escapeHtml(shipping.address || '')}</p>
+      <p><strong>도시:</strong> ${escapeHtml(shipping.city || '')}</p>
+      <p><strong>우편번호:</strong> ${escapeHtml(shipping.postal_code || '')}</p>
+      <p><strong>국가:</strong> ${escapeHtml(shipping.country || '')}</p>
+    </div>
   `;
 }
 
 function bindEventListeners(data) {
-  // 데스크톱 버튼
-  const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
-  // 모바일 버튼
-  const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
-  
+  const proceedBtn = document.getElementById('proceed-payment-btn');
   const paymentRadios = document.querySelectorAll('input[name="payment"]');
 
   const updateSelectionState = () => {
     const checkedRadio = document.querySelector('input[name="payment"]:checked');
     const isSelected = !!checkedRadio;
-
-    if (proceedBtnDesktop) {
-      proceedBtnDesktop.disabled = !isSelected;
-    }
-    if (proceedBtnMobile) {
-      proceedBtnMobile.disabled = !isSelected;
-    }
-
+    if (proceedBtn) proceedBtn.disabled = !isSelected;
     paymentRadios.forEach(radio => {
       radio.setAttribute('aria-checked', radio.checked ? 'true' : 'false');
     });
@@ -183,79 +207,66 @@ function bindEventListeners(data) {
   paymentRadios.forEach(radio => {
     radio.addEventListener('change', updateSelectionState);
   });
-
   updateSelectionState();
 
   const handlePayment = async function() {
-    // 에러 영역 리셋 (새로운 결제 시도 시 이전 에러 제거)
-    const errorDesktop = document.getElementById('payment-error');
-    const errorMobile = document.getElementById('payment-error-mobile');
-    if (errorDesktop) {
-      errorDesktop.textContent = '';
-      errorDesktop.classList.add('hidden');
+    const errEl = document.getElementById('payment-error');
+    if (errEl) {
+      errEl.textContent = '';
+      errEl.classList.add('hidden');
     }
-    if (errorMobile) {
-      errorMobile.textContent = '';
-      errorMobile.classList.add('hidden');
-    }
-    
-    // 선택된 결제 방법 확인
     const checkedRadio = document.querySelector('input[name="payment"]:checked');
     if (!checkedRadio) {
       alert('결제 방법을 선택해주세요.');
       return;
     }
-    
     const selectedPayment = checkedRadio.value;
-    
     if (selectedPayment === 'toss') {
-      // 토스페이먼츠 결제 진행
       await proceedWithTossPayment(data);
     } else if (selectedPayment === 'inicis') {
-      // 이니시스 결제 진행
       await proceedWithInicisPayment(data);
     } else {
       alert('현재 지원되는 결제 방법이 아닙니다.');
     }
   };
-  
-  if (proceedBtnDesktop) {
-    proceedBtnDesktop.addEventListener('click', handlePayment);
-  }
-  
-  if (proceedBtnMobile) {
-    proceedBtnMobile.addEventListener('click', handlePayment);
-  }
+
+  if (proceedBtn) proceedBtn.addEventListener('click', handlePayment);
 }
 
 async function proceedWithTossPayment(data) {
-  // 버튼 참조를 함수 스코프 상단에서 선언 (finally에서 접근 가능하도록)
-  const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
-  const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
-  const originalDesktopText = proceedBtnDesktop?.textContent || '확인 및 진행';
-  const originalMobileText = proceedBtnMobile?.textContent || '확인 및 진행';
-  
+  const proceedBtn = document.getElementById('proceed-payment-btn');
+  const originalText = proceedBtn?.textContent || '확인 및 진행';
+
   try {
-    // 버튼 비활성화 (데스크톱 + 모바일 모두)
-    if (proceedBtnDesktop) {
-      proceedBtnDesktop.disabled = true;
-      proceedBtnDesktop.textContent = '처리 중...';
+    if (proceedBtn) {
+      proceedBtn.disabled = true;
+      proceedBtn.textContent = '처리 중...';
     }
     
-    if (proceedBtnMobile) {
-      proceedBtnMobile.disabled = true;
-      proceedBtnMobile.textContent = '처리 중...';
-    }
-    
-    // 1. 주문 생성 (SSOT 함수 사용)
+    // 1. 주문 생성 (SSOT 함수 사용) — 유효하지 않은 항목이 있으면 주문 전체 중단
     const idemKey = uuidv4();
-    
+
     if (!window.createOrderPayload) {
       throw new Error('checkout-utils.js가 로드되지 않았습니다.');
     }
-    
-    const requestPayload = window.createOrderPayload(data.items, data.shipping);
-    
+
+    let requestPayload;
+    try {
+      requestPayload = window.createOrderPayload(data.items, data.shipping);
+    } catch (payloadError) {
+      const msg = (payloadError && payloadError.message) ? String(payloadError.message) : '';
+      const isValidationError = /주문할 수 없습니다|유효하지 않아|유효한 상품/.test(msg);
+      const displayMsg = isValidationError
+        ? '일부 상품 정보가 만료되었거나 올바르지 않습니다. 장바구니를 확인해 주세요.'
+        : (msg || '주문 정보를 확인할 수 없습니다. 장바구니를 확인해 주세요.');
+      const errEl = document.getElementById('payment-error');
+      if (errEl) {
+        errEl.textContent = displayMsg;
+        errEl.classList.remove('hidden');
+      }
+      return;
+    }
+
     const createRes = await window.secureFetch(`${API_BASE}/orders`, {
       method: 'POST',
       headers: {
@@ -265,17 +276,32 @@ async function proceedWithTossPayment(data) {
       credentials: 'include',
       body: JSON.stringify(requestPayload)
     });
-    
+
     if (!createRes.ok) {
-      const errorData = await createRes.json();
+      const errorData = await createRes.json().catch(() => ({}));
+      if (createRes.status === 500 && errorData.code === 'ORDER_ITEMS_MISMATCH') {
+        const msg = '선택하신 상품 중 일부의 정보가 변경되어 주문을 완료할 수 없습니다. 최신 상태가 반영된 장바구니로 이동하여 다시 확인해 주세요.';
+        if (window.showGlobalErrorBanner) {
+          window.showGlobalErrorBanner({
+            title: '장바구니 확인',
+            message: msg,
+            retryLabel: '장바구니로 이동',
+            onRetry: function() { window.location.href = 'cart.html'; }
+          });
+        } else {
+          alert(msg);
+          window.location.href = 'cart.html';
+        }
+        return;
+      }
       throw new Error(errorData.details?.message || '주문 생성 실패');
     }
-    
+
     const created = await createRes.json();
-    
+
     const orderNumber = created.data.order_number;
     const amount = created.data.amount;
-    
+
     // 2. 토스페이먼츠 결제 위젯 실행
     // MOCK 모드 체크 (환경변수 또는 설정으로 제어 가능)
     const useMockPayment = false; // 테스트 키 사용 시 false로 설정
@@ -331,22 +357,6 @@ async function proceedWithTossPayment(data) {
     const failUrl = `${window.location.origin}/checkout-payment.html?status=fail`;
     
     try {
-      // 위젯 실행 전에 페이지 제목 영역을 오버레이 아래로 보내기
-      // 토스페이먼츠 위젯 오버레이는 특정 z-index 범위에 있으므로, 제목 영역을 그 아래로 이동
-      const paymentHeader = document.querySelector('.checkout-payment-header');
-      if (paymentHeader) {
-        // position을 relative로 설정하고 z-index를 낮춰서 오버레이 아래로
-        const originalPosition = paymentHeader.style.position;
-        const originalZIndex = paymentHeader.style.zIndex;
-        paymentHeader.style.position = 'relative';
-        paymentHeader.style.zIndex = '0';
-        paymentHeader.style.transition = 'opacity 0.3s ease, z-index 0s';
-        
-        // 오류 발생 시 원복을 위해 저장
-        paymentHeader.dataset.originalPosition = originalPosition || '';
-        paymentHeader.dataset.originalZIndex = originalZIndex || '';
-      }
-      
       // 위젯 실행 (결제 완료 시 successUrl로 자동 리다이렉트됨)
       const result = await toss.requestPayment('카드', {
         amount: amount,
@@ -354,21 +364,12 @@ async function proceedWithTossPayment(data) {
         orderName: data.items.length === 1 
           ? data.items[0].name 
           : `${data.items[0].name} 외 ${data.items.length - 1}개`,
-        customerName: `${data.shipping.recipient_first_name} ${data.shipping.recipient_last_name}`,
+        customerName: getShippingDisplayName(data.shipping),
         successUrl: successUrl,
         failUrl: failUrl
       });
       
     } catch (error) {
-      // 오류 발생 시 제목 영역 스타일 원복
-      const paymentHeader = document.querySelector('.checkout-payment-header');
-      if (paymentHeader) {
-        paymentHeader.style.position = paymentHeader.dataset.originalPosition || '';
-        paymentHeader.style.zIndex = paymentHeader.dataset.originalZIndex || '';
-        paymentHeader.style.transition = '';
-        delete paymentHeader.dataset.originalPosition;
-        delete paymentHeader.dataset.originalZIndex;
-      }
       throw new Error(error.message || '결제 위젯 실행 중 오류가 발생했습니다.');
     }
     
@@ -387,21 +388,11 @@ async function proceedWithTossPayment(data) {
       errorMessage = '결제 정보가 올바르지 않습니다. 다시 시도해주세요.';
     }
     
-    // 에러 메시지를 버튼 위에 표시
-    const errorDesktop = document.getElementById('payment-error');
-    const errorMobile = document.getElementById('payment-error-mobile');
-    const displayMessage = `결제에 실패했습니다: ${errorMessage}`;
-    
-    if (errorDesktop) {
-      errorDesktop.textContent = displayMessage;
-      errorDesktop.classList.remove('hidden');
+    const errEl = document.getElementById('payment-error');
+    if (errEl) {
+      errEl.textContent = `결제에 실패했습니다: ${errorMessage}`;
+      errEl.classList.remove('hidden');
     }
-    if (errorMobile) {
-      errorMobile.textContent = displayMessage;
-      errorMobile.classList.remove('hidden');
-    }
-    
-    // 글로벌 에러 배너도 표시 (추가 안내용)
     if (window.showGlobalErrorBanner) {
       window.showGlobalErrorBanner({
         title: '결제 처리 실패',
@@ -410,46 +401,47 @@ async function proceedWithTossPayment(data) {
       });
     }
   } finally {
-    // 에러 발생 시 항상 버튼 복구 (리다이렉트되지 않은 경우에만)
-    // window.location.href로 이동하면 이 코드는 실행되지 않지만, 안전을 위해 추가
-    if (proceedBtnDesktop && proceedBtnDesktop.disabled) {
-      proceedBtnDesktop.disabled = false;
-      proceedBtnDesktop.textContent = originalDesktopText;
-    }
-    
-    if (proceedBtnMobile && proceedBtnMobile.disabled) {
-      proceedBtnMobile.disabled = false;
-      proceedBtnMobile.textContent = originalMobileText;
+    if (proceedBtn && proceedBtn.disabled) {
+      proceedBtn.disabled = false;
+      proceedBtn.textContent = originalText;
     }
   }
 }
 
 async function proceedWithInicisPayment(data) {
-  const proceedBtnDesktop = document.getElementById('proceed-payment-desktop');
-  const proceedBtnMobile = document.getElementById('proceed-payment-mobile');
-  const originalDesktopText = proceedBtnDesktop?.textContent || '확인 및 진행';
-  const originalMobileText = proceedBtnMobile?.textContent || '확인 및 진행';
-  
+  const proceedBtn = document.getElementById('proceed-payment-btn');
+  const originalText = proceedBtn?.textContent || '확인 및 진행';
+
   try {
-    // 버튼 비활성화
-    if (proceedBtnDesktop) {
-      proceedBtnDesktop.disabled = true;
-      proceedBtnDesktop.textContent = '처리 중...';
-    }
-    if (proceedBtnMobile) {
-      proceedBtnMobile.disabled = true;
-      proceedBtnMobile.textContent = '처리 중...';
+    if (proceedBtn) {
+      proceedBtn.disabled = true;
+      proceedBtn.textContent = '처리 중...';
     }
     
-    // 1. 주문 생성 (SSOT 함수 사용)
+    // 1. 주문 생성 (SSOT 함수 사용) — 유효하지 않은 항목이 있으면 주문 전체 중단
     const idemKey = uuidv4();
-    
+
     if (!window.createOrderPayload) {
       throw new Error('checkout-utils.js가 로드되지 않았습니다.');
     }
-    
-    const requestPayload = window.createOrderPayload(data.items, data.shipping);
-    
+
+    let requestPayload;
+    try {
+      requestPayload = window.createOrderPayload(data.items, data.shipping);
+    } catch (payloadError) {
+      const msg = (payloadError && payloadError.message) ? String(payloadError.message) : '';
+      const isValidationError = /주문할 수 없습니다|유효하지 않아|유효한 상품/.test(msg);
+      const displayMsg = isValidationError
+        ? '일부 상품 정보가 만료되었거나 올바르지 않습니다. 장바구니를 확인해 주세요.'
+        : (msg || '주문 정보를 확인할 수 없습니다. 장바구니를 확인해 주세요.');
+      const errEl = document.getElementById('payment-error');
+      if (errEl) {
+        errEl.textContent = displayMsg;
+        errEl.classList.remove('hidden');
+      }
+      return;
+    }
+
     const createRes = await window.secureFetch(`${API_BASE}/orders`, {
       method: 'POST',
       headers: {
@@ -459,16 +451,31 @@ async function proceedWithInicisPayment(data) {
       credentials: 'include',
       body: JSON.stringify(requestPayload)
     });
-    
+
     if (!createRes.ok) {
-      const errorData = await createRes.json();
+      const errorData = await createRes.json().catch(() => ({}));
+      if (createRes.status === 500 && errorData.code === 'ORDER_ITEMS_MISMATCH') {
+        const msg = '선택하신 상품 중 일부의 정보가 변경되어 주문을 완료할 수 없습니다. 최신 상태가 반영된 장바구니로 이동하여 다시 확인해 주세요.';
+        if (window.showGlobalErrorBanner) {
+          window.showGlobalErrorBanner({
+            title: '장바구니 확인',
+            message: msg,
+            retryLabel: '장바구니로 이동',
+            onRetry: function() { window.location.href = 'cart.html'; }
+          });
+        } else {
+          alert(msg);
+          window.location.href = 'cart.html';
+        }
+        return;
+      }
       throw new Error(errorData.details?.message || '주문 생성 실패');
     }
-    
+
     const created = await createRes.json();
     const orderNumber = created.data.order_number;
     const amount = created.data.amount;
-    
+
     // 2. 이니시스 결제창 요청 (서버에서 결제 정보 생성)
     const paymentRes = await window.secureFetch(`${API_BASE}/payments/inicis/request`, {
       method: 'POST',
@@ -482,7 +489,7 @@ async function proceedWithInicisPayment(data) {
         orderName: data.items.length === 1 
           ? data.items[0].name 
           : `${data.items[0].name} 외 ${data.items.length - 1}개`,
-        buyerName: `${data.shipping.recipient_first_name} ${data.shipping.recipient_last_name}`,
+        buyerName: getShippingDisplayName(data.shipping),
         buyerEmail: data.shipping.email,
         buyerTel: data.shipping.phone
       })
@@ -515,31 +522,16 @@ async function proceedWithInicisPayment(data) {
     
   } catch (error) {
     let errorMessage = '결제 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-    if (error.message) {
-      errorMessage = error.message;
-    }
-    
-    const errorDesktop = document.getElementById('payment-error');
-    const errorMobile = document.getElementById('payment-error-mobile');
-    const displayMessage = `결제에 실패했습니다: ${errorMessage}`;
-    
-    if (errorDesktop) {
-      errorDesktop.textContent = displayMessage;
-      errorDesktop.classList.remove('hidden');
-    }
-    if (errorMobile) {
-      errorMobile.textContent = displayMessage;
-      errorMobile.classList.remove('hidden');
+    if (error.message) errorMessage = error.message;
+    const errEl = document.getElementById('payment-error');
+    if (errEl) {
+      errEl.textContent = `결제에 실패했습니다: ${errorMessage}`;
+      errEl.classList.remove('hidden');
     }
   } finally {
-    // 에러 발생 시 버튼 복구
-    if (proceedBtnDesktop && proceedBtnDesktop.disabled) {
-      proceedBtnDesktop.disabled = false;
-      proceedBtnDesktop.textContent = originalDesktopText;
-    }
-    if (proceedBtnMobile && proceedBtnMobile.disabled) {
-      proceedBtnMobile.disabled = false;
-      proceedBtnMobile.textContent = originalMobileText;
+    if (proceedBtn && proceedBtn.disabled) {
+      proceedBtn.disabled = false;
+      proceedBtn.textContent = originalText;
     }
   }
 }
@@ -570,15 +562,8 @@ function showPaymentFailureMessage(code, message) {
       title: '결제를 완료할 수 없습니다',
       message: resolvedMessage,
       onRetry: () => {
-        const desktopBtn = document.getElementById('proceed-payment-desktop');
-        if (desktopBtn && !desktopBtn.disabled) {
-          desktopBtn.click();
-          return;
-        }
-        const mobileBtn = document.getElementById('proceed-payment-mobile');
-        if (mobileBtn && !mobileBtn.disabled) {
-          mobileBtn.click();
-        }
+        const btn = document.getElementById('proceed-payment-btn');
+        if (btn && !btn.disabled) btn.click();
       }
     });
   } else {

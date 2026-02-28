@@ -55,7 +55,7 @@ class MiniCart {
                 }
               }
             } catch (syncError) {
-              console.error('❌ 비회원 장바구니 동기화 중 오류 (지연):', syncError);
+              Logger.error('❌ 비회원 장바구니 동기화 중 오류 (지연):', syncError);
             }
           }
         }
@@ -66,7 +66,7 @@ class MiniCart {
       } else if (attempts > 100) {
         // 10초 후에도 안 되면 포기하고, 헤더 로드 이벤트 리스너로 재시도
         clearInterval(waitForHeader);
-        console.warn('⚠️ 장바구니 버튼 초기 발견 실패, 헤더 로드 대기 중...');
+        Logger.warn('⚠️ 장바구니 버튼 초기 발견 실패, 헤더 로드 대기 중...');
         
         // 헤더가 나중에 로드될 수 있으므로 DOMContentLoaded와 MutationObserver로 재시도
         this.retryInitOnHeaderLoad();
@@ -151,7 +151,7 @@ class MiniCart {
       });
       debugLog('✅ 장바구니 버튼 이벤트 리스너 추가 완료');
     } else {
-      console.warn('⚠️ 장바구니 버튼을 찾을 수 없습니다. 헤더가 아직 로드되지 않았을 수 있습니다.');
+      Logger.warn('⚠️ 장바구니 버튼을 찾을 수 없습니다. 헤더가 아직 로드되지 않았을 수 있습니다.');
     }
 
     if (miniCartClose) {
@@ -206,7 +206,7 @@ class MiniCart {
     try {
       sessionStorage.setItem('pm_checkout_selected_ids', JSON.stringify(selectedIds));
     } catch (e) {
-      console.warn('pm_checkout_selected_ids 저장 실패:', e);
+      Logger.warn('pm_checkout_selected_ids 저장 실패:', e);
     }
     window.location.href = 'checkout.html';
   }
@@ -321,8 +321,8 @@ class MiniCart {
         // 500, 502, timeout 등 서버/네트워크 에러
         this.isLoggedIn = false;
         const loginStatus = { status: 'unknown', isLoggedIn: false };
-        // ⚠️ 운영 중 문제 재현용 상태 로그 (에러 상황이므로 console.warn 유지)
-        console.warn('[CART_STATE]', loginStatus.status);
+        // ⚠️ 운영 중 문제 재현용 상태 로그 (에러 상황)
+        Logger.warn('[CART_STATE]', loginStatus.status);
         return loginStatus;
       }
       
@@ -339,8 +339,8 @@ class MiniCart {
       // 네트워크 에러, timeout 등
       this.isLoggedIn = false;
       const loginStatus = { status: 'unknown', isLoggedIn: false };
-      // ⚠️ 운영 중 문제 재현용 상태 로그 (에러 상황이므로 console.warn 유지)
-      console.warn('[CART_STATE]', loginStatus.status);
+      // ⚠️ 운영 중 문제 재현용 상태 로그 (에러 상황)
+      Logger.warn('[CART_STATE]', loginStatus.status);
       return loginStatus;
     }
   }
@@ -379,7 +379,7 @@ class MiniCart {
         this.cartItems = [];
       }
     } catch (error) {
-      console.error('❌ 장바구니 로드 실패:', error);
+      Logger.error('❌ 장바구니 로드 실패:', error);
       this.cartItems = [];
     }
   }
@@ -402,13 +402,13 @@ class MiniCart {
             debugLog('🔄 기존 guest_cart 데이터를 pm_cart_v1로 마이그레이션');
           } catch (parseError) {
             // 파손된 데이터는 삭제
-            console.warn('⚠️ 파손된 guest_cart 데이터 감지, 삭제:', parseError);
+            Logger.warn('⚠️ 파손된 guest_cart 데이터 감지, 삭제:', parseError);
             localStorage.removeItem(oldCartKey);
             oldCart = null; // 마이그레이션하지 않음
           }
         }
       } catch (migrationError) {
-        console.warn('⚠️ guest_cart 마이그레이션 중 오류:', migrationError);
+        Logger.warn('⚠️ guest_cart 마이그레이션 중 오류:', migrationError);
         // 마이그레이션 실패해도 계속 진행
       }
       
@@ -421,12 +421,12 @@ class MiniCart {
           throw new Error('장바구니 데이터가 배열이 아닙니다.');
         }
       } catch (parseError) {
-        console.warn('⚠️ pm_cart_v1 파싱 실패, 빈 장바구니로 초기화:', parseError);
+        Logger.warn('⚠️ pm_cart_v1 파싱 실패, 빈 장바구니로 초기화:', parseError);
         // 파손된 데이터 삭제 및 빈 배열로 초기화
         try {
           localStorage.removeItem(GUEST_CART_KEY);
         } catch (removeError) {
-          console.warn('⚠️ 파손된 데이터 삭제 실패:', removeError);
+          Logger.warn('⚠️ 파손된 데이터 삭제 실패:', removeError);
         }
         cartItems = [];
       }
@@ -434,7 +434,7 @@ class MiniCart {
       this.cartItems = cartItems;
       debugLog('🛒 localStorage에서 장바구니 로드:', this.cartItems.length, '개 상품');
     } catch (error) {
-      console.error('❌ localStorage 장바구니 로드 실패:', error);
+      Logger.error('❌ localStorage 장바구니 로드 실패:', error);
       this.cartItems = [];
     }
   }
@@ -495,7 +495,7 @@ class MiniCart {
         return false;
       }
     } catch (error) {
-      console.error('❌ 장바구니 추가 오류:', error);
+      Logger.error('❌ 장바구니 추가 오류:', error);
       alert('서버와의 통신에 실패했습니다.');
       return false;
     }
@@ -516,13 +516,13 @@ class MiniCart {
             localStorage.removeItem(oldCartKey);
             debugLog('🔄 기존 guest_cart 데이터를 pm_cart_v1로 마이그레이션');
           } catch (parseError) {
-            console.warn('⚠️ 파손된 guest_cart 데이터 감지, 삭제:', parseError);
+            Logger.warn('⚠️ 파손된 guest_cart 데이터 감지, 삭제:', parseError);
             localStorage.removeItem(oldCartKey);
             oldCart = null;
           }
         }
       } catch (migrationError) {
-        console.warn('⚠️ guest_cart 마이그레이션 중 오류:', migrationError);
+        Logger.warn('⚠️ guest_cart 마이그레이션 중 오류:', migrationError);
       }
       
       // ⚠️ 파손 데이터 안전 처리
@@ -534,11 +534,11 @@ class MiniCart {
           throw new Error('장바구니 데이터가 배열이 아닙니다.');
         }
       } catch (parseError) {
-        console.warn('⚠️ pm_cart_v1 파싱 실패, 빈 장바구니로 초기화:', parseError);
+        Logger.warn('⚠️ pm_cart_v1 파싱 실패, 빈 장바구니로 초기화:', parseError);
         try {
           localStorage.removeItem(GUEST_CART_KEY);
         } catch (removeError) {
-          console.warn('⚠️ 파손된 데이터 삭제 실패:', removeError);
+          Logger.warn('⚠️ 파손된 데이터 삭제 실패:', removeError);
         }
         cartItems = [];
       }
@@ -575,7 +575,7 @@ class MiniCart {
       debugLog('✅ 비회원 장바구니에 추가됨 (localStorage)');
       return true;
     } catch (error) {
-      console.error('❌ localStorage 장바구니 추가 오류:', error);
+      Logger.error('❌ localStorage 장바구니 추가 오류:', error);
       alert('장바구니 추가에 실패했습니다.');
       return false;
     }
@@ -619,7 +619,7 @@ class MiniCart {
         alert(data.message || '삭제에 실패했습니다.');
       }
     } catch (error) {
-      console.error('❌ 장바구니 삭제 오류:', error);
+      Logger.error('❌ 장바구니 삭제 오류:', error);
       alert('서버와의 통신에 실패했습니다.');
     }
   }
@@ -671,7 +671,7 @@ class MiniCart {
         alert(data.message || '수량 변경에 실패했습니다.');
       }
     } catch (error) {
-      console.error('❌ 수량 변경 오류:', error);
+      Logger.error('❌ 수량 변경 오류:', error);
       alert('서버와의 통신에 실패했습니다.');
     }
   }
@@ -688,11 +688,11 @@ class MiniCart {
           throw new Error('장바구니 데이터가 배열이 아닙니다.');
         }
       } catch (parseError) {
-        console.warn('⚠️ pm_cart_v1 파싱 실패, 빈 장바구니로 초기화:', parseError);
+        Logger.warn('⚠️ pm_cart_v1 파싱 실패, 빈 장바구니로 초기화:', parseError);
         try {
           localStorage.removeItem(GUEST_CART_KEY);
         } catch (removeError) {
-          console.warn('⚠️ 파손된 데이터 삭제 실패:', removeError);
+          Logger.warn('⚠️ 파손된 데이터 삭제 실패:', removeError);
         }
         cartItems = [];
         this.cartItems = [];
@@ -709,7 +709,7 @@ class MiniCart {
       this.renderMiniCart();
       debugLog('✅ 비회원 장바구니에서 제거됨 (localStorage)');
     } catch (error) {
-      console.error('❌ localStorage 장바구니 제거 오류:', error);
+      Logger.error('❌ localStorage 장바구니 제거 오류:', error);
       alert('장바구니에서 제거하는데 실패했습니다.');
     }
   }
@@ -726,11 +726,11 @@ class MiniCart {
           throw new Error('장바구니 데이터가 배열이 아닙니다.');
         }
       } catch (parseError) {
-        console.warn('⚠️ pm_cart_v1 파싱 실패, 빈 장바구니로 초기화:', parseError);
+        Logger.warn('⚠️ pm_cart_v1 파싱 실패, 빈 장바구니로 초기화:', parseError);
         try {
           localStorage.removeItem(GUEST_CART_KEY);
         } catch (removeError) {
-          console.warn('⚠️ 파손된 데이터 삭제 실패:', removeError);
+          Logger.warn('⚠️ 파손된 데이터 삭제 실패:', removeError);
         }
         cartItems = [];
         alert('장바구니 데이터에 문제가 있어 초기화되었습니다.');
@@ -748,7 +748,7 @@ class MiniCart {
         debugLog('✅ 비회원 장바구니 수량 업데이트 완료 (localStorage)');
       }
     } catch (error) {
-      console.error('❌ localStorage 수량 업데이트 오류:', error);
+      Logger.error('❌ localStorage 수량 업데이트 오류:', error);
       alert('수량 업데이트에 실패했습니다.');
     }
   }
@@ -879,7 +879,7 @@ class MiniCart {
             reason: error.message 
           });
           errors.push({ productId, size, color, error: error.message });
-          console.error(`❌ 장바구니 동기화 오류 (${productId}):`, error);
+          Logger.error(`❌ 장바구니 동기화 오류 (${productId}):`, error);
         }
       }
 
@@ -915,7 +915,7 @@ class MiniCart {
         errors: errors.length > 0 ? errors : undefined
       };
     } catch (error) {
-      console.error('❌ 비회원 장바구니 동기화 오류:', error);
+      Logger.error('❌ 비회원 장바구니 동기화 오류:', error);
       return {
         success: false,
         error: error.message,
@@ -1002,7 +1002,7 @@ class MiniCart {
     });
     
     if (!content) {
-      console.error('❌ mini-cart-content를 찾을 수 없습니다!');
+      Logger.error('❌ mini-cart-content를 찾을 수 없습니다!');
       return;
     }
 
@@ -1107,7 +1107,7 @@ class MiniCart {
       this.renderMiniCart();
       debugLog('🛒 sync: 서버 상태와 장바구니 동기화 완료');
     } catch (error) {
-      console.error('❌ 장바구니 동기화 실패:', error);
+      Logger.error('❌ 장바구니 동기화 실패:', error);
     }
   }
 
@@ -1124,7 +1124,7 @@ class MiniCart {
         this.renderMiniCart();
         debugLog('🛒 비회원 장바구니 비움 (localStorage)');
       } catch (error) {
-        console.error('❌ localStorage 장바구니 비우기 실패:', error);
+        Logger.error('❌ localStorage 장바구니 비우기 실패:', error);
       }
       return;
     }
@@ -1155,10 +1155,10 @@ class MiniCart {
         this.renderMiniCart();
         debugLog('✅ 장바구니 비우기 완료');
       } else {
-        console.error('❌ 장바구니 비우기 실패:', data.message);
+        Logger.error('❌ 장바구니 비우기 실패:', data.message);
       }
     } catch (error) {
-      console.error('❌ 장바구니 비우기 오류:', error);
+      Logger.error('❌ 장바구니 비우기 오류:', error);
       // 오류가 발생해도 로컬은 비우기
       this.cartItems = [];
       this.updateCartDisplay();

@@ -3,6 +3,8 @@
 (function() {
   'use strict';
 
+  const Logger = window.Logger || { log: function(){}, warn: function(){ if (window.console && window.console.warn) window.console.warn.apply(window.console, arguments); }, error: function(){ if (window.console && window.console.error) window.console.error.apply(window.console, arguments); } };
+
   // API 설정
   const API_ROOT = (window.location && window.location.origin) 
     ? window.location.origin.replace(/\/$/, '') 
@@ -219,11 +221,14 @@
         credentials: 'include'
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      const data = await response.json().catch(() => ({}));
 
-      const data = await response.json();
+      if (!response.ok) {
+        elements.loadingState.style.display = 'none';
+        const message = (data && data.message) || `요청 실패 (${response.status})`;
+        alert(message);
+        return;
+      }
 
       elements.loadingState.style.display = 'none';
 
@@ -243,7 +248,7 @@
       elements.pagination.style.display = 'flex';
 
     } catch (error) {
-      console.error('문의 목록 로드 실패:', error.message);
+      Logger.error('문의 목록 로드 실패:', error.message);
       alert('문의 목록을 불러오는데 실패했습니다.');
       elements.loadingState.style.display = 'none';
     }
@@ -369,7 +374,7 @@
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error('[통계 API] 에러 응답:', errorData);
+          Logger.error('[통계 API] 에러 응답:', errorData);
         } catch (e) {
           // JSON 파싱 실패 시 무시
         }
@@ -383,14 +388,14 @@
         elements.inProgressInquiries.textContent = data.stats.in_progress_count || 0;
         elements.todayInquiries.textContent = data.stats.today_count || 0;
       } else {
-        console.warn('[통계 API] 응답 형식 오류:', data);
+        Logger.warn('[통계 API] 응답 형식 오류:', data);
         elements.newInquiries.textContent = '-';
         elements.inProgressInquiries.textContent = '-';
         elements.todayInquiries.textContent = '-';
       }
 
     } catch (error) {
-      console.warn('통계 로드 실패 (무시됨):', error.message);
+      Logger.warn('통계 로드 실패 (무시됨):', error.message);
       // 통계가 없어도 기본값 표시
       elements.newInquiries.textContent = '-';
       elements.inProgressInquiries.textContent = '-';
@@ -451,12 +456,12 @@
         }
       } catch (error) {
         // replies 엔드포인트가 없어도 상세는 정상 표시
-        console.warn('답변 이력 로드 실패 (무시됨):', error.message);
+        Logger.warn('답변 이력 로드 실패 (무시됨):', error.message);
         renderReplyHistory([]);
       }
 
     } catch (error) {
-      console.error('문의 상세 로드 실패:', error.message);
+      Logger.error('문의 상세 로드 실패:', error.message);
       alert('문의 정보를 불러오는데 실패했습니다.');
     }
   };
@@ -611,7 +616,7 @@
           }
         }
       } catch (error) {
-        console.warn('답변 이력 재조회 실패 (무시됨):', error.message);
+        Logger.warn('답변 이력 재조회 실패 (무시됨):', error.message);
       }
 
       // 목록 재조회
@@ -623,7 +628,7 @@
       loadStats();
 
     } catch (error) {
-      console.error('현재 문의 새로고침 실패:', error.message);
+      Logger.error('현재 문의 새로고침 실패:', error.message);
     }
   }
 
@@ -694,7 +699,7 @@
       await refreshCurrentInquiry();
 
     } catch (error) {
-      console.error('답변 전송 실패:', error.message);
+      Logger.error('답변 전송 실패:', error.message);
       alert(error.message || '답변 전송 중 오류가 발생했습니다.');
     } finally {
       // 액션 잠금 해제
@@ -771,7 +776,7 @@
       await refreshCurrentInquiry();
 
     } catch (error) {
-      console.error('상태 변경 실패:', error.message);
+      Logger.error('상태 변경 실패:', error.message);
       alert(error.message || '상태 변경 중 오류가 발생했습니다.');
     } finally {
       // 액션 잠금 해제
@@ -844,7 +849,7 @@
       await refreshCurrentInquiry();
 
     } catch (error) {
-      console.error('메모 저장 실패:', error.message);
+      Logger.error('메모 저장 실패:', error.message);
       alert(error.message || '메모 저장 중 오류가 발생했습니다.');
     } finally {
       // 액션 잠금 해제

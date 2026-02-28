@@ -71,14 +71,17 @@
   width: 100% !important;
 }
 
-/* ===== 소셜 로그인 버튼 기본 스타일 ===== */
+/* ===== 소셜 로그인 버튼 기본 스타일 (checkout .complete-order-btn과 동일: 높이 44px, 12px, 500) ===== */
 .social-login-btn {
   width: 100%;
-  padding: 16px;
+  height: 44px;
+  padding: 0 16px;
+  box-sizing: border-box;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 44px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -192,7 +195,7 @@
 }
 
 .input-group label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #333;
 }
@@ -200,7 +203,7 @@
 .input-group input {
   width: 100%;
   padding: 10px 0 8px 0;
-  font-size: 14px;
+  font-size: 13px;
   border: none;
   border-bottom: 1px solid #444;
   border-radius: 0;
@@ -251,12 +254,15 @@
   text-decoration: underline;
 }
 
-/* ===== 로그인 버튼 (checkout/register 스타일) ===== */
+/* ===== 로그인 버튼 (checkout-review .complete-order-btn과 동일: 높이 44px, 12px, 500) ===== */
 .login-btn {
   width: 100%;
-  padding: 16px;
-  font-size: 16px;
-  font-weight: 600;
+  height: 44px;
+  padding: 0 24px;
+  box-sizing: border-box;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 44px;
   background-color: #111;
   color: #fff;
   border: none;
@@ -308,10 +314,13 @@
   background: none;
   border: 1px solid #111;
   color: #111;
-  padding: 14px 24px;
+  height: 44px;
+  padding: 0 24px;
+  box-sizing: border-box;
   border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 44px;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
   font-family: inherit;
@@ -341,13 +350,15 @@
   }
   
   .social-login-btn {
-    padding: clamp(12px, 2.5vw, 16px);
-    font-size: clamp(0.85rem, 2vw, 0.95rem);
+    height: 44px;
+    padding: 0 clamp(12px, 2.5vw, 16px);
+    font-size: 12px;
   }
   
   .login-btn {
-    padding: 16px;
-    font-size: 16px;
+    height: 44px;
+    padding: 0 24px;
+    font-size: 12px;
   }
 }
 

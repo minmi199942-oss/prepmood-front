@@ -272,8 +272,8 @@ app.post('/api/send-verification', [
                 message: '인증 코드가 발송되었습니다.' 
             });
         } else {
-            console.error(`❌ 인증 코드 발송 실패: ${email}`);
-            console.error('📋 발송 실패 상세:', JSON.stringify(result, null, 2));
+            Logger.error(`❌ 인증 코드 발송 실패: ${email}`);
+            Logger.error('📋 발송 실패 상세:', JSON.stringify(result, null, 2));
             res.status(500).json({ 
                 success: false, 
                 message: '이메일 발송에 실패했습니다.' 
@@ -281,10 +281,10 @@ app.post('/api/send-verification', [
         }
 
     } catch (error) {
-        console.error('❌ 서버 오류 발생:');
-        console.error('📋 에러 상세:', JSON.stringify(error, null, 2));
-        console.error('🔍 에러 메시지:', error.message);
-        console.error('📍 에러 스택:', error.stack);
+        Logger.error('❌ 서버 오류 발생:');
+        Logger.error('📋 에러 상세:', JSON.stringify(error, null, 2));
+        Logger.error('🔍 에러 메시지:', error.message);
+        Logger.error('📍 에러 스택:', error.stack);
         
         res.status(500).json({ 
             success: false, 
@@ -356,7 +356,7 @@ app.post('/api/verify-code', [
         });
 
     } catch (error) {
-        console.error('❌ 서버 오류:', error.message); // 민감정보 제외
+        Logger.error('❌ 서버 오류:', error.message); // 민감정보 제외
         res.status(500).json({ 
             success: false, 
             message: '서버 오류가 발생했습니다.' 
@@ -380,7 +380,7 @@ app.post('/api/register', [
         
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            console.log('❌ 유효성 검사 실패:', errors.array());
+            Logger.log('❌ 유효성 검사 실패:', errors.array());
             return res.status(400).json({
                 success: false,
                 message: '입력 정보를 확인해주세요.',
@@ -392,19 +392,19 @@ app.post('/api/register', [
 
         // 업데이트 모드인지 확인
         if (isUpdate) {
-            console.log('🔄 개인정보 업데이트 모드 - 이메일 인증 검사 건너뜀');
+            Logger.log('🔄 개인정보 업데이트 모드 - 이메일 인증 검사 건너뜀');
             // 업데이트 모드에서는 검증을 건너뛰고 바로 처리
             return await handleProfileUpdate(req, res, { email, name, phone });
         }
 
         // 이메일이 인증되었는지 확인 (회원가입 모드만)
-        console.log('📧 인증된 이메일 목록:', Array.from(verificationCodes.keys()));
-        console.log('📧 요청된 이메일:', email);
-        console.log('📧 인증 상태:', verificationCodes.has(email));
+        Logger.log('📧 인증된 이메일 목록:', Array.from(verificationCodes.keys()));
+        Logger.log('📧 요청된 이메일:', email);
+        Logger.log('📧 인증 상태:', verificationCodes.has(email));
         
         const verificationData = verificationCodes.get(email);
         if (!verificationData || !verificationData.verified) {
-            console.log('❌ 이메일 인증되지 않음');
+            Logger.log('❌ 이메일 인증되지 않음');
             return res.status(400).json({
                 success: false,
                 message: '이메일 인증을 먼저 완료해주세요.'
@@ -412,23 +412,23 @@ app.post('/api/register', [
         }
 
         // MySQL 연결
-        console.log('🔗 MySQL 연결 시도 중...');
+        Logger.log('🔗 MySQL 연결 시도 중...');
         const connection = await mysql.createConnection(dbConfig);
-        console.log('✅ MySQL 연결 성공');
+        Logger.log('✅ MySQL 연결 성공');
 
         // 기존 users 테이블 사용
-        console.log('✅ 기존 users 테이블 사용');
+        Logger.log('✅ 기존 users 테이블 사용');
 
         // 이메일 중복 확인
-        console.log('🔍 이메일 중복 확인 중...');
+        Logger.log('🔍 이메일 중복 확인 중...');
         const [existingUsers] = await connection.execute(
             'SELECT user_id FROM users WHERE email = ?',
             [email]
         );
-        console.log('📧 기존 사용자 수:', existingUsers.length);
+        Logger.log('📧 기존 사용자 수:', existingUsers.length);
 
         if (existingUsers.length > 0) {
-            console.log('❌ 이미 가입된 이메일');
+            Logger.log('❌ 이미 가입된 이메일');
             await connection.end();
             return res.status(409).json({
                 success: false,
@@ -438,15 +438,15 @@ app.post('/api/register', [
         }
 
         // 비밀번호 해시화 (bcrypt 사용)
-        console.log('🔐 비밀번호 해시화 중...');
+        Logger.log('🔐 비밀번호 해시화 중...');
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
-        console.log('✅ 비밀번호 해시화 완료');
+        Logger.log('✅ 비밀번호 해시화 완료');
 
         // membership_id 생성
         const { generateUniqueUserId } = require('./utils/user-id-generator');
         const membershipId = await generateUniqueUserId(connection);
-        console.log('✅ membership_id 생성:', membershipId);
+        Logger.log('✅ membership_id 생성:', membershipId);
 
         // 동의 정보 처리
         const privacyConsentValue = privacy_consent === 'true' || privacy_consent === true ? 1 : 0;
@@ -454,7 +454,7 @@ app.post('/api/register', [
         const termsConsentValue = terms_consent === 'true' || terms_consent === true ? 1 : 0;
         const privacyPolicyConsentValue = privacy_policy_consent === 'true' || privacy_policy_consent === true ? 1 : 0;
         
-        console.log('💾 사용자 정보 저장 중...', { 
+        Logger.log('💾 사용자 정보 저장 중...', { 
             email, 
             name, 
             phone, 
@@ -483,22 +483,22 @@ app.post('/api/register', [
                 privacyPolicyConsentValue
             ]
         );
-        console.log('✅ 사용자 정보 저장 완료');
+        Logger.log('✅ 사용자 정보 저장 완료');
 
         await connection.end();
 
         // 인증 코드 삭제
         verificationCodes.delete(email);
 
-        console.log(`✅ 회원가입 성공: ${email}`);
+        Logger.log(`✅ 회원가입 성공: ${email}`);
         res.json({
             success: true,
             message: '회원가입이 완료되었습니다.'
         });
 
     } catch (error) {
-        console.error('❌ 회원가입 오류:', error.message);
-        console.error('📋 에러 스택:', error.stack);
+        Logger.error('❌ 회원가입 오류:', error.message);
+        Logger.error('📋 에러 스택:', error.stack);
         res.status(500).json({
             success: false,
             message: '회원가입 중 오류가 발생했습니다.'
@@ -541,11 +541,11 @@ app.post('/api/login', [
 ], async (req, res) => {
     let connection;
     try {
-        console.log('📋 로그인 요청 데이터:', JSON.stringify(req.body, null, 2));
+        Logger.log('📋 로그인 요청 데이터:', JSON.stringify(req.body, null, 2));
         
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            console.log('❌ 유효성 검사 실패:', errors.array());
+            Logger.log('❌ 유효성 검사 실패:', errors.array());
             return res.status(400).json({
                 success: false,
                 message: '이메일과 비밀번호를 확인해주세요.',
@@ -556,20 +556,20 @@ app.post('/api/login', [
         const { email, password } = req.body;
 
         // MySQL 연결
-        console.log('🔗 MySQL 연결 시도 중...');
+        Logger.log('🔗 MySQL 연결 시도 중...');
         connection = await mysql.createConnection(dbConfig);
-        console.log('✅ MySQL 연결 성공');
+        Logger.log('✅ MySQL 연결 성공');
 
         // 사용자 정보 조회
-        console.log('🔍 사용자 정보 조회 중...');
+        Logger.log('🔍 사용자 정보 조회 중...');
         const [users] = await connection.execute(
             'SELECT user_id, membership_id, email, password_hash, name, phone, verified FROM users WHERE email = ?',
             [email]
         );
-        console.log('📧 조회된 사용자 수:', users.length);
+        Logger.log('📧 조회된 사용자 수:', users.length);
 
         if (users.length === 0) {
-            console.log('❌ 사용자를 찾을 수 없음');
+            Logger.log('❌ 사용자를 찾을 수 없음');
             return res.status(401).json({
                 success: false,
                 message: '이메일 또는 비밀번호가 올바르지 않습니다.'
@@ -583,7 +583,7 @@ app.post('/api/login', [
 
         // 이메일 인증 상태 확인
         if (!user.verified) {
-            console.log('❌ 이메일 미인증');
+            Logger.log('❌ 이메일 미인증');
             return res.status(401).json({
                 success: false,
                 message: '이메일 인증이 완료되지 않았습니다.'
@@ -591,11 +591,11 @@ app.post('/api/login', [
         }
 
         // 비밀번호 확인
-        console.log('🔐 비밀번호 확인 중...');
+        Logger.log('🔐 비밀번호 확인 중...');
         const passwordMatch = await bcrypt.compare(password, user.password_hash);
         
         if (!passwordMatch) {
-            console.log('❌ 비밀번호 불일치');
+            Logger.log('❌ 비밀번호 불일치');
             return res.status(401).json({
                 success: false,
                 message: '이메일 또는 비밀번호가 올바르지 않습니다.'
@@ -616,8 +616,8 @@ app.post('/api/login', [
         const { validateReturnTo } = require('./auth-middleware');
         const redirectTo = validateReturnTo(req.body?.returnTo) || '/';
 
-        console.log(`✅ 로그인 성공: ${email}`);
-        console.log(`📋 returnTo 처리:`, { 
+        Logger.log(`✅ 로그인 성공: ${email}`);
+        Logger.log(`📋 returnTo 처리:`, { 
             received: req.body?.returnTo, 
             validated: redirectTo 
         });
@@ -636,8 +636,8 @@ app.post('/api/login', [
         });
 
     } catch (error) {
-        console.error('❌ 로그인 오류:', error.message);
-        console.error('📋 에러 스택:', error.stack);
+        Logger.error('❌ 로그인 오류:', error.message);
+        Logger.error('📋 에러 스택:', error.stack);
         res.status(500).json({
             success: false,
             message: '로그인 중 오류가 발생했습니다.'
@@ -741,25 +741,25 @@ app.post('/api/admin/login', [
 // 개인정보 업데이트 전용 API (간단한 버전)
 app.post('/api/update-profile-simple', async (req, res) => {
     try {
-        console.log('📋 개인정보 업데이트 요청:', JSON.stringify(req.body, null, 2));
+        Logger.log('📋 개인정보 업데이트 요청:', JSON.stringify(req.body, null, 2));
         
         const { email, name } = req.body;
 
         // MySQL 연결
-        console.log('🔗 MySQL 연결 시도 중...');
+        Logger.log('🔗 MySQL 연결 시도 중...');
         const connection = await mysql.createConnection(dbConfig);
-        console.log('✅ MySQL 연결 성공');
+        Logger.log('✅ MySQL 연결 성공');
 
         // 사용자 존재 확인
-        console.log('🔍 사용자 정보 조회 중...');
+        Logger.log('🔍 사용자 정보 조회 중...');
         const [users] = await connection.execute(
             'SELECT user_id FROM users WHERE email = ?',
             [email]
         );
-        console.log('👤 조회된 사용자 수:', users.length);
+        Logger.log('👤 조회된 사용자 수:', users.length);
 
         if (users.length === 0) {
-            console.log('❌ 사용자를 찾을 수 없음');
+            Logger.log('❌ 사용자를 찾을 수 없음');
             await connection.end();
             return res.status(404).json({
                 success: false,
@@ -770,24 +770,24 @@ app.post('/api/update-profile-simple', async (req, res) => {
         const userId = users[0].user_id;
 
         // 개인정보 업데이트 (name만 사용)
-        console.log('📝 개인정보 업데이트 중...', { name });
+        Logger.log('📝 개인정보 업데이트 중...', { name });
         await connection.execute(
             'UPDATE users SET name = ? WHERE user_id = ?',
             [name, userId]
         );
-        console.log('✅ 개인정보 업데이트 완료');
+        Logger.log('✅ 개인정보 업데이트 완료');
 
         await connection.end();
 
-        console.log(`✅ 개인정보 수정 성공: 사용자 ${userId}`);
+        Logger.log(`✅ 개인정보 수정 성공: 사용자 ${userId}`);
         res.json({
             success: true,
             message: '개인정보가 성공적으로 변경되었습니다.'
         });
 
     } catch (error) {
-        console.error('❌ 개인정보 수정 오류:', error.message);
-        console.error('📋 에러 스택:', error.stack);
+        Logger.error('❌ 개인정보 수정 오류:', error.message);
+        Logger.error('📋 에러 스택:', error.stack);
         res.status(500).json({
             success: false,
             message: '개인정보 변경 중 오류가 발생했습니다.'
@@ -798,23 +798,23 @@ app.post('/api/update-profile-simple', async (req, res) => {
 // 개인정보 업데이트 처리 함수
 async function handleProfileUpdate(req, res, { email, name, phone }) {
     try {
-        console.log('📝 개인정보 업데이트 처리 시작');
+        Logger.log('📝 개인정보 업데이트 처리 시작');
         
         // MySQL 연결
-        console.log('🔗 MySQL 연결 시도 중...');
+        Logger.log('🔗 MySQL 연결 시도 중...');
         const connection = await mysql.createConnection(dbConfig);
-        console.log('✅ MySQL 연결 성공');
+        Logger.log('✅ MySQL 연결 성공');
 
         // 사용자 존재 확인
-        console.log('🔍 사용자 정보 조회 중...');
+        Logger.log('🔍 사용자 정보 조회 중...');
         const [users] = await connection.execute(
             'SELECT user_id FROM users WHERE email = ?',
             [email]
         );
-        console.log('👤 조회된 사용자 수:', users.length);
+        Logger.log('👤 조회된 사용자 수:', users.length);
 
         if (users.length === 0) {
-            console.log('❌ 사용자를 찾을 수 없음');
+            Logger.log('❌ 사용자를 찾을 수 없음');
             await connection.end();
             return res.status(404).json({
                 success: false,
@@ -825,24 +825,24 @@ async function handleProfileUpdate(req, res, { email, name, phone }) {
         const userId = users[0].user_id;
 
         // 개인정보 업데이트 (name, phone만 사용)
-        console.log('📝 개인정보 업데이트 중...', { name, phone });
+        Logger.log('📝 개인정보 업데이트 중...', { name, phone });
         await connection.execute(
             'UPDATE users SET name = ?, phone = ? WHERE user_id = ?',
             [name, phone, userId]
         );
-        console.log('✅ 개인정보 업데이트 완료');
+        Logger.log('✅ 개인정보 업데이트 완료');
 
         await connection.end();
 
-        console.log(`✅ 개인정보 수정 성공: 사용자 ${userId}`);
+        Logger.log(`✅ 개인정보 수정 성공: 사용자 ${userId}`);
         res.json({
             success: true,
             message: '개인정보가 성공적으로 변경되었습니다.'
         });
 
     } catch (error) {
-        console.error('❌ 개인정보 수정 오류:', error.message);
-        console.error('📋 에러 스택:', error.stack);
+        Logger.error('❌ 개인정보 수정 오류:', error.message);
+        Logger.error('📋 에러 스택:', error.stack);
         res.status(500).json({
             success: false,
             message: '개인정보 변경 중 오류가 발생했습니다.'
@@ -856,11 +856,11 @@ app.post('/api/update-email', [
     body('newEmail').isEmail().normalizeEmail()
 ], async (req, res) => {
     try {
-        console.log('📋 이메일 수정 요청 데이터:', JSON.stringify(req.body, null, 2));
+        Logger.log('📋 이메일 수정 요청 데이터:', JSON.stringify(req.body, null, 2));
         
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            console.log('❌ 유효성 검사 실패:', errors.array());
+            Logger.log('❌ 유효성 검사 실패:', errors.array());
             return res.status(400).json({
                 success: false,
                 message: '올바른 이메일 주소를 입력해주세요.',
@@ -871,20 +871,20 @@ app.post('/api/update-email', [
         const { userId, newEmail } = req.body;
 
         // MySQL 연결
-        console.log('🔗 MySQL 연결 시도 중...');
+        Logger.log('🔗 MySQL 연결 시도 중...');
         const connection = await mysql.createConnection(dbConfig);
-        console.log('✅ MySQL 연결 성공');
+        Logger.log('✅ MySQL 연결 성공');
 
         // 이메일 중복 확인
-        console.log('🔍 이메일 중복 확인 중...');
+        Logger.log('🔍 이메일 중복 확인 중...');
         const [existingUsers] = await connection.execute(
             'SELECT user_id FROM users WHERE email = ? AND user_id != ?',
             [newEmail, userId]
         );
-        console.log('📧 기존 사용자 수:', existingUsers.length);
+        Logger.log('📧 기존 사용자 수:', existingUsers.length);
 
         if (existingUsers.length > 0) {
-            console.log('❌ 이미 사용 중인 이메일');
+            Logger.log('❌ 이미 사용 중인 이메일');
             await connection.end();
             return res.status(400).json({
                 success: false,
@@ -893,24 +893,24 @@ app.post('/api/update-email', [
         }
 
         // 이메일 업데이트
-        console.log('📧 이메일 업데이트 중...');
+        Logger.log('📧 이메일 업데이트 중...');
         await connection.execute(
             'UPDATE users SET email = ? WHERE user_id = ?',
             [newEmail, userId]
         );
-        console.log('✅ 이메일 업데이트 완료');
+        Logger.log('✅ 이메일 업데이트 완료');
 
         await connection.end();
 
-        console.log(`✅ 이메일 수정 성공: 사용자 ${userId} -> ${newEmail}`);
+        Logger.log(`✅ 이메일 수정 성공: 사용자 ${userId} -> ${newEmail}`);
         res.json({
             success: true,
             message: '이메일이 성공적으로 변경되었습니다.'
         });
 
     } catch (error) {
-        console.error('❌ 이메일 수정 오류:', error.message);
-        console.error('📋 에러 스택:', error.stack);
+        Logger.error('❌ 이메일 수정 오류:', error.message);
+        Logger.error('📋 에러 스택:', error.stack);
         res.status(500).json({
             success: false,
             message: '이메일 변경 중 오류가 발생했습니다.'
@@ -925,11 +925,11 @@ app.post('/api/update-password', [
     body('newPassword').isLength({ min: 8 })
 ], async (req, res) => {
     try {
-        console.log('📋 비밀번호 수정 요청 데이터:', JSON.stringify({...req.body, currentPassword: '[HIDDEN]', newPassword: '[HIDDEN]'}, null, 2));
+        Logger.log('📋 비밀번호 수정 요청 데이터:', JSON.stringify({...req.body, currentPassword: '[HIDDEN]', newPassword: '[HIDDEN]'}, null, 2));
         
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            console.log('❌ 유효성 검사 실패:', errors.array());
+            Logger.log('❌ 유효성 검사 실패:', errors.array());
             return res.status(400).json({
                 success: false,
                 message: '새 비밀번호는 8자 이상이어야 합니다.',
@@ -940,20 +940,20 @@ app.post('/api/update-password', [
         const { userId, currentPassword, newPassword } = req.body;
 
         // MySQL 연결
-        console.log('🔗 MySQL 연결 시도 중...');
+        Logger.log('🔗 MySQL 연결 시도 중...');
         const connection = await mysql.createConnection(dbConfig);
-        console.log('✅ MySQL 연결 성공');
+        Logger.log('✅ MySQL 연결 성공');
 
         // 사용자 정보 조회
-        console.log('🔍 사용자 정보 조회 중...');
+        Logger.log('🔍 사용자 정보 조회 중...');
         const [users] = await connection.execute(
             'SELECT user_id, password_hash FROM users WHERE user_id = ?',
             [userId]
         );
-        console.log('👤 조회된 사용자 수:', users.length);
+        Logger.log('👤 조회된 사용자 수:', users.length);
 
         if (users.length === 0) {
-            console.log('❌ 사용자를 찾을 수 없음');
+            Logger.log('❌ 사용자를 찾을 수 없음');
             await connection.end();
             return res.status(404).json({
                 success: false,
@@ -964,11 +964,11 @@ app.post('/api/update-password', [
         const user = users[0];
 
         // 현재 비밀번호 확인
-        console.log('🔐 현재 비밀번호 확인 중...');
+        Logger.log('🔐 현재 비밀번호 확인 중...');
         const passwordMatch = await bcrypt.compare(currentPassword, user.password_hash);
         
         if (!passwordMatch) {
-            console.log('❌ 현재 비밀번호 불일치');
+            Logger.log('❌ 현재 비밀번호 불일치');
             await connection.end();
             return res.status(401).json({
                 success: false,
@@ -977,30 +977,30 @@ app.post('/api/update-password', [
         }
 
         // 새 비밀번호 해시화
-        console.log('🔐 새 비밀번호 해시화 중...');
+        Logger.log('🔐 새 비밀번호 해시화 중...');
         const saltRounds = 10;
         const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-        console.log('✅ 새 비밀번호 해시화 완료');
+        Logger.log('✅ 새 비밀번호 해시화 완료');
 
         // 비밀번호 업데이트
-        console.log('🔐 비밀번호 업데이트 중...');
+        Logger.log('🔐 비밀번호 업데이트 중...');
         await connection.execute(
             'UPDATE users SET password_hash = ? WHERE user_id = ?',
             [hashedNewPassword, userId]
         );
-        console.log('✅ 비밀번호 업데이트 완료');
+        Logger.log('✅ 비밀번호 업데이트 완료');
 
         await connection.end();
 
-        console.log(`✅ 비밀번호 수정 성공: 사용자 ${userId}`);
+        Logger.log(`✅ 비밀번호 수정 성공: 사용자 ${userId}`);
         res.json({
             success: true,
             message: '비밀번호가 성공적으로 변경되었습니다.'
         });
 
     } catch (error) {
-        console.error('❌ 비밀번호 수정 오류:', error.message);
-        console.error('📋 에러 스택:', error.stack);
+        Logger.error('❌ 비밀번호 수정 오류:', error.message);
+        Logger.error('📋 에러 스택:', error.stack);
         res.status(500).json({
             success: false,
             message: '비밀번호 변경 중 오류가 발생했습니다.'
@@ -1015,11 +1015,11 @@ app.post('/api/update-profile', [
     body('phone').notEmpty().trim()
 ], async (req, res) => {
     try {
-        console.log('📋 개인정보 수정 요청 데이터:', JSON.stringify(req.body, null, 2));
+        Logger.log('📋 개인정보 수정 요청 데이터:', JSON.stringify(req.body, null, 2));
         
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            console.log('❌ 유효성 검사 실패:', errors.array());
+            Logger.log('❌ 유효성 검사 실패:', errors.array());
             return res.status(400).json({
                 success: false,
                 message: '입력 정보를 확인해주세요.',
@@ -1030,20 +1030,20 @@ app.post('/api/update-profile', [
         const { userId, name, phone } = req.body;
 
         // MySQL 연결
-        console.log('🔗 MySQL 연결 시도 중...');
+        Logger.log('🔗 MySQL 연결 시도 중...');
         const connection = await mysql.createConnection(dbConfig);
-        console.log('✅ MySQL 연결 성공');
+        Logger.log('✅ MySQL 연결 성공');
 
         // 사용자 존재 확인
-        console.log('🔍 사용자 존재 확인 중...');
+        Logger.log('🔍 사용자 존재 확인 중...');
         const [users] = await connection.execute(
             'SELECT user_id FROM users WHERE user_id = ?',
             [userId]
         );
-        console.log('👤 조회된 사용자 수:', users.length);
+        Logger.log('👤 조회된 사용자 수:', users.length);
 
         if (users.length === 0) {
-            console.log('❌ 사용자를 찾을 수 없음');
+            Logger.log('❌ 사용자를 찾을 수 없음');
             await connection.end();
             return res.status(404).json({
                 success: false,
@@ -1052,24 +1052,24 @@ app.post('/api/update-profile', [
         }
 
         // 개인정보 업데이트 (name, phone만 사용)
-        console.log('📝 개인정보 업데이트 중...', { name, phone });
+        Logger.log('📝 개인정보 업데이트 중...', { name, phone });
         await connection.execute(
             'UPDATE users SET name = ?, phone = ? WHERE user_id = ?',
             [name, phone, userId]
         );
-        console.log('✅ 개인정보 업데이트 완료');
+        Logger.log('✅ 개인정보 업데이트 완료');
 
         await connection.end();
 
-        console.log(`✅ 개인정보 수정 성공: 사용자 ${userId}`);
+        Logger.log(`✅ 개인정보 수정 성공: 사용자 ${userId}`);
         res.json({
             success: true,
             message: '개인정보가 성공적으로 변경되었습니다.'
         });
 
     } catch (error) {
-        console.error('❌ 개인정보 수정 오류:', error.message);
-        console.error('📋 에러 스택:', error.stack);
+        Logger.error('❌ 개인정보 수정 오류:', error.message);
+        Logger.error('📋 에러 스택:', error.stack);
         res.status(500).json({
             success: false,
             message: '개인정보 변경 중 오류가 발생했습니다.'
@@ -1106,7 +1106,7 @@ app.patch('/api/profile/marketing-consent', authenticateToken, [
             message: marketingConsent ? '브랜드 소식 수신에 동의하셨습니다.' : '브랜드 소식 수신 동의를 해제했습니다.'
         });
     } catch (error) {
-        console.error('마케팅 수신 동의 업데이트 오류:', error);
+        Logger.error('마케팅 수신 동의 업데이트 오류:', error);
         res.status(500).json({
             success: false,
             message: '설정 저장 중 오류가 발생했습니다.'
@@ -1148,7 +1148,7 @@ app.post('/api/wishlist/toggle', authenticateToken, [
                 [userEmail, productId]
             );
             action = 'removed';
-            console.log(`🗑️ 위시리스트에서 제거: ${userEmail} - ${productId}`);
+            Logger.log(`🗑️ 위시리스트에서 제거: ${userEmail} - ${productId}`);
         } else {
             // 추가
             await connection.execute(
@@ -1156,7 +1156,7 @@ app.post('/api/wishlist/toggle', authenticateToken, [
                 [userEmail, productId]
             );
             action = 'added';
-            console.log(`💝 위시리스트에 추가: ${userEmail} - ${productId}`);
+            Logger.log(`💝 위시리스트에 추가: ${userEmail} - ${productId}`);
         }
 
         await connection.end();
@@ -1168,7 +1168,7 @@ app.post('/api/wishlist/toggle', authenticateToken, [
         });
 
     } catch (error) {
-        console.error('❌ 위시리스트 토글 오류:', error.message);
+        Logger.error('❌ 위시리스트 토글 오류:', error.message);
         res.status(500).json({
             success: false,
             message: '위시리스트 처리 중 오류가 발생했습니다.'
@@ -1204,7 +1204,7 @@ app.get('/api/wishlist/check', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ 위시리스트 확인 오류:', error.message);
+        Logger.error('❌ 위시리스트 확인 오류:', error.message);
         res.status(500).json({
             success: false,
             message: '위시리스트 확인 중 오류가 발생했습니다.'
@@ -1226,7 +1226,7 @@ app.get('/api/wishlist', authenticateToken, async (req, res) => {
 
         await connection.end();
 
-        console.log(`📋 위시리스트 조회: ${userEmail} - ${wishlists.length}개 항목`);
+        Logger.log(`📋 위시리스트 조회: ${userEmail} - ${wishlists.length}개 항목`);
 
         res.json({
             success: true,
@@ -1235,7 +1235,7 @@ app.get('/api/wishlist', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ 위시리스트 조회 오류:', error.message);
+        Logger.error('❌ 위시리스트 조회 오류:', error.message);
         res.status(500).json({
             success: false,
             message: '위시리스트 조회 중 오류가 발생했습니다.'
@@ -1276,7 +1276,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('사용자 정보 조회 오류:', error);
+        Logger.error('사용자 정보 조회 오류:', error);
         res.status(500).json({
             success: false,
             message: '사용자 정보 조회 중 오류가 발생했습니다.'
@@ -1349,45 +1349,45 @@ app.listen(PORT, async () => {
     // 프로덕션 환경 validation (서버 시작 후 즉시 체크)
     if (process.env.NODE_ENV === 'production') {
         if (!process.env.WEBHOOK_SHARED_SECRET || process.env.WEBHOOK_SHARED_SECRET === 'your_webhook_secret_here') {
-            console.error('❌ PRODUCTION 환경에서는 WEBHOOK_SHARED_SECRET이 필수입니다!');
-            console.error('❌ .env 파일에 WEBHOOK_SHARED_SECRET을 설정해주세요.');
-            console.error('⚠️  개발 모드로 계속 실행합니다...');
+            Logger.error('❌ PRODUCTION 환경에서는 WEBHOOK_SHARED_SECRET이 필수입니다!');
+            Logger.error('❌ .env 파일에 WEBHOOK_SHARED_SECRET을 설정해주세요.');
+            Logger.error('⚠️  개발 모드로 계속 실행합니다...');
         } else {
-            console.log('✅ 프로덕션 환경 validation 통과');
+            Logger.log('✅ 프로덕션 환경 validation 통과');
         }
     }
     
-    console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
+    Logger.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
     
     // SMTP 연결 테스트
-    console.log('📧 SMTP 서버 연결 테스트 중...');
+    Logger.log('📧 SMTP 서버 연결 테스트 중...');
     const smtpConnected = await testConnection();
     
     if (smtpConnected) {
-        console.log('✅ 이메일 서비스 준비 완료!');
+        Logger.log('✅ 이메일 서비스 준비 완료!');
     } else {
-        console.log('❌ 이메일 서비스 연결 실패 - .env 설정을 확인해주세요.');
+        Logger.log('❌ 이메일 서비스 연결 실패 - .env 설정을 확인해주세요.');
     }
 
         // MySQL 연결 테스트
         try {
-            console.log('🔍 MySQL 연결 설정 디버깅:');
-            console.log(`📋 DB_HOST: ${process.env.DB_HOST}`);
-            console.log(`📋 DB_USER: ${process.env.DB_USER}`);
-            console.log(`📋 DB_PASSWORD: ${process.env.DB_PASSWORD ? '설정됨' : '설정되지 않음'}`);
-            console.log(`📋 DB_NAME: ${process.env.DB_NAME}`);
-            console.log(`📋 DB_PORT: ${process.env.DB_PORT || '3306'}`);
+            Logger.log('🔍 MySQL 연결 설정 디버깅:');
+            Logger.log(`📋 DB_HOST: ${process.env.DB_HOST}`);
+            Logger.log(`📋 DB_USER: ${process.env.DB_USER}`);
+            Logger.log(`📋 DB_PASSWORD: ${process.env.DB_PASSWORD ? '설정됨' : '설정되지 않음'}`);
+            Logger.log(`📋 DB_NAME: ${process.env.DB_NAME}`);
+            Logger.log(`📋 DB_PORT: ${process.env.DB_PORT || '3306'}`);
             
             const connection = await mysql.createConnection(dbConfig);
             await connection.ping();
-            console.log('✅ MySQL 연결 성공!');
+            Logger.log('✅ MySQL 연결 성공!');
             await connection.end();
         } catch (error) {
-            console.log('❌ MySQL 연결 실패: 데이터베이스 연결을 확인해주세요');
-            console.log('📋 에러 상세:', JSON.stringify(error, null, 2));
-            console.log('🔍 에러 메시지:', error.message);
-            console.log('📍 에러 스택:', error.stack);
-            console.log('🔧 연결 설정:', JSON.stringify(dbConfig, null, 2));
+            Logger.log('❌ MySQL 연결 실패: 데이터베이스 연결을 확인해주세요');
+            Logger.log('📋 에러 상세:', JSON.stringify(error, null, 2));
+            Logger.log('🔍 에러 메시지:', error.message);
+            Logger.log('📍 에러 스택:', error.stack);
+            Logger.log('🔧 연결 설정:', JSON.stringify(dbConfig, null, 2));
         }
 
     // Idempotency 정리 배치 (매일 자정에 실행)
@@ -1395,11 +1395,11 @@ app.listen(PORT, async () => {
         try {
             await cleanupIdempotency();
         } catch (error) {
-            console.error('❌ Idempotency 정리 배치 실행 오류:', error.message);
+            Logger.error('❌ Idempotency 정리 배치 실행 오류:', error.message);
         }
     }, 24 * 60 * 60 * 1000); // 24시간마다 실행
     
-    console.log('✅ Idempotency 정리 배치 스케줄러 등록 완료 (24시간마다 실행)');
+    Logger.log('✅ Idempotency 정리 배치 스케줄러 등록 완료 (24시간마다 실행)');
 
     // 양도 만료 배치 (1시간마다 실행)
     setInterval(async () => {
@@ -1484,20 +1484,23 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
     let countQuery;
     let countParams;
     try {
-        const { 
-            status, 
-            search, 
-            date_from, 
-            date_to, 
-            limit = 50, 
-            offset = 0 
+        const {
+            status,
+            date_from,
+            date_to,
+            limit = 50,
+            offset = 0
         } = req.query;
+        const searchTrimmed = (req.query.search != null ? String(req.query.search) : '').trim();
+        if (req.query.search !== undefined && req.query.search !== null && searchTrimmed === '') {
+            return res.status(400).json({ success: false, message: '검색어가 비어 있습니다.' });
+        }
 
         const limitParsed = parseInt(limit, 10);
         const offsetParsed = parseInt(offset, 10);
         const limitNum = Number.isInteger(limitParsed) && limitParsed > 0 ? Math.min(limitParsed, 200) : 50;
         const offsetNum = Number.isInteger(offsetParsed) && offsetParsed >= 0 ? offsetParsed : 0;
-        
+
         connection = await mysql.createConnection(dbConfig);
         
         // 기본 쿼리 (실제 DB 컬럼명에 맞춤, guest_id 및 shipping_email 추가)
@@ -1532,9 +1535,9 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
             params.push(status);
         }
         
-        if (search) {
+        if (searchTrimmed) {
             query += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR o.shipping_email LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
-            const searchPattern = `%${search}%`;
+            const searchPattern = `%${searchTrimmed}%`;
             params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
         }
         
@@ -1579,9 +1582,9 @@ app.get('/api/admin/orders', authenticateToken, requireAdmin, async (req, res) =
             countParams.push(status);
         }
         
-        if (search) {
+        if (searchTrimmed) {
             countQuery += ' AND (o.order_number LIKE ? OR o.shipping_name LIKE ? OR o.shipping_email LIKE ? OR u.name LIKE ? OR u.email LIKE ?)';
-            const searchPattern = `%${search}%`;
+            const searchPattern = `%${searchTrimmed}%`;
             countParams.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
         }
         

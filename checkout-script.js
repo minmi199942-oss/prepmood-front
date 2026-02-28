@@ -44,8 +44,8 @@ const API_BASE = (window.API_BASE)
       : '/api');
 
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('💳 체크아웃 페이지 로드됨');
-  console.log(`🔧 결제 모드: ${window.__PAYMENT_MODE__}`);
+  Logger.log('💳 체크아웃 페이지 로드됨');
+  Logger.log(`🔧 결제 모드: ${window.__PAYMENT_MODE__}`);
 
   // 개발 환경: 인증 UI(발송 안내·인증 블록)를 처음부터 표시해 디자인 수정 가능하도록
   const isDevForDesign = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || (typeof URLSearchParams !== 'undefined' && new URLSearchParams(window.location.search).get('dev') === '1');
@@ -75,24 +75,24 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function initializeCheckoutPage() {
-  console.log('💳 체크아웃 페이지 초기화 시작');
-  console.log('🔍 window.miniCart:', window.miniCart);
+  Logger.log('💳 체크아웃 페이지 초기화 시작');
+  Logger.log('🔍 window.miniCart:', window.miniCart);
   
   // miniCart가 있는지 확인
   if (!window.miniCart) {
-    console.error('❌ miniCart가 없습니다!');
+    Logger.error('❌ miniCart가 없습니다!');
     alert('장바구니를 불러올 수 없습니다.');
     window.location.href = 'cart.html';
     return;
   }
   
   // 로그인 상태 다시 확인 (비회원 주문 지원)
-  console.log('🔍 현재 로그인 상태 (초기):', window.miniCart.isLoggedIn);
+  Logger.log('🔍 현재 로그인 상태 (초기):', window.miniCart.isLoggedIn);
   await window.miniCart.checkLoginStatus();
-  console.log('🔍 현재 로그인 상태 (확인 후):', window.miniCart.isLoggedIn);
+  Logger.log('🔍 현재 로그인 상태 (확인 후):', window.miniCart.isLoggedIn);
   
   // ⚠️ 로그인 여부와 관계없이 장바구니 로드 (회원: 서버, 비회원: localStorage)
-  console.log('🔄 장바구니 다시 로드...');
+  Logger.log('🔄 장바구니 다시 로드...');
   await window.miniCart.loadCartFromServer();
   
   // 미니카트에서 장바구니 아이템 가져오기
@@ -107,12 +107,12 @@ async function initializeCheckoutPage() {
         cartItems = cartItems.filter(item => idSet.has(String(item.item_id || item.id)));
       }
     } catch (e) {
-      console.warn('pm_checkout_selected_ids 파싱 실패:', e);
+      Logger.warn('pm_checkout_selected_ids 파싱 실패:', e);
     }
   }
-  console.log('📦 miniCart에서 장바구니 가져옴:', cartItems);
-  console.log('📦 장바구니 길이:', cartItems.length);
-  console.log('📦 장바구니 아이템 구조 확인:', cartItems.map(item => ({
+  Logger.log('📦 miniCart에서 장바구니 가져옴:', cartItems);
+  Logger.log('📦 장바구니 길이:', cartItems.length);
+  Logger.log('📦 장바구니 아이템 구조 확인:', cartItems.map(item => ({
     product_id: item.product_id,
     id: item.id,
     quantity: item.quantity,
@@ -123,12 +123,12 @@ async function initializeCheckoutPage() {
   const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   if (!cartItems || cartItems.length === 0) {
     if (!isDev) {
-      console.warn('⚠️ 선택한 항목이 없거나 장바구니가 비어있음');
+      Logger.warn('⚠️ 선택한 항목이 없거나 장바구니가 비어있음');
       alert('선택한 항목이 없습니다. 장바구니에서 주문할 상품을 선택해주세요.');
       window.location.href = 'cart.html';
       return;
     }
-    console.warn('⚠️ [개발] 장바구니 비어있음 - 체크아웃 페이지 표시 허용');
+    Logger.warn('⚠️ [개발] 장바구니 비어있음 - 체크아웃 페이지 표시 허용');
   }
 
   // 주문 아이템 렌더링
@@ -139,7 +139,9 @@ async function initializeCheckoutPage() {
   
   // 사용자 정보 자동 입력
   await fillUserInfo();
-  
+  // 결제 페이지에서 "1. 배송"·"수정"으로 돌아온 경우 저장된 배송 정보로 폼 복원
+  restoreCheckoutFormFromSession();
+
   // 현재 선택된 국가에 따라 규칙 설정
   const countrySelect = document.getElementById('country');
   if (countrySelect) {
@@ -169,7 +171,7 @@ async function initializeCheckoutPage() {
   // 한국일 때 전화번호 자동 하이픈 적용 (초기화 마지막에 한 번 더 적용)
   syncPhoneAutoFormat();
   
-  console.log('✅ 체크아웃 페이지 초기화 완료');
+  Logger.log('✅ 체크아웃 페이지 초기화 완료');
 }
 
 // 국가 변경 이벤트 리스너 설정
@@ -180,7 +182,7 @@ function setupCountryChangeListener() {
       const selectedCountry = countrySelect.value;
       currentCountryRule = COUNTRY_RULES[selectedCountry] || COUNTRY_RULES.KR;
       
-      console.log('🌍 국가 변경:', selectedCountry, currentCountryRule);
+      Logger.log('🌍 국가 변경:', selectedCountry, currentCountryRule);
       
       // postalCode placeholder 및 title 업데이트
       const postalCodeInput = document.getElementById('postalCode');
@@ -287,6 +289,38 @@ function getFullAddress() {
   return base ? base + ' ' + extra : extra;
 }
 
+/** 결제 페이지에서 "1. 배송" 또는 "수정"으로 돌아왔을 때, sessionStorage의 배송 정보로 폼 복원 */
+function restoreCheckoutFormFromSession() {
+  try {
+    var raw = sessionStorage.getItem('checkoutShippingData');
+    if (!raw) return;
+    var data = JSON.parse(raw);
+    var s = data && data.shipping;
+    if (!s) return;
+    var nameEl = document.getElementById('name');
+    if (nameEl && (s.recipient_name || s.recipient_first_name || s.recipient_last_name)) {
+      nameEl.value = (s.recipient_name || [s.recipient_first_name, s.recipient_last_name].filter(Boolean).join(' ')).trim();
+    }
+    var emailEl = document.getElementById('email');
+    if (emailEl && s.email) emailEl.value = s.email;
+    var phoneEl = document.getElementById('phone');
+    if (phoneEl && s.phone) phoneEl.value = s.phone;
+    var addressEl = document.getElementById('address');
+    if (addressEl && s.address) addressEl.value = s.address;
+    var detailEl = document.getElementById('addressDetail');
+    if (detailEl && s.addressDetail) detailEl.value = s.addressDetail;
+    var cityEl = document.getElementById('city');
+    if (cityEl && s.city) cityEl.value = s.city;
+    var postalEl = document.getElementById('postalCode');
+    if (postalEl && s.postal_code) postalEl.value = s.postal_code;
+    var countryEl = document.getElementById('country');
+    if (countryEl && s.country) countryEl.value = s.country;
+    updateCheckoutCTAState();
+  } catch (e) {
+    Logger.warn('restoreCheckoutFormFromSession:', e);
+  }
+}
+
 async function fillUserInfo() {
   window.__checkout_is_logged_in__ = false;
   try {
@@ -317,7 +351,7 @@ async function fillUserInfo() {
         const verifyBlock = document.getElementById('checkout-email-verify-block');
         if (verifyBlock) verifyBlock.style.display = 'none';
         window.__checkout_is_logged_in__ = true;
-        console.log('✅ 사용자 정보 자동 입력 완료 (회원, 이메일 읽기 전용)');
+        Logger.log('✅ 사용자 정보 자동 입력 완료 (회원, 이메일 읽기 전용)');
       } else {
         window.__checkout_is_logged_in__ = false;
       }
@@ -325,7 +359,7 @@ async function fillUserInfo() {
       window.__checkout_is_logged_in__ = false;
     }
   } catch (error) {
-    console.error('❌ 사용자 정보 가져오기 실패:', error);
+    Logger.error('❌ 사용자 정보 가져오기 실패:', error);
     window.__checkout_is_logged_in__ = false;
   }
   var emailBtnWrap = document.getElementById('checkout-email-btn-wrap');
@@ -335,8 +369,8 @@ async function fillUserInfo() {
 
 
 function renderOrderItems(cartItems) {
-  console.log('🎨 주문 아이템 렌더링 시작');
-  console.log('📦 주문 아이템:', cartItems);
+  Logger.log('🎨 주문 아이템 렌더링 시작');
+  Logger.log('📦 주문 아이템:', cartItems);
   
   const orderItemsContainer = document.getElementById('order-items');
   const subtotalElement = document.getElementById('subtotal');
@@ -369,7 +403,7 @@ function renderOrderItems(cartItems) {
       `;
       if (subtotalElement) subtotalElement.textContent = formatPrice(25000);
       if (totalElement) totalElement.textContent = formatPrice(25000);
-      console.log('🎨 개발 환경: 주문 아이템 비어 있음 — hat.jpg 샘플 표시');
+      Logger.log('🎨 개발 환경: 주문 아이템 비어 있음 — hat.jpg 샘플 표시');
       return;
     }
     orderItemsContainer.innerHTML = cartItems.map(item => {
@@ -404,7 +438,7 @@ function renderOrderItems(cartItems) {
     }).join('');
   }
   
-  console.log('✅ 주문 아이템 렌더링 완료');
+  Logger.log('✅ 주문 아이템 렌더링 완료');
 }
 
 function bindEventListeners(cartItems) {
@@ -542,11 +576,11 @@ function formatCVV(e) {
 }
 
 async function handleCompleteOrder() {
-  console.log('✅ 1단계: 배송 정보 확인');
+  Logger.log('✅ 1단계: 배송 정보 확인');
   
   const completeOrderBtn = document.getElementById('complete-order-btn');
   if (completeOrderBtn && completeOrderBtn.disabled) {
-    console.warn('⚠️ 이미 처리 중입니다. 중복 클릭 무시');
+    Logger.warn('⚠️ 이미 처리 중입니다. 중복 클릭 무시');
     return;
   }
   
@@ -589,10 +623,10 @@ async function handleCompleteOrder() {
   if (!isLoggedIn) {
     shippingData.email_verified = true;
   }
-  console.log('📋 배송 데이터:', shippingData);
+  Logger.log('📋 배송 데이터:', shippingData);
   
   sessionStorage.setItem('checkoutShippingData', JSON.stringify(shippingData));
-  window.location.href = 'checkout-review.html';
+  window.location.href = 'checkout-payment.html';
 }
 
 function getCheckoutEmailVerified() {
@@ -1017,30 +1051,7 @@ function collectShippingData() {
   };
 }
 
-function collectOrderData() {
-  const cartItems = window.checkoutCartItems || [];
-  const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-  return {
-    items: cartItems,
-    shipping: {
-      recipient_name: document.getElementById('name').value.trim(),
-      email: document.getElementById('email').value,
-      phone: document.getElementById('phone').value,
-      address: getFullAddress(),
-      city: document.getElementById('city').value,
-      postal_code: document.getElementById('postalCode').value,
-      country: document.getElementById('country').value,
-      method: 'standard',
-      cost: 0,
-      note: ''
-    },
-    // payment 필드 제거 (현재 MOCK 모드에서 사용 안 함, 향후 토스 위젯으로 대체)
-    payment: {},
-    total: totalPrice,
-    orderDate: new Date().toISOString()
-  };
-}
+// collectOrderData 제거 (9.6): 배송 수집은 collectShippingData() 단일 소스 사용. 필요 시 반환값에 payment: {} 추가.
 
 function validateForms() {
   const requiredFields = [
@@ -1089,10 +1100,10 @@ async function processPayment(orderData) {
   }
   
   const idemKey = uuidv4();
-  console.log('🔑 Idempotency Key 생성:', idemKey);
+  Logger.log('🔑 Idempotency Key 생성:', idemKey.length >= 8 ? idemKey.substring(0, 4) + '…' + idemKey.slice(-4) : '***');
   
   try {
-      console.log('💳 주문 생성 API 호출 중...');
+      Logger.log('💳 주문 생성 API 호출 중...');
       
       // 주문 payload 생성 (SSOT 함수 사용)
       if (!window.createOrderPayload) {
@@ -1101,7 +1112,7 @@ async function processPayment(orderData) {
       
       const requestPayload = window.createOrderPayload(orderData.items, orderData.shipping);
       
-      console.log('📤 전송할 데이터:', {
+      Logger.log('📤 전송할 데이터:', {
         items: requestPayload.items,
         shippingKeys: Object.keys(requestPayload.shipping),
         addressLength: requestPayload.shipping.address?.length || 0
@@ -1133,7 +1144,7 @@ async function processPayment(orderData) {
         errorData = { message: '알 수 없는 오류가 발생했습니다.' };
       }
 
-      console.error('❌ 서버 응답 에러:', {
+      Logger.error('❌ 서버 응답 에러:', {
         status: response.status,
         statusText: response.statusText,
         error: errorData
@@ -1141,13 +1152,34 @@ async function processPayment(orderData) {
 
       // 409 에러는 중복 요청 → 자동으로 주문 내역 페이지로 이동
       if (response.status === 409) {
-        console.log('⚠️ 중복 주문 감지 → 주문 내역 페이지로 이동');
+        Logger.log('⚠️ 중복 주문 감지 → 주문 내역 페이지로 이동');
         // 리다이렉트 전 버튼 복구 (사용자가 뒤로가기 시 대비)
         if (completeOrderBtn) {
           completeOrderBtn.disabled = false;
           completeOrderBtn.textContent = originalBtnText;
         }
         window.location.href = 'my-orders.html?notice=duplicated';
+        return;
+      }
+
+      // 500 + ORDER_ITEMS_MISMATCH: 주문 항목 수 불일치 → 전용 멘트 후 장바구니로 이동
+      if (response.status === 500 && errorData.code === 'ORDER_ITEMS_MISMATCH') {
+        const mismatchMessage = '선택하신 상품 중 일부의 정보가 변경되어 주문을 완료할 수 없습니다. 최신 상태가 반영된 장바구니로 이동하여 다시 확인해 주세요.';
+        if (completeOrderBtn) {
+          completeOrderBtn.disabled = false;
+          completeOrderBtn.textContent = originalBtnText;
+        }
+        if (window.showGlobalErrorBanner) {
+          window.showGlobalErrorBanner({
+            title: '장바구니 확인',
+            message: mismatchMessage,
+            retryLabel: '장바구니로 이동',
+            onRetry: function() { window.location.href = 'cart.html'; }
+          });
+        } else {
+          alert(mismatchMessage);
+          window.location.href = 'cart.html';
+        }
         return;
       }
 
@@ -1197,7 +1229,7 @@ async function processPayment(orderData) {
     }
     
     const result = await response.json();
-    console.log('✅ 주문 생성 성공:', result);
+    Logger.log('✅ 주문 생성 성공:', result);
     
     // 서버 응답에서 통화 정보 추출
     const serverCurrency = result.data?.currency || 'KRW';
@@ -1211,7 +1243,7 @@ async function processPayment(orderData) {
       eta: serverEta
     };
     sessionStorage.setItem('serverCurrencyInfo', JSON.stringify(info));
-    console.log('💾 서버 통화 정보 세션스토리지 저장:', info);
+    Logger.log('💾 서버 통화 정보 세션스토리지 저장:', info);
     
     // 서버 통화 정보를 전역 변수로도 저장 (가격 표시용)
     window.serverCurrencyInfo = info;
@@ -1228,16 +1260,21 @@ async function processPayment(orderData) {
     window.location.href = `order-complete.html?orderId=${orderId}${etaParam}`;
     
   } catch (error) {
-    console.error('❌ 주문 생성 실패:', error);
-    
-    // 사용자 친화적 에러 메시지
+    Logger.error('❌ 주문 생성 실패:', error);
+
+    // 사용자 친화적 에러 메시지 (createOrderPayload 검증 실패 시 통일 메시지)
     let errorMessage = '주문 생성에 실패했습니다. 잠시 후 다시 시도해주세요.';
     if (error.message && !error.message.includes('주문 생성에 실패했습니다')) {
       errorMessage = error.message;
     }
+    const isPayloadValidationError = /주문할 수 없습니다|유효하지 않아|유효한 상품|배송 정보가 필요합니다/.test(errorMessage);
+    if (isPayloadValidationError) {
+      errorMessage = '일부 상품 정보가 만료되었거나 올바르지 않습니다. 장바구니를 확인해 주세요.';
+    }
+    const bannerTitle = isPayloadValidationError ? '장바구니 확인' : '주문 생성 실패';
     if (window.showGlobalErrorBanner) {
       window.showGlobalErrorBanner({
-        title: '주문 생성 실패',
+        title: bannerTitle,
         message: errorMessage,
         onRetry: () => {
           const btn = document.getElementById('complete-order-btn');
@@ -1273,7 +1310,7 @@ function formatPrice(price) {
         maximumFractionDigits: info.fraction
       }).format(price);
     } catch (e) {
-      console.warn('세션스토리지 파싱 오류:', e);
+      Logger.warn('세션스토리지 파싱 오류:', e);
     }
   }
   

@@ -18,7 +18,7 @@
   window.initHeaderScroll = function() {
     const header = document.querySelector('header.main-header');
     if (!header) {
-      console.warn('header-scroll.js: header.main-header를 찾을 수 없습니다.');
+      Logger.warn('header-scroll.js: header.main-header를 찾을 수 없습니다.');
       return false;
     }
 

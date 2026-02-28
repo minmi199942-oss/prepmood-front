@@ -6,7 +6,7 @@ const API_BASE = window.API_BASE ||
     : '/api');
 
 document.addEventListener('DOMContentLoaded', async function() {
-  console.log('주문 내역 페이지 로드됨');
+  Logger.log('주문 내역 페이지 로드됨');
   
   // 로그인 상태 확인
   const userInfo = await checkLoginStatus();
@@ -33,7 +33,7 @@ async function checkLoginStatus() {
     }
     return null;
   } catch (error) {
-    console.error('로그인 상태 확인 오류:', error);
+    Logger.error('로그인 상태 확인 오류:', error);
     return null;
   }
 }
@@ -57,7 +57,7 @@ async function loadOrders() {
       renderOrders([]);
     }
   } catch (error) {
-    console.error('주문 내역 로드 오류:', error);
+    Logger.error('주문 내역 로드 오류:', error);
     renderOrders([]);
   }
 }
@@ -67,7 +67,7 @@ function renderOrders(orders) {
   const noOrders = document.getElementById('no-orders');
   
   if (!ordersList || !noOrders) {
-    console.error('주문 내역 컨테이너를 찾을 수 없습니다.');
+    Logger.error('주문 내역 컨테이너를 찾을 수 없습니다.');
     return;
   }
 

@@ -67,6 +67,36 @@
   padding-top: 24px;
 }
 
+/* checkout.html 좌측: "배송 정보" 제목(.section-title) 제외하고 1px 축소 */
+.checkout-container .checkout-form-section .form-group label {
+  font-size: 13px;
+}
+.checkout-container .checkout-form-section .form-group input {
+  font-size: 13px;
+}
+.checkout-container .checkout-form-section .form-group select {
+  font-size: 13px;
+}
+.checkout-container .checkout-form-section .error-message {
+  font-size: 12px;
+}
+/* complete-order-btn 기본이 12px이므로 동일 */
+.checkout-container .checkout-form-section .complete-order-btn {
+  font-size: 12px;
+}
+.checkout-container .checkout-form-section .checkout-email-sent-hint {
+  font-size: 11px;
+}
+/* 확인 버튼과 동일: font-size 12px, font-weight 500 */
+.checkout-container .checkout-form-section .checkout-email-row .checkout-email-btn-wrap .btn-secondary,
+.checkout-container .checkout-form-section .checkout-address-row .checkout-address-btn-wrap .btn-secondary {
+  font-size: 12px;
+  font-weight: 500;
+}
+.checkout-container .checkout-form-section .checkout-verify-success-hint {
+  font-size: 12px;
+}
+
 /* checkout-review 등 다른 페이지용 (checkout.html에서는 배송 정보만 표시) */
 .checkout-header {
   border-bottom: 1px solid #eee;
@@ -94,10 +124,29 @@
   margin: 0;
 }
 
-/* checkout-review: 배송 정보 확인(이름~국가) — checkout.html 폼 라벨/입력과 동일 14px */
-#shipping-info-review {
+/* checkout-review·checkout: 배송 정보 제목 1px 축소 */
+.checkout-container .form-section .section-title {
   font-size: 14px;
+}
+
+/* checkout-review: 배송 정보 확인(이름~국가) 1px 축소 */
+#shipping-info-review {
+  font-size: 13px;
   line-height: 1.6;
+}
+
+/* checkout-payment: 좌측 배송 정보 (review와 동일 스타일) */
+#shipping-info-payment-left {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+#shipping-info-payment-left p {
+  margin: 0 0 6px 0;
+}
+
+#shipping-info-payment-left p:last-child {
+  margin-bottom: 0;
 }
 
 #shipping-info-review p {
@@ -236,16 +285,19 @@
   text-align: left;
 }
 
-/* cart.html .checkout-btn와 동일 크기 (padding 12px 24px, font-size 14px) */
+/* cart .checkout-btn·login 버튼과 동일: 높이 44px, 12px, 500 (결제 카드와 동일 높이) */
 .complete-order-btn {
   width: 100%;
-  padding: 12px 24px;
+  height: 44px;
+  padding: 0 24px;
+  box-sizing: border-box;
   background-color: #111;
   color: #fff;
   border: none;
   border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 44px;
   cursor: pointer;
   transition: background-color 0.2s ease;
   font-family: inherit;
@@ -296,12 +348,12 @@
 .checkout-container .order-summary .summary-row {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: 13px;
   color: #333;
 }
 
 .checkout-container .order-summary .summary-row.summary-total {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #111;
   padding-bottom: 12px;
@@ -319,7 +371,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  font-size: 13px;
   color: #111;
   cursor: pointer;
   padding: 8px 0;
@@ -330,7 +382,7 @@
 }
 
 .checkout-container .order-summary .chevron {
-  font-size: 12px;
+  font-size: 11px;
   color: #999;
 }
 
@@ -371,7 +423,7 @@
 }
 
 .checkout-container .order-summary .order-items .cart-item-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #111;
   line-height: 1.4;
@@ -384,7 +436,7 @@
 }
 
 .checkout-container .order-summary .order-items .cart-item-option {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #333;
   margin: 0;
@@ -399,7 +451,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   color: #333;
 }
 
@@ -408,7 +460,7 @@
 }
 
 .checkout-container .order-summary .order-items .cart-item-price {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #111;
   flex-shrink: 0;
@@ -421,6 +473,11 @@
   font-weight: 600;
   color: #111;
   margin: 0;
+}
+
+/* 우측 order-summary 영역만 제목 1px 축소 (checkout-review 등) */
+.checkout-container .order-summary .summary-title {
+  font-size: 14px;
 }
 
 /* ===== 주문 아이템 (결제 페이지 등) ===== */
@@ -747,15 +804,19 @@
   pointer-events: none;
 }
 
+/* 확인 및 진행 버튼과 동일 세로 크기: 고정 44px (버튼과 동일). gap 없이 margin으로 원-텍스트 간격만 제어 */
 .payment-card-content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: clamp(16px, 3vw, 32px);
+  justify-content: flex-start;
+  gap: 0;
   width: 100%;
-  padding: 18px 24px;
+  height: 44px;
+  max-height: 44px;
+  padding: 0 24px;
+  box-sizing: border-box;
   border: 1px solid #d9d9d9;
-  border-radius: 0;
+  border-radius: 4px;
   background: transparent;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
@@ -769,27 +830,22 @@
   outline-offset: 2px;
 }
 
+/* 비선택: 텅 빈 원, 선택: 같은 크기의 검은색 원 */
 .payment-radio {
-  width: 18px;
-  height: 18px;
+  width: 10px;
+  height: 10px;
   border: 1px solid #b5b5b5;
   border-radius: 50%;
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-right: 18px;
-  transition: border-color 0.2s ease;
+  margin-right: 0;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  flex-shrink: 0;
 }
 
-.payment-radio::after {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #111;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
+/* 선택 시 같은 크기 원 전체 검은색 (::after 점 사용 안 함) */
 
 .payment-option-card input[type="radio"]:checked + .payment-card-content {
   border-color: #111;
@@ -797,30 +853,47 @@
   background: #fff;
 }
 
+/* 선택된 카드만: 같은 크기 원 전체가 검은색 */
 .payment-option-card input[type="radio"]:checked + .payment-card-content .payment-radio {
   border-color: #111;
+  background: #111;
 }
 
-.payment-option-card input[type="radio"]:checked + .payment-card-content .payment-radio::after {
-  opacity: 1;
-}
-
+/* 원(라디오)과 간격, 이름은 좌측·부가 텍스트는 우측 정렬 */
 .payment-name {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.2;
+  margin-left: 8px;
 }
 
 .payment-name strong {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   color: #111;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .payment-name span {
-  font-size: 13px;
+  font-size: 11px;
   color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: auto;
+  text-align: right;
+}
+
+/* 결제 카드 우측 로고/이미지 숨김 */
+.payment-card-content .payment-logo {
+  display: none;
 }
 
 .payment-logo {
@@ -849,6 +922,25 @@
   height: 24px;
   object-fit: contain;
   flex-shrink: 0;
+}
+
+.payment-badge {
+  color: #999;
+  font-size: 11px;
+}
+
+.payment-logo-text {
+  font-size: 12px;
+  color: #333;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* 결제 페이지: 좌측 form-section 내 결제 정보 영역 (checkout-container 사용 시) */
+.checkout-container .form-section-payment .payment-methods-wrapper {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 /* 확인 및 진행 버튼 (데스크톱) */
@@ -1254,8 +1346,8 @@
   min-width: 125px;
   min-height: 0;
   padding: 10px 14px 8px;  /* input과 동일한 상하 패딩(10px 0 8px) */
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.2;
   background: #111;
   color: #fff;
@@ -1321,8 +1413,8 @@
   min-width: 100px;
   min-height: 0;
   padding: 10px 14px 8px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.2;
   background: #111;
   color: #fff;

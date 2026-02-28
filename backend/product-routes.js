@@ -174,7 +174,7 @@ router.get('/products', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('❌ 상품 목록 조회 오류:', error);
+        Logger.error('❌ 상품 목록 조회 오류:', error);
         res.status(500).json({
             success: false,
             message: '상품 목록을 불러오는데 실패했습니다.'
@@ -450,7 +450,7 @@ router.get('/products/options', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('❌ 상품 옵션 조회 오류:', error);
+        Logger.error('❌ 상품 옵션 조회 오류:', error);
         res.status(500).json({
             success: false,
             message: '상품 옵션을 불러오는데 실패했습니다.'
@@ -498,7 +498,7 @@ router.get('/products/stock-count', async (req, res) => {
         res.json({ success: true, available_count: availableCount });
     } catch (error) {
         if (connection) await connection.end();
-        console.error('❌ 재고 수량 조회 오류:', error);
+        Logger.error('❌ 재고 수량 조회 오류:', error);
         res.status(500).json({ success: false, message: '재고 수량 조회에 실패했습니다.' });
     }
 });
@@ -532,7 +532,7 @@ router.get('/products/:id', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('❌ 상품 조회 오류:', error);
+        Logger.error('❌ 상품 조회 오류:', error);
         res.status(500).json({
             success: false,
             message: '상품을 불러오는데 실패했습니다.'
@@ -557,7 +557,7 @@ router.post('/admin/upload-image', authenticateToken, requireAdmin, upload.singl
         // 이미지 URL 생성
         const imageUrl = `/uploads/products/${req.file.filename}`;
         
-        console.log('✅ 이미지 업로드 성공:', imageUrl);
+        Logger.log('✅ 이미지 업로드 성공:', imageUrl);
         
         res.json({
             success: true,
@@ -566,7 +566,7 @@ router.post('/admin/upload-image', authenticateToken, requireAdmin, upload.singl
         });
         
     } catch (error) {
-        console.error('❌ 이미지 업로드 오류:', error);
+        Logger.error('❌ 이미지 업로드 오류:', error);
         res.status(500).json({
             success: false,
             message: '이미지 업로드에 실패했습니다.'
@@ -675,7 +675,7 @@ router.post('/admin/products', authenticateToken, requireAdmin, async (req, res)
             [id, name, price, image || null, collectionYear, category, normalizedType, description || null]
         );
         
-        console.log('✅ 상품 추가 성공:', id, name);
+        Logger.log('✅ 상품 추가 성공:', id, name);
         
         res.json({
             success: true,
@@ -684,7 +684,7 @@ router.post('/admin/products', authenticateToken, requireAdmin, async (req, res)
         });
         
     } catch (error) {
-        console.error('❌ 상품 추가 오류:', error);
+        Logger.error('❌ 상품 추가 오류:', error);
         res.status(500).json({
             success: false,
             message: '상품 추가에 실패했습니다.'
@@ -795,7 +795,7 @@ router.put('/admin/products/:id', authenticateToken, requireAdmin, async (req, r
             [name, price, image || null, collectionYear, category, normalizedType, description || null, id]
         );
         
-        console.log('✅ 상품 수정 성공:', id, name);
+        Logger.log('✅ 상품 수정 성공:', id, name);
         
         res.json({
             success: true,
@@ -803,7 +803,7 @@ router.put('/admin/products/:id', authenticateToken, requireAdmin, async (req, r
         });
         
     } catch (error) {
-        console.error('❌ 상품 수정 오류:', error);
+        Logger.error('❌ 상품 수정 오류:', error);
         res.status(500).json({
             success: false,
             message: '상품 수정에 실패했습니다.'
@@ -846,13 +846,13 @@ router.delete('/admin/products/:id', authenticateToken, requireAdmin, async (req
             try {
                 const imagePath = path.join(__dirname, '..', imageUrl);
                 await fs.unlink(imagePath);
-                console.log('🗑️ 이미지 파일 삭제:', imageUrl);
+                Logger.log('🗑️ 이미지 파일 삭제:', imageUrl);
             } catch (error) {
-                console.warn('⚠️ 이미지 파일 삭제 실패:', error.message);
+                Logger.warn('⚠️ 이미지 파일 삭제 실패:', error.message);
             }
         }
         
-        console.log('✅ 상품 삭제 성공:', id);
+        Logger.log('✅ 상품 삭제 성공:', id);
         
         res.json({
             success: true,
@@ -860,7 +860,7 @@ router.delete('/admin/products/:id', authenticateToken, requireAdmin, async (req
         });
         
     } catch (error) {
-        console.error('❌ 상품 삭제 오류:', error);
+        Logger.error('❌ 상품 삭제 오류:', error);
         res.status(500).json({
             success: false,
             message: '상품 삭제에 실패했습니다.'

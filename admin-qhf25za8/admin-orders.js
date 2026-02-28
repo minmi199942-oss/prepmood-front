@@ -3,6 +3,8 @@
 (function() {
   'use strict';
 
+  const Logger = window.Logger || { log: function(){}, warn: function(){}, error: function(){ if (window.console && window.console.error) window.console.error.apply(window.console, arguments); } };
+
   // API 설정
   const API_BASE = (window.API_BASE) 
     ? window.API_BASE 
@@ -128,11 +130,14 @@
         credentials: 'include'
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      const data = await response.json().catch(() => ({}));
 
-      const data = await response.json();
+      if (!response.ok) {
+        elements.loadingState.style.display = 'none';
+        const message = (data && data.message) || `요청 실패 (${response.status})`;
+        alert(message);
+        return;
+      }
       allOrders = data.orders || [];
 
       elements.loadingState.style.display = 'none';
@@ -150,7 +155,7 @@
 
     } catch (error) {
       // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
-      console.error('주문 로드 실패:', error.message);
+      Logger.error('주문 로드 실패:', error.message);
       elements.loadingState.style.display = 'none';
       alert('주문 목록을 불러오는데 실패했습니다.');
     }
@@ -358,7 +363,7 @@
 
     } catch (error) {
       // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
-      console.error('주문 상세 로드 실패:', error.message);
+      Logger.error('주문 상세 로드 실패:', error.message);
       alert('주문 정보를 불러오는데 실패했습니다.');
     }
   };
@@ -750,7 +755,7 @@
       window.viewOrderDetail(orderId);  // 상세 정보 새로고침
 
     } catch (error) {
-      console.error('출고 처리 실패:', error.message);
+      Logger.error('출고 처리 실패:', error.message);
       alert(`출고 처리에 실패했습니다: ${error.message}`);
     }
   }
@@ -798,7 +803,7 @@
       window.viewOrderDetail(orderId);  // 상세 정보 새로고침
 
     } catch (error) {
-      console.error('배송완료 처리 실패:', error.message);
+      Logger.error('배송완료 처리 실패:', error.message);
       alert(`배송완료 처리에 실패했습니다: ${error.message}`);
     }
   }
@@ -841,7 +846,7 @@
 
     } catch (error) {
       // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
-      console.error('통계 로드 실패:', error.message);
+      Logger.error('통계 로드 실패:', error.message);
       elements.todayOrders.textContent = '-';
       elements.todayRevenue.textContent = '-';
       elements.pendingOrders.textContent = '-';
@@ -901,7 +906,7 @@
 
     } catch (error) {
       // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
-      console.error('QR 코드 다운로드 실패:', error.message);
+      Logger.error('QR 코드 다운로드 실패:', error.message);
       alert('QR 코드 다운로드에 실패했습니다: ' + error.message);
     } finally {
       // 버튼 활성화

@@ -10,11 +10,8 @@
   <link rel="stylesheet" href="assets/css/page.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
   <link rel="stylesheet" href="assets/css/checkout.css">
-  <!-- 환경 설정 (TOSS 키, API_BASE, ADMIN_PATH 등) -->
   <script src="config.js"></script>
-  <!-- 토스페이먼츠 위젯 스크립트 -->
   <script src="https://js.tosspayments.com/v1/payment"></script>
-  <!-- 이니시스 결제 스크립트 -->
   <script src="https://stdpay.inicis.com/stdjs/INIStdPay.js"></script>
   <script defer src="utils.js"></script>
   <script defer src="utils/checkout-utils.js"></script>
@@ -26,109 +23,112 @@
   <script defer src="checkout-payment.js"></script>
 </head>
 <body>
-  <!-- 공통 헤더 -->
   <div id="header-container"></div>
 
-  <!-- 결제 방법 선택 페이지 -->
-  <main class="checkout-payment-page">
-    <div class="checkout-payment-layout">
-      <section class="checkout-payment-main" aria-labelledby="checkout-payment-title">
+  <main class="checkout-page">
+    <div class="checkout-container">
+      <!-- 1행: 브레드크럼 (checkout-review와 동일) -->
+      <div class="checkout-breadcrumb-row">
         <nav class="checkout-breadcrumb" aria-label="결제 단계">
-          <a href="checkout-review.html" class="step step-completed">1. 배송</a>
+          <a href="checkout.html" class="step step-completed">1. 배송</a>
           <span class="separator" aria-hidden="true">&gt;</span>
           <span class="step step-current">2. 결제 방법</span>
           <span class="separator" aria-hidden="true">&gt;</span>
           <span class="step step-disabled">3. 주문 확인</span>
         </nav>
-        <header class="checkout-payment-header">
-          <h1 class="checkout-payment-title" id="checkout-payment-title">2. 결제 방법을 선택해 주세요.</h1>
-          <p class="checkout-payment-subtitle">사용할 결제 수단을 선택한 뒤 ‘확인 및 진행’을 눌러 결제를 계속 진행해주세요.</p>
-        </header>
+      </div>
 
-        <div class="payment-methods-wrapper">
-          <div class="payment-methods" id="payment-methods" role="radiogroup" aria-label="결제 방법 선택">
-            <label class="payment-option-card" tabindex="0">
-              <input type="radio" name="payment" value="toss" aria-checked="false">
-              <span class="payment-card-content">
-                <span class="payment-radio" aria-hidden="true"></span>
-                <span class="payment-name">
-                  <strong>토스페이먼츠</strong>
-                  <span>카드 · 계좌이체 · 간편결제</span>
-                </span>
-                <span class="payment-logo">
-                  <img src="image/Toss_Logo_Primary.png" alt="토스페이먼츠" width="36" height="36">
-                </span>
-              </span>
-            </label>
-            <label class="payment-option-card" tabindex="0" title="이니시스 결제는 심사용으로 준비 중입니다">
-              <input type="radio" name="payment" value="inicis" aria-checked="false">
-              <span class="payment-card-content">
-                <span class="payment-radio" aria-hidden="true"></span>
-                <span class="payment-name">
-                  <strong>KG이니시스</strong>
-                  <span>신용카드 · 계좌이체 · 가상계좌 <span style="color: #999; font-size: 11px;">(준비 중)</span></span>
-                </span>
-                <span class="payment-logo">
-                  <span style="font-size: 13px; color: #333; font-weight: 500; white-space: nowrap;">KG이니시스</span>
-                </span>
-              </span>
-            </label>
+      <!-- 좌측: 배송 정보 + 결제 정보 -->
+      <div class="checkout-form-section">
+        <!-- 배송 정보 (review와 동일) -->
+        <div class="form-section">
+          <h2 class="section-title">배송 정보</h2>
+          <div id="shipping-info-payment-left">
+            <!-- JavaScript로 동적 생성 -->
+          </div>
+          <div style="margin-top: 20px;">
+            <a href="checkout.html" class="edit-link">수정</a>
           </div>
         </div>
 
-        <div class="checkout-actions-desktop checkout-actions">
-          <div id="payment-error" class="payment-error hidden"></div>
-          <button class="proceed-btn" id="proceed-payment-desktop" type="button">확인 및 진행</button>
+        <!-- 결제 정보 -->
+        <div class="form-section form-section-payment">
+          <h2 class="section-title">결제 정보</h2>
+          <div class="payment-methods-wrapper">
+            <div class="payment-methods" id="payment-methods" role="radiogroup" aria-label="결제 방법 선택">
+              <label class="payment-option-card" tabindex="0">
+                <input type="radio" name="payment" value="toss" aria-checked="false">
+                <span class="payment-card-content">
+                  <span class="payment-radio" aria-hidden="true"></span>
+                  <span class="payment-name">
+                    <strong>토스페이먼츠</strong>
+                    <span>카드 · 계좌이체 · 간편결제</span>
+                  </span>
+                  <span class="payment-logo">
+                    <img src="image/Toss_Logo_Primary.png" alt="토스페이먼츠" width="36" height="36">
+                  </span>
+                </span>
+              </label>
+              <label class="payment-option-card" tabindex="0" title="이니시스 결제는 심사용으로 준비 중입니다">
+                <input type="radio" name="payment" value="inicis" aria-checked="false">
+                <span class="payment-card-content">
+                  <span class="payment-radio" aria-hidden="true"></span>
+                  <span class="payment-name">
+                    <strong>KG이니시스</strong>
+                    <span>신용카드 · 계좌이체 · 가상계좌 <span class="payment-badge">(준비 중)</span></span>
+                  </span>
+                  <span class="payment-logo">
+                    <span class="payment-logo-text">KG이니시스</span>
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
-      </section>
 
-      <!-- 우측: 주문 요약 (sticky, max-width 360px) -->
-      <aside class="order-summary-section" role="complementary" aria-label="주문 요약">
+        <!-- 확인 및 진행 -->
+        <div class="checkout-actions">
+          <div id="payment-error" class="payment-error hidden"></div>
+          <button class="complete-order-btn" id="proceed-payment-btn" type="button">확인 및 진행</button>
+        </div>
+      </div>
+
+      <!-- 우측: 주문 요약 (checkout-review와 동일 구조) -->
+      <div class="order-summary-section">
         <div class="order-summary">
           <h2 class="summary-title">주문 요약</h2>
-          
           <div class="order-items" id="order-items" role="list">
-            <!-- 주문 아이템들이 JavaScript로 동적 생성됨 -->
+            <!-- JavaScript로 동적 생성 -->
           </div>
-          
-          <div class="order-totals">
-            <div class="total-row">
+          <div class="summary-rows">
+            <div class="summary-row">
               <span>소계</span>
               <span id="subtotal">₩0</span>
             </div>
-            <div class="total-row">
-              <span>기본 배송</span>
-              <span>무료</span>
+            <div class="summary-row">
+              <span>배송</span>
+              <span id="shipping">무료</span>
             </div>
-            <div class="total-row final">
-              <span>총액</span>
+            <div class="summary-row summary-total">
+              <span>총계</span>
               <span id="total">₩0</span>
             </div>
           </div>
-          
-          <div class="shipping-info-box">
-            <h3 class="shipping-title">배송지 주소</h3>
-            <div id="shipping-details" class="shipping-details">
-              <!-- JavaScript로 동적 생성 -->
+          <div class="help-section">
+            <div class="help-item">
+              <span>도움이 필요하세요?</span>
+              <span class="chevron" aria-hidden="true">▼</span>
             </div>
-            <div class="edit-link-wrapper">
-              <a href="checkout-review.html" class="edit-link">수정</a>
+            <div class="help-item">
+              <span>무료 배송 및 반품</span>
+              <span class="chevron" aria-hidden="true">▼</span>
             </div>
           </div>
         </div>
-      </aside>
-    </div>
-
-    <!-- 모바일 하단 고정 CTA -->
-    <div class="checkout-actions-mobile">
-      <div id="payment-error-mobile" class="payment-error hidden"></div>
-      <button class="proceed-btn" id="proceed-payment-mobile" type="button">확인 및 진행</button>
+      </div>
     </div>
   </main>
 
-  <!-- 푸터 컨테이너 -->
   <div id="footer-container"></div>
 </body>
 </html>
-
-

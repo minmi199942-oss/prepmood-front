@@ -545,8 +545,8 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 Logger.error('[payments][confirm] Paid 처리 실패 - 트랜잭션 롤백 예정', errorDetails);
                 
                 // 콘솔에도 출력 (PM2 로그에서 확인 가능)
-                console.error('[payments][confirm] Paid 처리 실패 - 전체 에러 객체:', JSON.stringify(errorDetails, null, 2));
-                console.error('[payments][confirm] 에러 원본:', err);
+                Logger.error('[payments][confirm] Paid 처리 실패 - 전체 에러 객체:', JSON.stringify(errorDetails, null, 2));
+                Logger.error('[payments][confirm] 에러 원본:', err);
                 
                 // ⚠️ 트랜잭션 롤백 (processPaidOrder() 내부 작업 모두 취소)
                 // paid_events는 별도 커넥션(autocommit)으로 생성되어 있으므로 남아있음
@@ -598,6 +598,18 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 error: paidProcessError.message,
                 error_code: paidProcessError.code
             });
+            
+            // 재고 부족 시 프론트에서 전용 메시지·장바구니 복귀용 코드 반환 (7번 UX)
+            if (paidProcessError.code === 'INSUFFICIENT_STOCK') {
+                return res.status(409).json({
+                    code: 'INSUFFICIENT_STOCK',
+                    details: {
+                        message: '재고가 부족합니다.',
+                        order_number: orderNumber,
+                        payment_key: paymentKey
+                    }
+                });
+            }
             
             return res.status(500).json({
                 code: 'ORDER_PROCESSING_FAILED',
@@ -1317,6 +1329,11 @@ router.post('/payments/inicis/return', async (req, res) => {
                 error: paidProcessError.message,
                 error_code: paidProcessError.code
             });
+            
+            // 재고 부족 시 프론트 전용 메시지·장바구니 복귀용 (7번 UX). 이니시스는 리다이렉트로 전달
+            if (paidProcessError.code === 'INSUFFICIENT_STOCK') {
+                return res.redirect('/checkout-payment.html?status=fail&code=INSUFFICIENT_STOCK');
+            }
             
             return res.status(500).json({
                 code: 'ORDER_PROCESSING_FAILED',

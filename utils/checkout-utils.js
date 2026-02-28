@@ -1,6 +1,9 @@
 /**
  * 체크아웃 관련 유틸리티 함수 (SSOT)
  * 주문 payload 생성 등의 체크아웃 관련 공통 로직을 여기에 통합
+ *
+ * 로깅 규칙: console 대신 Logger 사용 (window.Logger는 utils.js 로드 시 제공).
+ * PII(상품 상세, 배송 정보)는 로그에 포함하지 않음.
  */
 
 /**
@@ -20,52 +23,53 @@ function createOrderPayload(items, shipping) {
     throw new Error('배송 정보가 필요합니다.');
   }
 
-  // 아이템 변환 및 검증 (SSOT: 모든 경로에서 동일한 로직 사용)
+  // 아이템 변환 및 검증 (SSOT): 유효하지 않은 항목이 하나라도 있으면 주문 전체를 막음 (일부만 주문 방지)
   const validatedItems = items.map((item, index) => {
     // product_id 우선순위: product_id > id
     const productId = String(item.product_id || item.id || '').trim();
-    
+
     // quantity 검증 및 변환
     const quantity = parseInt(item.quantity, 10);
-    
-    // product_id 검증 (빈 문자열이나 유효하지 않은 값 체크)
+
+    // product_id 검증 실패 시 예외 (filter로 제거하지 않고 주문 자체 취소)
     if (!productId || productId === 'undefined' || productId === 'null') {
-      console.error(`❌ 아이템 ${index} product_id 없음:`, {
-        original: item.product_id || item.id,
-        item: item,
-        keys: Object.keys(item)
-      });
-      return null;
+      if (typeof window !== 'undefined' && window.Logger && typeof window.Logger.warn === 'function') {
+        window.Logger.warn('[checkout-utils] createOrderPayload 검증 실패', { index, reason: 'product_id' });
+      }
+      throw new Error(`주문할 수 없습니다: ${index + 1}번째 상품 정보가 올바르지 않습니다. 장바구니를 확인해 주세요.`);
     }
-    
-    // quantity 검증
+
+    // quantity 검증 실패 시 예외
     if (isNaN(quantity) || quantity <= 0) {
-      console.error(`❌ 아이템 ${index} quantity 변환 실패:`, {
-        original: item.quantity,
-        item: item
-      });
-      return null;
+      if (typeof window !== 'undefined' && window.Logger && typeof window.Logger.warn === 'function') {
+        window.Logger.warn('[checkout-utils] createOrderPayload 검증 실패', { index, reason: 'quantity' });
+      }
+      throw new Error(`주문할 수 없습니다: ${index + 1}번째 상품 수량이 올바르지 않습니다. 장바구니를 확인해 주세요.`);
     }
-    
+
     // size 정규화: "Free" → null (액세서리/타이류 처리)
     let normalizedSize = item.size || null;
     if (normalizedSize === 'Free' || normalizedSize === '') {
       normalizedSize = null;
     }
-    
+
     // color 정규화 (표준값으로 변환)
     const normalizedColor = normalizeColor(item.color);
-    
+
     return {
       product_id: productId,  // 문자열 그대로 전송 (VARCHAR)
       size: normalizedSize,   // NULL 허용 (액세서리/타이류)
       color: normalizedColor, // 표준값 (띄어쓰기 통일)
       quantity: quantity
     };
-  }).filter(item => item !== null && item.product_id && item.quantity > 0);
+  });
 
-  if (validatedItems.length === 0) {
-    throw new Error('유효한 상품 정보가 없습니다.');
+  // 방어: 검증 통과한 항목 수가 요청 항목 수와 다르면 주문 불가 (위에서 이미 throw하므로 정상 시 항상 일치)
+  if (validatedItems.length !== items.length) {
+    if (typeof window !== 'undefined' && window.Logger && typeof window.Logger.warn === 'function') {
+      window.Logger.warn('[checkout-utils] createOrderPayload 검증 실패', { reason: 'items_length_mismatch' });
+    }
+    throw new Error('일부 상품 정보가 유효하지 않아 주문할 수 없습니다. 장바구니를 확인해 주세요.');
   }
 
   return {

@@ -24,7 +24,7 @@ function getDevSampleData() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('📋 2단계: 배송 정보 확인 페이지 로드됨');
+  Logger.log('📋 2단계: 배송 정보 확인 페이지 로드됨');
 
   let shippingDataStr = sessionStorage.getItem('checkoutShippingData');
 
@@ -45,10 +45,10 @@ document.addEventListener('DOMContentLoaded', function() {
   let data;
   if (shippingDataStr) {
     data = JSON.parse(shippingDataStr);
-    console.log('📋 저장된 배송 데이터:', data);
+    Logger.log('📋 저장된 배송 데이터:', data);
   } else if (isDevHost()) {
     data = getDevSampleData();
-    console.log('🎨 개발 환경: 배송 데이터 없음 — 샘플 데이터로 디자인 확인');
+    Logger.log('🎨 개발 환경: 배송 데이터 없음 — 샘플 데이터로 디자인 확인');
   } else {
     alert('배송 정보를 찾을 수 없습니다. 처음부터 다시 시작해주세요.');
     window.location.href = 'checkout.html';
@@ -183,7 +183,7 @@ function bindEventListeners() {
   const proceedBtn = document.getElementById('proceed-to-payment');
   if (proceedBtn) {
     proceedBtn.addEventListener('click', function() {
-      console.log('✅ 2단계 확인 완료 → 3단계로 이동');
+      Logger.log('✅ 2단계 확인 완료 → 3단계로 이동');
       window.location.href = 'checkout-payment.html';
     });
   }

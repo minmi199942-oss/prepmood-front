@@ -8,7 +8,7 @@ let orderNumber = null;
 let orderId = null;
 
 document.addEventListener('DOMContentLoaded', async function() {
-  console.log('비회원 주문 조회 페이지 로드됨');
+  Logger.log('비회원 주문 조회 페이지 로드됨');
   
   // URL 파라미터에서 order 추출
   const urlParams = new URLSearchParams(window.location.search);
@@ -64,7 +64,7 @@ async function loadOrderDetail() {
     renderOrderDetail(orderData);
     
   } catch (error) {
-    console.error('주문 상세 정보 로드 오류:', error);
+    Logger.error('주문 상세 정보 로드 오류:', error);
     showError(error.message || '주문 정보를 불러오는 중 오류가 발생했습니다.');
   } finally {
     showLoading(false);
@@ -296,7 +296,7 @@ async function downloadInvoice(orderId) {
     // TODO: 인보이스 다운로드 API 호출
     alert('인보이스 다운로드 기능은 준비 중입니다.');
   } catch (error) {
-    console.error('인보이스 다운로드 오류:', error);
+    Logger.error('인보이스 다운로드 오류:', error);
     alert('인보이스 다운로드에 실패했습니다.');
   }
 }
@@ -373,7 +373,7 @@ async function handleClaim() {
     }
     
   } catch (error) {
-    console.error('Claim 처리 오류:', error);
+    Logger.error('Claim 처리 오류:', error);
     alert(`주문 연동에 실패했습니다: ${error.message}`);
   }
 }
@@ -395,7 +395,7 @@ async function checkLoginStatus() {
     }
     return null;
   } catch (error) {
-    console.error('로그인 상태 확인 오류:', error);
+    Logger.error('로그인 상태 확인 오류:', error);
     return null;
   }
 }

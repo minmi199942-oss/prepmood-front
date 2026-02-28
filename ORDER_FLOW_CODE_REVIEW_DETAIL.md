@@ -322,6 +322,12 @@ if (validatedItems.length !== items.length) {
 | **무엇을 어떻게 고치는가** | order-status-aggregator 외의 모든 “UPDATE orders SET status” 제거하고, 상태 변경은 “단위 상태 변경 + updateOrderStatus 호출”로만 수행. 문서에 “orders.status는 집계 전용” 명시. |
 | **고치면 무엇이 해결되는가** | 상태 정합성 유지, 취소/환불/재처리 로직의 신뢰도 향상, 상태 변경 경로 단일화로 유지보수 용이. |
 
+### 5.5.1 초보자용 요약
+
+- **문제가 되는 상황**: 결제·배송·관리자 등 여러 코드가 각자 `UPDATE orders SET status = ?`를 하면, “결제는 안 됐는데 다른 모듈이 완료 처리해서 status만 완료로 보인다” 같은 **실제 데이터와 status 불일치**가 생길 수 있음.
+- **계산은 어디서 하나**: 이 프로젝트에서는 **`backend/utils/order-status-aggregator.js` 한 곳**만이 `paid_events`, `order_item_units.unit_status` 등을 읽어서 “이 주문의 전체 상태”를 **계산**한 뒤, 그 결과로만 `UPDATE orders SET status = ?`를 수행함.
+- **다른 코드는**: `orders.status`를 **직접 UPDATE 하지 말고**, 결제/배송 등은 **자기 테이블만 수정**한 다음 **`updateOrderStatus(connection, orderId)`** 를 호출해, aggregator가 다시 계산해서 status를 갱신하게 함.
+
 ---
 
 ## 6. sessionStorage에 배송/결제 정보 저장
@@ -385,6 +391,12 @@ if (validatedItems.length !== items.length) {
 | **무엇을 어떻게 고치는가** | 필수 필드만 저장, 결제/주문 완료 후 삭제; 정책에 따라 “저장 안 함”으로 바꿀 수 있음. |
 | **고치면 무엇이 해결되는가** | 개인정보 노출 구간·보관 기간 축소, 정책 준수. |
 
+### 6.5.1 초보자용 요약
+
+- **왜 sessionStorage에 저장하나**: 체크아웃 중에는 배송 정보(이름·주소·연락처·이메일 등)를 **결제 페이지·주문 완료 페이지로 넘기기 위해** `checkoutShippingData`라는 키로 sessionStorage에 잠시 저장합니다. 같은 탭에서만 유효하고, 새로고침 시 유지되므로 "배송 정보 입력 → 결제" 구간에서 편의를 위해 쓰는 방식입니다.
+- **문제가 되는 점**: 주문이 **완료된 뒤에도** 이 키를 지우지 않으면, 이름·주소·전화번호 등 **개인정보(PII)**가 그대로 남습니다. 같은 PC를 쓰는 다른 사람이 개발자 도구로 볼 수 있고, 탭 공유·공용 PC에서는 노출 위험이 있습니다. “필요한 동안만 보관하고, 완료 후에는 바로 삭제”하는 것이 개인정보 최소 저장 원칙에 맞습니다.
+- **어디서 삭제하나**: 이 프로젝트에서는 **주문 완료 페이지(order-complete.html)**를 로드한 뒤, 서버에서 주문 정보를 성공적으로 받아 화면에 표시했을 때 **`order-complete-script.js`** 안에서 `sessionStorage.removeItem('checkoutShippingData')`를 한 번 호출합니다. 체크아웃 스크립트에서 완료 페이지로 넘기는 경로와, 결제 페이지(토스 등) successUrl로 넘기는 경로 **둘 다** order-complete에 도착하므로, 이 한 곳에서 삭제하면 모든 경로에서 PII가 정리됩니다.
+
 ---
 
 ## 7. 재고 배정 시 FOR UPDATE SKIP LOCKED와 UX
@@ -439,9 +451,208 @@ if (validatedItems.length !== items.length) {
 
 ---
 
+## 8. 코드베이스 검증 결과 (현재 수정 여부)
+
+아래는 문서 1~7번 이슈에 대해 **실제 코드를 읽어** 수정이 되어 있는지 여부를 정리한 결과입니다. (검증 일자: 코드 스냅샷 기준)
+
+| # | 이슈 | 수정 여부 | 검증 근거 |
+|---|------|-----------|-----------|
+| **1** | createOrderPayload: 유효하지 않은 아이템 filter 제거 → 부분 주문 가능 | **서버 방어 반영됨** | 클라이언트: `utils/checkout-utils.js`에서 유효하지 않으면 throw(부분 주문 불가). 서버: `order-routes.js`에서 order_items bulk insert 후 `affectedRows !== orderItemsData.length` 시 롤백·500·`code: 'ORDER_ITEMS_MISMATCH'` 반환. |
+| **2** | checkout-utils.js에서 console.error 사용 | **해당 없음(이미 Logger)** | `utils/checkout-utils.js`: 검증 실패 시 `window.Logger.warn` 사용(35, 42, 68라인). console 직접 호출 없음. |
+| **3** | processPaidOrder 실패 시 paid_event_processing 상태 | **해당 없음(이미 구현)** | `backend/utils/paid-order-processor.js` 798~800: catch 블록에서 `updateProcessingStatus(paidEventId, 'failed', error.message)` 호출 확인. |
+| **4** | 결제 확인 API에서 orderId 사용 방식 | **해당 없음(이미 안전)** | `backend/payments-routes.js`: 요청에서 `orderNumber`, `paymentKey`, `amount`만 수신. `WHERE order_number = ? AND user_id = ?` 로 주문 조회(110~116). `order_id`는 조회 결과만 사용. amount는 `serverAmount`(DB)와 `clientAmount` 비교 후 불일치 시 400(289~302). |
+| **5** | orders.status 직접 업데이트와 SSOT | **유지(단일 경로)** | `UPDATE orders SET status` 는 `backend/utils/order-status-aggregator.js` 111라인 한 곳만. `PUT /api/admin/orders/:orderId/status` 는 `backend/index.js` 1914라인 부근 주석으로 제거 명시, 라우트 핸들러 없음. |
+| **6** | sessionStorage에 배송/결제 정보 저장 및 완료 후 삭제 | **수정됨** | `order-complete-script.js`: 주문 정보 로드 성공 시 `sessionStorage.removeItem('checkoutShippingData')` 호출 추가(serverCurrencyInfo 제거와 동일 블록). 체크아웃·결제 successUrl 양쪽 경로 모두 order-complete 도착 시 삭제됨. |
+| **7** | 재고 배정 FOR UPDATE SKIP LOCKED와 UX | **수정됨** | `paid-order-processor.js`: 재고 부족 시 `err.code = 'INSUFFICIENT_STOCK'` 설정 후 throw. `payments-routes.js`: TOSS confirm은 409 + `code: 'INSUFFICIENT_STOCK'` 반환, 이니시스는 `/checkout-payment.html?status=fail&code=INSUFFICIENT_STOCK` 리다이렉트. `order-complete-script.js`: 해당 코드 시 전용 문구 + "장바구니로 이동" 버튼. `checkout-payment.js`: URL `code=INSUFFICIENT_STOCK` 시 안내 후 장바구니 이동. |
+
+---
+
+## 9. 추가 코드 리뷰 (보안·효율·일관성·명품감·유지보수)
+
+문서 1~7 이외에, 주문 흐름 및 연관 코드를 기준으로 **보안**, **효율**, **수정 권장**, **명품 사이트 관점 이질감**, **불필요/위험 코드**, **차후 문제 가능성**을 정리했습니다. 수정은 추후 진행 예정입니다.
+
+### 9.1 보안
+
+- **createOrderPayload 예외 시 checkout-payment.js 처리**
+  - `checkout-payment.js` 246, 391라인: `createOrderPayload` 호출이 try 블록 안에 있으나, throw 시 사용자 메시지는 catch의 일반 메시지(`결제 처리 중 오류가 발생했습니다...`)로만 노출됨. 옵션 A(전부 유효할 때만 주문) 적용 시, "일부 상품 정보가 올바르지 않습니다. 장바구니를 확인해 주세요." 등 **전용 메시지 분기**를 두는 것이 좋음.
+- **Idempotency Key 로깅**
+  - `checkout-script.js` 1125: `console.log('🔑 Idempotency Key 생성:', idemKey);` — 프로덕션에서 Idempotency 키 전체 노출은 필요 시 추적용으로만 제한하고, 규칙에 따라 Logger + 마스킹(앞뒤 일부만) 권장.
+- **에러 응답 시 상세 정보 노출**
+  - 404/403 시 "주문을 찾을 수 없습니다" 등 메시지가 주문 존재 여부를 유추하게 할 수 있음. 현재 수준은 일반적이나, 정책상 정보 노출 최소화가 필요하면 메시지 통일 검토.
+
+### 9.2 효율
+
+- **주문 생성 시 상품 조회 N+1**
+  - `order-routes.js` 526~562: `for (const item of items)` 내부에서 항목마다 `SELECT ... FROM admin_products WHERE id = ?` 실행. item 수만큼 쿼리 발생. 상품 ID 목록을 한 번에 조회한 뒤 맵으로 매칭하면 쿼리 1회로 축소 가능.
+- **order_items INSERT 루프**
+  - 624~655: `orderItemsData` 순회하며 항목당 `INSERT INTO order_items` 1회. 트랜잭션 내 bulk insert(한 번에 여러 행)로 변경 시 부하 감소에 유리.
+
+### 9.3 수정 권장 (동작·정책)
+
+- **주문 생성 후 order_items 수 검사**
+  - 서버에서 "요청 items 수 = 실제 생성된 order_items 수" 검사가 없음. `order-routes.js` 에서 INSERT 루프 후 `SELECT COUNT(*) FROM order_items WHERE order_id = ?` 등으로 개수 확인하고, items.length와 다르면 롤백 후 500/400 반환하는 **방어 로직** 추가 권장.
+- **resolveProductIdBoth 실패 시**
+  - `order-routes.js` 579~585: `!productIds` 일 때 경고만 하고 `itemData.product_id` 로 INSERT 계속 진행. 상품이 없으면 400으로 거부하는 것이 정책상 안전할 수 있음(현재는 "기존 동작 유지"로 경고만).
+- **checkout-script.js processPayment 성공 후**
+  - 6번 반영: order-complete 로드 시 `order-complete-script.js`에서 `checkoutShippingData` 삭제 추가됨. 리다이렉트 직전 삭제는 선택 사항(현재는 완료 페이지 한 곳만 적용).
+
+### 9.4 로깅·일관성
+
+- **console 사용**
+  - `checkout-script.js`: `console.log`/`console.error` 다수(35회 수준). 프로젝트 규칙(Logger 사용)과 맞추려면 점진적 Logger 전환 및 프로덕션에서 불필요 로그 제거 권장.
+  - `checkout-payment.js`: console 사용 1회 수준. 동일하게 Logger로 통일 가능.
+  - `order-complete-script.js` 264: `console.error` — Logger 또는 최소한 에러 리포팅 정책에 맞게 통일 권장.
+
+### 9.5 명품/프리미엄 사이트 관점 이질감
+
+- **에러 메시지 톤**
+  - "주문 생성 실패", "결제에 실패했습니다" 등만으로는 사용자에게 다음 행동(장바구니 확인, 재시도, 문의)이 불명확할 수 있음. 재고 부족·일시 오류·입력 오류 등 **원인별 짧은 안내 문구**와 CTA(다시 시도, 장바구니로)가 있으면 프리미엄 경험에 부합.
+- **처리 중 상태 노출**
+  - "처리 중..." 텍스트만 있는 경우, 로딩 인디케이터나 스켈레톤 등 시각적 피드백을 함께 두면 체크아웃 신뢰도 향상.
+
+### 9.6 불필요/위험 가능 코드
+
+- **중복된 배송 수집 함수**
+  - `checkout-script.js` 에 `collectShippingData()` 와 `collectOrderData()` 가 있으며, 배송 필드 구성이 거의 동일. 단일 소스로 통합하면 수정 시 실수 가능성 감소.
+- **주문 완료 후에도 checkoutShippingData 유지**
+  - 6번 반영: order-complete 로드·주문 정보 표시 성공 시 `checkoutShippingData` 삭제 추가됨. 완료 후 PII 보관 제거 완료.
+
+### 9.7 차후 문제 가능성
+
+- **createOrderPayload 정책 변경 시**
+  - 옵션 A(유효하지 않으면 throw)로 바꾸면 `checkout-payment.js` 두 경로(토스/이니시스)에서 throw가 catch되지만, 메시지가 일반 메시지로만 나갈 수 있어 사용자가 "장바구니 확인"으로 유도되지 않을 수 있음. 정책 변경 시 **에러 메시지 매핑**을 함께 반영할 것.
+- **비회원 주문 + guestToken**
+  - order-complete 등에서 `guestToken` 파라미터로 비회원 주문 조회가 이어짐. 토큰 유출 시 해당 주문 정보 노출 가능. 토큰 만료·1회성 정책이 문서/구현에 명확히 있는지 확인 권장.
+- **다국어/통화**
+  - 현재 국가별 규칙(COUNTRY_RULES)과 통화 결정이 서버에 있으나, 에러 메시지나 클라이언트 문구는 한글 고정일 수 있음. 확장 시 메시지 소스 통일·다국어 대비를 미리 고려하면 유리.
+
+### 9.8 코드베이스 검증 결과 (9절 항목별)
+
+아래는 9.1~9.7 항목을 **실제 코드 기준**으로 확인한 결과입니다.
+
+| 절 | 항목 | 검증 결과 | 비고 |
+|----|------|-----------|------|
+| **9.1** | createOrderPayload 예외 시 전용 메시지 | **반영됨** | `checkout-payment.js` 254~266, 416~427: `isValidationError` 분기로 "일부 상품 정보가 만료되었거나..." 등 전용 문구 표시 후 return. |
+| **9.1** | Idempotency Key 로깅 | **반영됨** | `checkout-script.js` 1126: `Logger.log` + 키 마스킹(앞4자+…+뒤4자). |
+| **9.1** | 에러 응답 상세 노출 | **정책 검토** | 코드 변경 없음. 필요 시 메시지 통일만 검토. |
+| **9.2** | 주문 생성 N+1 | **반영됨** | `order-routes.js`: 상품 ID 목록 `IN (?)` 1회 조회 후 `productMap`으로 매칭. |
+| **9.2** | order_items INSERT 루프 | **반영됨** | `order-routes.js`: order_items bulk insert(한 번에 여러 행) 적용. |
+| **9.3** | order_items 수 검사 | **반영됨** | bulk insert 후 `affectedRows !== orderItemsData.length` 시 롤백·500·`ORDER_ITEMS_MISMATCH`. |
+| **9.3** | resolveProductIdBoth 실패 시 | **반영됨** | `!productIds` 시 롤백 후 400·`VALIDATION_ERROR` 반환. |
+| **9.3** | checkout processPayment 성공 후 | **반영됨** | 6번에 따라 order-complete에서 `checkoutShippingData` 삭제. |
+| **9.4** | console → Logger (checkout-script 등) | **반영됨** | `checkout-script.js`, `checkout-payment.js`, `order-complete-script.js`에서 console 사용 없음, Logger 사용. |
+| **9.5** | 에러 메시지 톤 / 처리 중 상태 | **권장 사항** | 재고 부족(7번)은 전용 문구·CTA 적용됨. 나머지는 원인별 문구·로딩 UI 등 점진 개선 가능. |
+| **9.6** | 중복 배송 수집 함수 | **반영됨** | `collectOrderData()` 제거, 배송 수집은 `collectShippingData()` 단일 소스 사용. |
+| **9.6** | 완료 후 checkoutShippingData | **반영됨** | 6번: order-complete 로드 성공 시 삭제. |
+| **9.7** | createOrderPayload 정책 변경 등 | **참고** | 정책/확장 시 에러 메시지 매핑·guestToken·다국어만 참고하면 됨. |
+
+### 9.9 미반영 항목 수정 시 영향·리스크·연쇄 수정
+
+아래는 미반영 항목을 **실제로 수정할 때** 예상되는 영향, 문제·보안, 그리고 함께 손봐야 할 코드를 정리한 것입니다.
+
+---
+
+#### 1번 — 서버 방어: 요청 items 수 vs 생성된 order_items 수 검사
+
+| 구분 | 내용 |
+|------|------|
+| **수정 위치** | `backend/order-routes.js` — order_items INSERT 루프(624~651) **직후**, `connection.commit()` 직전. |
+| **수정 예시** | `const [countResult] = await connection.execute('SELECT COUNT(*) AS cnt FROM order_items WHERE order_id = ?', [orderId]); const inserted = countResult[0]?.cnt \|\| 0; if (inserted !== orderItemsData.length) { await connection.rollback(); await connection.end(); return res.status(500).json({ code: 'ORDER_ITEMS_MISMATCH', details: { message: '주문 항목 처리 중 오류가 발생했습니다.' } }); }` |
+| **영향** | 정상 경로에는 영향 없음. INSERT 일부만 성공한 비정상 케이스에서만 롤백 후 500 반환. |
+| **리스크** | COUNT와 INSERT 사이에 다른 트랜잭션이 끼어들 가능성은 없음(같은 트랜잭션 내). 롤백 시 `orders` 행도 함께 롤백되므로 정합성 유지. |
+| **보안** | 사용자에게 "항목 수 불일치"를 상세히 알리지 않고 일반 오류 메시지로 처리하면 정보 노출 최소화. |
+| **연쇄 수정** | 없음. 클라이언트는 기존대로 500 시 "주문 생성 실패" 등으로 처리하면 됨. 필요 시 `code: 'ORDER_ITEMS_MISMATCH'`로 재시도/장바구니 유도 가능. |
+
+---
+
+#### 2번 — checkout-utils.js에서 console 사용
+
+| 구분 | 내용 |
+|------|------|
+| **현재 상태** | `utils/checkout-utils.js`에는 **console 직접 호출 없음**. 검증 실패 시 `window.Logger.warn` 사용(35, 42, 68라인). 주석에 "console 대신 Logger 사용" 명시. |
+| **수정 필요 여부** | 문서 §8 "2번"은 과거 스냅샷 기준일 수 있음. 현재 코드 기준으로는 **추가 수정 불필요**. 신규로 console 추가하지 않도록만 유지. |
+| **영향/연쇄** | 없음. |
+
+---
+
+#### 9.2 — 주문 생성 시 상품 조회 N+1 제거
+
+| 구분 | 내용 |
+|------|------|
+| **수정 위치** | `backend/order-routes.js` 526~562: `for (const item of items)` **앞**에서 상품 ID 목록을 한 번에 조회한 뒤, 루프 안에서는 맵/배열 참조만 하도록 변경. |
+| **수정 예시** | `const productIds = [...new Set(items.map(i => i.product_id).filter(Boolean))];` → `SELECT id, name, price, image FROM admin_products WHERE id IN (?)` (placeholders 개수에 맞게). 조회 결과를 `Map(product_id -> row)`로 만든 뒤, 루프에서 `const product = productMap.get(item.product_id)` 등으로 사용. |
+| **영향** | 동작 결과(총액, orderItemsData 구성)는 기존과 동일해야 함. **없는 product_id**는 현재는 400 반환하는데, IN 조회 시 해당 ID가 결과에 없으면 동일하게 400 처리 유지. |
+| **리스크** | `IN (?)`에 빈 배열이 오면 SQL 오류 가능. `productIds.length === 0`이면 이미 상단 검사(items 길이 등)에서 걸리므로, 빈 IN은 방어 코드로 한 번 처리(예: early return 400). |
+| **보안** | 없음. 조회 범위는 요청의 product_id로 한정되며, 기존과 동일. |
+| **연쇄 수정** | 같은 블록 내 `orderItemsData` 구성 로직만 루프 내 SELECT 제거하고 맵 조회로 교체. 에러 응답 형식(`VALIDATION_ERROR`, details) 변경 없음. |
+
+---
+
+#### 9.2 — order_items INSERT 루프 → bulk insert
+
+| 구분 | 내용 |
+|------|------|
+| **수정 위치** | `backend/order-routes.js` 624~651: `for (const itemData of orderItemsData)` 제거하고, 한 번의 `INSERT INTO order_items (...) VALUES (?,?,...), (?,?,...), ...` 또는 배치 실행. |
+| **수정 예시** | MySQL: `INSERT INTO order_items (order_id, product_id, ...) VALUES (?, ?, ...), (?, ?, ...), ...` — 각 행 9개 컬럼, placeholders를 배열로 flatten. Node mysql2: `connection.execute(sql, flatValues)`. |
+| **영향** | 트랜잭션 내에서 한 번에 여러 행 INSERT. 커밋/롤백 동작은 동일. |
+| **리스크** | **placeholders 개수**와 **배열 길이** 불일치 시 SQL 오류. 단위 테스트 또는 소수 항목으로 회귀 테스트 권장. `resolveProductIdBoth` 결과(`productIds ? productIds.canonical_id : itemData.product_id`)를 그대로 bulk 배열에 넣으면 기존과 동일. |
+| **보안** | 없음. |
+| **연쇄 수정** | 없음. 단, **9.3 order_items 수 검사**를 같이 넣으면 "INSERT한 행 수 = orderItemsData.length"를 bulk 결과(affectedRows)로 검사할 수 있어, COUNT 쿼리 없이 방어 가능. |
+
+---
+
+#### 9.3 — order_items 수 검사
+
+| 구분 | 내용 |
+|------|------|
+| **수정 위치** | `backend/order-routes.js` — order_items INSERT 직후(루프 또는 bulk). |
+| **수정 예시** | (1) `SELECT COUNT(*) ... WHERE order_id = ?` 후 `items.length`와 비교. (2) 또는 bulk insert 시 `result.affectedRows === orderItemsData.length` 검사. 불일치 시 롤백 후 500. |
+| **영향·리스크·보안** | **1번**과 동일. 1번과 9.3은 같은 방어 로직을 가리키므로, 한 번만 구현하면 됨. |
+
+---
+
+#### 9.3 — resolveProductIdBoth 실패 시 400 거부 (정책 선택)
+
+| 구분 | 내용 |
+|------|------|
+| **수정 위치** | `backend/order-routes.js` 624~635: `if (!productIds)` 블록에서 **경고만** 하지 말고, **롤백 후 400 반환**하도록 변경. |
+| **영향** | 현재는 "상품 ID를 찾을 수 없음"이어도 `itemData.product_id`로 INSERT를 시도함. 400으로 바꾸면 **그 항목이 있는 주문 생성 요청 전체가 실패**하고, 사용자에게 "일부 상품 정보가 올바르지 않습니다" 등 메시지 가능. |
+| **리스크** | **이미 첫 번째 for (item of items)** 루프(528~534)에서 `productRows.length === 0`이면 400을 반환하므로, 정상적으로 들어온 items는 모두 admin_products에 존재함. **두 번째 루프**(order_items INSERT)에서만 `resolveProductIdBoth`를 쓰는데, 여기서 null이 나오는 경우는 product_id가 **문자열/타입 차이**로 조회가 안 되거나, **동시에 삭제된 상품** 등 드문 케이스. 그런 경우 400으로 거부하는 것이 정책상 더 안전함. |
+| **보안** | 존재하지 않는 product_id로 order_items가 쌓이는 것을 막아, 데이터 정합성·운영 추적에 유리. |
+| **연쇄 수정** | (1) **order-routes.js**: `if (!productIds)` 시 `connection.rollback()`, `connection.end()`, `return res.status(400).json({ code: 'VALIDATION_ERROR', details: { ... } })`. (2) **클라이언트**: 이미 400 시 "주문 생성 실패"·"장바구니 확인" 등으로 처리 중이면 메시지만 통일하면 됨. (3) **resolveProductIdBoth** 호출부는 order-routes.js 한 곳뿐이므로, 다른 파일 수정 없음. |
+
+---
+
+#### 9.6 — 중복 배송 수집 함수 통합 (collectShippingData / collectOrderData)
+
+| 구분 | 내용 |
+|------|------|
+| **현재 상태** | `collectShippingData()` — 622, 946라인에서 **호출됨**. `collectOrderData()` — **정의만 있고 호출처 없음**. 두 함수 모두 배송 필드(recipient_name, email, phone, address 등)가 동일하고, `collectOrderData`만 `payment: {}`와 주석이 추가로 있음. |
+| **수정 방향** | (1) `collectOrderData`를 제거하고, 필요 시 `collectShippingData()` 반환값에 `payment: {}`를 붙여 쓰는 쪽으로 통일. 또는 (2) `collectOrderData`를 `collectShippingData()`를 호출한 뒤 `payment: {}`를 넣어 반환하는 래퍼로만 두고, 배송 필드 수정은 `collectShippingData` 한 곳에서만 수행. |
+| **영향** | 호출처가 `collectShippingData`뿐이므로, **collectOrderData를 삭제**해도 동작 변경 없음. 나중에 `collectOrderData()`를 쓰는 코드가 생기면, 그때는 `collectShippingData()` 기반으로 제공하면 됨. |
+| **리스크** | 낮음. 배송 필드 추가/수정 시 한 곳만 수정하면 되어 실수 감소. |
+| **보안** | 없음. |
+| **연쇄 수정** | **checkout-script.js**만 수정. `collectOrderData` 정의부 제거(또는 래퍼로 축소). 다른 파일에서는 두 함수를 참조하지 않음. |
+
+---
+
+#### 요약: 수정 우선순위와 의존 관계
+
+| 순서 | 항목 | 연쇄 | 비고 |
+|------|------|------|------|
+| 1 | **9.6** 중복 함수 정리 | checkout-script.js만 | 리스크 낮음, 즉시 적용 가능. |
+| 2 | **2번** | 없음(이미 Logger 사용) | 검증만. |
+| 3 | **9.2 N+1** | order-routes.js 내부만 | 상품 조회 1회화. |
+| 4 | **9.2 bulk insert** | order-routes.js 내부만 | 9.3 수 검사와 같이 적용 시 affectedRows로 검사 가능. |
+| 5 | **1번 / 9.3 order_items 수 검사** | order-routes.js, 클라이언트 500 처리 | 방어 로직 1곳 추가. |
+| 6 | **9.3 resolveProductIdBoth 400** | order-routes.js, 클라이언트 400 메시지 | 정책 선택. 기존 "경고만" 유지도 가능. |
+
+---
+
 ## 문서 정보
 
 - **대상**: 주문 흐름(체크아웃 → 주문 생성 → 결제 확인 → paid_events → processPaidOrder → orders.status 집계).
 - **SSOT 변경 여부**: 이 문서는 “코드 리뷰 정리”이며, DB 스키마나 공식 스펙 문서를 대체하지 않습니다. 수정 시 `db_structure_actual.txt`, `start_here.md` 등 기존 SSOT은 그대로 유지하고, 코드만 위 권장에 맞게 변경하면 됩니다.
 - **참고**: 분류 기준은 `.cursor/skills/code-review-classifier`의 Critical/Major/Minor/Invalid 정의를 참고했으며, 프로젝트 규칙(Logger, SSOT, 트랜잭션, 보안)을 반영했습니다.
 - **관측/재현**: 수정 적용 후 검증 시 사용할 **에러 코드**(예: `INSUFFICIENT_STOCK`, `VALIDATION_ERROR`), **로그 키**(예: `[payments][confirm]`, `주문 검증 실패`) 등을 체크리스트로 정리해 두면 디버깅과 회귀 테스트에 유리합니다.
+- **8·9절**: 코드베이스 검증 결과(수정 여부) 및 추가 리뷰를 반영했으며, 9.2·9.3·9.6·서버 방어·ORDER_ITEMS_MISMATCH 클라이언트 처리 등 수정 완료.

@@ -246,10 +246,9 @@ async function processPaidOrder({
             if (availableCount < needQty) {
                 // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)
                 await recordStockIssue(paidEventId, orderId, productId, needQty, availableCount);
-                
-                throw new Error(
-                    `재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableCount}`
-                );
+                const err = new Error(`재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableCount}`);
+                err.code = 'INSUFFICIENT_STOCK';
+                throw err;
             }
 
             stockValidationResults.push({
@@ -302,10 +301,9 @@ async function processPaidOrder({
             if (availableStock.length < needQty) {
                 // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)
                 await recordStockIssue(paidEventId, orderId, productId, needQty, availableStock.length);
-                
-                throw new Error(
-                    `재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableStock.length} (잠금 중 재고 변경)`
-                );
+                const err = new Error(`재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableStock.length} (잠금 중 재고 변경)`);
+                err.code = 'INSUFFICIENT_STOCK';
+                throw err;
             }
 
             // 재고 상태 업데이트 (reserved로 변경)
@@ -753,8 +751,8 @@ async function processPaidOrder({
         Logger.error('[PAID_PROCESSOR] Paid 처리 실패 - 상세 정보', errorDetails);
         
         // 콘솔에도 출력 (PM2 로그에서 확인 가능)
-        console.error('[PAID_PROCESSOR] Paid 처리 실패 - 전체 에러 객체:', JSON.stringify(errorDetails, null, 2));
-        console.error('[PAID_PROCESSOR] 에러 원본:', error);
+        Logger.error('[PAID_PROCESSOR] Paid 처리 실패 - 전체 에러 객체:', JSON.stringify(errorDetails, null, 2));
+        Logger.error('[PAID_PROCESSOR] 에러 원본:', error);
 
         // ⚠️ 안전망: 예약된 재고가 있으면 명시적으로 해제 (트랜잭션 롤백 실패 대비)
         // 주의: connection이 트랜잭션 내이므로 롤백되면 자동 해제되지만, 안전을 위해 명시적 해제

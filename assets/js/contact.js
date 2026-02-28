@@ -3,6 +3,8 @@
 (function() {
   'use strict';
 
+  const Logger = window.Logger || { log: function(){}, warn: function(){ if (window.console && window.console.warn) window.console.warn.apply(window.console, arguments); }, error: function(){} };
+
   // API 설정
   const API_BASE = (window.API_BASE) 
     ? window.API_BASE 
@@ -154,7 +156,7 @@
     // config.js에서 Site Key 가져오기
     const siteKey = window.RECAPTCHA_SITE_KEY;
     if (!siteKey) {
-      console.warn('reCAPTCHA Site Key가 설정되지 않았습니다. config.js를 확인하세요.');
+      Logger.warn('reCAPTCHA Site Key가 설정되지 않았습니다. config.js를 확인하세요.');
       return;
     }
 
@@ -370,7 +372,7 @@
     }
 
     // 디버그 로그 (운영 시 제거 가능)
-    console.log('[reCAPTCHA] Token length:', recaptchaToken.length);
+    Logger.log('[reCAPTCHA] Token length:', recaptchaToken.length);
 
     // 메시지 검증 (클라이언트 측)
     const messageText = elements.message.value.trim();

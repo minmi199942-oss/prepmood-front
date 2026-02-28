@@ -155,6 +155,8 @@
 
         /* 추가 정보 입력 페이지에서 검색 기능 숨기기 */
         #search-toggle,
+        #search-overlay,
+        .search-overlay,
         #search-modal,
         .search-modal,
         .search-container,
@@ -212,11 +214,13 @@
         function hideSearchFeatures() {
             const elementsToHide = [
                 '#search-toggle',
+                '#search-overlay',
+                '.search-overlay',
                 '#search-modal',
                 '.search-modal',
                 '.search-container',
                 '.search-icon',
-                '.search-input',
+                '#search-input',
                 '.search-results',
                 '.search-modal-content'
             ];

@@ -83,10 +83,9 @@
     max-width: clamp(350px, 55vw, 500px);
   }
   
-  /* 검색 모달 조정 */
-  .search-modal-content {
-    width: 85%;
-    max-width: clamp(550px, 75vw, 650px);
+  /* 검색 오버레이 조정 */
+  .search-overlay-inner {
+    padding: clamp(12px, 3vw, 20px);
   }
   
   .search-input-container {

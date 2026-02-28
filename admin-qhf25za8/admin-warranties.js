@@ -3,6 +3,8 @@
 (function() {
   'use strict';
 
+  const Logger = window.Logger || { log: function(){}, warn: function(){}, error: function(){ if (window.console && window.console.error) window.console.error.apply(window.console, arguments); } };
+
   // API 설정
   const API_BASE = (window.API_BASE) 
     ? window.API_BASE 
@@ -149,7 +151,7 @@
       }
 
     } catch (error) {
-      console.error('보증서 검색 실패:', error.message);
+      Logger.error('보증서 검색 실패:', error.message);
       elements.loadingState.style.display = 'none';
       alert('보증서 검색 중 오류가 발생했습니다.');
     }
@@ -234,7 +236,7 @@
       renderWarrantyDetail(data);
 
     } catch (error) {
-      console.error('보증서 상세 조회 실패:', error.message);
+      Logger.error('보증서 상세 조회 실패:', error.message);
       elements.warrantyDetailContent.innerHTML = `
         <div class="empty-state">
           <p>보증서 상세 정보를 불러오는데 실패했습니다.</p>
@@ -598,7 +600,7 @@
       await executeWarrantyAction(currentWarrantyId, currentAction.type, reason);
       closeReasonModal();
     } catch (error) {
-      console.error('액션 실행 실패:', error);
+      Logger.error('액션 실행 실패:', error);
       
       // 동시성 충돌 감지 시 사용자 친화적 메시지 및 새로고침 옵션
       if (error.message.includes('상태가 변경되어') || error.message.includes('새로고침') ||
@@ -674,7 +676,7 @@
       await showWarrantyDetail(warrantyId);
 
     } catch (error) {
-      console.error('보증서 액션 실행 실패:', error);
+      Logger.error('보증서 액션 실행 실패:', error);
       
       // HTTP 에러 응답에서 상세 메시지 추출
       if (error.response) {

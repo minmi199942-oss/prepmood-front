@@ -82,7 +82,7 @@ scanButton.addEventListener('click', async () => {
             onScanError
         );
     } catch (err) {
-        console.error('카메라 시작 오류:', err);
+        Logger.error('카메라 시작 오류:', err);
         alert('카메라에 접근할 수 없습니다.\n\n설정에서 카메라 권한을 허용해주세요.');
         qrModal.style.display = 'none';
     }
@@ -94,7 +94,7 @@ closeModal.addEventListener('click', () => {
         html5QrCode.stop().then(() => {
             qrModal.style.display = 'none';
         }).catch(err => {
-            console.error('카메라 중지 오류:', err);
+            Logger.error('카메라 중지 오류:', err);
             qrModal.style.display = 'none';
         });
     } else {
@@ -104,7 +104,7 @@ closeModal.addEventListener('click', () => {
 
 // QR 스캔 성공
 function onScanSuccess(decodedText, decodedResult) {
-    console.log('QR 스캔 성공:', decodedText);
+    Logger.log('QR 스캔 성공:', decodedText);
     
     // QR 스캔 중지
     if (html5QrCode) {
@@ -153,7 +153,7 @@ async function verifyCode(code) {
             displayError(data.error || '유효하지 않은 QR 코드입니다.');
         }
     } catch (error) {
-        console.error('검증 오류:', error);
+        Logger.error('검증 오류:', error);
         loadingState.style.display = 'none';
         displayError('서버 오류가 발생했습니다. 나중에 다시 시도해주세요.');
     }
@@ -302,7 +302,7 @@ async function registerProduct(serial) {
             alert(data.error || '등록에 실패했습니다.');
         }
     } catch (error) {
-        console.error('등록 오류:', error);
+        Logger.error('등록 오류:', error);
         alert('서버 오류가 발생했습니다. 나중에 다시 시도해주세요.');
     }
 }

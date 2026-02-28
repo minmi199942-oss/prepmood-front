@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="assets/css/header.css">
   <link rel="stylesheet" href="assets/css/page.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
+  <link rel="stylesheet" href="assets/css/checkout.css">
   <script defer src="utils.js"></script>
   <script defer src="header-loader.js"></script>
   <script defer src="header-scroll.js"></script>
@@ -19,39 +20,50 @@
   <!-- 공통 헤더 -->
   <div id="header-container"></div>
 
-  <!-- 주문 완료 페이지 -->
-  <main class="order-complete-page">
-    <div class="order-complete-container">
+  <!-- 주문 완료 페이지 (checkout-payment와 동일: 브레드크럼 + 밑줄 후 내용) -->
+  <main class="checkout-page order-complete-page">
+    <div class="checkout-container order-complete-container">
+      <div class="checkout-breadcrumb-row">
+        <nav class="checkout-breadcrumb" aria-label="결제 단계">
+          <a href="checkout.html" class="step step-completed">1. 배송</a>
+          <span class="separator" aria-hidden="true">&gt;</span>
+          <a href="checkout-payment.html" class="step step-completed">2. 결제 방법</a>
+          <span class="separator" aria-hidden="true">&gt;</span>
+          <span class="step step-current">3. 주문 확인</span>
+        </nav>
+      </div>
       <div class="order-complete-content">
-        <div class="success-icon">✓</div>
-        <h1 class="order-complete-title">주문이 완료되었습니다!</h1>
-        <p class="order-complete-message">
-          주문이 성공적으로 처리되었습니다.<br>
-          주문 확인 이메일이 발송되었습니다.
-        </p>
-        
-        <!-- 주문 정보 표시 -->
+        <div class="order-complete-head">
+          <div class="success-icon">✓</div>
+          <h1 class="order-complete-title">주문이 완료되었습니다!</h1>
+          <p class="order-complete-message">
+            주문이 성공적으로 처리되었습니다.<br>
+            주문 확인 이메일이 발송되었습니다.
+          </p>
+        </div>
+        <!-- 주문 정보 (checkout-payment 배송 정보와 동일 구조: form-section + section-title) -->
         <div class="order-info-section" id="order-info-section" style="display: none;">
-          <h2 class="order-info-title">주문 정보</h2>
-          <div class="order-info-content">
-            <div class="order-info-item">
-              <span class="order-info-label">주문 번호:</span>
-              <span class="order-info-value" id="order-id">-</span>
-            </div>
-            <div class="order-info-item">
-              <span class="order-info-label">주문 금액:</span>
-              <span class="order-info-value" id="order-total">-</span>
-            </div>
-            <div class="order-info-item">
-              <span class="order-info-label">예상 배송일:</span>
-              <span class="order-info-value" id="estimated-delivery">-</span>
+          <div class="form-section">
+            <h2 class="section-title">주문 정보</h2>
+            <div class="order-info-content">
+              <div class="order-info-item">
+                <span class="order-info-label">주문 번호:</span>
+                <span class="order-info-value" id="order-id">-</span>
+              </div>
+              <div class="order-info-item">
+                <span class="order-info-label">주문 금액:</span>
+                <span class="order-info-value" id="order-total">-</span>
+              </div>
+              <div class="order-info-item">
+                <span class="order-info-label">예상 배송일:</span>
+                <span class="order-info-value" id="estimated-delivery">-</span>
+              </div>
             </div>
           </div>
-          
-          <div class="shipping-info-section">
-            <h3 class="shipping-info-title">배송 정보</h3>
-            <div class="shipping-info-content" id="shipping-info-content">
-              <!-- 배송 정보가 여기에 표시됩니다 -->
+          <div class="form-section">
+            <h2 class="section-title">배송 정보</h2>
+            <div class="order-complete-shipping" id="shipping-info-content">
+              <!-- order-complete-script.js displayShippingInfo()로 채움 -->
             </div>
           </div>
         </div>
@@ -68,106 +80,95 @@
   <div id="footer-container"></div>
 
   <style>
+    /* checkout-payment와 동일: 브레드크럼 + 밑줄 후 내용. 단일 컬럼 */
+    .order-complete-page .order-complete-container {
+      grid-template-columns: 1fr;
+      max-width: 1280px;
+      width: 100%;
+    }
+    .order-complete-page .order-complete-content {
+      grid-column: 1 / -1;
+      padding-top: 24px;
+    }
     .order-complete-page {
       min-height: calc(100vh - var(--header-height, 72px) - 200px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
       padding: 40px 20px;
     }
     
-    .order-complete-container {
-      max-width: 600px;
-      width: 100%;
-    }
-    
     .order-complete-content {
-      text-align: center;
-      background: #fff;
-      padding: 60px 40px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      text-align: left;
+      padding: 0;
     }
     
+    .order-complete-content .order-complete-head {
+      text-align: center;
+      margin-bottom: 24px;
+    }
     .success-icon {
-      width: 80px;
-      height: 80px;
+      width: 64px;
+      height: 64px;
       background-color: #27ae60;
       color: #fff;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 40px;
-      font-weight: bold;
-      margin: 0 auto 24px;
-    }
-    
-    .order-complete-title {
       font-size: 28px;
+      font-weight: bold;
+      margin: 0 auto 20px;
+    }
+    .order-complete-title {
+      font-size: 18px;
       font-weight: 700;
       color: #111;
-      margin: 0 0 16px 0;
+      margin: 0 0 12px 0;
     }
-    
     .order-complete-message {
-      font-size: 16px;
+      font-size: 13px;
       color: #666;
       line-height: 1.6;
-      margin: 0 0 32px 0;
+      margin: 0 0 24px 0;
     }
-    
     .order-info-section {
-      background: #f8f9fa;
-      padding: 24px;
-      border-radius: 8px;
-      margin: 24px 0;
-      text-align: left;
+      margin: 0 0 24px 0;
     }
-    
-    .order-info-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: #111;
-      margin: 0 0 16px 0;
+    .order-info-section .form-section {
+      margin-bottom: 24px;
     }
-    
+    .order-info-section .form-section:last-child {
+      margin-bottom: 0;
+    }
     .order-info-content {
-      margin-bottom: 20px;
+      margin-top: 0;
+      margin-bottom: 0;
     }
-    
     .order-info-item {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+      font-size: 13px;
     }
-    
+    .order-info-item:last-child {
+      margin-bottom: 0;
+    }
     .order-info-label {
       font-weight: 500;
       color: #666;
     }
-    
     .order-info-value {
       font-weight: 600;
       color: #111;
     }
-    
-    .shipping-info-section {
-      border-top: 1px solid #e0e0e0;
-      padding-top: 16px;
+    /* checkout-payment #shipping-info-payment-left와 동일 */
+    .order-complete-shipping {
+      font-size: 13px;
+      line-height: 1.6;
     }
-    
-    .shipping-info-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: #111;
-      margin: 0 0 12px 0;
+    .order-complete-shipping p {
+      margin: 0 0 6px 0;
     }
-    
-    .shipping-info-content {
-      font-size: 14px;
-      color: #666;
-      line-height: 1.5;
+    .order-complete-shipping p:last-child {
+      margin-bottom: 0;
     }
     
     .order-complete-actions {
@@ -175,33 +176,45 @@
       gap: 16px;
       justify-content: center;
       flex-wrap: wrap;
+      margin-top: 24px;
     }
     
-    .btn-primary,
-    .btn-secondary {
-      padding: 12px 24px;
+    /* checkout-payment .complete-order-btn·login과 동일: 높이 44px, 12px, 500 */
+    .order-complete-actions .btn-primary,
+    .order-complete-actions .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 44px;
+      padding: 0 24px;
+      box-sizing: border-box;
       border-radius: 4px;
       text-decoration: none;
-      font-weight: 600;
-      transition: all 0.2s ease;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 44px;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      font-family: inherit;
     }
     
-    .btn-primary {
+    .order-complete-actions .btn-primary {
       background-color: #111;
       color: #fff;
+      border: none;
     }
     
-    .btn-primary:hover {
+    .order-complete-actions .btn-primary:hover {
       background-color: #333;
     }
     
-    .btn-secondary {
-      background-color: #f0f0f0;
+    .order-complete-actions .btn-secondary {
+      background: transparent;
       color: #111;
+      border: 1px solid #111;
     }
     
-    .btn-secondary:hover {
-      background-color: #e0e0e0;
+    .order-complete-actions .btn-secondary:hover {
+      background-color: #f0f0f0;
     }
     
     @media (max-width: 768px) {
@@ -210,7 +223,7 @@
       }
       
       .order-complete-title {
-        font-size: 24px;
+        font-size: 16px;
       }
       
       .order-complete-actions {
@@ -218,9 +231,10 @@
         align-items: center;
       }
       
-      .btn-primary,
-      .btn-secondary {
-        width: 200px;
+      .order-complete-actions .btn-primary,
+      .order-complete-actions .btn-secondary {
+        width: 100%;
+        max-width: 200px;
       }
     }
   </style>

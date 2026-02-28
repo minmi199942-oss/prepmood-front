@@ -1,5 +1,6 @@
 // MailerSend 이메일 서비스
 const { MailerSend, EmailParams, Sender, Recipient } = require('mailersend');
+const Logger = require('./logger');
 require('dotenv').config();
 
 // MailerSend 초기화
@@ -10,19 +11,19 @@ const mailerSend = new MailerSend({
 // 이메일 전송 함수
 const sendVerificationEmail = async (to, verificationCode) => {
     try {
-        console.log('📧 MailerSend 이메일 전송 시작...');
-        console.log(`📬 수신자: ${to}`);
-        console.log(`🔐 인증 코드: ${verificationCode}`);
+        Logger.log('📧 MailerSend 이메일 전송 시작...');
+        Logger.log(`📬 수신자: ${to}`);
+        Logger.log(`🔐 인증 코드: ${verificationCode}`);
 
         // 디버깅: .env 값들 출력
-        console.log('🔍 디버깅 정보:');
-        console.log(`📋 MAILERSEND_API_KEY: ${process.env.MAILERSEND_API_KEY ? '설정됨' : '설정되지 않음'}`);
-        console.log(`📋 MAILERSEND_FROM_EMAIL: ${process.env.MAILERSEND_FROM_EMAIL}`);
-        console.log(`📋 TO_EMAIL: ${to}`);
+        Logger.log('🔍 디버깅 정보:');
+        Logger.log(`📋 MAILERSEND_API_KEY: ${process.env.MAILERSEND_API_KEY ? '설정됨' : '설정되지 않음'}`);
+        Logger.log(`📋 MAILERSEND_FROM_EMAIL: ${process.env.MAILERSEND_FROM_EMAIL}`);
+        Logger.log(`📋 TO_EMAIL: ${to}`);
 
         // API 키 확인
         if (!process.env.MAILERSEND_API_KEY) {
-            console.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            Logger.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
             return { 
                 success: false, 
                 error: 'MAILERSEND_API_KEY가 설정되지 않았습니다.',
@@ -96,31 +97,31 @@ Timeless lines, Refined Vibes
             `);
 
         // 이메일 전송
-        console.log('📤 MailerSend API 호출 중...');
+        Logger.log('📤 MailerSend API 호출 중...');
         const response = await mailerSend.email.send(emailParams);
         
         // 디버깅: response 정보 출력
-        console.log('🔍 MailerSend Response 디버깅:');
-        console.log(`📋 Status Code: ${response.statusCode}`);
-        console.log(`📋 Response Body:`, JSON.stringify(response.body, null, 2));
-        console.log(`📋 Full Response:`, JSON.stringify(response, null, 2));
+        Logger.log('🔍 MailerSend Response 디버깅:');
+        Logger.log(`📋 Status Code: ${response.statusCode}`);
+        Logger.log(`📋 Response Body:`, JSON.stringify(response.body, null, 2));
+        Logger.log(`📋 Full Response:`, JSON.stringify(response, null, 2));
         
         // Message ID 확인
         const messageId = response.body?.message_id || response.messageId;
-        console.log(`📧 Message ID: ${messageId}`);
+        Logger.log(`📧 Message ID: ${messageId}`);
         
         // Status Code 확인
         if (response.statusCode !== 202) {
             const errorMessage = `MailerSend API 오류: Status Code ${response.statusCode}, Body: ${JSON.stringify(response.body)}`;
-            console.error('❌ MailerSend API 오류 발생:');
-            console.error(`📋 Status Code: ${response.statusCode}`);
-            console.error(`📋 Response Body:`, JSON.stringify(response.body, null, 2));
-            console.error(`📋 Error Details:`, response.body?.errors || 'No error details');
+            Logger.error('❌ MailerSend API 오류 발생:');
+            Logger.error(`📋 Status Code: ${response.statusCode}`);
+            Logger.error(`📋 Response Body:`, JSON.stringify(response.body, null, 2));
+            Logger.error(`📋 Error Details:`, response.body?.errors || 'No error details');
             throw new Error(errorMessage);
         }
         
-        console.log('✅ MailerSend 이메일 전송 성공!');
-        console.log(`📧 Message ID: ${messageId}`);
+        Logger.log('✅ MailerSend 이메일 전송 성공!');
+        Logger.log(`📧 Message ID: ${messageId}`);
         
         return { 
             success: true, 
@@ -129,10 +130,10 @@ Timeless lines, Refined Vibes
         };
         
     } catch (error) {
-        console.error('❌ MailerSend 이메일 전송 실패:');
-        console.error('📋 에러 상세:', JSON.stringify(error, null, 2));
-        console.error('🔍 에러 메시지:', error.message);
-        console.error('📍 에러 스택:', error.stack);
+        Logger.error('❌ MailerSend 이메일 전송 실패:');
+        Logger.error('📋 에러 상세:', JSON.stringify(error, null, 2));
+        Logger.error('🔍 에러 메시지:', error.message);
+        Logger.error('📍 에러 스택:', error.stack);
         
         return { 
             success: false, 
@@ -145,11 +146,11 @@ Timeless lines, Refined Vibes
 // MailerSend 연결 테스트 함수
 const testConnection = async () => {
     try {
-        console.log('🔍 MailerSend 연결 테스트 시작...');
+        Logger.log('🔍 MailerSend 연결 테스트 시작...');
         
         if (!process.env.MAILERSEND_API_KEY) {
-            console.log('⚠️ MAILERSEND_API_KEY가 설정되지 않았습니다.');
-            console.log('💡 .env 파일에 MAILERSEND_API_KEY를 설정해주세요.');
+            Logger.log('⚠️ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            Logger.log('💡 .env 파일에 MAILERSEND_API_KEY를 설정해주세요.');
             return false;
         }
 
@@ -164,17 +165,17 @@ const testConnection = async () => {
             .setText('MailerSend 연결이 성공적으로 설정되었습니다.')
             .setHtml('<p>MailerSend 연결이 성공적으로 설정되었습니다.</p>');
 
-        console.log('📤 테스트 이메일 전송 중...');
+        Logger.log('📤 테스트 이메일 전송 중...');
         const response = await mailerSend.email.send(testEmail);
         
-        console.log('✅ MailerSend 연결 테스트 성공!');
-        console.log(`📧 테스트 Message ID: ${response.messageId}`);
+        Logger.log('✅ MailerSend 연결 테스트 성공!');
+        Logger.log(`📧 테스트 Message ID: ${response.messageId}`);
         return true;
         
     } catch (error) {
-        console.error('❌ MailerSend 연결 테스트 실패:');
-        console.error('📋 에러 상세:', JSON.stringify(error, null, 2));
-        console.error('🔍 에러 메시지:', error.message);
+        Logger.error('❌ MailerSend 연결 테스트 실패:');
+        Logger.error('📋 에러 상세:', JSON.stringify(error, null, 2));
+        Logger.error('🔍 에러 메시지:', error.message);
         return false;
     }
 };
@@ -187,12 +188,12 @@ const testConnection = async () => {
  */
 const sendInquiryReplyEmail = async (to, { customerName, inquiryNumber, replyMessage }) => {
     try {
-        console.log('📧 문의 답변 이메일 전송 시작...');
-        console.log(`📬 수신자: ${to}`);
-        console.log(`📋 접수번호: ${inquiryNumber}`);
+        Logger.log('📧 문의 답변 이메일 전송 시작...');
+        Logger.log(`📬 수신자: ${to}`);
+        Logger.log(`📋 접수번호: ${inquiryNumber}`);
 
         if (!process.env.MAILERSEND_API_KEY) {
-            console.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            Logger.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
             return { 
                 success: false, 
                 error: 'MAILERSEND_API_KEY가 설정되지 않았습니다.',
@@ -259,12 +260,12 @@ Pre.p Mood
 Timeless lines, Refined Vibes
             `);
 
-        console.log('📤 MailerSend API 호출 중...');
+        Logger.log('📤 MailerSend API 호출 중...');
         const response = await mailerSend.email.send(emailParams);
 
         if (response.statusCode !== 202) {
             const errorMessage = `MailerSend API 오류: Status Code ${response.statusCode}`;
-            console.error('❌ MailerSend API 오류 발생:', errorMessage);
+            Logger.error('❌ MailerSend API 오류 발생:', errorMessage);
             return { 
                 success: false, 
                 error: errorMessage,
@@ -272,13 +273,13 @@ Timeless lines, Refined Vibes
             };
         }
 
-        console.log('✅ 문의 답변 이메일 전송 성공!');
+        Logger.log('✅ 문의 답변 이메일 전송 성공!');
         return { 
             success: true,
             service: 'mailersend'
         };
     } catch (error) {
-        console.error('❌ 문의 답변 이메일 전송 실패:', error);
+        Logger.error('❌ 문의 답변 이메일 전송 실패:', error);
         return { 
             success: false, 
             error: error.message || '이메일 전송 중 오류가 발생했습니다.',
@@ -295,12 +296,12 @@ Timeless lines, Refined Vibes
  */
 const sendTransferRequestEmail = async (to, { transferCode, transferLink, warrantyPublicId }) => {
     try {
-        console.log('📧 양도 요청 이메일 전송 시작...');
-        console.log(`📬 수신자: ${to}`);
-        console.log(`🔐 양도 코드: ${transferCode}`);
+        Logger.log('📧 양도 요청 이메일 전송 시작...');
+        Logger.log(`📬 수신자: ${to}`);
+        Logger.log(`🔐 양도 코드: ${transferCode}`);
 
         if (!process.env.MAILERSEND_API_KEY) {
-            console.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            Logger.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
             return { 
                 success: false, 
                 error: 'MAILERSEND_API_KEY가 설정되지 않았습니다.',
@@ -379,12 +380,12 @@ Pre.p Mood
 Timeless lines, Refined Vibes
             `);
 
-        console.log('📤 MailerSend API 호출 중...');
+        Logger.log('📤 MailerSend API 호출 중...');
         const response = await mailerSend.email.send(emailParams);
 
         if (response.statusCode !== 202) {
             const errorMessage = `MailerSend API 오류: Status Code ${response.statusCode}`;
-            console.error('❌ MailerSend API 오류 발생:', errorMessage);
+            Logger.error('❌ MailerSend API 오류 발생:', errorMessage);
             return { 
                 success: false, 
                 error: errorMessage,
@@ -392,13 +393,13 @@ Timeless lines, Refined Vibes
             };
         }
 
-        console.log('✅ 양도 요청 이메일 전송 성공!');
+        Logger.log('✅ 양도 요청 이메일 전송 성공!');
         return { 
             success: true,
             service: 'mailersend'
         };
     } catch (error) {
-        console.error('❌ 양도 요청 이메일 전송 실패:', error);
+        Logger.error('❌ 양도 요청 이메일 전송 실패:', error);
         return { 
             success: false, 
             error: error.message || '이메일 전송 중 오류가 발생했습니다.',
@@ -415,12 +416,12 @@ Timeless lines, Refined Vibes
  */
 const sendOrderConfirmationEmail = async (to, { orderNumber, orderDate, totalAmount, items, orderLink, isGuest = false, customerName = null, logoUrl = null }) => {
     try {
-        console.log('📧 주문 확인 이메일 전송 시작...');
-        console.log(`📬 수신자: ${to}`);
-        console.log(`📦 주문번호: ${orderNumber}`);
+        Logger.log('📧 주문 확인 이메일 전송 시작...');
+        Logger.log(`📬 수신자: ${to}`);
+        Logger.log(`📦 주문번호: ${orderNumber}`);
 
         if (!process.env.MAILERSEND_API_KEY) {
-            console.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            Logger.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
             return { 
                 success: false, 
                 error: 'MAILERSEND_API_KEY가 설정되지 않았습니다.',
@@ -584,12 +585,12 @@ Pre.pMood
 The Art of Modern Heritage
             `);
 
-        console.log('📤 MailerSend API 호출 중...');
+        Logger.log('📤 MailerSend API 호출 중...');
         const response = await mailerSend.email.send(emailParams);
 
         if (response.statusCode !== 202) {
             const errorMessage = `MailerSend API 오류: Status Code ${response.statusCode}`;
-            console.error('❌ MailerSend API 오류 발생:', errorMessage);
+            Logger.error('❌ MailerSend API 오류 발생:', errorMessage);
             return { 
                 success: false, 
                 error: errorMessage,
@@ -597,13 +598,13 @@ The Art of Modern Heritage
             };
         }
 
-        console.log('✅ 주문 확인 이메일 전송 성공!');
+        Logger.log('✅ 주문 확인 이메일 전송 성공!');
         return { 
             success: true,
             service: 'mailersend'
         };
     } catch (error) {
-        console.error('❌ 주문 확인 이메일 전송 실패:', error);
+        Logger.error('❌ 주문 확인 이메일 전송 실패:', error);
         return { 
             success: false, 
             error: error.message || '이메일 전송 중 오류가 발생했습니다.',
@@ -620,12 +621,12 @@ The Art of Modern Heritage
  */
 const sendInvoiceEmail = async (to, { invoiceNumber, invoiceId, invoiceLink, orderNumber, customerName = null, logoUrl = null }) => {
     try {
-        console.log('📧 인보이스 이메일 전송 시작...');
-        console.log(`📬 수신자: ${to}`);
-        console.log(`📋 인보이스 번호: ${invoiceNumber}`);
+        Logger.log('📧 인보이스 이메일 전송 시작...');
+        Logger.log(`📬 수신자: ${to}`);
+        Logger.log(`📋 인보이스 번호: ${invoiceNumber}`);
 
         if (!process.env.MAILERSEND_API_KEY) {
-            console.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
+            Logger.error('❌ MAILERSEND_API_KEY가 설정되지 않았습니다.');
             return { 
                 success: false, 
                 error: 'MAILERSEND_API_KEY가 설정되지 않았습니다.',
@@ -772,12 +773,12 @@ Pre.pMood
 The Art of Modern Heritage
             `);
 
-        console.log('📤 MailerSend API 호출 중...');
+        Logger.log('📤 MailerSend API 호출 중...');
         const response = await mailerSend.email.send(emailParams);
 
         if (response.statusCode !== 202) {
             const errorMessage = `MailerSend API 오류: Status Code ${response.statusCode}`;
-            console.error('❌ MailerSend API 오류 발생:', errorMessage);
+            Logger.error('❌ MailerSend API 오류 발생:', errorMessage);
             return { 
                 success: false, 
                 error: errorMessage,
@@ -785,13 +786,13 @@ The Art of Modern Heritage
             };
         }
 
-        console.log('✅ 인보이스 이메일 전송 성공!');
+        Logger.log('✅ 인보이스 이메일 전송 성공!');
         return { 
             success: true,
             service: 'mailersend'
         };
     } catch (error) {
-        console.error('❌ 인보이스 이메일 전송 실패:', error);
+        Logger.error('❌ 인보이스 이메일 전송 실패:', error);
         return { 
             success: false, 
             error: error.message || '이메일 전송 중 오류가 발생했습니다.',

@@ -6,6 +6,8 @@
 (function() {
   'use strict';
 
+  const Logger = window.Logger || { log: function(){}, warn: function(){}, error: function(){ if (window.console && window.console.error) window.console.error.apply(window.console, arguments); } };
+
   const API_BASE = (window.API_BASE) ? window.API_BASE
     : (window.location && window.location.origin ? window.location.origin.replace(/\/$/, '') + '/api' : '/api');
 
@@ -111,7 +113,7 @@
         select.appendChild(new Option(name, id));
       });
     } catch (e) {
-      console.error('상품 로드 실패:', e.message);
+      Logger.error('상품 로드 실패:', e.message);
       alert('상품 목록을 불러오는데 실패했습니다.');
     }
   }
@@ -138,7 +140,7 @@
       });
       elements.tokenOptionSelect.disabled = false;
     } catch (e) {
-      console.error('옵션 로드 실패:', e.message);
+      Logger.error('옵션 로드 실패:', e.message);
       alert('옵션 목록을 불러오는데 실패했습니다.');
     }
   }
@@ -196,7 +198,7 @@
       updateMetaStatusAndButtons();
       alert('옵션 메타가 저장되었습니다.');
     } catch (e) {
-      console.error('옵션 메타 저장 실패:', e.message);
+      Logger.error('옵션 메타 저장 실패:', e.message);
       alert('저장 중 오류가 발생했습니다.');
     }
   }
@@ -234,7 +236,7 @@
       elements.createResult.style.display = 'block';
       alert(`${data.count}개 토큰이 생성되었습니다.`);
     } catch (e) {
-      console.error('토큰 생성 실패:', e.message);
+      Logger.error('토큰 생성 실패:', e.message);
       alert('토큰 생성 중 오류가 발생했습니다.');
     } finally {
       updateMetaStatusAndButtons();
@@ -266,7 +268,7 @@
       if (elements.tokenEditFormWrap) elements.tokenEditFormWrap.style.display = 'block';
       if (elements.editTokenMessage) elements.editTokenMessage.textContent = t.scan_count > 0 ? '이미 스캔된 토큰입니다. 수정 시 409가 반환될 수 있습니다.' : '';
     } catch (e) {
-      console.error('토큰 조회 실패:', e.message);
+      Logger.error('토큰 조회 실패:', e.message);
       if (elements.editTokenMessage) elements.editTokenMessage.textContent = '조회 중 오류가 발생했습니다.';
     }
   }
@@ -332,7 +334,7 @@
         }
       }
     } catch (e) {
-      console.error('대량 등록 실패:', e.message);
+      Logger.error('대량 등록 실패:', e.message);
       if (elements.bulkResultWrap) {
         elements.bulkResultWrap.style.display = 'block';
         if (elements.bulkSummary) elements.bulkSummary.textContent = '요청 중 오류: ' + e.message;
@@ -378,7 +380,7 @@
         if (elements.editTokenMessage) elements.editTokenMessage.textContent = data.message || `오류 ${res.status}`;
       }
     } catch (e) {
-      console.error('토큰 수정 실패:', e.message);
+      Logger.error('토큰 수정 실패:', e.message);
       if (elements.editTokenMessage) elements.editTokenMessage.textContent = '저장 중 오류가 발생했습니다.';
     } finally {
       if (elements.saveTokenEditBtn) elements.saveTokenEditBtn.disabled = false;

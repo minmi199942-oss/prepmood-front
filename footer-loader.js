@@ -10,7 +10,7 @@ window.addEventListener('DOMContentLoaded', () => {
         initFooterAccordion(); // 아코디언 기능 초기화
       })
       .catch(error => {
-        console.error('Error loading footer:', error);
+        Logger.error('Error loading footer:', error);
         // 푸터 로드 실패 시 기본 푸터 표시
         footerContainer.innerHTML = `
           <footer class="global-footer">

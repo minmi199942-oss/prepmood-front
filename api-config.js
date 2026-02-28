@@ -15,4 +15,4 @@ const apiBaseUrl = getApiBaseUrl();
 window.API_BASE = apiBaseUrl;
 window.getApiBaseUrl = getApiBaseUrl;
 
-console.log('✅ API 설정 로드 완료 - 현재 API_BASE:', apiBaseUrl);
+if (typeof window !== 'undefined' && window.Logger && window.Logger.log) { window.Logger.log('✅ API 설정 로드 완료 - 현재 API_BASE:', apiBaseUrl); }

@@ -521,39 +521,43 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
 
         const { items, shipping } = req.body;
 
-        // 총 금액 계산
+        // 총 금액 계산 (9.2: 상품 한 번에 조회 후 맵으로 매칭)
         let totalPrice = 0;
         const orderItemsData = [];
 
-        for (const item of items) {
-            // 상품 정보 조회 (product_id 존재 확인)
-            // admin_products 테이블 사용 (cart-routes.js와 동일)
-            const [productRows] = await connection.execute(
-                'SELECT id AS product_id, name, price, image FROM admin_products WHERE id = ?',
-                [item.product_id]
-            );
+        const productIds = [...new Set(items.map(i => i.product_id).filter(Boolean))];
+        if (productIds.length === 0) {
+            await connection.end();
+            return res.status(400).json({
+                code: 'VALIDATION_ERROR',
+                details: { message: '주문할 상품이 없습니다.' }
+            });
+        }
+        const placeholders = productIds.map(() => '?').join(',');
+        const [productRows] = await connection.execute(
+            `SELECT id AS product_id, name, price, image FROM admin_products WHERE id IN (${placeholders})`,
+            productIds
+        );
+        const productMap = new Map(productRows.map(r => [r.product_id, r]));
 
-            if (productRows.length === 0) {
+        for (const item of items) {
+            const product = productMap.get(item.product_id);
+            if (!product) {
                 await connection.end();
-                return res.status(400).json({ 
-                    code: 'VALIDATION_ERROR', 
+                return res.status(400).json({
+                    code: 'VALIDATION_ERROR',
                     details: { [`items[${items.indexOf(item)}].product_id`]: `상품 ID ${item.product_id}를 찾을 수 없습니다` }
                 });
             }
-
-            const product = productRows[0];
-            
-            // 서버에서 가격 재계산 (클라이언트 가격 무시)
             const serverPrice = parseFloat(product.price);
             const subtotal = serverPrice * item.quantity;
             totalPrice += subtotal;
-
             orderItemsData.push({
                 product_id: product.product_id,
                 product_name: product.name,
                 product_image: product.image,
-                size: item.size || null,        // size 추가
-                color: item.color || null,      // color 추가
+                size: item.size || null,
+                color: item.color || null,
                 quantity: item.quantity,
                 unit_price: serverPrice,
                 subtotal: subtotal
@@ -620,34 +624,46 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
 
             const orderId = orderResult.insertId;
 
-            // order_items 테이블에 주문 상품들 저장
+            // order_items: canonical_id 확인 후 bulk insert (9.2, 9.3, 1번)
+            const orderItemRows = [];
             for (const itemData of orderItemsData) {
-                // 상품 존재 확인
                 const productIds = await resolveProductIdBoth(itemData.product_id, connection);
-                
                 if (!productIds) {
-                    Logger.warn('[ORDER] 상품 ID를 찾을 수 없음 (주문 생성)', {
-                        product_id: itemData.product_id,
-                        order_id: orderId
+                    await connection.rollback();
+                    await connection.end();
+                    return res.status(400).json({
+                        code: 'VALIDATION_ERROR',
+                        details: { message: '일부 상품 정보를 찾을 수 없습니다. 장바구니를 확인해 주세요.' }
                     });
-                    // 경고만 하고 계속 진행 (기존 동작 유지)
                 }
-                
-                await connection.execute(
+                orderItemRows.push([
+                    orderId,
+                    productIds.canonical_id,
+                    itemData.product_name,
+                    itemData.size || null,
+                    itemData.color || null,
+                    itemData.product_image,
+                    itemData.quantity,
+                    itemData.unit_price,
+                    itemData.subtotal
+                ]);
+            }
+            if (orderItemRows.length > 0) {
+                const valuesPlaceholders = orderItemRows.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+                const flatValues = orderItemRows.flat();
+                const [insertResult] = await connection.execute(
                     `INSERT INTO order_items (order_id, product_id, product_name, size, color, product_image, quantity, unit_price, subtotal)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [
-                        orderId,
-                        productIds ? productIds.canonical_id : itemData.product_id,  // product_id (cutover 후 id가 canonical)
-                        itemData.product_name,
-                        itemData.size || null,
-                        itemData.color || null,
-                        itemData.product_image,
-                        itemData.quantity,
-                        itemData.unit_price,
-                        itemData.subtotal
-                    ]
+                     VALUES ${valuesPlaceholders}`,
+                    flatValues
                 );
+                if (insertResult.affectedRows !== orderItemsData.length) {
+                    await connection.rollback();
+                    await connection.end();
+                    return res.status(500).json({
+                        code: 'ORDER_ITEMS_MISMATCH',
+                        details: { message: '주문 항목 처리 중 오류가 발생했습니다.' }
+                    });
+                }
             }
 
             // 결제 사전승인 훅 자리 표시자 (향후 결제 시스템 연동 시 구현)
@@ -713,7 +729,7 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
             userId: req.user?.userId,
             shipping: maskedShipping
         });
-        console.error('주문 생성 오류 상세:', error);
+        Logger.error('주문 생성 오류 상세:', error);
         
         // DUPLICATE_ORDER_NUMBER 특별 처리
         if (error.code === 'ER_DUP_ENTRY' && error.message.includes('order_number')) {

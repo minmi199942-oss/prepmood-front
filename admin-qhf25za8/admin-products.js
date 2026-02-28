@@ -3,6 +3,8 @@
 (function() {
   'use strict';
 
+  const Logger = window.Logger || { log: function(){}, warn: function(){ if (window.console && window.console.warn) window.console.warn.apply(window.console, arguments); }, error: function(){ if (window.console && window.console.error) window.console.error.apply(window.console, arguments); } };
+
   // API 설정
   const API_BASE_URL = (window.API_BASE)
     ? window.API_BASE
@@ -88,7 +90,7 @@
       }
     } catch (error) {
       // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
-      console.error('상품 로드 오류:', error.message);
+      Logger.error('상품 로드 오류:', error.message);
       elements.productsGrid.innerHTML = `
         <div class="error-state">
           <p>상품 목록을 불러올 수 없습니다.</p>
@@ -332,7 +334,7 @@
                 imagePreview.innerHTML = `<img src="${event.target.result}" alt="미리보기">`;
               };
               reader.onerror = function() {
-                console.error('이미지 읽기 오류');
+                Logger.error('이미지 읽기 오류');
               };
               reader.readAsDataURL(file);
             }
@@ -430,7 +432,7 @@
       }
     } catch (error) {
       // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
-      console.error('이미지 업로드 오류:', error.message);
+      Logger.error('이미지 업로드 오류:', error.message);
       throw error;
     }
   }
@@ -539,7 +541,7 @@
         try {
           productData.image = await uploadImage(imageFile);
         } catch (error) {
-          console.error('이미지 업로드 오류:', error.message);
+          Logger.error('이미지 업로드 오류:', error.message);
           alert('이미지 업로드에 실패했습니다: ' + error.message);
           return;
         }
@@ -579,7 +581,7 @@
       }
     } catch (error) {
       // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
-      console.error('상품 저장 오류:', error.message);
+      Logger.error('상품 저장 오류:', error.message);
       alert(`상품 저장 오류: ${error.message}`);
     }
   }
@@ -610,7 +612,7 @@
       }
     } catch (error) {
       // 로깅 정책: Phase 0 준수 (error 객체 전체 덤프 금지)
-      console.error('상품 삭제 오류:', error.message);
+      Logger.error('상품 삭제 오류:', error.message);
       alert(`상품 삭제 오류: ${error.message}`);
     }
   }
@@ -724,7 +726,7 @@
         throw new Error(data.message || '옵션 조회에 실패했습니다.');
       }
     } catch (error) {
-      console.error('옵션 로드 오류:', error.message);
+      Logger.error('옵션 로드 오류:', error.message);
       optionsLoading.innerHTML = `<div style="color: #dc3545;">옵션 목록을 불러올 수 없습니다: ${error.message}</div>`;
     } finally {
       optionsLoading.style.display = 'none';
@@ -829,7 +831,7 @@
         });
       }
     } catch (e) {
-      console.warn('옵션 추천 목록 로드 실패', e);
+      Logger.warn('옵션 추천 목록 로드 실패', e);
     }
 
     modal.classList.add('show');
@@ -904,7 +906,7 @@
         throw new Error(data.message || '옵션 추가에 실패했습니다.');
       }
     } catch (error) {
-      console.error('옵션 추가 오류:', error.message);
+      Logger.error('옵션 추가 오류:', error.message);
       alert(`옵션 추가 오류: ${error.message}`);
     }
   }
@@ -936,7 +938,7 @@
         throw new Error(data.message || '옵션 수정에 실패했습니다.');
       }
     } catch (error) {
-      console.error('옵션 수정 오류:', error.message);
+      Logger.error('옵션 수정 오류:', error.message);
       alert(`옵션 수정 오류: ${error.message}`);
     }
   }
@@ -967,7 +969,7 @@
         throw new Error(data.message || '옵션 삭제에 실패했습니다.');
       }
     } catch (error) {
-      console.error('옵션 삭제 오류:', error.message);
+      Logger.error('옵션 삭제 오류:', error.message);
       alert(`옵션 삭제 오류: ${error.message}`);
     }
   }

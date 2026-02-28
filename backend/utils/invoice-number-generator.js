@@ -13,6 +13,7 @@
  */
 
 const crypto = require('crypto');
+const Logger = require('../logger');
 
 /**
  * 인보이스 번호 생성
@@ -60,7 +61,7 @@ async function generateUniqueInvoiceNumber(connection, date = new Date(), maxRet
             }
             
             // 충돌 감지 시 로그
-            console.log(`[INVOICE] 인보이스 번호 충돌 감지 (시도 ${attempt}/${maxRetries}): ${invoiceNumber}`);
+            Logger.log(`[INVOICE] 인보이스 번호 충돌 감지 (시도 ${attempt}/${maxRetries}): ${invoiceNumber}`);
             
             if (attempt === maxRetries) {
                 throw new Error(`인보이스 번호 생성 실패: ${maxRetries}회 재시도 후에도 고유한 번호를 생성할 수 없습니다`);
@@ -74,7 +75,7 @@ async function generateUniqueInvoiceNumber(connection, date = new Date(), maxRet
             if (attempt === maxRetries) {
                 throw error;
             }
-            console.log(`[INVOICE] 인보이스 번호 생성 오류 (시도 ${attempt}/${maxRetries}): ${error.message}`);
+            Logger.log(`[INVOICE] 인보이스 번호 생성 오류 (시도 ${attempt}/${maxRetries}): ${error.message}`);
         }
     }
 }

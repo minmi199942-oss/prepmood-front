@@ -1,4 +1,42 @@
 // 주문 완료 페이지 스크립트
+function isDevHost() {
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1';
+}
+
+/** 개발 환경 전용 샘플 데이터 (디자인 확인용) */
+function getDevSampleOrderData() {
+  const etaDate = new Date();
+  etaDate.setDate(etaDate.getDate() + 5);
+  return {
+    data: {
+      order_number: 'PM-ORD-2025-SAMPLE',
+      amount: 75000,
+      currency: 'KRW',
+      fraction: 0,
+      status: 'confirmed',
+      eta: etaDate.toISOString()
+    },
+    orderDetail: {
+      order: {},
+      shipping: {
+        recipient_name: '홍길동',
+        phone: '010-1234-5678',
+        email: 'sample@email.com',
+        address: '서울시 강남구 테헤란로 123',
+        city: '서울',
+        postal_code: '06134',
+        country: '대한민국',
+        method: 'standard',
+        cost: 0
+      },
+      items: [],
+      payment: {},
+      shipments: []
+    }
+  };
+}
+
 const API_BASE = (window.API_BASE)
   ? window.API_BASE
   : ((window.location && window.location.origin)
@@ -12,6 +50,14 @@ document.addEventListener('DOMContentLoaded', async function() {
   const orderId = urlParams.get('orderId'); // 토스페이먼츠 successUrl에서 orderId로 전달
   const amount = urlParams.get('amount');
   const guestToken = urlParams.get('guestToken'); // ⚠️ 비회원 주문 토큰
+
+  // 개발 환경: orderId 없이 접속 시 샘플 데이터로 주문확인 레이아웃 표시 (디자인 수정용)
+  if (!orderId && !paymentKey && isDevHost()) {
+    const sample = getDevSampleOrderData();
+    displayOrderInfoFromServer(sample.data, sample.orderDetail);
+    Logger.log('🎨 개발 환경: 샘플 데이터로 주문확인 페이지 디자인 확인');
+    return;
+  }
 
   const authStatus = await fetchAuthStatus();
   const isAuthenticated = authStatus?.authenticated;
@@ -40,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       loadOrderDetails(orderId);
     }
   } else {
-    console.warn('⚠️ 주문 ID가 없습니다');
+    Logger.warn('⚠️ 주문 ID가 없습니다');
     // 주문 ID가 없으면 기본 메시지만 표시
     document.getElementById('order-info-section').style.display = 'none';
   }
@@ -56,7 +102,7 @@ async function fetchAuthStatus() {
     }
     return await response.json();
   } catch (error) {
-    console.warn('auth status 확인 실패', error.message);
+    Logger.warn('auth status 확인 실패', error.message);
     return { authenticated: false };
   }
 }
@@ -86,7 +132,7 @@ async function loadGuestOrderDetails(orderNumber, guestToken) {
             return;
           }
         } catch (urlError) {
-          console.warn('리다이렉트 URL 파싱 실패:', urlError);
+          Logger.warn('리다이렉트 URL 파싱 실패:', urlError);
         }
       }
       // Location 헤더가 없거나 order 파라미터가 없으면 원래 orderNumber 사용
@@ -96,7 +142,7 @@ async function loadGuestOrderDetails(orderNumber, guestToken) {
     
     if (!sessionResponse.ok) {
       const errorData = await sessionResponse.json().catch(() => ({}));
-      console.warn('비회원 주문 세션 발급 실패', sessionResponse.status, errorData);
+      Logger.warn('비회원 주문 세션 발급 실패', sessionResponse.status, errorData);
       showOrderError(errorData.message || '주문 정보를 불러올 수 없습니다. 이메일로 발송된 링크를 사용해주세요.');
       return;
     }
@@ -111,7 +157,7 @@ async function loadGuestOrderDetails(orderNumber, guestToken) {
     }
     
   } catch (error) {
-    console.error('비회원 주문 조회 오류:', error);
+    Logger.error('비회원 주문 조회 오류:', error);
     showOrderError('주문 정보를 불러오는 중 오류가 발생했습니다.');
   }
 }
@@ -168,7 +214,7 @@ async function loadGuestOrderDetailsBySession(orderNumber) {
       showOrderError('주문 정보를 불러올 수 없습니다.');
     }
   } catch (error) {
-    console.error('비회원 주문 조회 오류:', error);
+    Logger.error('비회원 주문 조회 오류:', error);
     showOrderError('주문 정보를 불러오는 중 오류가 발생했습니다.');
   }
 }
@@ -181,7 +227,7 @@ async function loadOrderDetails(orderId) {
     
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
-        console.warn('주문 정보 조회 권한 없음', response.status);
+        Logger.warn('주문 정보 조회 권한 없음', response.status);
         showOrderError('주문 정보를 확인하려면 로그인이 필요합니다.');
         return;
       }
@@ -200,8 +246,9 @@ async function loadOrderDetails(orderId) {
       // 서버에서 받은 최신 정보로 렌더링
       displayOrderInfoFromServer(result.data, result.order);
       
-      // 세션스토리지 정리 (서버가 진실 원천)
+      // 세션스토리지 정리 (서버가 진실 원천, PII 완료 후 삭제)
       sessionStorage.removeItem('serverCurrencyInfo');
+      sessionStorage.removeItem('checkoutShippingData');
       
     } else if (result.success && result.order) {
       // 기존 호환성 유지 (order 필드만 있는 경우)
@@ -209,13 +256,14 @@ async function loadOrderDetails(orderId) {
       
       // 세션스토리지 정리
       sessionStorage.removeItem('serverCurrencyInfo');
+      sessionStorage.removeItem('checkoutShippingData');
       
     } else {
       throw new Error('주문 정보를 찾을 수 없습니다');
     }
     
   } catch (error) {
-    console.error('❌ 주문 정보 로딩 실패:', error);
+    Logger.error('❌ 주문 정보 로딩 실패:', error);
     showOrderError(error.message || '주문 정보를 불러오는 중 오류가 발생했습니다.');
   }
 }
@@ -223,7 +271,7 @@ async function loadOrderDetails(orderId) {
 function displayOrderInfoFromServer(data, orderDetail) {
   const orderInfoSection = document.getElementById('order-info-section');
   if (!orderInfoSection) {
-    console.error('❌ order-info-section을 찾을 수 없습니다');
+    Logger.error('❌ order-info-section을 찾을 수 없습니다');
     return;
   }
   
@@ -447,7 +495,7 @@ function formatPriceWithCurrency(price, currency, fraction) {
         maximumFractionDigits: info.fraction ?? 2
       }).format(price);
     } catch (e) {
-      console.warn('세션스토리지 파싱 실패, 기본값 사용');
+      Logger.warn('세션스토리지 파싱 실패, 기본값 사용');
     }
   }
   
@@ -504,7 +552,28 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
+      // 재고 부족 시 전용 메시지 + 장바구니로 유도 (7번 UX)
+      if (errorData.code === 'INSUFFICIENT_STOCK') {
+        const orderInfoSection = document.getElementById('order-info-section');
+        if (orderInfoSection) {
+          orderInfoSection.style.display = 'block';
+          orderInfoSection.innerHTML = `
+            <div class="error-content" style="text-align: center; padding: 40px;">
+              <h2 style="color: #111; margin-bottom: 16px;">알려드립니다</h2>
+              <p style="color: #666; margin-bottom: 24px; line-height: 1.6;">고객님, 대단히 죄송합니다. 결제를 진행하시는 동안 선택하신 상품의 재고가 모두 소진되었습니다.</p>
+              <p style="color: #666; margin-bottom: 24px; font-size: 14px;">장바구니에서 수량을 확인하시거나 다른 상품을 선택해 주세요.</p>
+              <button type="button" id="insufficient-stock-cart-btn" style="padding: 12px 24px; background: #111; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">장바구니로 이동</button>
+            </div>
+          `;
+          const cartBtn = document.getElementById('insufficient-stock-cart-btn');
+          if (cartBtn) cartBtn.addEventListener('click', () => { window.location.href = 'cart.html'; });
+        } else {
+          alert('고객님, 대단히 죄송합니다. 결제를 진행하시는 동안 선택하신 상품의 재고가 모두 소진되었습니다. 장바구니에서 다시 확인해 주세요.');
+          window.location.href = 'cart.html';
+        }
+        return;
+      }
       throw new Error(errorData.details?.message || '결제 확인에 실패했습니다.');
     }
     
@@ -522,7 +591,7 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
       await loadGuestOrderDetails(orderId, guestToken);
     } else {
       // user_id도 없고 guestToken도 없는 경우 (예외 상황)
-      console.warn('⚠️ 주문 타입을 확인할 수 없습니다. 회원 주문으로 시도합니다.');
+      Logger.warn('⚠️ 주문 타입을 확인할 수 없습니다. 회원 주문으로 시도합니다.');
       await loadOrderDetails(orderId);
     }
     
@@ -530,7 +599,7 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     showPaymentSuccess();
     
   } catch (error) {
-    console.error('❌ 결제 확인 실패:', error);
+    Logger.error('❌ 결제 확인 실패:', error);
     showPaymentError(error.message || '결제 확인 중 오류가 발생했습니다.');
   }
 }

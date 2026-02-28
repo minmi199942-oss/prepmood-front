@@ -11,7 +11,7 @@ let isLoading = false;
 let hasMore = true;
 
 document.addEventListener('DOMContentLoaded', async function() {
-  console.log('디지털 보증서 목록 페이지 로드됨');
+  Logger.log('디지털 보증서 목록 페이지 로드됨');
   
   // 개발 모드: localhost/127.0.0.1에서만 로그인 체크 우회
   // 운영 환경에서는 ?dev=true 파라미터를 무시 (보안)
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       name: '개발자',
       email: 'dev@example.com'
     };
-    console.log('개발 모드: 로그인 체크 우회됨');
+    Logger.log('개발 모드: 로그인 체크 우회됨');
   }
 
   // 사용자 환영 메시지 표시
@@ -58,7 +58,7 @@ async function checkLoginStatus() {
     }
     return null;
   } catch (error) {
-    console.error('로그인 상태 확인 오류:', error);
+    Logger.error('로그인 상태 확인 오류:', error);
     return null;
   }
 }
@@ -101,7 +101,7 @@ async function loadWarranties(offset = 0, limit = DEFAULT_LIMIT) {
       hasMore = false;
     }
   } catch (error) {
-    console.error('보증서 목록 로드 오류:', error);
+    Logger.error('보증서 목록 로드 오류:', error);
     renderWarranties([], true);
     hasMore = false;
   } finally {
@@ -116,7 +116,7 @@ function renderWarranties(warranties, replace = false) {
   const noWarranties = document.getElementById('no-warranties');
   
   if (!warrantiesList || !noWarranties) {
-    console.error('보증서 목록 컨테이너를 찾을 수 없습니다.');
+    Logger.error('보증서 목록 컨테이너를 찾을 수 없습니다.');
     return;
   }
 
@@ -180,7 +180,7 @@ function formatDate(isoDateString) {
       day: 'numeric'
     });
   } catch (error) {
-    console.error('날짜 포맷팅 오류:', error);
+    Logger.error('날짜 포맷팅 오류:', error);
     return isoDateString;
   }
 }

@@ -63,7 +63,7 @@
     </nav>
 
     <div class="header-actions">
-      <a href="#" class="action-link" id="search-toggle">
+      <a href="#" class="action-link" id="search-toggle" aria-label="검색">
         <img src="/image/돋보기.jpg" alt="검색" class="action-icon" />
       </a>
       
@@ -103,43 +103,18 @@
   </div>
 </header>
 
-<!-- 검색 모달 창 -->
-<div id="search-modal" class="search-modal">
-  <div class="search-modal-content">
-    <div class="search-header">
-      <h3>상품 검색</h3>
-      <span class="search-close" id="search-close">&times;</span>
+<!-- 검색 전체 화면 오버레이 (구찌처럼 pushState ?s-flyout=open + popstate로 뒤로가기 시 닫기) -->
+<div id="search-overlay" class="search-overlay" aria-hidden="true">
+  <div class="search-overlay-inner">
+    <div class="search-overlay-header">
+      <input type="text" id="search-input" class="search-overlay-input" placeholder="검색" autocomplete="off" aria-label="상품 검색">
+      <button type="button" class="search-overlay-close" id="search-close" aria-label="검색 닫기">&times;</button>
     </div>
-    <div class="search-body">
-      <div class="search-input-group">
-        <input type="text" id="search-input" placeholder="검색어를 입력하세요..." autofocus>
-        <button id="search-btn" class="search-button">검색</button>
-      </div>
-      <div class="search-filters">
-        <select id="category-filter">
-          <option value="">전체 카테고리</option>
-          <option value="tops">상의</option>
-          <option value="bottoms">하의</option>
-          <option value="outer">아우터</option>
-          <option value="bags">가방</option>
-          <option value="accessories">액세서리</option>
-        </select>
-        <select id="price-filter">
-          <option value="">가격대</option>
-          <option value="0-50000">5만원 이하</option>
-          <option value="50000-100000">5만원 ~ 10만원</option>
-          <option value="100000-200000">10만원 ~ 20만원</option>
-          <option value="200000-">20만원 이상</option>
-        </select>
-      </div>
-    </div>
-    <div class="search-results" id="search-results">
-      <!-- 검색 결과가 여기에 표시됩니다 -->
+    <div class="search-overlay-results" id="search-results" role="region" aria-live="polite">
+      <!-- 검색 결과 또는 안내 문구 (header-loader.js에서 textContent로만 렌더링) -->
     </div>
   </div>
 </div>
-
-<!-- 검색 기능은 header-loader.js에서 초기화됩니다 -->
 
 <!-- 우측 사이드바 미니 카트 -->
 <div id="mini-cart" class="mini-cart">

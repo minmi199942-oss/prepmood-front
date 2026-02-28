@@ -71,7 +71,7 @@
       if (window.Logger) {
         window.Logger.error('CATALOG_DATA가 없습니다');
       }
-      console.warn('CATALOG_DATA가 없습니다');
+      Logger.warn('CATALOG_DATA가 없습니다');
       return null;
     }
 
@@ -105,8 +105,8 @@
     if (window.Logger) {
       window.Logger.warn('제품을 찾을 수 없습니다:', id);
     }
-    console.warn('제품을 찾을 수 없습니다:', id);
-    console.warn('CATALOG_DATA 구조:', Object.keys(window.CATALOG_DATA));
+    Logger.warn('제품을 찾을 수 없습니다:', id);
+    Logger.warn('CATALOG_DATA 구조:', Object.keys(window.CATALOG_DATA));
     
     // 샘플 상품 ID 출력 (디버깅용)
     let sampleIds = [];
@@ -119,7 +119,7 @@
       }
     }
     if (sampleIds.length > 0) {
-      console.warn('사용 가능한 상품 ID 샘플:', sampleIds);
+      Logger.warn('사용 가능한 상품 ID 샘플:', sampleIds);
     }
     
     return null;
@@ -168,7 +168,7 @@
       }
 
     } catch (error) {
-      console.error('위시리스트 불러오기 오류:', error);
+      Logger.error('위시리스트 불러오기 오류:', error);
       loadingState.style.display = 'none';
       
       // 서버가 꺼져있거나 연결할 수 없는 경우 - 빈 상태로 표시
@@ -180,9 +180,9 @@
       
       // 개발 모드에서는 콘솔에 상세 정보 표시
       if (error.message && error.message.includes('Failed to fetch')) {
-        console.warn('💡 백엔드 서버가 실행되지 않았습니다. 위시리스트 기능을 사용하려면 서버를 시작하세요:');
-        console.warn('   cd backend');
-        console.warn('   node index.js');
+        Logger.warn('💡 백엔드 서버가 실행되지 않았습니다. 위시리스트 기능을 사용하려면 서버를 시작하세요:');
+        Logger.warn('   cd backend');
+        Logger.warn('   node index.js');
       }
     }
   }
@@ -200,7 +200,7 @@
       const product = findProductById(item.product_id);
 
       if (!product) {
-        console.warn(`상품을 찾을 수 없습니다: ${item.product_id}`);
+        Logger.warn(`상품을 찾을 수 없습니다: ${item.product_id}`);
         notFoundIds.push(item.product_id);
         return;
       }
@@ -233,8 +233,8 @@
 
     // 찾지 못한 상품이 있는 경우 경고
     if (notFoundIds.length > 0) {
-      console.warn(`총 ${notFoundIds.length}개의 상품을 찾을 수 없습니다:`, notFoundIds);
-      console.warn('CATALOG_DATA가 제대로 로드되었는지 확인하세요.');
+      Logger.warn(`총 ${notFoundIds.length}개의 상품을 찾을 수 없습니다:`, notFoundIds);
+      Logger.warn('CATALOG_DATA가 제대로 로드되었는지 확인하세요.');
     }
 
     // 찾은 상품이 없는 경우 빈 상태 표시
@@ -244,7 +244,7 @@
       wishlistGrid.style.display = 'none';
       emptyState.style.display = 'flex';
       wishlistCountSpan.textContent = '0';
-      console.warn('위시리스트에 상품이 있지만 CATALOG_DATA에서 찾을 수 없습니다.');
+      Logger.warn('위시리스트에 상품이 있지만 CATALOG_DATA에서 찾을 수 없습니다.');
     }
 
     // 제거 버튼 이벤트 리스너 등록
@@ -287,7 +287,7 @@
       }
 
     } catch (error) {
-      console.error('위시리스트 제거 오류:', error);
+      Logger.error('위시리스트 제거 오류:', error);
       alert('서버와의 통신에 실패했습니다.');
     }
   }

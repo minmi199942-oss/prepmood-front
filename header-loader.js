@@ -1,6 +1,6 @@
 // 중복 로드 방지
 if (window.__HEADER_LOADER_INITIALIZED__) {
-  console.warn('header-loader.js: 이미 초기화되었습니다. 중복 로드를 건너뜁니다.');
+  Logger.warn('header-loader.js: 이미 초기화되었습니다. 중복 로드를 건너뜁니다.');
 } else {
   window.__HEADER_LOADER_INITIALIZED__ = true;
 
@@ -62,7 +62,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const headerContainer = document.getElementById('header-container');
   
   if (!headerContainer) {
-    console.warn('header-loader: #header-container element not found.');
+    Logger.warn('header-loader: #header-container element not found.');
     return;
   }
 
@@ -122,7 +122,7 @@ window.addEventListener('DOMContentLoaded', () => {
             document.documentElement.style.setProperty('--header-height', h + 'px');
           } else {
             // 비정상적으로 큰 값은 무시 (누적 방지)
-            console.warn('header-loader: 헤더 높이 누적 감지, 업데이트 건너뜀', { h, currentHeight });
+            Logger.warn('header-loader: 헤더 높이 누적 감지, 업데이트 건너뜀', { h, currentHeight });
           }
         }
       }
@@ -257,85 +257,199 @@ window.addEventListener('DOMContentLoaded', () => {
 
       debugLog('Dropdown system initialized with', megaItems.length, 'menu items');
 
-      // Search modal elements
-      const searchModal = document.getElementById('search-modal');
+      // 검색 오버레이: 구찌처럼 pushState(?s-flyout=open) + popstate 시 뒤로가기로 닫기
+      const searchOverlay = document.getElementById('search-overlay');
       const searchToggle = document.getElementById('search-toggle');
       const searchClose = document.getElementById('search-close');
       const searchInput = document.getElementById('search-input');
-      const searchBtn = document.getElementById('search-btn');
       const searchResults = document.getElementById('search-results');
-      const categoryFilter = document.getElementById('category-filter');
-      const priceFilter = document.getElementById('price-filter');
 
-      if (searchModal && searchToggle) {
-        // Open search modal
-        searchToggle.addEventListener('click', function(e) {
-          e.preventDefault();
-          searchModal.style.display = 'block';
-          if (searchInput) searchInput.focus();
-        });
+      if (searchOverlay && searchToggle && searchResults) {
+        const DEBOUNCE_MS = 400;
+        let searchDebounceTimer = null;
+        const FLYOUT_PARAM = 's-flyout';
 
-        // Close search modal
-        if (searchClose) {
-          searchClose.addEventListener('click', function() {
-            searchModal.style.display = 'none';
+        function getFlattenedCatalog() {
+          const catalog = typeof window.CATALOG_DATA !== 'undefined' ? window.CATALOG_DATA : {};
+          const out = [];
+          Object.keys(catalog).forEach(function (mainCat) {
+            const sub = catalog[mainCat];
+            if (sub && typeof sub === 'object') {
+              Object.keys(sub).forEach(function (subCat) {
+                const products = sub[subCat];
+                if (Array.isArray(products)) {
+                  products.forEach(function (p) {
+                    out.push({
+                      id: p.id,
+                      name: p.name,
+                      price: p.price,
+                      image: p.image,
+                      mainCategory: mainCat,
+                      subCategory: subCat,
+                      category: mainCat
+                    });
+                  });
+                }
+              });
+            }
+          });
+          return out;
+        }
+
+        function filterCatalog(keyword) {
+          const k = (keyword || '').trim().toLowerCase();
+          if (!k) return [];
+          const list = getFlattenedCatalog();
+          return list.filter(function (p) {
+            const name = (p.name || '').toLowerCase();
+            const cat = (p.category || p.mainCategory || '').toLowerCase();
+            return name.indexOf(k) !== -1 || cat.indexOf(k) !== -1;
           });
         }
 
-        // Close modal when clicking outside
-        window.addEventListener('click', function(e) {
-          if (e.target === searchModal) {
-            searchModal.style.display = 'none';
-          }
-        });
-
-        // Perform search helper
-        function performSearch() {
-          const query = searchInput ? searchInput.value.trim() : '';
-
-          if (!query) {
-            if (searchResults) {
-              searchResults.innerHTML = '<p class="no-results">검색어를 입력해 주세요.</p>';
-            }
+        function renderResults(keyword, products) {
+          searchResults.innerHTML = '';
+          if (!products || products.length === 0) {
+            const p = document.createElement('p');
+            p.className = 'search-no-results';
+            p.textContent = keyword && keyword.trim()
+              ? keyword.trim() + '에 대한 검색 결과가 없습니다.'
+              : '검색어를 2글자 이상 입력해 주세요.';
+            searchResults.appendChild(p);
             return;
           }
-
-          // Redirect to search results page
-          const searchUrl = `search.html?q=${encodeURIComponent(query)}`;
-          window.location.href = searchUrl;
-        }
-
-        // Search button click
-        if (searchBtn) {
-          searchBtn.addEventListener('click', performSearch);
-        }
-
-        // Enter key submits search
-        if (searchInput) {
-          searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-              performSearch();
-            }
+          products.forEach(function (product) {
+            const item = document.createElement('div');
+            item.className = 'search-result-item';
+            const link = document.createElement('a');
+            link.href = '/buy.html?id=' + encodeURIComponent(product.id || '');
+            const nameEl = document.createElement('h4');
+            nameEl.textContent = product.name || '상품명';
+            const meta = document.createElement('p');
+            meta.textContent = (product.category || '') + (product.price != null ? ' · ₩' + Number(product.price).toLocaleString() : '');
+            link.appendChild(nameEl);
+            link.appendChild(meta);
+            item.appendChild(link);
+            searchResults.appendChild(item);
           });
         }
 
-        if (categoryFilter) {
-          categoryFilter.addEventListener('change', performSearch);
-        }
-        if (priceFilter) {
-          priceFilter.addEventListener('change', performSearch);
+        /** 검색 결과만 갱신: 1글자는 아무것도 안 보임, 2글자 이상일 때만 결과 또는 "검색 결과가 없습니다" */
+        function applySearch() {
+          const keyword = searchInput ? searchInput.value.trim() : '';
+          if (keyword.length >= 2) {
+            const products = filterCatalog(keyword);
+            renderResults(keyword, products);
+          } else {
+            searchResults.innerHTML = '';
+          }
         }
 
-        debugLog('header-loader: search modal initialized');
+        /** 구찌처럼: 입력하는 즉시 URL만 실시간 반영 (replaceState, 1글자라도 반영) */
+        function syncUrlFromInput() {
+          if (!searchOverlay || !searchOverlay.classList.contains('is-open')) return;
+          var keyword = searchInput ? searchInput.value.trim() : '';
+          var url = new URL(window.location.href);
+          url.searchParams.set(FLYOUT_PARAM, 'open');
+          if (keyword.length > 0) {
+            url.searchParams.set('keyword', keyword);
+          } else {
+            url.searchParams.delete('keyword');
+          }
+          var newUrl = url.pathname + url.search;
+          window.history.replaceState({ searchFlyout: true, searchKeyword: keyword }, '', newUrl);
+        }
+
+        function runSearch() {
+          if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+          searchDebounceTimer = setTimeout(applySearch, DEBOUNCE_MS);
+        }
+
+        function openSearchOverlay(skipPushState) {
+          searchOverlay.classList.add('is-open');
+          searchOverlay.setAttribute('aria-hidden', 'false');
+          document.body.classList.add('search-overlay-open');
+          if (searchInput) {
+            searchInput.value = (new URLSearchParams(window.location.search).get('keyword') || '').trim();
+            searchInput.focus();
+            applySearch();
+          }
+          if (!skipPushState) {
+            var url = new URL(window.location.href);
+            url.searchParams.set(FLYOUT_PARAM, 'open');
+            var kw = searchInput ? searchInput.value.trim() : '';
+            if (kw) url.searchParams.set('keyword', kw);
+            else url.searchParams.delete('keyword');
+            window.history.pushState({ searchFlyout: true, searchKeyword: kw }, '', url.pathname + url.search);
+          }
+        }
+
+        function closeSearchOverlay() {
+          searchOverlay.classList.remove('is-open');
+          searchOverlay.setAttribute('aria-hidden', 'true');
+          document.body.classList.remove('search-overlay-open');
+        }
+
+        searchToggle.addEventListener('click', function (e) {
+          e.preventDefault();
+          openSearchOverlay();
+        });
+
+        if (searchClose) {
+          searchClose.addEventListener('click', function () {
+            window.history.back();
+          });
+        }
+
+        if (searchInput) {
+          searchInput.addEventListener('input', function () {
+            syncUrlFromInput();
+            runSearch();
+          });
+          searchInput.addEventListener('compositionend', function () {
+            syncUrlFromInput();
+            runSearch();
+          });
+          searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') window.history.back();
+          });
+        }
+
+        window.addEventListener('popstate', function () {
+          var params = new URLSearchParams(window.location.search);
+          if (params.get(FLYOUT_PARAM) !== 'open') {
+            closeSearchOverlay();
+            var keyword = (params.get('keyword') || '').trim();
+            if (searchInput) searchInput.value = keyword;
+            if (keyword.length >= 2) {
+              var products = filterCatalog(keyword);
+              renderResults(keyword, products);
+            } else {
+              var p = document.createElement('p');
+              p.className = 'search-no-results';
+              p.textContent = keyword ? keyword + '에 대한 검색 결과가 없습니다.' : '검색어를 2글자 이상 입력해 주세요.';
+              searchResults.innerHTML = '';
+              searchResults.appendChild(p);
+            }
+          } else {
+            openSearchOverlay(true);
+          }
+        });
+
+        if (new URLSearchParams(window.location.search).get(FLYOUT_PARAM) === 'open') {
+          openSearchOverlay(true);
+        }
+
+        debugLog('header-loader: search overlay initialized (pushState s-flyout=open)');
       } else {
-        debugLog('header-loader: search modal elements not found');
+        debugLog('header-loader: search overlay elements not found');
       }
 
       // Initialize mypage dropdown and related UI
       initializeMypageFunctionality();
     })
     .catch(err => {
-      console.error('header-loader: failed to load header partial', err);
+      Logger.error('header-loader: failed to load header partial', err);
     });
 });
 
@@ -462,7 +576,7 @@ function initializeMypageFunctionality() {
         window.location.reload();
       }
     } catch (error) {
-      console.error('header-loader: logout error', error);
+      Logger.error('header-loader: logout error', error);
       window.location.reload();
     }
   }
@@ -527,7 +641,7 @@ function initializeMypageFunctionality() {
     catalogScript.src = '/catalog-data.js';
     catalogScript.defer = true;
     catalogScript.onload = () => debugLog('header-loader: catalog-data.js loaded');
-    catalogScript.onerror = () => console.error('header-loader: catalog-data.js failed to load');
+    catalogScript.onerror = () => Logger.error('header-loader: catalog-data.js failed to load');
     document.head.appendChild(catalogScript);
   }
 
@@ -544,7 +658,7 @@ function initializeMypageFunctionality() {
       }, 100);
     };
     miniCartScript.onerror = () => {
-      console.error('header-loader: mini-cart.js failed to load');
+      Logger.error('header-loader: mini-cart.js failed to load');
     };
     document.head.appendChild(miniCartScript);
   } else {
