@@ -138,9 +138,12 @@ async function loadProducts() {
       // CATALOG_DATA 업데이트
       window.CATALOG_DATA = catalogData;
       
-      // 상품 데이터가 로드되었음을 표시
+      // 최초 로드 시에만 productsLoaded 이벤트 발송 (setInterval 재로드 시에는 UI 재초기화 방지)
+      const isFirstLoad = !window.productsLoaded;
       window.productsLoaded = true;
-      window.dispatchEvent(new CustomEvent('productsLoaded'));
+      if (isFirstLoad) {
+        window.dispatchEvent(new CustomEvent('productsLoaded'));
+      }
       
     } else {
       logger.error('❌ API 데이터 로드 실패 - 응답 형식 오류:', {

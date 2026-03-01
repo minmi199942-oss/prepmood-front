@@ -3,6 +3,8 @@
 (function() {
   'use strict';
 
+  const Logger = window.Logger || { log: function() {}, warn: function() {}, error: function() {} };
+
   // API 기본 URL 설정 (환경에 따라 자동 변경)
   const API_BASE_URL = (window.API_BASE)
     ? window.API_BASE
@@ -103,25 +105,29 @@
     return null;
   }
 
-  // 제품 정보 표시
+  // 제품 정보 표시 (buy 페이지에만 있는 요소 사용 전 null 체크)
   async function displayProductInfo(product) {
+    const productNameEl = document.getElementById('product-name');
+    const productPriceEl = document.getElementById('product-price');
+    if (!productNameEl) return; // buy 페이지가 아니면 아무것도 하지 않음
+
     if (!product) {
-      document.getElementById('product-name').textContent = '제품을 찾을 수 없습니다';
+      productNameEl.textContent = '제품을 찾을 수 없습니다';
       return;
     }
 
     currentProduct = product;
 
-    // 제품명
-    document.getElementById('product-name').textContent = product.name;
+    productNameEl.textContent = product.name;
 
-    // 가격 (상품번호 자리에 표시)
-    const formattedPrice = new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(product.price);
-    document.getElementById('product-price').textContent = formattedPrice;
+    if (productPriceEl) {
+      const formattedPrice = new Intl.NumberFormat('ko-KR', {
+        style: 'currency',
+        currency: 'KRW',
+        maximumFractionDigits: 0
+      }).format(product.price);
+      productPriceEl.textContent = formattedPrice;
+    }
 
     // 이미지 표시 (여러 장 시뮬레이션)
     displayProductImages(product);
@@ -132,7 +138,7 @@
       const apiUrl = `${API_BASE_URL}/products/options?product_id=${encodedProductId}`;
       
       // 디버깅: API 호출 시작
-      console.log('[상품 옵션 API] 호출 시작:', {
+      Logger.log('[상품 옵션 API] 호출 시작:', {
         product_id: product.id,
         encoded_id: encodedProductId,
         api_url: apiUrl
@@ -140,8 +146,7 @@
       
       const response = await fetch(apiUrl);
       
-      // 디버깅: 응답 상태 확인
-      console.log('[상품 옵션 API] 응답 상태:', {
+      Logger.log('[상품 옵션 API] 응답 상태:', {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok
@@ -150,8 +155,7 @@
       if (response.ok) {
         const data = await response.json();
         
-        // 디버깅: API 응답 데이터 확인
-        console.log('[상품 옵션 API] 응답 데이터:', {
+        Logger.log('[상품 옵션 API] 응답 데이터:', {
           success: data.success,
           has_options: !!data.options,
           sizes: data.options?.sizes || [],
@@ -161,8 +165,7 @@
         });
         
         if (data.success && data.options) {
-          // 실제 재고 기반 옵션 생성
-          console.log('[상품 옵션 API] 옵션 생성 시작:', {
+          Logger.log('[상품 옵션 API] 옵션 생성 시작:', {
             sizes: data.options.sizes,
             colors: data.options.colors
           });
@@ -171,19 +174,18 @@
           generateColorOptionsFromAPI(data.options.colors);
           return;
         } else {
-          console.warn('[상품 옵션 API] 응답이 옵션을 포함하지 않음:', data);
+          Logger.warn('[상품 옵션 API] 응답이 옵션을 포함하지 않음:', data);
         }
       } else {
-        // 응답 본문도 확인
         const errorText = await response.text();
-        console.error('[상품 옵션 API] 조회 실패:', {
+        Logger.error('[상품 옵션 API] 조회 실패:', {
           status: response.status,
           statusText: response.statusText,
           body: errorText
         });
       }
     } catch (error) {
-      console.error('[상품 옵션 API] 예외 발생:', {
+      Logger.error('[상품 옵션 API] 예외 발생:', {
         message: error.message,
         stack: error.stack,
         error: error
@@ -256,24 +258,16 @@
     // 제품 ID에서 사이즈 추출
     const availableSizes = extractSizesFromProductId(product.id);
 
-    // 카테고리 확인 (액세서리는 사이즈를 'Free' 한 옵션으로 표시)
-    const productIdLower = product.id.toLowerCase();
-    const isAccessory = product.category === 'accessories' ||
-                        productIdLower.includes('acc-') ||
-                        productIdLower.startsWith('pm-25-acc-');
-
-    // 사이즈 선택 필드 항상 표시
-    sizeOptionGroup.style.display = 'block';
-
-    // 사이즈가 없거나 액세서리인 경우 'Free'(원사이즈) 한 옵션만 표시
-    if (availableSizes.length === 0 || isAccessory) {
+    // 사이즈가 없을 때만 사이즈 선택창 숨김 (액세서리 여부 무관)
+    if (availableSizes.length === 0) {
+      sizeOptionGroup.style.display = 'none';
       sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option><option value="Free" selected>Free</option>';
       selectedSize = 'Free';
       syncBuyDropdownsFromSelects();
       return;
     }
 
-    // 기본 옵션만 남기고 나머지 제거
+    sizeOptionGroup.style.display = 'block';
     sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option>';
 
     // 추출된 사이즈로 옵션 생성
@@ -289,6 +283,7 @@
   // 제품 이미지 표시 (같은 이미지 3장 반복)
   function displayProductImages(product) {
     const imagesWrapper = document.getElementById('product-images');
+    if (!imagesWrapper) return;
     imagesWrapper.innerHTML = '';
 
     // 이미지 경로 처리: /uploads/products/로 시작하면 그대로 사용, 아니면 /image/ 추가
@@ -340,25 +335,24 @@
 
   // 색상 옵션 생성 (API 데이터 사용)
   function generateColorOptionsFromAPI(colors) {
-    console.log('[generateColorOptionsFromAPI] 시작:', {
+    Logger.log('[generateColorOptionsFromAPI] 시작:', {
       colors: colors,
       colors_length: colors?.length
     });
     
     const colorSelect = document.getElementById('color-select');
     if (!colorSelect) {
-      console.warn('[generateColorOptionsFromAPI] colorSelect 없음');
+      Logger.warn('[generateColorOptionsFromAPI] colorSelect 없음');
       return;
     }
     
     // 기본 옵션만 남기고 나머지 제거
     colorSelect.innerHTML = '<option value="">색상을 선택해주세요</option>';
 
-    // 색상이 없거나 빈 배열인 경우 처리
+    // 상품에 색상 옵션이 없으면 선택창은 플레이스홀더만 유지 (기본 색상 강제하지 않음)
     if (!colors || colors.length === 0) {
-      console.log('[generateColorOptionsFromAPI] 색상 배열 비어있음, 기본 색상 사용');
-      // 색상이 없으면 기본 색상 사용 (하위 호환성)
-      generateColorOptions();
+      Logger.log('[generateColorOptionsFromAPI] 색상 배열 비어있음 → 상품 옵션만 표시하므로 추가 없음');
+      syncBuyDropdownsFromSelects();
       return;
     }
 
@@ -390,11 +384,11 @@
       
       // color가 유효한지 확인
       if (!color || color === undefined || color === null) {
-        console.error('[generateColorOptionsFromAPI] 유효하지 않은 color:', colorObj);
+        Logger.error('[generateColorOptionsFromAPI] 유효하지 않은 color:', colorObj);
         return; // 건너뛰기
       }
       
-      console.log('[generateColorOptionsFromAPI] 색상 옵션 추가:', {
+      Logger.log('[generateColorOptionsFromAPI] 색상 옵션 추가:', {
         color: color,
         available: available,
         colorObj: colorObj
@@ -414,7 +408,7 @@
       option.textContent = displayText;
       colorSelect.appendChild(option);
       
-      console.log('[generateColorOptionsFromAPI] 색상 옵션 추가 완료:', {
+      Logger.log('[generateColorOptionsFromAPI] 색상 옵션 추가 완료:', {
         color: color,
         available: available,
         displayText: displayText,
@@ -423,7 +417,7 @@
       });
     });
     
-    console.log('[generateColorOptionsFromAPI] 완료:', {
+    Logger.log('[generateColorOptionsFromAPI] 완료:', {
       options_count: colorSelect.options.length
     });
     syncBuyDropdownsFromSelects();
@@ -431,14 +425,14 @@
 
   // 사이즈 옵션 생성 (API 데이터 사용)
   function generateSizeOptionsFromAPI(product, sizes) {
-    console.log('[generateSizeOptionsFromAPI] 시작:', {
+    Logger.log('[generateSizeOptionsFromAPI] 시작:', {
       product_id: product?.id,
       sizes: sizes,
       sizes_length: sizes?.length
     });
     
     if (!product || !product.id) {
-      console.warn('[generateSizeOptionsFromAPI] product 없음');
+      Logger.warn('[generateSizeOptionsFromAPI] product 없음');
       return;
     }
 
@@ -446,40 +440,34 @@
     const sizeOptionGroup = sizeSelect ? sizeSelect.closest('.option-group') : null;
     
     if (!sizeSelect || !sizeOptionGroup) {
-      console.warn('[generateSizeOptionsFromAPI] DOM 요소 없음:', {
+      Logger.warn('[generateSizeOptionsFromAPI] DOM 요소 없음:', {
         sizeSelect: !!sizeSelect,
         sizeOptionGroup: !!sizeOptionGroup
       });
       return;
     }
 
-    // 카테고리 확인 (액세서리는 사이즈를 'Free' 한 옵션으로 표시)
-    const productIdLower = product.id.toLowerCase();
-    const isAccessory = product.category === 'accessories' ||
-                        productIdLower.includes('acc-') ||
-                        productIdLower.startsWith('pm-25-acc-');
+    // API에 사이즈가 없을 때만 사이즈 선택창 숨김 (액세서리 여부 무관, 팔찌 등은 나중에 사이즈 있을 수 있음)
+    const hasNoSize = !sizes || sizes.length === 0;
 
-    // 사이즈 선택 필드 항상 표시
-    sizeOptionGroup.style.display = 'block';
-
-    // 사이즈가 없거나 액세서리인 경우 'Free'(원사이즈) 한 옵션만 표시
-    if (!sizes || sizes.length === 0 || isAccessory) {
-      console.log('[generateSizeOptionsFromAPI] 사이즈 없음 또는 액세서리 → Free 옵션 표시:', { isAccessory });
+    if (hasNoSize) {
+      Logger.log('[generateSizeOptionsFromAPI] 사이즈 없음 → 사이즈 선택창 숨김');
+      sizeOptionGroup.style.display = 'none';
       sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option><option value="Free" selected>Free</option>';
       selectedSize = 'Free';
       syncBuyDropdownsFromSelects();
       return;
     }
 
-    // 기본 옵션만 남기고 나머지 제거
+    // 상품에 있는 사이즈만 표시 (API 응답 기준)
+    sizeOptionGroup.style.display = 'block';
     sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option>';
 
-    console.log('[generateSizeOptionsFromAPI] 사이즈 옵션 생성:', sizes);
+    Logger.log('[generateSizeOptionsFromAPI] 사이즈 옵션 생성:', sizes);
 
     // API에서 받은 사이즈로 옵션 생성 (재고 상태 포함)
     sizes.forEach(sizeObj => {
-      // 디버깅: sizeObj 구조 확인
-      console.log('[generateSizeOptionsFromAPI] sizeObj 원본:', sizeObj, '타입:', typeof sizeObj);
+      Logger.log('[generateSizeOptionsFromAPI] sizeObj 원본:', sizeObj, '타입:', typeof sizeObj);
       
       // sizes가 배열인데 각 요소가 객체인지 문자열인지 확인
       let size;
@@ -497,11 +485,11 @@
       
       // size가 유효한지 확인
       if (!size || size === undefined || size === null) {
-        console.error('[generateSizeOptionsFromAPI] 유효하지 않은 size:', sizeObj);
+        Logger.error('[generateSizeOptionsFromAPI] 유효하지 않은 size:', sizeObj);
         return; // 건너뛰기
       }
       
-      console.log('[generateSizeOptionsFromAPI] 추출된 값:', {
+      Logger.log('[generateSizeOptionsFromAPI] 추출된 값:', {
         size: size,
         available: available,
         sizeObj: sizeObj
@@ -521,7 +509,7 @@
       option.textContent = displayText;
       sizeSelect.appendChild(option);
       
-      console.log('[generateSizeOptionsFromAPI] 사이즈 옵션 추가 완료:', {
+      Logger.log('[generateSizeOptionsFromAPI] 사이즈 옵션 추가 완료:', {
         size: size,
         available: available,
         displayText: displayText,
@@ -530,7 +518,7 @@
       });
     });
     
-    console.log('[generateSizeOptionsFromAPI] 완료:', {
+    Logger.log('[generateSizeOptionsFromAPI] 완료:', {
       options_count: sizeSelect.options.length
     });
     syncBuyDropdownsFromSelects();
@@ -703,7 +691,7 @@
           alert('장바구니에 추가되었습니다.');
           return true;
         } catch (error) {
-          console.error('❌ localStorage 장바구니 추가 오류:', error);
+          Logger.error('❌ localStorage 장바구니 추가 오류:', error);
           alert('장바구니 추가에 실패했습니다. 페이지를 새로고침해주세요.');
           return false;
         }
@@ -825,7 +813,7 @@
         alert(data.message || '위시리스트 처리에 실패했습니다.');
       }
     } catch (error) {
-      console.error('위시리스트 토글 오류:', error);
+      Logger.error('위시리스트 토글 오류:', error);
       alert('서버와의 통신에 실패했습니다.');
     }
   }
@@ -853,7 +841,7 @@
         updateWishlistImage(true);
       }
     } catch (error) {
-      console.error('위시리스트 상태 확인 오류:', error);
+      Logger.error('위시리스트 상태 확인 오류:', error);
     }
   }
 
@@ -881,8 +869,12 @@
   async function init() {
     // 제품 데이터 로드 대기
     if (typeof window.CATALOG_DATA === 'undefined' || !window.productsLoaded) {
-      // productsLoaded 이벤트를 기다림
-      window.addEventListener('productsLoaded', init);
+      // productsLoaded 이벤트를 한 번만 구독 (재발송 시 init 중복 실행 방지)
+      const onProductsLoaded = () => {
+        window.removeEventListener('productsLoaded', onProductsLoaded);
+        init();
+      };
+      window.addEventListener('productsLoaded', onProductsLoaded);
       window.addEventListener('productsLoadError', () => {
         if (window.Logger) {
           window.Logger.error('제품 데이터 로드 실패');
@@ -899,11 +891,15 @@
     const product = findProductById(productId);
     await displayProductInfo(product);
 
+    // buy 페이지가 아니면 (product-name이 없으면 displayProductInfo에서 이미 return됨) 이벤트 등록 생략
+    const sizeSelectEl = document.getElementById('size-select');
+    if (!sizeSelectEl) return;
+
     // 위시리스트 상태 확인
     checkWishlistStatus();
 
     // 이벤트 리스너 등록
-    document.getElementById('size-select').addEventListener('change', handleOptionChange);
+    sizeSelectEl.addEventListener('change', handleOptionChange);
     document.getElementById('color-select').addEventListener('change', handleColorChange);
     document.getElementById('cart-btn').addEventListener('click', addToCart);
     document.getElementById('wishlist-btn').addEventListener('click', toggleWishlist);
