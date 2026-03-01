@@ -24,7 +24,9 @@ async function loadProducts() {
     const urlParams = new URLSearchParams(window.location.search);
     const collectionYear = urlParams.get('collection') || '2026';
     const category = urlParams.get('category');
-    const apiUrl = `/api/products?collection_year=${collectionYear}` + (category ? `&category=${encodeURIComponent(category)}` : '');
+    const base = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE.replace(/\/$/, '') : '';
+    const path = `/products?collection_year=${collectionYear}` + (category ? `&category=${encodeURIComponent(category)}` : '');
+    const apiUrl = base ? `${base}${path}` : `/api${path}`;
     const response = await fetch(apiUrl);
     
     // 응답 상태 확인

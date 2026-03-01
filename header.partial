@@ -3,11 +3,8 @@
   <div class="header-container">
     <div class="header-content">
     <div class="logo">
-      <a href="/index.html" style="text-decoration: none;">
-        <div class="brand-text">
-          <strong style="font-size: 0.9rem; color: #111;">Pre.pMood</strong>
-          <div class="slogan" style="font-size: 0.58rem; color: #444; font-weight: 300; margin-top: 1px;">Timeless lines, Refined Vibes</div>
-        </div>
+      <a href="/index.html" class="header-logo">
+        <span class="brand-text">Pre.pMood</span>
       </a>
     </div>
     <nav class="main-nav">

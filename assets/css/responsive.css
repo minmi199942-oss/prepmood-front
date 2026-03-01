@@ -128,14 +128,13 @@
   /* 배너 모바일 조정 */
   .home-banners {
     gap: clamp(12px, 2.5vw, 20px);
-    padding: clamp(12px, 2.5vw, 20px) 0 clamp(30px, 6vw, 50px);
+    padding: 0 0 clamp(30px, 6vw, 50px);
   }
   
   .category-hero {
     height: clamp(45vh, 60vw, 55vh);
     min-height: clamp(350px, 50vw, 420px);
-    margin: 0 clamp(12px, 3vw, 18px);
-    border-radius: var(--radius-medium);
+    margin: 0;
   }
   
   .hero-content h2 {
@@ -855,148 +854,148 @@
 }
 
 /* ===== 제품 상세 페이지 반응형 ===== */
-/* 태블릿 (768px ~ 1199px) - 1:1 비율 */
-@media (max-width: 1199px) and (min-width: 768px) {
+/* 1024px 이하: 1열, margin 0, 좌우 padding 64px, 폰트 1024 초과보다 작은 고정값 */
+@media (max-width: 1024px) {
   .product-detail-container {
-    grid-template-columns: 1fr 1fr; /* Tablet 1:1 ratio */
-    gap: clamp(24px, 5vw, 48px);
-    padding: clamp(20px, 3.5vw, 32px) clamp(16px, 3vw, 24px);
+    grid-template-columns: 1fr;
+    padding: 0 64px 40px 64px;
+    gap: 20px;
   }
-  
+
   .product-info-section {
-    position: sticky;
-    top: 80px;
+    height: auto;
+    min-height: 0;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0;
+    position: static;
   }
-  
-  .product-images-wrapper .product-image,
-  .product-image {
-    height: clamp(350px, 45vw, 500px) !important;
+
+  .product-info-section__content {
+    padding-top: 24px;
+    padding-left: 0;
+    padding-right: 0;
   }
-  
-  .product-title {
-    font-size: clamp(1.4rem, 3vw, 1.8rem);
+
+  .product-detail-container .product-title {
+    font-size: 12px;
   }
-  
-  .product-tabs {
-    margin-top: clamp(20px, 4vw, 32px);
+
+  .product-detail-container .product-price {
+    font-size: 11px;
+    font-weight: 600;
   }
-  
-  .care-image {
-    width: clamp(200px, 40vw, 350px); /* 2.5x larger */
+
+  .product-detail-container .product-header {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
   }
-  
-  .size-table th,
-  .size-table td {
-    padding: clamp(10px, 2vw, 14px);
-    font-size: clamp(0.8rem, 1.6vw, 0.9rem);
-    min-width: clamp(70px, 12vw, 100px);
+
+  .product-detail-container .option-label {
+    font-size: 11px;
   }
-  
-  .size-table th:nth-child(1),
-  .size-table td:nth-child(1) {
-    min-width: clamp(50px, 10vw, 80px);
+
+  .product-detail-container .product-options .option-select {
+    font-size: 11px !important;
+    padding: 8px 10px !important;
   }
-  
-  .size-table th:nth-child(2),
-  .size-table td:nth-child(2) {
-    min-width: clamp(60px, 12vw, 90px);
+
+  .product-detail-container .product-options {
+    gap: 10px;
+    padding: 10px 0;
+    margin-top: 10px;
   }
-  
-  .size-table th:nth-child(3),
-  .size-table td:nth-child(3),
-  .size-table th:nth-child(4),
-  .size-table td:nth-child(4),
-  .size-table th:nth-child(5),
-  .size-table td:nth-child(5) {
-    min-width: clamp(70px, 14vw, 110px);
+
+  .product-detail-container .cart-btn {
+    font-size: 10px;
   }
-  
-  .size-table th:nth-child(6),
-  .size-table td:nth-child(6) {
-    min-width: clamp(80px, 16vw, 120px);
+
+  .product-detail-container .tab-title {
+    font-size: 11px;
+    margin-bottom: 10px;
   }
-  
-  .size-table .size-label {
-    min-width: clamp(35px, 7vw, 55px);
+
+  .product-detail-container .tab-description {
+    font-size: 10px;
+  }
+
+  .product-detail-container .tab-btn {
+    font-size: 10px;
+    padding: 8px 10px;
   }
 }
 
-/* 모바일 (≤767px) - 세로 정렬 */
-@media (max-width: 767px) {
+/* 768px 이하: 상품 상세 추가 조정 (폰트는 1024px 블록 유지) */
+@media (max-width: 768px) {
   .product-detail-container {
-    grid-template-columns: 1fr; /* Mobile 1-column layout */
-    gap: clamp(24px, 5vw, 32px);
-    padding: clamp(16px, 3vw, 24px) clamp(12px, 2.5vw, 20px);
+    gap: 24px;
+    padding: 16px 64px 40px 64px;
   }
-  
-  .product-info-section {
-    position: static; /* Remove sticky on mobile */
-  }
-  
+
   .product-images-wrapper .product-image,
   .product-image {
-    height: clamp(300px, 40vw, 450px) !important;
+    height: clamp(580px, 75vw, 920px) !important;
   }
-  
-  .product-title {
-    font-size: clamp(1.3rem, 3vw, 1.6rem);
-  }
-  
-  .product-code {
-    font-size: clamp(0.65rem, 1.3vw, 0.75rem);
-  }
-  
+
   .wishlist-container {
-    gap: clamp(5px, 1vw, 7px);
+    gap: 6px;
   }
-  
+
   .wishlist-btn {
     width: 24px;
     height: 24px;
   }
-  
+
   .wishlist-icon {
     width: 100%;
     height: 100%;
   }
-  
+
   .care-image {
-    width: clamp(175px, 35vw, 300px); /* 2.5x larger */
+    width: clamp(175px, 35vw, 300px);
   }
-  
+
   .size-table th,
   .size-table td {
-    padding: clamp(8px, 1.6vw, 12px);
-    font-size: clamp(0.75rem, 1.4vw, 0.85rem);
-    min-width: clamp(60px, 10vw, 90px);
+    padding: 8px;
+    font-size: 10px;
+    min-width: 60px;
   }
-  
+
   .size-table th:nth-child(1),
   .size-table td:nth-child(1) {
-    min-width: clamp(45px, 8vw, 70px);
+    min-width: 45px;
   }
-  
+
   .size-table th:nth-child(2),
   .size-table td:nth-child(2) {
-    min-width: clamp(55px, 10vw, 80px);
+    min-width: 55px;
   }
-  
+
   .size-table th:nth-child(3),
   .size-table td:nth-child(3),
   .size-table th:nth-child(4),
   .size-table td:nth-child(4),
   .size-table th:nth-child(5),
   .size-table td:nth-child(5) {
-    min-width: clamp(65px, 12vw, 100px);
+    min-width: 65px;
   }
-  
+
   .size-table th:nth-child(6),
   .size-table td:nth-child(6) {
-    min-width: clamp(70px, 14vw, 110px);
+    min-width: 70px;
   }
-  
+
   .size-table .size-label {
-    min-width: clamp(30px, 6vw, 50px);
+    min-width: 30px;
+  }
+}
+
+/* 480px 이하: 상품 상세 추가 조정 */
+@media (max-width: 480px) {
+  .product-detail-container {
+    padding: 12px 64px 40px 64px;
+    gap: 16px;
   }
 }
 

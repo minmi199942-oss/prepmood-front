@@ -2,5 +2,9 @@
   "dependencies": {
     "express-rate-limit": "^8.1.0",
     "xlsx": "^0.18.5"
+  },
+  "scripts": {
+    "dev": "npx serve . -p 5500",
+    "buy-dev": "npx serve . -p 5500"
   }
 }

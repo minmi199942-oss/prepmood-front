@@ -84,8 +84,9 @@ const Logger = {
   }
 };
 
-// API 기본 경로 (현재 origin 기준)
+// API 기본 경로 (현재 origin 기준). dev=1 등으로 미리 설정된 값이 있으면 유지
 (function() {
+  if (window.API_BASE) return;
   const origin = (window.location && window.location.origin)
     ? window.location.origin.replace(/\/$/, '')
     : '';

@@ -18,6 +18,65 @@
   let selectedSize = '';
   let selectedColor = '';
 
+  function escapeHtmlBuy(str) {
+    if (str == null) return '';
+    const s = String(str);
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /** 커스텀 드롭다운을 네이티브 select 옵션과 동기화 (cart 편집 스타일) */
+  function syncBuyDropdownsFromSelects() {
+    const sizeSelect = document.getElementById('size-select');
+    const colorSelect = document.getElementById('color-select');
+    const sizeDropdown = document.getElementById('buy-size-dropdown');
+    const colorDropdown = document.getElementById('buy-color-dropdown');
+    const sizeTriggerText = document.getElementById('buy-size-trigger-text');
+    const colorTriggerText = document.getElementById('buy-color-trigger-text');
+
+    if (sizeSelect && sizeDropdown && sizeTriggerText) {
+      const opts = sizeSelect.options;
+      let html = '';
+      let selectedText = '사이즈를 선택해주세요';
+      for (let i = 0; i < opts.length; i++) {
+        const o = opts[i];
+        const val = o.value;
+        const text = o.textContent.trim();
+        if (val === '') continue;
+        const selected = sizeSelect.value === val;
+        if (selected) selectedText = text;
+        const dis = o.disabled ? ' is-out-of-stock disabled' : '';
+        const sel = selected ? ' is-selected' : '';
+        html += `<button type="button" class="buy-select-option${sel}${dis}" data-value="${escapeHtmlBuy(val)}" role="option"${o.disabled ? ' disabled' : ''}>${escapeHtmlBuy(text)}</button>`;
+      }
+      sizeDropdown.innerHTML = html;
+      sizeTriggerText.textContent = selectedText;
+    }
+
+    if (colorSelect && colorDropdown && colorTriggerText) {
+      const opts = colorSelect.options;
+      let html = '';
+      let selectedText = '색상을 선택해주세요';
+      for (let i = 0; i < opts.length; i++) {
+        const o = opts[i];
+        const val = o.value;
+        const text = o.textContent.trim();
+        if (val === '') continue;
+        const selected = colorSelect.value === val;
+        if (selected) selectedText = text;
+        const dis = o.disabled ? ' is-out-of-stock disabled' : '';
+        const sel = selected ? ' is-selected' : '';
+        html += `<button type="button" class="buy-select-option${sel}${dis}" data-value="${escapeHtmlBuy(val)}" role="option"${o.disabled ? ' disabled' : ''}>${escapeHtmlBuy(text)}</button>`;
+      }
+      colorDropdown.innerHTML = html;
+      colorTriggerText.textContent = selectedText;
+    }
+  }
+
   // 제품 데이터에서 ID로 제품 찾기
   function findProductById(id) {
     if (!window.CATALOG_DATA) {
@@ -56,17 +115,13 @@
     // 제품명
     document.getElementById('product-name').textContent = product.name;
 
-    // 제품 코드 (ID 기반) - PM-25-M-BP-001 형식
-    document.getElementById('product-code').textContent = `상품번호: PM-25-${product.id.toUpperCase()}`;
-
-          // 가격 (장바구니 버튼에 표시)
-      const formattedPrice = new Intl.NumberFormat('ko-KR', {
-        style: 'currency',
-        currency: 'KRW',
-        maximumFractionDigits: 0
-      }).format(product.price);
-      
-      document.getElementById('cart-btn-price').textContent = formattedPrice;
+    // 가격 (상품번호 자리에 표시)
+    const formattedPrice = new Intl.NumberFormat('ko-KR', {
+      style: 'currency',
+      currency: 'KRW',
+      maximumFractionDigits: 0
+    }).format(product.price);
+    document.getElementById('product-price').textContent = formattedPrice;
 
     // 이미지 표시 (여러 장 시뮬레이션)
     displayProductImages(product);
@@ -201,22 +256,22 @@
     // 제품 ID에서 사이즈 추출
     const availableSizes = extractSizesFromProductId(product.id);
 
-    // 카테고리 확인 (액세서리는 사이즈 선택 제외)
+    // 카테고리 확인 (액세서리는 사이즈를 'Free' 한 옵션으로 표시)
     const productIdLower = product.id.toLowerCase();
-    const isAccessory = product.category === 'accessories' || 
+    const isAccessory = product.category === 'accessories' ||
                         productIdLower.includes('acc-') ||
                         productIdLower.startsWith('pm-25-acc-');
 
-    // 사이즈가 없거나 액세서리인 경우 사이즈 선택 필드 숨기기
+    // 사이즈 선택 필드 항상 표시
+    sizeOptionGroup.style.display = 'block';
+
+    // 사이즈가 없거나 액세서리인 경우 'Free'(원사이즈) 한 옵션만 표시
     if (availableSizes.length === 0 || isAccessory) {
-      sizeOptionGroup.style.display = 'none';
-      // 액세서리의 경우 사이즈를 'Free'로 자동 설정
+      sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option><option value="Free" selected>Free</option>';
       selectedSize = 'Free';
+      syncBuyDropdownsFromSelects();
       return;
     }
-
-    // 사이즈 선택 필드 표시
-    sizeOptionGroup.style.display = 'block';
 
     // 기본 옵션만 남기고 나머지 제거
     sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option>';
@@ -228,6 +283,7 @@
       option.textContent = size === 'F' ? 'Free' : size;
       sizeSelect.appendChild(option);
     });
+    syncBuyDropdownsFromSelects();
   }
 
   // 제품 이미지 표시 (같은 이미지 3장 반복)
@@ -279,6 +335,7 @@
       option.textContent = color.label;
       colorSelect.appendChild(option);
     });
+    syncBuyDropdownsFromSelects();
   }
 
   // 색상 옵션 생성 (API 데이터 사용)
@@ -369,6 +426,7 @@
     console.log('[generateColorOptionsFromAPI] 완료:', {
       options_count: colorSelect.options.length
     });
+    syncBuyDropdownsFromSelects();
   }
 
   // 사이즈 옵션 생성 (API 데이터 사용)
@@ -395,27 +453,23 @@
       return;
     }
 
-    // 카테고리 확인 (액세서리는 사이즈 선택 제외)
+    // 카테고리 확인 (액세서리는 사이즈를 'Free' 한 옵션으로 표시)
     const productIdLower = product.id.toLowerCase();
-    const isAccessory = product.category === 'accessories' || 
+    const isAccessory = product.category === 'accessories' ||
                         productIdLower.includes('acc-') ||
                         productIdLower.startsWith('pm-25-acc-');
 
-    // 사이즈가 없거나 액세서리인 경우 사이즈 선택 필드 숨기기
+    // 사이즈 선택 필드 항상 표시
+    sizeOptionGroup.style.display = 'block';
+
+    // 사이즈가 없거나 액세서리인 경우 'Free'(원사이즈) 한 옵션만 표시
     if (!sizes || sizes.length === 0 || isAccessory) {
-      console.log('[generateSizeOptionsFromAPI] 사이즈 없음 또는 액세서리:', {
-        sizes: sizes,
-        sizes_length: sizes?.length,
-        isAccessory: isAccessory
-      });
-      sizeOptionGroup.style.display = 'none';
-      // 액세서리의 경우 사이즈를 'Free'로 자동 설정
+      console.log('[generateSizeOptionsFromAPI] 사이즈 없음 또는 액세서리 → Free 옵션 표시:', { isAccessory });
+      sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option><option value="Free" selected>Free</option>';
       selectedSize = 'Free';
+      syncBuyDropdownsFromSelects();
       return;
     }
-
-    // 사이즈 선택 필드 표시
-    sizeOptionGroup.style.display = 'block';
 
     // 기본 옵션만 남기고 나머지 제거
     sizeSelect.innerHTML = '<option value="">사이즈를 선택해주세요</option>';
@@ -479,6 +533,7 @@
     console.log('[generateSizeOptionsFromAPI] 완료:', {
       options_count: sizeSelect.options.length
     });
+    syncBuyDropdownsFromSelects();
   }
 
   // 에러 메시지 표시
@@ -504,7 +559,6 @@
     const sizeSelect = document.getElementById('size-select');
     const colorSelect = document.getElementById('color-select');
     const cartBtn = document.getElementById('cart-btn');
-    const quickBuyBtn = document.getElementById('quick-buy-btn');
 
     selectedSize = sizeSelect.value;
     selectedColor = colorSelect.value;
@@ -522,9 +576,7 @@
 
     // 버튼을 항상 활성화 (에러 메시지는 addToCart에서 처리)
     cartBtn.disabled = false;
-    quickBuyBtn.disabled = false;
     cartBtn.classList.add('enabled');
-    quickBuyBtn.classList.add('enabled');
   }
 
   // 색상 변경 시 이미지 변경 (시뮬레이션)
@@ -668,34 +720,6 @@
       return true;
     }
     return false;
-  }
-
-  // 빠른 구매
-  async function quickBuy() {
-    // 액세서리 체크
-    const isAccessory = currentProduct && (
-      currentProduct.category === 'accessories' || 
-      currentProduct.id.toLowerCase().includes('acc-') ||
-      currentProduct.id.toLowerCase().startsWith('pm-25-acc-')
-    );
-
-    if (!currentProduct || (!isAccessory && !selectedSize) || !selectedColor) {
-      alert('사이즈와 색상을 선택해주세요.');
-      return;
-    }
-
-    // ⚠️ 로그인 체크 제거: 비회원 주문 지원
-    // 로그인 상태 확인 제거 - 비회원도 주문 가능하도록 변경
-
-    // 장바구니에 추가하고 결제 페이지로 이동
-    const added = await addToCart();
-    
-    if (added) {
-      if (window.miniCart && typeof window.miniCart.closeMiniCart === 'function') {
-        window.miniCart.closeMiniCart();
-      }
-      window.location.href = 'checkout.html';
-    }
   }
 
   // 로그인 상태 확인 (JWT 기반) - 401 오류 처리 개선
@@ -882,8 +906,79 @@
     document.getElementById('size-select').addEventListener('change', handleOptionChange);
     document.getElementById('color-select').addEventListener('change', handleColorChange);
     document.getElementById('cart-btn').addEventListener('click', addToCart);
-    document.getElementById('quick-buy-btn').addEventListener('click', quickBuy);
     document.getElementById('wishlist-btn').addEventListener('click', toggleWishlist);
+
+    // 커스텀 드롭다운: 트리거 토글, 옵션 선택, 바깥 클릭 시 닫기
+    document.addEventListener('click', function(e) {
+      const sizeCustom = document.getElementById('buy-size-custom');
+      const colorCustom = document.getElementById('buy-color-custom');
+      const sizeTrigger = document.getElementById('buy-size-trigger');
+      const colorTrigger = document.getElementById('buy-color-trigger');
+      const sizeSelect = document.getElementById('size-select');
+      const colorSelect = document.getElementById('color-select');
+
+      if (sizeCustom && e.target.closest('#buy-size-custom')) {
+        if (e.target.closest('.buy-select-trigger') || e.target.closest('#buy-size-trigger')) {
+          const isOpen = sizeCustom.classList.toggle('is-dropdown-open');
+          sizeTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          if (colorCustom) {
+            colorCustom.classList.remove('is-dropdown-open');
+            if (colorTrigger) colorTrigger.setAttribute('aria-expanded', 'false');
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        const sizeOpt = e.target.closest('.buy-select-option');
+        if (sizeOpt && !sizeOpt.disabled) {
+          const val = sizeOpt.getAttribute('data-value');
+          sizeSelect.value = val || '';
+          sizeTrigger.querySelector('.buy-select-trigger-text').textContent = sizeOpt.textContent.trim();
+          sizeCustom.classList.remove('is-dropdown-open');
+          sizeTrigger.setAttribute('aria-expanded', 'false');
+          handleOptionChange();
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+
+      if (colorCustom && e.target.closest('#buy-color-custom')) {
+        if (e.target.closest('.buy-select-trigger') || e.target.closest('#buy-color-trigger')) {
+          const isOpen = colorCustom.classList.toggle('is-dropdown-open');
+          colorTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          if (sizeCustom) {
+            sizeCustom.classList.remove('is-dropdown-open');
+            if (sizeTrigger) sizeTrigger.setAttribute('aria-expanded', 'false');
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        const colorOpt = e.target.closest('.buy-select-option');
+        if (colorOpt && !colorOpt.disabled) {
+          const val = colorOpt.getAttribute('data-value');
+          colorSelect.value = val || '';
+          colorTrigger.querySelector('.buy-select-trigger-text').textContent = colorOpt.textContent.trim();
+          colorCustom.classList.remove('is-dropdown-open');
+          colorTrigger.setAttribute('aria-expanded', 'false');
+          handleOptionChange();
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+
+      // 바깥 클릭 시 둘 다 닫기
+      if (sizeCustom) {
+        sizeCustom.classList.remove('is-dropdown-open');
+        if (sizeTrigger) sizeTrigger.setAttribute('aria-expanded', 'false');
+      }
+      if (colorCustom) {
+        colorCustom.classList.remove('is-dropdown-open');
+        if (colorTrigger) colorTrigger.setAttribute('aria-expanded', 'false');
+      }
+    });
 
     // 탭 초기화
     initTabs();

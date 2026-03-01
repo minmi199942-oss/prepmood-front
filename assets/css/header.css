@@ -30,13 +30,12 @@
 
 /* ===== 헤더 전환점 변수 ===== */
 :root {
-  --header-bp: 1050px; /* 헤더 전환점 X (기본값, 조정 가능) */
+  --header-bp: 1024px; /* 헤더 전환점 X (1024px 이하: 모바일 헤더) */
 }
 
 /* ===== Header Base ===== */
 header.main-header {
   padding: 0;
-  border-bottom: 1px solid #eee;
   background-color: #fff;
   position: fixed;
   top: 0;
@@ -65,43 +64,23 @@ body.mini-cart-open header.main-header {
 /* ⚠️ 위 max-width는 "스케일(비율)" 전용입니다.
    모바일 전환점(X)은 아래 @media에서만 정의합니다. */
 
-/* 모바일 스타일 (기본) */
+/* header-container: 좌우 끝까지 채움 (max-width 제거), 좌우 패딩 32px */
 header.main-header .header-container {
   width: 100%;
-  max-width: 100%; /* 모바일: 전체 폭 사용 */
-  margin: 0 auto;
-  padding: clamp(6px, 1vw, 10px) 20px;
+  margin: 0;
+  padding: clamp(6px, 1vw, 10px) 32px;
   box-sizing: border-box;
-  height: 100%; /* 부모 높이에 맞춤 */
+  height: 100%;
   display: flex;
-  align-items: center; /* 세로 중앙 정렬 */
+  align-items: center;
   /* ⚠️ 순환 참조 방지: min-height 제거 (--header-height는 JavaScript에서 실제 높이로 설정) */
 }
 
-/* 태블릿 스타일 - 768px 이상부터 적용 */
-@media (min-width: 768px) {
-  header.main-header .header-container {
-    max-width: 100%; /* 태블릿: 전체 폭 사용 */
-    padding: clamp(6px, 1vw, 10px) 32px;
-  }
-}
-
-/* 데스크탑 스타일 - 1024px 이상부터 적용 */
-@media (min-width: 1024px) {
-  header.main-header .header-container {
-    max-width: 1280px; /* 데스크탑: 넓은 기준 */
-    padding: clamp(6px, 1vw, 10px) clamp(40px, 4vw, 56px);
-  }
-}
-
-/* 큰 화면 스타일 - 1600px 이상부터 적용 (스케일 확장, 예외 허용) */
+/* 큰 화면 우측 아이콘 조금 더 키움 */
 @media (min-width: 1600px) {
   header.main-header .header-container {
-    max-width: 2400px; /* 큰 화면: 더 넓게 */
-    padding: clamp(4px, 0.8vw, 8px) clamp(48px, 4vw, 64px);
+    padding: clamp(4px, 0.8vw, 8px) 32px;
   }
-
-  /* 큰 화면 우측 아이콘 조금 더 키움 */
   .main-header .header-actions .action-link .action-icon {
     width: 30px !important;
     height: 30px !important;
@@ -109,10 +88,11 @@ header.main-header .header-container {
 }
 
 /* ===== Header Components ===== */
+/* 로고–mega-root 간격 64px, mega-root 항목 간격은 아래 .mega-root에서 별도 */
 .header-content {
   display: flex;
   align-items: center;
-  gap: clamp(20px, 3vw, 40px);
+  gap: 64px;
   flex: 1;
   justify-content: flex-start;
   min-width: 0; /* flex 아이템이 잘리지 않도록 */
@@ -152,13 +132,32 @@ header.main-header .header-container {
 /* 로고 영역 고정 */
 header.main-header .logo {
   flex-shrink: 0; /* 로고가 줄어들지 않도록 */
-  margin-right: clamp(16px, 2.5vw, 24px);
+  margin-right: 0; /* 로고–mega-root 간격은 .header-content gap으로 통일 */
 }
 
-/* 네비게이션 영역 (중앙) */
+/* 헤더 로고 (Collection 2026 등 네비와 동일 폰트: body 상속) */
+.header-logo {
+  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 500;
+  font-size: clamp(13px, 1.6vw, 16px);
+  letter-spacing: 0.02em;
+  color: #000000;
+  text-decoration: none;
+}
+.header-logo:hover {
+  color: #000000;
+  opacity: 0.85;
+}
+.header-logo .brand-text {
+  display: inline-block;
+}
+
+/* 네비게이션 영역 (중앙) - 로고·아이콘과 세로 높이 맞춤 */
 header.main-header .main-nav {
   flex: 1;
   min-width: 0; /* 텍스트가 잘릴 수 있도록 허용 */
+  display: flex;
+  align-items: center;
 }
 
 /* 우측 액션 메뉴 */
@@ -221,7 +220,7 @@ header.main-header nav ul,
   gap: clamp(15px, 3vw, 30px);
   list-style: none;
   align-items: center;
-  margin-top: clamp(-15px, -2vw, -20px);
+  
 }
 
 header.main-header nav ul li a,
@@ -294,16 +293,20 @@ header.main-header .mega-nav,
   margin-top: clamp(8px, 1.5vw, 10px);
 }
 
+/* mega-root 항목 간격 = .header-content gap과 동일, 로고와 세로 맞춤을 위해 위로 당김 */
 header.main-header .mega-root,
 .main-nav .mega-root {
   display: flex;
-  gap: clamp(24px, 4vw, 36px);
+  gap: clamp(24px, 4vw, 38px);
   list-style: none;
+  margin-bottom: 8px; /* 로고·아이콘과 시각적 세로 정렬 */
 }
 
 header.main-header .mega-root > li,
 .main-nav .mega-root > li {
   position: static;
+  display: flex;
+  align-items: center;
 }
 
 header.main-header .mega-root > li > a,
@@ -311,6 +314,9 @@ header.main-header .mega-root > li > a,
   text-decoration: none;
   color: #111;
   font-weight: 700;
+  line-height: 1.2; /* 로고·아이콘과 세로 높이 맞춤 */
+  display: inline-flex;
+  align-items: center;
 }
 
 header.main-header .mega-root > li:hover > a,
@@ -366,6 +372,13 @@ header.main-header .has-mega,
 .main-nav .has-mega {
   position: relative !important;
   display: inline-block !important;
+}
+
+/* mega-root 내부 li는 flex로 세로 중앙 정렬 (로고와 높이 맞춤) */
+header.main-header .mega-root > li.has-mega,
+.main-nav .mega-root > li.has-mega {
+  display: flex !important;
+  align-items: center;
 }
 
 header.main-header .mega-menu,
@@ -659,7 +672,7 @@ header.main-header .mega-menu.show,
 
 /* 모바일 모드 (햄버거 메뉴): 0px ~ (X-1)px */
 /* ⚠️ 헤더 전환점 X 변경 시 이 값도 함께 변경해야 합니다 */
-@media (max-width: 1049px) {
+@media (max-width: 1024px) {
   /* 모바일에서 네비게이션 숨기기 */
   .main-nav {
     display: none !important;
@@ -735,7 +748,7 @@ header.main-header .mega-menu.show,
 
 /* 데스크탑 모드 (풀 네비게이션): Xpx~ */
 /* ⚠️ 헤더 전환점 X 변경 시 이 값도 함께 변경해야 합니다 */
-@media (min-width: 1050px) {
+@media (min-width: 1025px) {
   /* 데스크탑에서 햄버거 메뉴 숨기기 */
   .mobile-menu-toggle {
     display: none !important;
