@@ -530,8 +530,12 @@ async function renderCartItems() {
       const id = itemId(item);
       const qty = item.quantity || 1;
       const maxQty = counts[idx] ?? 999;
-      const atLimit = maxQty === 0 || qty >= maxQty;
-      const showLimitMsg = atLimit && qty > 1;
+      const outOfStock = maxQty === 0;
+      const atLimit = outOfStock || qty >= maxQty;
+      // 재고 없음: 수량 1개여도 메시지 표시. 제한 수량 도달: qty > 1일 때만 표시
+      const limitMsgHtml = outOfStock
+        ? '<p class="cart-qty-limit-msg">이 제품은 현재 재고가 없습니다.</p>'
+        : (atLimit && qty > 1 ? '<p class="cart-qty-limit-msg">이 제품의 제한 수량에 도달했습니다.</p>' : '');
       const plusDisabled = atLimit ? ' disabled aria-label="제한 수량 도달"' : '';
       return `
       <div class="cart-item" data-item-id="${escapeHtml(id)}" data-quantity="${qty}" data-max-quantity="${maxQty}" data-price="${item.price || 0}">
@@ -549,7 +553,7 @@ async function renderCartItems() {
                 <button type="button" class="cart-qty-btn cart-qty-plus" data-item-id="${escapeHtml(id)}" aria-label="수량 증가"${plusDisabled}>+</button>
               </div>
             </div>
-            ${showLimitMsg ? '<p class="cart-qty-limit-msg">이 제품의 제한 수량에 도달했습니다.</p>' : ''}
+            ${limitMsgHtml}
             <div class="cart-item-edit-area">
               <div class="cart-edit-rows"></div>
             </div>

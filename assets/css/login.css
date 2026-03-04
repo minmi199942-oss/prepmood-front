@@ -326,10 +326,6 @@
   font-family: inherit;
 }
 
-.create-account-btn:hover {
-  background-color: #111;
-  color: #fff;
-}
 
 /* ===== 반응형 디자인 ===== */
 @media (max-width: 768px) {

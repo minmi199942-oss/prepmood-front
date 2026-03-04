@@ -129,6 +129,7 @@
       
       <div class="login-header">
         <h1>로그인</h1>
+        <p class="return-to-hint" id="returnToHint" style="display: none; margin-top: 0.5rem; font-size: 0.9rem; color: #666;">로그인하시면 주문 페이지로 돌아갑니다.</p>
       </div>
 
       <!-- 이메일/비밀번호 로그인 -->
@@ -178,8 +179,9 @@
         <div class="signup-area">
           <p class="signup-text">새로운 신규 고객이신가요?</p>
           <p class="signup-hint"><span class="signup-hint-icon" aria-hidden="true">→</span> 디지털 인보이스 및 보증서 관리를 위해 계정을 생성하세요.</p>
-          <button class="create-account-btn" onclick="window.location.href='register.html'">
-            계정 만들기          </button>
+          <button type="button" id="create-account-btn" class="create-account-btn">
+            계정 만들기
+          </button>
         </div>
       </div>
     </main>
@@ -316,6 +318,12 @@
       const urlParams = new URLSearchParams(window.location.search);
       const returnTo = urlParams.get('returnTo');  // 페이지 파라미터 기반이면 자연스럽게 유지됨
       const reason = urlParams.get('reason'); // ✅ reason 파라미터 확인
+
+      // 등록하기 → 로그인 경로: 주문 페이지 복귀 안내
+      if (returnTo && returnTo.indexOf('/guest/') === 0) {
+        var returnToHint = document.getElementById('returnToHint');
+        if (returnToHint) returnToHint.style.display = 'block';
+      }
       
       // ✅ QR 인증 안내 배너 표시 로직
       const qrAuthNotice = document.getElementById('qr-auth-notice');
@@ -347,6 +355,17 @@
       const loginBtn = document.getElementById('loginBtn');
       const emailInput = document.getElementById('email');
       const passwordInput = document.getElementById('password');
+
+      // 계정 만들기: returnTo가 있으면 회원가입 후 다시 로그인 시 주문 상세로 복귀되도록 전달
+      const createAccountBtn = document.getElementById('create-account-btn');
+      if (createAccountBtn) {
+        createAccountBtn.addEventListener('click', function() {
+          const goTo = returnTo
+            ? ('register.html?returnTo=' + encodeURIComponent(returnTo))
+            : 'register.html';
+          window.location.href = goTo;
+        });
+      }
 
       // Google Identity Services 초기화
       if (typeof google !== 'undefined') {

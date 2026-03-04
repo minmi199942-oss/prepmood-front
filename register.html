@@ -316,6 +316,12 @@
                 : '/api');
         var Log = window.Logger || console;
 
+        // 등록하기 → 로그인 → 회원가입 경로에서 복귀용 (returnTo 있으면 로그인 후 해당 페이지로 이동)
+        var returnToFromUrl = (function() {
+            var p = new URLSearchParams(window.location.search);
+            return p.get('returnTo') || '';
+        })();
+
         // 통합 회원가입 폼 처리 (한 페이지)
         class RegisterForm {
             constructor() {
@@ -457,8 +463,11 @@
                     // 1) 이미 가입된 이메일인 경우
                     if (response.status === 409 || data.code === 'EMAIL_ALREADY_EXISTS') {
                         this.showEmailExistsMessage();
-                        setTimeout(() => {
-                            window.location.href = 'login.html';
+                        var loginUrl = returnToFromUrl
+                            ? ('login.html?returnTo=' + encodeURIComponent(returnToFromUrl))
+                            : 'login.html';
+                        setTimeout(function() {
+                            window.location.href = loginUrl;
                         }, 1500);
                         this.setLoading(false);
                         return;
@@ -609,19 +618,29 @@
                     Log.log('회원가입 응답 데이터:', data);
 
                     if (data.success) {
-                        document.getElementById('successMessage').style.display = 'block';
+                        var successEl = document.getElementById('successMessage');
+                        if (returnToFromUrl && successEl) {
+                            successEl.textContent = '계정이 생성되었습니다. 로그인하시면 주문 페이지로 돌아갑니다.';
+                        }
+                        successEl.style.display = 'block';
                         document.getElementById('registerForm').style.display = 'none';
                         
-                        // 3초 후 로그인 페이지로 이동
-                        setTimeout(() => {
-                            window.location.href = 'login.html';
-                        }, 3000);
+                        var loginUrl = returnToFromUrl
+                            ? ('login.html?returnTo=' + encodeURIComponent(returnToFromUrl))
+                            : 'login.html';
+                        var delayMs = returnToFromUrl ? 2000 : 3000;
+                        setTimeout(function() {
+                            window.location.href = loginUrl;
+                        }, delayMs);
                     } else {
                         // 이미 가입된 이메일인 경우 (최종 안전장치)
                         if (response.status === 409 || data.code === 'EMAIL_ALREADY_EXISTS') {
                             this.showError('emailError', '이미 가입된 이메일입니다. 로그인 페이지로 이동합니다.');
-                            setTimeout(() => {
-                                window.location.href = 'login.html';
+                            var loginUrl = returnToFromUrl
+                                ? ('login.html?returnTo=' + encodeURIComponent(returnToFromUrl))
+                                : 'login.html';
+                            setTimeout(function() {
+                                window.location.href = loginUrl;
                             }, 2000);
                             return;
                         }

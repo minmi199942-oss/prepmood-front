@@ -1418,7 +1418,7 @@ body.search-overlay-open {
 
 /* 상품 헤더 (제품명 + 위시리스트) — 우측 정보 영역 작게 */
 .product-detail-container .product-header {
-  margin-bottom: 6px;
+  margin-bottom: 2px;
   padding-bottom: 0;
 }
 
@@ -1484,10 +1484,10 @@ body.search-overlay-open {
   filter: brightness(1.1);
 }
 
-/* 상품 가격 (상품번호 자리) — checkout 우측 총계와 동일: 13px, 600 */
+/* 상품 가격 (상품번호 자리) — buy 상세 전용, .product-price의 !important 덮기 */
 .product-detail-container .product-price {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: 14px !important;
   font-weight: 600;
   color: #111;
   text-align: left;
@@ -1501,8 +1501,8 @@ body.search-overlay-open {
     display: flex;
     flex-direction: column;
     gap: clamp(8px, 1.5vw, 12px);
-    padding: clamp(8px, 1.5vw, 12px) 0;
-    margin-top: clamp(6px, 1vw, 10px);
+    padding: clamp(4px, 0.8vw, 8px) 0 clamp(8px, 1.5vw, 12px) 0;
+    margin-top: clamp(2px, 0.5vw, 4px);
   }
 
 .option-group {
