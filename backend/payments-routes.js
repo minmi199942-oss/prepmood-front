@@ -795,20 +795,14 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 } finally {
                     if (emailConnection) await emailConnection.end();
                 }
-                } catch (emailError) {
-                    // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
-                    Logger.error('[payments][confirm] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
-                        order_id: orderInfo.order_id,
-                        order_number: orderInfo.order_number,
-                        error: emailError.message,
-                        stack: emailError.stack
-                    });
-                }
             } catch (emailError) {
                 // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
                 Logger.error('[payments][confirm] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
+                    order_id: orderInfo?.order_id,
+                    order_number: orderInfo?.order_number,
                     orderNumber,
-                    error: emailError.message
+                    error: emailError.message,
+                    stack: emailError.stack
                 });
             }
         }
@@ -1600,26 +1594,28 @@ router.post('/payments/inicis/return', async (req, res) => {
                                 });
                             }
                         }
-                    } finally {
-                        if (emailConnection2) await emailConnection2.end();
-                    }
                     } catch (emailError) {
                         // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
                         Logger.error('[payments][inicis] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
-                            order_id: orderInfoForEmail.order_id,
-                            order_number: orderInfoForEmail.order_number,
+                            order_id: orderInfoForEmail?.order_id,
+                            order_number: orderInfoForEmail?.order_number,
+                            orderNumber,
                             error: emailError.message,
                             stack: emailError.stack
                         });
                     }
+                    finally {
+                        if (emailConnection2) await emailConnection2.end();
+                    }
                 }
-            } catch (emailError) {
-                // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
-                Logger.error('[payments][inicis] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
-                    orderNumber,
-                    error: emailError.message
-                });
-            }
+            } catch (emailSectionError) {
+                // 이메일/주문정보 조회 실패는 로깅만 (주문 성공은 유지)
+            Logger.warn('[payments][inicis] 이메일 섹션 오류 (주문은 성공)', {
+                orderNumber,
+                error: emailSectionError?.message,
+                stack: emailSectionError?.stack
+            });
+        }
         }
 
         // 성공 페이지로 리다이렉트
@@ -2261,20 +2257,14 @@ router.post('/payments/webhook', async (req, res) => {
                     } finally {
                         if (emailConnection) await emailConnection.end();
                     }
-                    } catch (emailError) {
-                        // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
-                        Logger.error('[payments][webhook] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
-                            order_id: emailInfo.orderId,
-                            order_number: emailInfo.orderInfo.order_number,
-                            error: emailError.message,
-                            stack: emailError.stack
-                        });
-                    }
                 } catch (emailError) {
                     // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
                     Logger.error('[payments][webhook] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
-                        orderId: emailInfo.orderId,
-                        error: emailError.message
+                        order_id: emailInfo?.orderId,
+                        order_number: emailInfo?.orderInfo?.order_number,
+                        orderId: emailInfo?.orderId,
+                        error: emailError.message,
+                        stack: emailError.stack
                     });
                 }
             }
