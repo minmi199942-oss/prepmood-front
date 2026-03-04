@@ -1,1 +1,5 @@
 ERROR 1045 (28000): Access denied for user 'prepmood_user'@'localhost' (using password: YES)
+
+-- 스키마 변경 기록 (수동 반영): migration 089 — warranty_transfers
+-- ADD COLUMN failed_attempts INT NOT NULL DEFAULT 0
+-- ADD COLUMN locked_until DATETIME NULL

@@ -12,7 +12,10 @@ let hasMore = true;
 
 document.addEventListener('DOMContentLoaded', async function() {
   console.log('보증서 목록 페이지 로드됨');
-  
+
+  // 활성화 모달 이벤트 바인딩 (문서 4.3, 11절 2단계)
+  bindActivateModalEvents();
+
   // 로그인 상태 확인
   const userInfo = await checkLoginStatus();
   if (!userInfo) {
@@ -186,48 +189,86 @@ function getStatusBadge(status) {
   return `<span class="badge ${className}">${label}</span>`;
 }
 
-// 활성화 처리 함수
-async function handleActivate(warrantyId) {
-  // 동의 확인
-  const agreeText = `보증서를 활성화하시겠습니까?\n\n활성화된 보증서는 양도 및 환불 정책이 적용됩니다.`;
-  if (!confirm(agreeText)) {
-    return;
+// 보증서 활성화 모달 (문서 4.3, 11절 2단계: 상세 경고 2종 + 동의 체크 후 활성화)
+let activateModalWarrantyId = null;
+
+function openActivateModal(warrantyId) {
+  const modal = document.getElementById('activate-warranty-modal');
+  const agreeCheckbox = document.getElementById('activate-warranty-agree');
+  const confirmBtn = document.getElementById('activate-modal-confirm');
+  if (!modal || !agreeCheckbox || !confirmBtn) return;
+  activateModalWarrantyId = warrantyId;
+  agreeCheckbox.checked = false;
+  confirmBtn.disabled = true;
+  modal.style.display = 'block';
+}
+
+function closeActivateModal() {
+  const modal = document.getElementById('activate-warranty-modal');
+  if (modal) modal.style.display = 'none';
+  activateModalWarrantyId = null;
+}
+
+function bindActivateModalEvents() {
+  const modal = document.getElementById('activate-warranty-modal');
+  const agreeCheckbox = document.getElementById('activate-warranty-agree');
+  const confirmBtn = document.getElementById('activate-modal-confirm');
+  const cancelBtn = document.getElementById('activate-modal-cancel');
+  const closeBtn = document.getElementById('activate-modal-close');
+  const backdrop = modal ? modal.querySelector('.activate-warranty-modal-backdrop') : null;
+
+  if (agreeCheckbox && confirmBtn) {
+    agreeCheckbox.addEventListener('change', function () {
+      confirmBtn.disabled = !agreeCheckbox.checked;
+    });
   }
-  
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', function () {
+      if (!agreeCheckbox || !agreeCheckbox.checked || activateModalWarrantyId == null) return;
+      doActivateWarranty(activateModalWarrantyId);
+    });
+  }
+  if (cancelBtn) cancelBtn.addEventListener('click', closeActivateModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeActivateModal);
+  if (backdrop) backdrop.addEventListener('click', closeActivateModal);
+}
+
+async function doActivateWarranty(warrantyId) {
   try {
     const response = await fetch(`${API_BASE}/warranties/${warrantyId}/activate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({
-        agree: true
-      })
+      body: JSON.stringify({ agree: true })
     });
-    
     const data = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(data.message || `HTTP ${response.status}`);
     }
-    
+
     if (data.success) {
-      // 보증서 활성화 성공 시 success 페이지로 리다이렉트
+      closeActivateModal();
       if (data.warranty && data.warranty.public_id) {
         window.location.href = `/warranty-activate-success?public_id=${encodeURIComponent(data.warranty.public_id)}`;
       } else {
         alert('보증서가 성공적으로 활성화되었습니다.');
-        // 목록 새로고침
         await loadWarranties(0, DEFAULT_LIMIT);
       }
     } else {
       throw new Error(data.message || '활성화 실패');
     }
   } catch (error) {
-    console.error('보증서 활성화 오류:', error);
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('보증서 활성화 오류:', error);
+    }
     alert(`보증서 활성화에 실패했습니다: ${error.message}`);
   }
+}
+
+// 활성화 처리 함수: 모달 표시 (동의 체크 후에만 API 호출)
+function handleActivate(warrantyId) {
+  openActivateModal(warrantyId);
 }
 
 // 전역 함수로 등록 (onclick에서 사용)

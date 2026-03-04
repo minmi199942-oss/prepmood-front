@@ -10,6 +10,8 @@ const Logger = require('./logger');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { resolveProductIdBoth } = require('./utils/product-id-resolver');
 const { generateUniqueGuestId } = require('./utils/user-id-generator');
+const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
+const { generateInvoicePdfBuffer } = require('./utils/invoice-pdf-generator');
 const crypto = require('crypto');
 
 // 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
@@ -348,6 +350,63 @@ const orderCreationLimiter = rateLimit({
         });
     }
 });
+
+// 비회원 세션 교환 Rate limiting (Phase 3: 토큰 추측·남용 방지, IP당 분당 상한)
+const guestSessionLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => ipKeyGenerator(req.ip || ''),
+    handler: (req, res) => {
+        Logger.warn('비회원 세션 교환 Rate Limit 초과', { ip: req.ip });
+        res.status(429).json({
+            success: false,
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: '요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.'
+        });
+    }
+});
+
+// PDF 다운로드 전용 Rate limiting (문서 6. OOM/DoS 방어 — IP당 1분 3회)
+const pdfDownloadLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 3,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => ipKeyGenerator(req.ip || ''),
+    handler: (req, res) => {
+        Logger.warn('PDF 다운로드 Rate Limit 초과', { ip: req.ip });
+        res.status(429).json({
+            success: false,
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: 'PDF 다운로드 요청이 너무 잦습니다. 1분 후 다시 시도해주세요.'
+        });
+    }
+});
+
+// 인보이스 PDF 메모리 캐시 (문서 6. 중복 렌더링 방지, TTL 10분)
+const PDF_CACHE_TTL_MS = 10 * 60 * 1000;
+const invoicePdfCache = new Map(); // key: invoice-${orderNumber}, value: { buffer, expiresAt }
+
+function getCachedPdf(orderNumber) {
+    const key = `invoice-${orderNumber}`;
+    const entry = invoicePdfCache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+        invoicePdfCache.delete(key);
+        return null;
+    }
+    return entry.buffer;
+}
+
+function setCachedPdf(orderNumber, buffer) {
+    const key = `invoice-${orderNumber}`;
+    invoicePdfCache.set(key, {
+        buffer,
+        expiresAt: Date.now() + PDF_CACHE_TTL_MS
+    });
+}
 
 // 주문번호 생성 함수 (UNIQUE 충돌 시 지수 백오프 재시도 로직 포함)
 async function generateOrderNumber(connection, maxRetries = 3) {
@@ -1150,7 +1209,8 @@ router.post('/orders/:orderId/claim-token', authenticateToken, async (req, res) 
  * 4. warranties 상태 전이 (issued_unassigned → issued)
  * 5. warranties.owner_user_id 업데이트
  * 6. guest_order_access_token 회수 (revoked_at 설정)
- * 7. warranty_events 이벤트 기록
+ * 7. guest_order_sessions 만료 (해당 order_id 세션 expires_at 과거로 → 적극적 무효화)
+ * 8. warranty_events 이벤트 기록
  */
 router.post('/orders/:orderId/claim', authenticateToken, async (req, res) => {
     let connection;
@@ -1326,7 +1386,7 @@ router.post('/orders/:orderId/claim', authenticateToken, async (req, res) => {
                 updatedWarranties: warrantiesUpdateResult.affectedRows
             });
 
-            // 6. warranty_events에 이벤트 기록 (각 warranty별로)
+            // 8. warranty_events에 이벤트 기록 (각 warranty별로)
             const [warranties] = await connection.execute(
                 `SELECT w.id as warranty_id
                  FROM warranties w
@@ -1370,7 +1430,7 @@ router.post('/orders/:orderId/claim', authenticateToken, async (req, res) => {
                 }
             }
 
-            // 7. guest_order_access_token 회수 (revoked_at 설정)
+            // 6. guest_order_access_token 회수 (revoked_at 설정)
             const [revokeResult] = await connection.execute(
                 `UPDATE guest_order_access_tokens
                  SET revoked_at = NOW()
@@ -1383,6 +1443,20 @@ router.post('/orders/:orderId/claim', authenticateToken, async (req, res) => {
                 orderId,
                 userId,
                 revokedTokens: revokeResult.affectedRows
+            });
+
+            // 7. 해당 주문의 모든 비회원 세션 무효화 (expires_at 과거로 설정 → 조회 시 만료 처리)
+            const [sessionsExpiredResult] = await connection.execute(
+                `UPDATE guest_order_sessions
+                 SET expires_at = DATE_SUB(NOW(), INTERVAL 1 DAY)
+                 WHERE order_id = ?`,
+                [orderId]
+            );
+
+            Logger.log('[CLAIM] guest_order_sessions 만료 처리 완료', {
+                orderId,
+                userId,
+                expiredSessions: sessionsExpiredResult.affectedRows
             });
 
             await connection.commit();
@@ -1444,25 +1518,66 @@ router.post('/orders/:orderId/claim', authenticateToken, async (req, res) => {
  */
 
 /**
- * GET /api/guest/orders/session
- * 게스트 세션 발급/검증 엔드포인트
- * 
- * Query Parameters:
- * - token: string (필수) - guest_order_access_token
- * 
- * 처리 흐름:
- * 1. guest_order_access_tokens에서 token 조회
- * 2. expires_at, revoked_at, orders.user_id IS NULL 확인
- * 3. 통과하면 세션 토큰 발급 (24시간 TTL)
- * 4. guest_order_sessions 테이블에 저장
- * 5. httpOnly Cookie로 세션 토큰 설정
- * 6. 302 Redirect (/guest/orders.html?order=ORD-...)
+ * 토큰 검증 + 세션 생성 공통 로직 (GET/POST 세션 교환)
+ * @param {import('mysql2/promise').Connection} connection
+ * @param {string} tokenString - guest_order_access_token
+ * @returns {Promise<{ orderNumber: string, sessionToken: string, sessionExpiresAt: Date, orderId: number } | null>}
  */
-router.get('/guest/orders/session', async (req, res) => {
+async function exchangeGuestTokenForSession(connection, tokenString) {
+    const [tokens] = await connection.execute(
+        `SELECT 
+            got.token_id,
+            got.order_id,
+            got.token,
+            o.order_number
+        FROM guest_order_access_tokens got
+        INNER JOIN orders o ON got.order_id = o.order_id
+        WHERE got.token = ? AND ${selectValidGuestTokenSql('got')}`,
+        [tokenString]
+    );
+    if (tokens.length === 0) return null;
+
+    const tokenData = tokens[0];
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const sessionExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await connection.execute(
+        `INSERT INTO guest_order_sessions 
+         (order_id, session_token, access_token_id, expires_at)
+         VALUES (?, ?, ?, ?)`,
+        [tokenData.order_id, sessionToken, tokenData.token_id, sessionExpiresAt]
+    );
+
+    return {
+        orderNumber: tokenData.order_number,
+        sessionToken,
+        sessionExpiresAt,
+        orderId: tokenData.order_id
+    };
+}
+
+/** 세션 쿠키 설정 (GET/POST 공통) */
+function setGuestSessionCookie(res, req, sessionToken) {
+    const isSecure = process.env.NODE_ENV === 'production' || req.get('x-forwarded-proto') === 'https';
+    res.cookie('guest_session_token', sessionToken, {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: 'strict', // 문서 14.2: 토큰 노출 방지·CSRF 완화
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/'
+    });
+}
+
+/**
+ * GET /api/guest/orders/session
+ * 게스트 세션 발급 (deprecated: 토큰이 URL에 노출됨. 이메일 링크는 guest-order-access.html 사용 권장.)
+ * Query: token
+ * 성공 시 302 Redirect (/guest/orders.html?order=...)
+ */
+router.get('/guest/orders/session', guestSessionLimiter, async (req, res) => {
     let connection;
     try {
         const { token } = req.query;
-
         if (!token || typeof token !== 'string' || !token.trim()) {
             return res.status(400).json({
                 success: false,
@@ -1480,100 +1595,91 @@ router.get('/guest/orders/session', async (req, res) => {
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         });
 
-        // 1. guest_order_access_tokens에서 token 조회
-        const [tokens] = await connection.execute(
-            `SELECT 
-                got.token_id,
-                got.order_id,
-                got.token,
-                got.expires_at,
-                got.revoked_at,
-                o.order_number,
-                o.user_id
-            FROM guest_order_access_tokens got
-            INNER JOIN orders o ON got.order_id = o.order_id
-            WHERE got.token = ?`,
-            [token.trim()]
-        );
+        const result = await exchangeGuestTokenForSession(connection, token.trim());
+        await connection.end();
 
-        if (tokens.length === 0) {
-            await connection.end();
+        if (!result) {
             return res.status(410).json({
                 success: false,
-                message: '유효하지 않은 토큰입니다.',
+                message: '유효하지 않거나 만료·회수된 토큰입니다.',
                 code: 'INVALID_TOKEN'
             });
         }
 
-        const tokenData = tokens[0];
+        Logger.log('[GUEST_SESSION] 세션 발급 완료 (GET)', {
+            orderId: result.orderId,
+            orderNumber: result.orderNumber,
+            tokenPrefix: String(token).substring(0, 6) + '...'
+        });
 
-        // 2. expires_at 확인
-        if (new Date(tokenData.expires_at) < new Date()) {
-            await connection.end();
-            return res.status(410).json({
+        setGuestSessionCookie(res, req, result.sessionToken);
+        res.redirect(302, `/guest/orders.html?order=${encodeURIComponent(result.orderNumber)}`);
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.error('[GUEST_SESSION] 세션 발급 실패', { error: error.message, stack: error.stack });
+        res.status(500).json({
+            success: false,
+            message: '세션 발급에 실패했습니다.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * POST /api/guest/orders/session
+ * 게스트 세션 발급 (Phase 3: 토큰을 Body로 전달, 로그/Referer 노출 방지)
+ * Body: { "token": "guest_order_access_token" }
+ * 성공 시 200 + { success: true, redirectUrl, orderNumber }, httpOnly 쿠키 설정
+ */
+router.post('/guest/orders/session', guestSessionLimiter, async (req, res) => {
+    let connection;
+    try {
+        const token = req.body && (req.body.token ?? req.body.access_token);
+        const tokenString = typeof token === 'string' ? token.trim() : '';
+        if (!tokenString) {
+            return res.status(400).json({
                 success: false,
-                message: '토큰이 만료되었습니다.',
-                code: 'TOKEN_EXPIRED'
+                message: '토큰이 필요합니다.',
+                code: 'MISSING_TOKEN'
             });
         }
 
-        // 3. revoked_at 확인 (3종 차단: token 없음 / expires_at 만료 / revoked_at 회수)
-        if (tokenData.revoked_at !== null) {
-            await connection.end();
-            return res.status(410).json({
-                success: false,
-                message: '토큰이 회수되었습니다.',
-                code: 'TOKEN_REVOKED'
-            });
-        }
+        connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        });
 
-        // 4. orders.user_id IS NULL 확인 제거 (Claim 완료 주문도 이메일 링크로 접근 가능)
-        // ⚠️ 제거됨: Claim 완료된 주문도 이메일 링크로 접근 가능해야 함
-
-        // 5. 세션 토큰 발급 (24시간 TTL)
-        const sessionToken = crypto.randomBytes(32).toString('hex');
-        const sessionExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24시간 후
-
-        // 6. guest_order_sessions 테이블에 저장
-        const [sessionResult] = await connection.execute(
-            `INSERT INTO guest_order_sessions 
-             (order_id, session_token, access_token_id, expires_at)
-             VALUES (?, ?, ?, ?)`,
-            [tokenData.order_id, sessionToken, tokenData.token_id, sessionExpiresAt]
-        );
-
-        const sessionId = sessionResult.insertId;
-
+        const result = await exchangeGuestTokenForSession(connection, tokenString);
         await connection.end();
 
-        Logger.log('[GUEST_SESSION] 세션 발급 완료', {
-            sessionId,
-            orderId: tokenData.order_id,
-            orderNumber: tokenData.order_number,
-            tokenPrefix: token.substring(0, 6) + '...'
-        });
-
-        // 7. httpOnly Cookie로 세션 토큰 설정
-        const isSecure = process.env.NODE_ENV === 'production' || req.get('x-forwarded-proto') === 'https';
-        res.cookie('guest_session_token', sessionToken, {
-            httpOnly: true,
-            secure: isSecure,
-            sameSite: 'lax',
-            maxAge: 24 * 60 * 60 * 1000, // 24시간
-            path: '/'
-        });
-
-        // 8. 302 Redirect
-        res.redirect(302, `/guest/orders.html?order=${encodeURIComponent(tokenData.order_number)}`);
-
-    } catch (error) {
-        if (connection) {
-            await connection.end();
+        if (!result) {
+            return res.status(410).json({
+                success: false,
+                message: '유효하지 않거나 만료·회수된 토큰입니다.',
+                code: 'INVALID_TOKEN'
+            });
         }
-        Logger.error('[GUEST_SESSION] 세션 발급 실패', {
-            error: error.message,
-            stack: error.stack
+
+        Logger.log('[GUEST_SESSION] 세션 발급 완료 (POST)', {
+            orderId: result.orderId,
+            orderNumber: result.orderNumber,
+            tokenPrefix: tokenString.substring(0, 6) + '...'
         });
+
+        setGuestSessionCookie(res, req, result.sessionToken);
+        const redirectUrl = `/guest/orders.html?order=${encodeURIComponent(result.orderNumber)}`;
+        res.status(200).json({
+            success: true,
+            redirectUrl,
+            orderNumber: result.orderNumber
+        });
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.error('[GUEST_SESSION] 세션 발급 실패', { error: error.message, stack: error.stack });
         res.status(500).json({
             success: false,
             message: '세션 발급에 실패했습니다.',
@@ -1622,7 +1728,7 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         });
 
-        // 1. 세션 토큰 검증
+        // 1. 세션 토큰 검증 (세션 SSOT). Claim 후에는 guest 세션으로 접근 불가: o.user_id IS NULL 필수
         const [sessions] = await connection.execute(
             `SELECT 
                 gos.session_id,
@@ -1631,27 +1737,27 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
                 gos.expires_at,
                 gos.last_access_at,
                 o.order_number,
-                o.user_id,
-                got.revoked_at
+                o.user_id
             FROM guest_order_sessions gos
             INNER JOIN orders o ON gos.order_id = o.order_id
             INNER JOIN guest_order_access_tokens got ON gos.access_token_id = got.token_id
-            WHERE gos.session_token = ?`,
+            WHERE gos.session_token = ?
+              AND o.user_id IS NULL`,
             [sessionToken]
         );
 
         if (sessions.length === 0) {
             await connection.end();
-            return res.status(401).json({
+            return res.status(403).json({
                 success: false,
-                message: '유효하지 않은 세션입니다.',
+                message: '유효하지 않은 세션이거나, 해당 주문은 이미 계정에 등록되어 접근할 수 없습니다.',
                 code: 'INVALID_SESSION'
             });
         }
 
         const session = sessions[0];
 
-        // 2. 세션 만료 확인
+        // 2. 세션 만료 확인 (gos.expires_at)
         if (new Date(session.expires_at) < new Date()) {
             await connection.end();
             return res.status(410).json({
@@ -1671,18 +1777,8 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
             });
         }
 
-        // 4. Claim 완료 확인 제거 (Phase 1: Claim 완료 주문도 이메일 링크로 접근 가능)
-        // ⚠️ 제거됨: Claim 완료된 주문도 이메일 링크로 접근 가능해야 함
-
-        // 5. revoked_at 확인
-        if (session.revoked_at !== null) {
-            await connection.end();
-            return res.status(410).json({
-                success: false,
-                message: '토큰이 회수되었습니다.',
-                code: 'TOKEN_REVOKED'
-            });
-        }
+        // 4. Claim 완료 확인 제거 (Claim 완료 주문도 이메일 링크로 접근 가능)
+        // 5. access_token revoked 여부는 세션 기반 경로에서는 검사하지 않음 (세션이 SSOT)
 
         // 6. last_access_at 업데이트
         await connection.execute(
@@ -1692,7 +1788,7 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
             [session.session_id]
         );
 
-        // 7. 주문 정보 조회
+        // 7. 주문 정보 조회 (Claim된 주문은 guest 세션으로 조회 불가)
         const [orders] = await connection.execute(
             `SELECT 
                 o.order_id,
@@ -1709,15 +1805,15 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
                 o.shipping_country,
                 o.paid_at
             FROM orders o
-            WHERE o.order_number = ?`,
+            WHERE o.order_number = ? AND o.user_id IS NULL`,
             [orderNumber]
         );
 
         if (orders.length === 0) {
             await connection.end();
-            return res.status(404).json({
+            return res.status(403).json({
                 success: false,
-                message: '주문을 찾을 수 없습니다.',
+                message: '주문을 찾을 수 없거나, 해당 주문은 이미 계정에 등록되어 접근할 수 없습니다.',
                 code: 'ORDER_NOT_FOUND'
             });
         }
@@ -1895,6 +1991,118 @@ router.get('/guest/orders/:orderNumber', async (req, res) => {
         res.status(500).json({
             success: false,
             message: '주문 조회에 실패했습니다.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * GET /api/guest/orders/:orderNumber/invoice/pdf
+ * 비회원 주문 인보이스 PDF 다운로드 (문서 4.2, 4.5, 8.4, 11절 3단계, 6. OOM/DoS 방어)
+ * - pdfDownloadLimiter: IP당 1분 3회.
+ * - 세션·order_number 검증 후 캐시 확인 → 없으면 생성 후 캐시(TTL 10분) 저장 후 반환.
+ */
+router.get('/guest/orders/:orderNumber/invoice/pdf', pdfDownloadLimiter, async (req, res) => {
+    let connection;
+    try {
+        const { orderNumber } = req.params;
+        const sessionToken = req.cookies?.guest_session_token;
+
+        if (!sessionToken || typeof sessionToken !== 'string') {
+            return res.status(401).json({
+                success: false,
+                message: '세션이 만료되었거나 유효하지 않습니다.',
+                code: 'SESSION_REQUIRED'
+            });
+        }
+
+        connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT || 3306,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        });
+
+        const [sessions] = await connection.execute(
+            `SELECT gos.session_id, gos.order_id, gos.expires_at, o.order_number, o.user_id
+             FROM guest_order_sessions gos
+             INNER JOIN orders o ON gos.order_id = o.order_id
+             INNER JOIN guest_order_access_tokens got ON gos.access_token_id = got.token_id
+             WHERE gos.session_token = ? AND o.user_id IS NULL`,
+            [sessionToken]
+        );
+
+        if (sessions.length === 0) {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: '유효하지 않은 세션이거나, 해당 주문은 이미 계정에 등록되어 접근할 수 없습니다.',
+                code: 'INVALID_SESSION'
+            });
+        }
+
+        const session = sessions[0];
+        if (new Date(session.expires_at) < new Date()) {
+            await connection.end();
+            return res.status(410).json({
+                success: false,
+                message: '세션이 만료되었습니다.',
+                code: 'SESSION_EXPIRED'
+            });
+        }
+        if (session.order_number !== orderNumber) {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: '접근 권한이 없습니다.',
+                code: 'ACCESS_DENIED'
+            });
+        }
+
+        const [invoices] = await connection.execute(
+            `SELECT invoice_id, order_id, invoice_number, type, status, currency, total_amount,
+                    tax_amount, net_amount, billing_name, billing_email, billing_phone, billing_address_json,
+                    shipping_name, shipping_email, shipping_phone, shipping_address_json,
+                    payload_json, issued_at
+             FROM invoices
+             WHERE order_id = ? AND type = 'invoice' AND status = 'issued'
+             ORDER BY issued_at DESC
+             LIMIT 1`,
+            [session.order_id]
+        );
+        await connection.end();
+
+        if (invoices.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '해당 주문의 인보이스를 찾을 수 없습니다.',
+                code: 'INVOICE_NOT_FOUND'
+            });
+        }
+
+        let pdfBuffer = getCachedPdf(orderNumber);
+        if (!pdfBuffer) {
+            const invoiceRow = invoices[0];
+            pdfBuffer = await generateInvoicePdfBuffer(invoiceRow);
+            setCachedPdf(orderNumber, pdfBuffer);
+        }
+
+        const filename = `Prepmood-Invoice-${orderNumber}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.error('[GUEST_INVOICE_PDF] 인보이스 PDF 생성 실패', {
+            orderNumber: req.params.orderNumber,
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: '인보이스 PDF 생성에 실패했습니다.',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }

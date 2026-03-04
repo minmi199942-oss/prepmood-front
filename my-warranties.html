@@ -94,6 +94,53 @@
         </div>
     </main>
 
+    <!-- 보증서 활성화 경고 모달 (문서 4.3, 11절 2단계) -->
+    <div id="activate-warranty-modal" class="activate-warranty-modal" role="dialog" aria-labelledby="activate-modal-title" aria-modal="true" style="display: none;">
+        <div class="activate-warranty-modal-backdrop"></div>
+        <div class="activate-warranty-modal-content">
+            <div class="activate-warranty-modal-header">
+                <h2 id="activate-modal-title">보증서 활성화 안내</h2>
+                <button type="button" class="activate-warranty-modal-close" id="activate-modal-close" aria-label="닫기">&times;</button>
+            </div>
+            <div class="activate-warranty-modal-body">
+                <p class="activate-warranty-notice">보증서 미활성 상태에서만 전자상거래법에 따른 청약철회가 가능합니다.</p>
+                <p class="activate-warranty-notice">보증서를 활성화하면 해당 상품은 사용 개시로 간주되어 새 상품으로 재판매가 불가능합니다. 이에 따라 교환 및 환불이 제한됩니다.</p>
+                <p class="activate-warranty-notice activate-warranty-notice-sub">활성화된 보증서는 양도 및 환불 정책이 적용됩니다.</p>
+                <p class="activate-warranty-check-wrap">
+                    <label>
+                        <input type="checkbox" id="activate-warranty-agree" />
+                        <span>위 내용을 확인했으며 동의합니다.</span>
+                    </label>
+                </p>
+            </div>
+            <div class="activate-warranty-modal-footer">
+                <button type="button" class="btn-activate-modal-cancel" id="activate-modal-cancel">취소</button>
+                <button type="button" class="btn-activate-modal-confirm" id="activate-modal-confirm" disabled>활성화</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        .activate-warranty-modal { position: fixed; inset: 0; z-index: 9999; overflow: auto; }
+        .activate-warranty-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); }
+        .activate-warranty-modal-content { position: relative; max-width: 480px; margin: 2rem auto; padding: 0; background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .activate-warranty-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #eee; }
+        .activate-warranty-modal-header h2 { margin: 0; font-size: 1.125rem; font-weight: 600; }
+        .activate-warranty-modal-close { background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #666; padding: 0 0.25rem; }
+        .activate-warranty-modal-close:hover { color: #000; }
+        .activate-warranty-modal-body { padding: 1.25rem; }
+        .activate-warranty-notice { margin: 0 0 0.75rem; font-size: 0.9375rem; line-height: 1.5; color: #333; }
+        .activate-warranty-notice-sub { margin-bottom: 1rem; color: #666; }
+        .activate-warranty-check-wrap { margin: 1rem 0 0; }
+        .activate-warranty-check-wrap label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9375rem; }
+        .activate-warranty-modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 1.25rem; border-top: 1px solid #eee; }
+        .btn-activate-modal-cancel, .btn-activate-modal-confirm { padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.9375rem; cursor: pointer; }
+        .btn-activate-modal-cancel { background: #f0f0f0; border: 1px solid #ddd; color: #333; }
+        .btn-activate-modal-cancel:hover { background: #e5e5e5; }
+        .btn-activate-modal-confirm { background: #333; border: 1px solid #333; color: #fff; }
+        .btn-activate-modal-confirm:hover:not(:disabled) { background: #000; }
+        .btn-activate-modal-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+
     <!-- 푸터 컨테이너 -->
     <div id="footer-container"></div>
 </body>

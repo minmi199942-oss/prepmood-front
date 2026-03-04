@@ -26,7 +26,7 @@
 const express = require('express');
 const router = express.Router();
 const mysql = require('mysql2/promise');
-const { authenticateToken } = require('./auth-middleware');
+const { authenticateToken, optionalAuth } = require('./auth-middleware');
 const { verifyCSRF } = require('./csrf-middleware');
 const { sendOrderConfirmationEmail, sendInvoiceEmail } = require('./mailer');
 const Logger = require('./logger');
@@ -34,8 +34,52 @@ const crypto = require('crypto');
 const { createInvoiceFromOrder } = require('./utils/invoice-creator');
 const { processPaidOrder } = require('./utils/paid-order-processor');
 const { createPaidEvent } = require('./utils/paid-event-creator');
+const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
 const { updateOrderStatus } = require('./utils/order-status-aggregator');
+const https = require('https');
+const http = require('http');
 require('dotenv').config();
+
+/**
+ * processPaidOrder 실패 시 웹훅 알림 (Phase 3, 14.7·16.5)
+ * PAID_ORDER_FAILURE_WEBHOOK_URL 설정 시에만 발송. Slack/Discord 등 POST JSON.
+ * 페이로드: 주문번호, 결제금액, 에러 메시지, paymentKey (문서 16.5)
+ */
+function notifyProcessPaidOrderFailure({ orderNumber, amount, paymentKey, error }) {
+    const url = process.env.PAID_ORDER_FAILURE_WEBHOOK_URL;
+    if (!url || typeof url !== 'string' || !url.trim()) return;
+
+    const errMsg = error && (error.message || String(error));
+    const stackFirst = (error && error.stack && error.stack.split('\n')[1]) ? error.stack.split('\n')[1].trim() : '';
+
+    const payload = {
+        text: `[processPaidOrder 실패] 주문번호: ${orderNumber || '-'}, 결제금액: ${amount ?? '-'}, paymentKey: ${paymentKey ? String(paymentKey).substring(0, 12) + '...' : '-'}, 에러: ${errMsg || '-'}${stackFirst ? ` | ${stackFirst}` : ''}`
+    };
+
+    const u = new URL(url.trim());
+    const isHttps = u.protocol === 'https:';
+    const postData = JSON.stringify(payload);
+    const options = {
+        hostname: u.hostname,
+        port: u.port || (isHttps ? 443 : 80),
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData)
+        }
+    };
+
+    const req = (isHttps ? https : http).request(options, (res) => {
+        if (res.statusCode >= 400) {
+            Logger.warn('[payments] processPaidOrder 실패 알림 웹훅 응답 오류', { statusCode: res.statusCode, orderNumber });
+        }
+    });
+    req.on('error', (e) => Logger.warn('[payments] processPaidOrder 실패 알림 웹훅 전송 실패', { error: e.message, orderNumber }));
+    req.setTimeout(5000, () => { req.destroy(); });
+    req.write(postData);
+    req.end();
+}
 
 // MySQL 연결 설정 (order-routes.js와 동일)
 const dbConfig = {
@@ -66,7 +110,7 @@ const dbConfig = {
  * 4. payments 테이블에 저장 (status = 'captured' 또는 'authorized')
  * 5. 주문 상태 업데이트 ('confirmed' 또는 'processing' / 실패 시 'failed')
  */
-router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res) => {
+router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
     let connection;
     try {
         const { orderNumber, paymentKey, amount } = req.body;
@@ -107,13 +151,18 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
         connection = await mysql.createConnection(dbConfig);
         await connection.beginTransaction();
 
-        // 1. 주문 조회 (본인 주문 확인)
+        // 1. 주문 조회 (회원: user_id 일치, 비회원: user_id IS NULL)
         const [orderRows] = await connection.execute(
-            `SELECT order_id, order_number, user_id, total_price, shipping_country, status
-             FROM orders 
-             WHERE order_number = ? AND user_id = ? 
-             LIMIT 1`,
-            [orderNumber, userId]
+            userId != null
+                ? `SELECT order_id, order_number, user_id, total_price, shipping_country, status
+                   FROM orders
+                   WHERE order_number = ? AND user_id = ?
+                   LIMIT 1`
+                : `SELECT order_id, order_number, user_id, total_price, shipping_country, status
+                   FROM orders
+                   WHERE order_number = ? AND user_id IS NULL
+                   LIMIT 1`,
+            userId != null ? [orderNumber, userId] : [orderNumber]
         );
 
         if (orderRows.length === 0) {
@@ -159,16 +208,24 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 : currency;
             const existingPaymentKey = existingPaymentRows.length ? existingPaymentRows[0].payment_key : paymentKey;
 
-            // paid_events가 이미 존재하므로 일반적으로는 추가 처리 불필요
-            // 하지만 결제 상태가 captured이고 paid_events가 없는 경우(데이터 불일치) 생성 시도
-            if (existingPaymentStatus === 'captured' && existingPaidEvents.length === 0) {
-                // paid_events가 없고 결제는 완료된 경우 → 생성 필요
-                Logger.log('[payments][confirm] 이미 처리된 주문이지만 paid_events 없음, 생성 시도', {
-                    order_id: order.order_id,
-                    order_number: orderNumber
-                });
+            // 비회원 주문인 경우 유효한 guest_access_token 조회 (헬퍼 사용: expires_at > NOW() AND revoked_at IS NULL)
+            let guestAccessToken = null;
+            if (order.user_id == null) {
+                const [tokenRows] = await connection.execute(
+                    `SELECT token FROM guest_order_access_tokens got
+                     WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')}
+                     ORDER BY got.created_at DESC
+                     LIMIT 1`,
+                    [order.order_id]
+                );
+                if (tokenRows.length > 0) {
+                    guestAccessToken = tokenRows[0].token;
+                }
+            }
 
-                // 장바구니 상태 확인 (트랜잭션 내에서)
+            // 장바구니 상태 확인: 회원은 DB 조회, 비회원은 localStorage(pm_cart_v1)에 있어 서버에서 조회 불가
+            let cartCleared = false;
+            if (userId != null) {
                 const [cartCountRows] = await connection.execute(
                     `SELECT COUNT(*) AS itemCount
                      FROM cart_items ci
@@ -176,99 +233,8 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                      WHERE c.user_id = ?`,
                     [userId]
                 );
-
-                const cartCleared = (cartCountRows[0]?.itemCount || 0) === 0;
-
-                try {
-                    const paidEventResult = await createPaidEvent({
-                        orderId: order.order_id,
-                        paymentKey: existingPaymentKey,
-                        amount: serverAmount,
-                        currency: existingCurrency,
-                        eventSource: 'redirect',
-                        rawPayload: null
-                    });
-
-                    const paidEventId = paidEventResult.eventId;
-
-                    // processPaidOrder() 실행
-                    // ⚠️ 중요: orders.status는 집계 함수로만 갱신 (직접 업데이트 금지)
-                    const paidResult = await processPaidOrder({
-                        connection,
-                        paidEventId: paidEventId,
-                        orderId: order.order_id,
-                        paymentKey: existingPaymentKey,
-                        amount: serverAmount,
-                        currency: existingCurrency,
-                        eventSource: 'redirect',
-                        rawPayload: null
-                    });
-
-                    // orders.status 집계 함수 호출 (processPaidOrder 후)
-                    // ⚠️ 중요: orders.status는 order_item_units.unit_status와 paid_events 기반으로 집계
-                    await updateOrderStatus(connection, order.order_id);
-
-                    // ⚠️ 수정: processPaidOrder() 내부 작업을 커밋해야 함
-                    await connection.commit();
-                    await connection.end();
-
-                    Logger.log('[payments][confirm] 이미 처리된 주문의 paid_events 생성 및 처리 완료', {
-                        order_id: order.order_id,
-                        order_number: orderNumber,
-                        paidEventId,
-                        stockUnitsReserved: paidResult.data.stockUnitsReserved,
-                        orderItemUnitsCreated: paidResult.data.orderItemUnitsCreated,
-                        warrantiesCreated: paidResult.data.warrantiesCreated,
-                        invoiceNumber: paidResult.data.invoiceNumber
-                    });
-
-                    return res.json({
-                        success: true,
-                        data: {
-                            order_number: orderNumber,
-                            amount: serverAmount,
-                            currency: existingCurrency,
-                            payment_status: existingPaymentStatus,
-                            alreadyConfirmed: true,
-                            cartCleared
-                        }
-                    });
-                } catch (err) {
-                    // 에러 발생 시 롤백
-                    await connection.rollback();
-                    await connection.end();
-                    Logger.error('[payments][confirm] 이미 처리된 주문의 paid_events 생성 실패', {
-                        order_id: order.order_id,
-                        order_number: orderNumber,
-                        error: err.message,
-                        error_code: err.code
-                    });
-
-                    // 에러 발생해도 결제는 완료되었으므로 성공 응답 반환
-                    return res.json({
-                        success: true,
-                        data: {
-                            order_number: orderNumber,
-                            amount: serverAmount,
-                            currency: existingCurrency,
-                            payment_status: existingPaymentStatus,
-                            alreadyConfirmed: true,
-                            cartCleared
-                        }
-                    });
-                }
+                cartCleared = (cartCountRows[0].itemCount || 0) === 0;
             }
-
-            // paid_events가 이미 있거나 결제가 완료되지 않은 경우
-            const [cartCountRows] = await connection.execute(
-                `SELECT COUNT(*) AS itemCount
-                 FROM cart_items ci
-                 INNER JOIN carts c ON ci.cart_id = c.cart_id
-                 WHERE c.user_id = ?`,
-                [userId]
-            );
-
-            const cartCleared = (cartCountRows[0].itemCount || 0) === 0;
 
             await connection.rollback();
             await connection.end();
@@ -281,7 +247,9 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                     currency: existingCurrency,
                     payment_status: existingPaymentStatus,
                     alreadyConfirmed: true,
-                    cartCleared
+                    cartCleared,
+                    user_id: order.user_id,
+                    ...(guestAccessToken != null ? { guest_access_token: guestAccessToken } : {})
                 }
             });
         }
@@ -590,7 +558,14 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
         // paidProcessError가 있으면 이미 롤백되었으므로 여기서는 커밋하지 않음
         if (paidProcessError) {
             await connection.end();
-            
+
+            notifyProcessPaidOrderFailure({
+                orderNumber,
+                amount: serverAmount,
+                paymentKey,
+                error: paidProcessError
+            });
+
             Logger.error(`[payments][mode=${paymentMode}] 결제는 성공했지만 주문 처리 실패`, {
                 orderNumber,
                 paymentKey,
@@ -598,7 +573,7 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 error: paidProcessError.message,
                 error_code: paidProcessError.code
             });
-            
+
             // 재고 부족 시 프론트에서 전용 메시지·장바구니 복귀용 코드 반환 (7번 UX)
             if (paidProcessError.code === 'INSUFFICIENT_STOCK') {
                 return res.status(409).json({
@@ -663,8 +638,9 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                 const orderInfo = paidResult.data.orderInfo;
                 
                 // 주문 항목 정보 및 고객 이름 조회 (별도 커넥션)
-                const emailConnection = await mysql.createConnection(dbConfig);
+                let emailConnection = null;
                 try {
+                    emailConnection = await mysql.createConnection(dbConfig);
                     const [orderItems] = await emailConnection.execute(
                         `SELECT 
                             product_name,
@@ -689,7 +665,6 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                         WHERE o.order_id = ?`,
                         [orderInfo.order_id]
                     );
-                    await emailConnection.end();
 
                     // 이메일 수신자 결정
                     const recipientEmail = orderInfo.user_email || orderInfo.shipping_email;
@@ -710,7 +685,7 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                         if (orderInfo.guest_access_token) {
                             // 비회원 주문: 세션 토큰 교환 링크
                             const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                            orderLink = `${baseUrl}/api/guest/orders/session?token=${orderInfo.guest_access_token}`;
+                            orderLink = `${baseUrl}/guest-order-access.html?token=${orderInfo.guest_access_token}`;
                         } else {
                             // 회원 주문: 주문 내역 페이지
                             const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
@@ -754,7 +729,7 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                                 if (orderInfo.guest_access_token) {
                                     // 비회원 주문: 세션 토큰 교환 링크 (주문 상세 페이지에서 인보이스 접근)
                                     const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                    invoiceLink = `${baseUrl}/api/guest/orders/session?token=${orderInfo.guest_access_token}`;
+                                    invoiceLink = `${baseUrl}/guest-order-access.html?token=${orderInfo.guest_access_token}`;
                                 } else {
                                     // 회원 주문: 인보이스 상세 페이지
                                     const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
@@ -817,6 +792,9 @@ router.post('/payments/confirm', authenticateToken, verifyCSRF, async (req, res)
                             }
                         }
                     }
+                } finally {
+                    if (emailConnection) await emailConnection.end();
+                }
                 } catch (emailError) {
                     // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
                     Logger.error('[payments][confirm] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
@@ -1321,7 +1299,14 @@ router.post('/payments/inicis/return', async (req, res) => {
         // paidProcessError가 있으면 이미 롤백되었으므로 여기서는 커밋하지 않음
         if (paidProcessError) {
             await connection.end();
-            
+
+            notifyProcessPaidOrderFailure({
+                orderNumber,
+                amount: serverAmount,
+                paymentKey: tid || null,
+                error: paidProcessError
+            });
+
             Logger.error('[payments][inicis] 결제는 성공했지만 주문 처리 실패', {
                 orderNumber,
                 tid,
@@ -1384,8 +1369,9 @@ router.post('/payments/inicis/return', async (req, res) => {
                     orderInfoForEmail = paidResult.data.orderInfo;
                 } else {
                     // paidResult가 없으면 주문 정보를 별도로 조회
-                    const emailConnection = await mysql.createConnection(dbConfig);
+                    let emailConnection = null;
                     try {
+                        emailConnection = await mysql.createConnection(dbConfig);
                         const [orderRows] = await emailConnection.execute(
                             `SELECT 
                                 o.order_id,
@@ -1407,13 +1393,13 @@ router.post('/payments/inicis/return', async (req, res) => {
                         if (orderRows.length > 0) {
                             const orderRow = orderRows[0];
                             
-                            // guest_order_access_tokens 조회 (비회원 주문인 경우)
+                            // guest_order_access_tokens 조회 (비회원 주문인 경우, 유효 조건: 헬퍼 사용)
                             let guestAccessToken = null;
                             if (orderRow.guest_id && !orderRow.user_id) {
                                 const [tokenRows] = await emailConnection.execute(
-                                    `SELECT token FROM guest_order_access_tokens 
-                                     WHERE order_id = ? AND revoked_at IS NULL 
-                                     ORDER BY created_at DESC LIMIT 1`,
+                                    `SELECT token FROM guest_order_access_tokens got
+                                     WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')}
+                                     ORDER BY got.created_at DESC LIMIT 1`,
                                     [order.order_id]
                                 );
                                 if (tokenRows.length > 0) {
@@ -1433,18 +1419,17 @@ router.post('/payments/inicis/return', async (req, res) => {
                                 guest_access_token: guestAccessToken
                             };
                         }
-                        await emailConnection.end();
-                    } catch (queryError) {
-                        await emailConnection.end();
-                        throw queryError;
+                    } finally {
+                        if (emailConnection) await emailConnection.end();
                     }
                 }
                 
                 if (orderInfoForEmail) {
                     // 주문 항목 정보 조회 (별도 커넥션)
-                    const emailConnection = await mysql.createConnection(dbConfig);
+                    let emailConnection2 = null;
                     try {
-                        const [orderItems] = await emailConnection.execute(
+                        emailConnection2 = await mysql.createConnection(dbConfig);
+                        const [orderItems] = await emailConnection2.execute(
                             `SELECT 
                                 product_name,
                                 size,
@@ -1459,7 +1444,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                         );
 
                         // 고객 이름 조회
-                        const [orderDetails] = await emailConnection.execute(
+                        const [orderDetails] = await emailConnection2.execute(
                             `SELECT 
                                 o.shipping_name,
                                 u.name as user_name
@@ -1468,7 +1453,6 @@ router.post('/payments/inicis/return', async (req, res) => {
                             WHERE o.order_id = ?`,
                             [orderInfoForEmail.order_id]
                         );
-                        await emailConnection.end();
 
                         // 이메일 수신자 결정
                         const recipientEmail = orderInfoForEmail.user_email || orderInfoForEmail.shipping_email;
@@ -1489,7 +1473,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                             if (orderInfoForEmail.guest_access_token) {
                                 // 비회원 주문: 세션 토큰 교환 링크
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                orderLink = `${baseUrl}/api/guest/orders/session?token=${orderInfoForEmail.guest_access_token}`;
+                                orderLink = `${baseUrl}/guest-order-access.html?token=${orderInfoForEmail.guest_access_token}`;
                             } else {
                                 // 회원 주문: 주문 내역 페이지
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
@@ -1527,8 +1511,9 @@ router.post('/payments/inicis/return', async (req, res) => {
                             // 이메일 발송 시점에는 이미 커밋된 상태입니다.
                             // 따라서 별도 커넥션으로 인보이스 정보를 조회해야 합니다.
                             try {
-                                const invoiceConnection = await mysql.createConnection(dbConfig);
+                                let invoiceConnection = null;
                                 try {
+                                    invoiceConnection = await mysql.createConnection(dbConfig);
                                     const [invoiceRows] = await invoiceConnection.execute(
                                         `SELECT invoice_id, invoice_number 
                                          FROM invoices 
@@ -1539,7 +1524,6 @@ router.post('/payments/inicis/return', async (req, res) => {
                                          LIMIT 1`,
                                         [orderInfoForEmail.order_id]
                                     );
-                                    await invoiceConnection.end();
 
                                     if (invoiceRows.length > 0) {
                                         const invoiceId = invoiceRows[0].invoice_id;
@@ -1550,7 +1534,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                                         if (orderInfoForEmail.guest_access_token) {
                                             // 비회원 주문: 세션 토큰 교환 링크 (주문 상세 페이지에서 인보이스 접근)
                                             const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                            invoiceLink = `${baseUrl}/api/guest/orders/session?token=${orderInfoForEmail.guest_access_token}`;
+                                            invoiceLink = `${baseUrl}/guest-order-access.html?token=${orderInfoForEmail.guest_access_token}`;
                                         } else {
                                             // 회원 주문: 인보이스 상세 페이지
                                             const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
@@ -1604,9 +1588,8 @@ router.post('/payments/inicis/return', async (req, res) => {
                                             });
                                         }
                                     }
-                                } catch (invoiceError) {
-                                    await invoiceConnection.end();
-                                    throw invoiceError;
+                                } finally {
+                                    if (invoiceConnection) await invoiceConnection.end();
                                 }
                             } catch (invoiceEmailError) {
                                 // 인보이스 이메일 발송 실패는 로깅만 (주문 성공은 유지)
@@ -1617,6 +1600,9 @@ router.post('/payments/inicis/return', async (req, res) => {
                                 });
                             }
                         }
+                    } finally {
+                        if (emailConnection2) await emailConnection2.end();
+                    }
                     } catch (emailError) {
                         // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
                         Logger.error('[payments][inicis] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {
@@ -2000,11 +1986,18 @@ async function handlePaymentStatusChange(connection, data) {
                     error_sql_message: err.sqlMessage,
                     stack: err.stack
                 });
-                
+
+                notifyProcessPaidOrderFailure({
+                    orderNumber: finalOrderId,
+                    amount: verifiedAmount || webhookAmount,
+                    paymentKey: paymentKey,
+                    error: err
+                });
+
                 // ⚠️ 트랜잭션 롤백 (processPaidOrder() 내부 작업 모두 취소)
                 // paid_events는 별도 커넥션(autocommit)으로 생성되어 있으므로 남아있음
                 await connection.rollback();
-                
+
                 // ⚠️ 에러를 다시 던지지 않고 로깅만 함
                 // 웹훅은 성공 응답을 반환하되, 주문 처리는 실패 상태로 남음
                 // 나중에 재처리 가능 (paid_events는 보존됨)
@@ -2114,8 +2107,9 @@ router.post('/payments/webhook', async (req, res) => {
             if (emailInfo && emailInfo.shouldSendEmail) {
                 try {
                     // 주문 항목 정보 조회 (별도 커넥션)
-                    const emailConnection = await mysql.createConnection(dbConfig);
+                    let emailConnection = null;
                     try {
+                        emailConnection = await mysql.createConnection(dbConfig);
                         const [orderItems] = await emailConnection.execute(
                             `SELECT 
                                 product_name,
@@ -2140,7 +2134,6 @@ router.post('/payments/webhook', async (req, res) => {
                             WHERE o.order_id = ?`,
                             [emailInfo.orderId]
                         );
-                        await emailConnection.end();
 
                         // 이메일 수신자 결정
                         const recipientEmail = emailInfo.orderInfo.user_email || emailInfo.orderInfo.shipping_email;
@@ -2161,7 +2154,7 @@ router.post('/payments/webhook', async (req, res) => {
                             if (emailInfo.orderInfo.guest_access_token) {
                                 // 비회원 주문: 세션 토큰 교환 링크
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                orderLink = `${baseUrl}/api/guest/orders/session?token=${emailInfo.orderInfo.guest_access_token}`;
+                                orderLink = `${baseUrl}/guest-order-access.html?token=${emailInfo.orderInfo.guest_access_token}`;
                             } else {
                                 // 회원 주문: 주문 내역 페이지
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
@@ -2202,7 +2195,7 @@ router.post('/payments/webhook', async (req, res) => {
                                     if (emailInfo.orderInfo.guest_access_token) {
                                         // 비회원 주문: 세션 토큰 교환 링크 (주문 상세 페이지에서 인보이스 접근)
                                         const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                        invoiceLink = `${baseUrl}/api/guest/orders/session?token=${emailInfo.orderInfo.guest_access_token}`;
+                                        invoiceLink = `${baseUrl}/guest-order-access.html?token=${emailInfo.orderInfo.guest_access_token}`;
                                     } else {
                                         // 회원 주문: 인보이스 상세 페이지
                                         const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
@@ -2265,6 +2258,9 @@ router.post('/payments/webhook', async (req, res) => {
                                 }
                             }
                         }
+                    } finally {
+                        if (emailConnection) await emailConnection.end();
+                    }
                     } catch (emailError) {
                         // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
                         Logger.error('[payments][webhook] 주문 확인 이메일 발송 중 오류 (주문은 성공)', {

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>주문 확인 링크 | Pre.p Mood</title>
+  <style>
+    body { font-family: sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; text-align: center; }
+    .msg { margin: 1rem 0; color: #333; }
+    .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #ddd; border-top-color: #333; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error { color: #c00; }
+    a { color: #0066cc; }
+  </style>
+</head>
+<body>
+  <p class="msg" id="message">주문 확인 페이지로 이동 중입니다.</p>
+  <p id="spinner-wrap"><span class="spinner" id="spinner" aria-hidden="true"></span></p>
+  <script>
+    (function () {
+      var API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE
+        : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+          ? window.location.origin.replace(/\/$/, '') + '/api'
+          : '/api';
+
+      var params = new URLSearchParams(window.location.search);
+      var token = params.get('token') || '';
+
+      var messageEl = document.getElementById('message');
+      var spinnerWrap = document.getElementById('spinner-wrap');
+      var spinner = document.getElementById('spinner');
+
+      function showError(msg) {
+        messageEl.textContent = msg;
+        messageEl.classList.add('error');
+        if (spinnerWrap) spinnerWrap.innerHTML = '<a href="/">홈으로 이동</a>';
+      }
+
+      if (!token || !token.trim()) {
+        showError('링크가 올바르지 않습니다. 이메일에 포함된 링크를 사용해 주세요.');
+        return;
+      }
+
+      fetch(API_BASE + '/guest/orders/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ token: token })
+      })
+        .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+        .then(function (result) {
+          if (result.ok && result.data.success && result.data.redirectUrl) {
+            window.location.replace(result.data.redirectUrl);
+            return;
+          }
+          showError(result.data && result.data.message ? result.data.message : '유효하지 않거나 만료된 링크입니다.');
+        })
+        .catch(function () {
+          showError('연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        });
+    })();
+  </script>
+</body>
+</html>

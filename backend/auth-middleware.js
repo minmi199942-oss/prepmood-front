@@ -304,7 +304,8 @@ function validateReturnTo(returnTo) {
         returnTo === '/my-orders.html' ||
         returnTo === '/my-reservations.html' ||
         returnTo === '/checkout-review.html' ||
-        returnTo.startsWith('/a/');  // /a/:token 형식 (쿼리 포함 가능)
+        returnTo.startsWith('/a/') ||   // /a/:token 형식 (쿼리 포함 가능)
+        returnTo.startsWith('/guest/'); // 비회원 주문 상세 등 (등록하기 → 로그인/회원가입 후 복귀)
 
     return allowed ? returnTo : null;
 }

@@ -18,7 +18,25 @@ const path = require('path');
 const { authenticateToken, requireAuthForHTML } = require('./auth-middleware');
 const { sendTransferRequestEmail } = require('./mailer');
 const Logger = require('./logger');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 require('dotenv').config();
+
+// 양도 수락 전용 Rate Limit (문서 13.2, 14.5 — 7자리 코드 브루트포스 방지, IP당 1분 8회)
+const transferAcceptLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 8,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => ipKeyGenerator(req.ip || ''),
+    handler: (req, res) => {
+        Logger.warn('양도 수락 Rate Limit 초과', { ip: req.ip });
+        res.status(429).json({
+            success: false,
+            message: '양도 수락 요청이 너무 잦습니다. 1분 후 다시 시도해주세요.',
+            code: 'RATE_LIMIT_EXCEEDED'
+        });
+    }
+});
 
 // MySQL 연결 설정
 const dbConfig = {
@@ -548,22 +566,24 @@ router.post('/warranties/:warrantyId/transfer', authenticateToken, async (req, r
 /**
  * POST /api/warranties/transfer/accept
  * 양도 수락 API (사용자 전용)
- * 
+ * - transferAcceptLimiter: IP당 1분 8회 (문서 13.2, 14.5)
+ * - DB 락: failed_attempts 5회 초과 시 locked_until 30분, 요청 시 locked_until > NOW()면 403
+ *
  * 요청 본문:
  * {
  *   "transfer_id": 1,
  *   "transfer_code": "ABC1234"
  * }
- * 
+ *
  * 처리 흐름 (SYSTEM_FLOW_DETAILED.md 5-1절 참조):
  * 1. 트랜잭션 시작
- * 2. 원자적 조건 검증 (FOR UPDATE, 코드/이메일/소유자 확인)
+ * 2. 원자적 조건 검증 (FOR UPDATE, locked_until 검사, 코드/이메일/소유자 확인)
  * 3. warranties 소유자 변경 (affectedRows=1 검증)
- * 4. warranty_transfers 상태 변경 (affectedRows=1 검증)
+ * 4. warranty_transfers 상태 변경 + failed_attempts·locked_until 초기화 (affectedRows=1 검증)
  * 5. warranties.status는 'active' 상태로 유지 (재활성화 불필요)
  * 6. warranty_events 이벤트 기록 (ownership_transferred)
  */
-router.post('/warranties/transfer/accept', authenticateToken, async (req, res) => {
+router.post('/warranties/transfer/accept', transferAcceptLimiter, authenticateToken, async (req, res) => {
     let connection;
     try {
         const { transfer_id, transfer_code } = req.body;
@@ -596,7 +616,7 @@ router.post('/warranties/transfer/accept', authenticateToken, async (req, res) =
         await connection.beginTransaction();
 
         try {
-            // 2. 원자적 조건 검증: warranty_transfers 상태 확인 및 락
+            // 2. 원자적 조건 검증: warranty_transfers 상태 확인 및 락 (브루트포스 방어 컬럼 포함)
             const [transfers] = await connection.execute(
                 `SELECT 
                     transfer_id,
@@ -605,7 +625,9 @@ router.post('/warranties/transfer/accept', authenticateToken, async (req, res) =
                     to_email,
                     transfer_code,
                     status,
-                    expires_at
+                    expires_at,
+                    COALESCE(failed_attempts, 0) AS failed_attempts,
+                    locked_until
                  FROM warranty_transfers 
                  WHERE transfer_id = ? 
                    AND status = 'requested' 
@@ -626,23 +648,23 @@ router.post('/warranties/transfer/accept', authenticateToken, async (req, res) =
 
             const transfer = transfers[0];
 
-            // 2-1. 코드 검증
-            if (transfer.transfer_code !== transfer_code.trim()) {
+            // 2-0. 브루트포스 잠금 검사 (문서 13.2, 14.5)
+            if (transfer.locked_until && new Date(transfer.locked_until) > new Date()) {
                 await connection.rollback();
                 await connection.end();
-                return res.status(400).json({
+                Logger.warn('[WARRANTY_TRANSFER_ACCEPT] 잠금된 양도 요청 접근 시도', { transferId: transfer_id });
+                return res.status(403).json({
                     success: false,
-                    message: '양도 코드가 일치하지 않습니다.',
-                    code: 'INVALID_TRANSFER_CODE'
+                    message: '양도 코드 입력이 5회 초과 실패하여 30분간 잠금되었습니다. 잠금 해제 후 다시 시도해주세요.',
+                    code: 'TRANSFER_LOCKED'
                 });
             }
 
-            // 2-2. 이메일 일치 검증 (보안 필수)
+            // 2-1. 이메일 일치 검증 (수령자만 실패 카운트·잠금 대상 — IDOR/DoS 방지)
             const [users] = await connection.execute(
                 'SELECT email FROM users WHERE user_id = ?',
                 [toUserId]
             );
-
             if (users.length === 0) {
                 await connection.rollback();
                 await connection.end();
@@ -652,7 +674,6 @@ router.post('/warranties/transfer/accept', authenticateToken, async (req, res) =
                     code: 'USER_NOT_FOUND'
                 });
             }
-
             if (users[0].email !== transfer.to_email) {
                 await connection.rollback();
                 await connection.end();
@@ -660,6 +681,25 @@ router.post('/warranties/transfer/accept', authenticateToken, async (req, res) =
                     success: false,
                     message: '양도 요청의 수령자 이메일과 로그인한 계정 이메일이 일치하지 않습니다.',
                     code: 'EMAIL_MISMATCH'
+                });
+            }
+
+            // 2-2. 코드 검증 (실패 시 DB에서 failed_attempts+1·5회 시 locked_until 설정, 커밋 후 400)
+            if (transfer.transfer_code !== transfer_code.trim()) {
+                await connection.execute(
+                    `UPDATE warranty_transfers
+                     SET failed_attempts = failed_attempts + 1,
+                         locked_until = CASE WHEN failed_attempts + 1 >= 5 THEN DATE_ADD(NOW(), INTERVAL 30 MINUTE) ELSE locked_until END
+                     WHERE transfer_id = ? AND status = 'requested' AND expires_at > NOW()`,
+                    [transfer_id]
+                );
+                await connection.commit();
+                await connection.end();
+                Logger.warn('[WARRANTY_TRANSFER_ACCEPT] 양도 코드 불일치', { transferId: transfer_id });
+                return res.status(400).json({
+                    success: false,
+                    message: '양도 코드가 일치하지 않습니다.',
+                    code: 'INVALID_TRANSFER_CODE'
                 });
             }
 
@@ -730,12 +770,14 @@ router.post('/warranties/transfer/accept', authenticateToken, async (req, res) =
                 });
             }
 
-            // 4. warranty_transfers 상태 변경 (원자적 조건)
+            // 4. warranty_transfers 상태 변경 + 브루트포스 카운터 초기화 (원자적 조건)
             const [transferUpdate] = await connection.execute(
                 `UPDATE warranty_transfers
                  SET status = 'completed',
                      to_user_id = ?,
-                     completed_at = NOW()
+                     completed_at = NOW(),
+                     failed_attempts = 0,
+                     locked_until = NULL
                  WHERE transfer_id = ?
                    AND status = 'requested'`,
                 [toUserId, transfer_id]

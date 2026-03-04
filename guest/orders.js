@@ -146,7 +146,7 @@ function renderInvoiceSection(order) {
   invoiceCard.style.display = 'block';
   invoiceContent.innerHTML = `
     <p>디지털 인보이스를 다운로드할 수 있습니다.</p>
-    <button id="download-invoice-btn" class="btn-primary" onclick="downloadInvoice(${order.order_id})">
+    <button id="download-invoice-btn" class="btn-primary" onclick="downloadInvoice()">
       PDF 다운로드
     </button>
   `;
@@ -290,14 +290,33 @@ function maskPaymentMethod(method) {
   return escapeHtml(method);
 }
 
-// 인보이스 다운로드 (TODO: API 구현 필요)
-async function downloadInvoice(orderId) {
+// 인보이스 PDF 다운로드 (문서 8.4, 11절 3단계 — guest 세션·orderNumber로 API 호출)
+async function downloadInvoice() {
+  if (!orderNumber) {
+    alert('주문 정보가 없습니다.');
+    return;
+  }
   try {
-    // TODO: 인보이스 다운로드 API 호출
-    alert('인보이스 다운로드 기능은 준비 중입니다.');
+    const response = await fetch(`${API_BASE}/guest/orders/${encodeURIComponent(orderNumber)}/invoice/pdf`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || `다운로드 실패 (${response.status})`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Prepmood-Invoice-${orderNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   } catch (error) {
     Logger.error('인보이스 다운로드 오류:', error);
-    alert('인보이스 다운로드에 실패했습니다.');
+    alert(error.message || '인보이스 다운로드에 실패했습니다.');
   }
 }
 
@@ -309,9 +328,10 @@ async function handleClaim() {
   // 로그인 상태 확인
   const userInfo = await checkLoginStatus();
   if (!userInfo) {
-    // 로그인 페이지로 리다이렉트 (returnTo 파라미터 포함)
-    const currentUrl = encodeURIComponent(window.location.href);
-    window.location.href = `/login.html?returnTo=${currentUrl}`;
+    // 로그인 페이지로 리다이렉트 (returnTo = 경로만, Open Redirect 방지·서버 검증 호환)
+    const pathAndSearch = window.location.pathname + (window.location.search || '');
+    const returnTo = encodeURIComponent(pathAndSearch);
+    window.location.href = `/login.html?returnTo=${returnTo}`;
     return;
   }
   

@@ -62,12 +62,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   const authStatus = await fetchAuthStatus();
   const isAuthenticated = authStatus?.authenticated;
   
-  // 토스페이먼츠 success URL에서 온 경우 (paymentKey가 있으면)
+  // 토스페이먼츠 success URL에서 온 경우 (paymentKey가 있으면) — 회원/비회원 모두 결제 확인 API 호출
+  // 비회원이어도 confirm 응답에서 guest_access_token을 받아 주문 정보 조회 가능
   if (paymentKey && orderId && amount) {
-    if (!isAuthenticated) {
-      showOrderError('결제 확인을 위해 로그인이 필요합니다. 로그인 후 다시 시도해주세요.');
-      return;
-    }
     handleTossPaymentSuccess(paymentKey, orderId, amount);
     return;
   }
@@ -107,55 +104,40 @@ async function fetchAuthStatus() {
   }
 }
 
-// ⚠️ 비회원 주문 조회 (guest_order_access_token 사용)
+/** 주문 완료 페이지에서 주문 표시 성공 시 장바구니 정리. 회원은 서버에서 이미 삭제됨, 비회원은 localStorage(pm_cart_v1) 비움. */
+async function clearCartIfAvailable() {
+  if (window.miniCart && typeof window.miniCart.clearCart === 'function') {
+    try {
+      await window.miniCart.clearCart();
+    } catch (e) {
+      Logger.warn('주문 완료 후 장바구니 정리 실패 (무시)', e);
+    }
+  }
+}
+
+// 비회원 주문 조회 (guest_order_access_token → POST 세션 교환, 토큰 URL 노출 방지)
 async function loadGuestOrderDetails(orderNumber, guestToken) {
   try {
-    // 1. 세션 토큰 발급 (guest_order_access_token으로 세션 교환)
-    // ⚠️ fetch는 302 Redirect를 자동으로 따라가지 않으므로, redirect: 'manual' 옵션 사용
-    const sessionResponse = await fetch(`${API_BASE}/guest/orders/session?token=${encodeURIComponent(guestToken)}`, {
-      method: 'GET',
+    const sessionResponse = await fetch(`${API_BASE}/guest/orders/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      redirect: 'manual' // 302 Redirect를 수동으로 처리
+      body: JSON.stringify({ token: guestToken })
     });
-    
-    if (sessionResponse.status === 302) {
-      // 302 Redirect는 정상 (세션 발급 후 리다이렉트)
-      // Location 헤더에서 order 파라미터 추출
-      const location = sessionResponse.headers.get('Location');
-      if (location) {
-        try {
-          const url = new URL(location, window.location.origin);
-          const redirectedOrder = url.searchParams.get('order');
-          if (redirectedOrder) {
-            // 세션 토큰이 쿠키에 설정되었으므로 바로 조회 가능
-            await loadGuestOrderDetailsBySession(redirectedOrder);
-            return;
-          }
-        } catch (urlError) {
-          Logger.warn('리다이렉트 URL 파싱 실패:', urlError);
-        }
-      }
-      // Location 헤더가 없거나 order 파라미터가 없으면 원래 orderNumber 사용
-      await loadGuestOrderDetailsBySession(orderNumber);
-      return;
-    }
-    
+
+    const sessionData = await sessionResponse.json().catch(() => ({}));
+
     if (!sessionResponse.ok) {
-      const errorData = await sessionResponse.json().catch(() => ({}));
-      Logger.warn('비회원 주문 세션 발급 실패', sessionResponse.status, errorData);
-      showOrderError(errorData.message || '주문 정보를 불러올 수 없습니다. 이메일로 발송된 링크를 사용해주세요.');
+      Logger.warn('비회원 주문 세션 발급 실패', sessionResponse.status, sessionData);
+      showOrderError(sessionData.message || '주문 정보를 불러올 수 없습니다. 이메일로 발송된 링크를 사용해주세요.');
       return;
     }
-    
-    // 200 OK 응답인 경우 (일반적으로는 302가 나와야 함)
-    const sessionData = await sessionResponse.json();
-    if (sessionData.success) {
-      // 세션 발급 성공 시 주문 조회
-      await loadGuestOrderDetailsBySession(orderNumber);
+
+    if (sessionData.success && sessionData.orderNumber) {
+      await loadGuestOrderDetailsBySession(sessionData.orderNumber);
     } else {
       showOrderError(sessionData.message || '주문 정보를 불러올 수 없습니다.');
     }
-    
   } catch (error) {
     Logger.error('비회원 주문 조회 오류:', error);
     showOrderError('주문 정보를 불러오는 중 오류가 발생했습니다.');
@@ -210,6 +192,8 @@ async function loadGuestOrderDetailsBySession(orderNumber) {
         payment: result.data.payment,
         shipments: result.data.shipments || []
       });
+      // 비회원 주문 표시 성공 시 장바구니 정리 (localStorage pm_cart_v1 비우기)
+      await clearCartIfAvailable();
     } else {
       showOrderError('주문 정보를 불러올 수 없습니다.');
     }
@@ -250,6 +234,9 @@ async function loadOrderDetails(orderId) {
       sessionStorage.removeItem('serverCurrencyInfo');
       sessionStorage.removeItem('checkoutShippingData');
       
+      // 회원 주문 표시 성공 시 장바구니 정리 (서버는 이미 비움, 미니카트 UI 동기화)
+      await clearCartIfAvailable();
+      
     } else if (result.success && result.order) {
       // 기존 호환성 유지 (order 필드만 있는 경우)
       displayOrderInfo(result.order);
@@ -257,6 +244,8 @@ async function loadOrderDetails(orderId) {
       // 세션스토리지 정리
       sessionStorage.removeItem('serverCurrencyInfo');
       sessionStorage.removeItem('checkoutShippingData');
+      
+      await clearCartIfAvailable();
       
     } else {
       throw new Error('주문 정보를 찾을 수 없습니다');

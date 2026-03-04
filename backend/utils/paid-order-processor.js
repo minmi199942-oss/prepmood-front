@@ -16,6 +16,7 @@
 const Logger = require('../logger');
 const { createInvoiceFromOrder } = require('./invoice-creator');
 const { updateProcessingStatus, recordStockIssue } = require('./paid-event-creator');
+const { selectValidGuestTokenSql } = require('./guest-token-helpers');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 
@@ -612,14 +613,12 @@ async function processPaidOrder({
         
         // 회원/비회원 모두 토큰 발급 (이메일 링크 통일)
         try {
-            // 1. 기존 유효 토큰 확인 (만료 전, revoked 아님) - 최신 것만 선택
+            // 1. 기존 유효 토큰 확인 (SSOT: guest-token-helpers)
             const [existingTokens] = await connection.execute(
                 `SELECT token 
-                 FROM guest_order_access_tokens 
-                 WHERE order_id = ? 
-                   AND expires_at > NOW() 
-                   AND revoked_at IS NULL 
-                 ORDER BY created_at DESC 
+                 FROM guest_order_access_tokens got 
+                 WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')} 
+                 ORDER BY got.created_at DESC 
                  LIMIT 1`,
                 [orderId]
             );
@@ -657,16 +656,12 @@ async function processPaidOrder({
                 });
             }
 
-            // 2. 이메일 발송 직전에 항상 "대표 토큰(최신)"을 다시 조회해서 그 토큰으로 발송
-            // ⚠️ 중요: 생성/재사용 판단 로직과 "이메일에 넣는 토큰 선택"을 분리
-            // 레이스 조건 대비: 이메일은 항상 최종 SELECT 결과 1개만 사용
+            // 2. 이메일 발송 직전에 항상 "대표 토큰(최신)"을 다시 조회해서 그 토큰으로 발송 (SSOT: guest-token-helpers)
             const [finalToken] = await connection.execute(
                 `SELECT token 
-                 FROM guest_order_access_tokens 
-                 WHERE order_id = ? 
-                   AND expires_at > NOW() 
-                   AND revoked_at IS NULL 
-                 ORDER BY created_at DESC 
+                 FROM guest_order_access_tokens got 
+                 WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')} 
+                 ORDER BY got.created_at DESC 
                  LIMIT 1`,
                 [orderId]
             );
