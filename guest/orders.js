@@ -1,4 +1,4 @@
-// guest/orders.js - 비회원 주문 조회 페이지 스크립트
+// guest/orders.js - 통합 주문 상세 (비회원·회원 동일 페이지)
 const API_BASE = window.API_BASE || 
   ((window.location && window.location.origin)
     ? window.location.origin.replace(/\/$/, '') + '/api'
@@ -6,6 +6,8 @@ const API_BASE = window.API_BASE ||
 
 let orderNumber = null;
 let orderId = null;
+/** @type {boolean} 회원으로 조회된 주문이면 true (PDF 등 API 분기용) */
+let isMemberOrder = false;
 
 document.addEventListener('DOMContentLoaded', async function() {
   Logger.log('비회원 주문 조회 페이지 로드됨');
@@ -23,52 +25,106 @@ document.addEventListener('DOMContentLoaded', async function() {
   await loadOrderDetail();
 });
 
-// 주문 상세 정보 로드
+// 주문 상세 정보 로드 (통합: guest 세션 우선, 없으면 회원 API)
 async function loadOrderDetail() {
   showLoading(true);
   hideError();
   hideContent();
-  
+  isMemberOrder = false;
+
   try {
-    const response = await fetch(`${API_BASE}/guest/orders/${encodeURIComponent(orderNumber)}`, {
+    const guestResponse = await fetch(`${API_BASE}/guest/orders/${encodeURIComponent(orderNumber)}`, {
       method: 'GET',
-      credentials: 'include' // httpOnly Cookie 전송
+      credentials: 'include'
     });
-    
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      
-      if (response.status === 401 || response.status === 410) {
-        throw new Error(data.message || '세션이 만료되었거나 유효하지 않습니다.');
-      } else if (response.status === 403) {
-        throw new Error('접근 권한이 없습니다.');
-      } else if (response.status === 404) {
-        throw new Error('주문을 찾을 수 없습니다.');
-      } else {
-        throw new Error(data.message || `HTTP ${response.status}`);
+
+    if (guestResponse.ok) {
+      const result = await guestResponse.json();
+      if (result.success && result.data) {
+        orderId = result.data.order?.order_id;
+        renderOrderDetail(result.data);
+        return;
       }
     }
-    
-    const result = await response.json();
-    
-    if (!result.success || !result.data) {
-      throw new Error('주문 정보를 불러올 수 없습니다.');
+
+    // 401/403이면 회원 API 시도 (이메일 링크로 진입한 회원)
+    if (guestResponse.status === 401 || guestResponse.status === 403) {
+      const memberResponse = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderNumber)}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      if (memberResponse.ok) {
+        const memberResult = await memberResponse.json();
+        if (memberResult.success && memberResult.order) {
+          isMemberOrder = true;
+          const orderData = normalizeMemberOrderResponse(memberResult.order);
+          orderId = orderData.order?.order_id;
+          renderOrderDetail(orderData);
+          return;
+        }
+      }
     }
-    
-    const orderData = result.data;
-    
-    // orderId 저장 (Claim API 호출용)
-    orderId = orderData.order?.order_id;
-    
-    // 주문 정보 렌더링
-    renderOrderDetail(orderData);
-    
+
+    const data = await guestResponse.json().catch(() => ({}));
+    if (guestResponse.status === 401 || guestResponse.status === 410) {
+      throw new Error(data.message || '세션이 만료되었거나 유효하지 않습니다.');
+    }
+    if (guestResponse.status === 403) {
+      throw new Error('접근 권한이 없습니다.');
+    }
+    if (guestResponse.status === 404) {
+      throw new Error('주문을 찾을 수 없습니다.');
+    }
+    throw new Error(data.message || `HTTP ${guestResponse.status}`);
   } catch (error) {
     Logger.error('주문 상세 정보 로드 오류:', error);
     showError(error.message || '주문 정보를 불러오는 중 오류가 발생했습니다.');
   } finally {
     showLoading(false);
   }
+}
+
+/**
+ * 회원 주문 상세 API 응답을 게스트와 동일한 data 형식으로 변환
+ * @param {object} order - GET /api/orders/:id 응답의 order 객체
+ * @returns {{ order: object, payment: object|null, shipping: object, items: array, shipments: array, shipping_status: string }}
+ */
+function normalizeMemberOrderResponse(order) {
+  const shipping = order.shipping || {};
+  return {
+    order: {
+      order_id: order.order_id,
+      order_number: order.order_number,
+      order_date: order.order_date,
+      total_price: order.total_price != null ? order.total_price : order.amount,
+      status: order.status,
+      paid_at: null,
+      user_id: order.user_id
+    },
+    payment: null,
+    shipping: {
+      name: shipping.recipient_name || shipping.name || '',
+      email: shipping.email || '',
+      phone: shipping.phone || '',
+      address: shipping.address || '',
+      city: shipping.city || '',
+      postal_code: shipping.postal_code || '',
+      country: shipping.country || ''
+    },
+    items: (order.items || []).map(function (item) {
+      return {
+        product_id: item.product_id,
+        product_name: item.name || item.product_name,
+        product_image: item.image || item.product_image,
+        quantity: item.quantity,
+        price: item.unit_price != null ? item.unit_price : item.price,
+        size: item.size,
+        color: item.color
+      };
+    }),
+    shipments: [],
+    shipping_status: 'preparing'
+  };
 }
 
 // 주문 상세 정보 렌더링
@@ -290,14 +346,17 @@ function maskPaymentMethod(method) {
   return escapeHtml(method);
 }
 
-// 인보이스 PDF 다운로드 (문서 8.4, 11절 3단계 — guest 세션·orderNumber로 API 호출)
+// 인보이스 PDF 다운로드 (guest 세션 또는 회원 JWT로 API 분기)
 async function downloadInvoice() {
   if (!orderNumber) {
     alert('주문 정보가 없습니다.');
     return;
   }
+  const pdfUrl = isMemberOrder
+    ? `${API_BASE}/orders/${encodeURIComponent(orderNumber)}/invoice/pdf`
+    : `${API_BASE}/guest/orders/${encodeURIComponent(orderNumber)}/invoice/pdf`;
   try {
-    const response = await fetch(`${API_BASE}/guest/orders/${encodeURIComponent(orderNumber)}/invoice/pdf`, {
+    const response = await fetch(pdfUrl, {
       method: 'GET',
       credentials: 'include'
     });

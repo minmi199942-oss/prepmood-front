@@ -8,7 +8,6 @@ const { verifyCSRF } = require('./csrf-middleware');
 const { body, validationResult } = require('express-validator');
 const Logger = require('./logger');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
-const { resolveProductIdBoth } = require('./utils/product-id-resolver');
 const { generateUniqueGuestId } = require('./utils/user-id-generator');
 const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
 const { generateInvoicePdfBuffer } = require('./utils/invoice-pdf-generator');
@@ -683,30 +682,18 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
 
             const orderId = orderResult.insertId;
 
-            // order_items: canonical_id 확인 후 bulk insert (9.2, 9.3, 1번)
-            const orderItemRows = [];
-            for (const itemData of orderItemsData) {
-                const productIds = await resolveProductIdBoth(itemData.product_id, connection);
-                if (!productIds) {
-                    await connection.rollback();
-                    await connection.end();
-                    return res.status(400).json({
-                        code: 'VALIDATION_ERROR',
-                        details: { message: '일부 상품 정보를 찾을 수 없습니다. 장바구니를 확인해 주세요.' }
-                    });
-                }
-                orderItemRows.push([
-                    orderId,
-                    productIds.canonical_id,
-                    itemData.product_name,
-                    itemData.size || null,
-                    itemData.color || null,
-                    itemData.product_image,
-                    itemData.quantity,
-                    itemData.unit_price,
-                    itemData.subtotal
-                ]);
-            }
+            // order_items: bulk insert (상품 검증은 위 배치 조회 productMap에서 완료, cutover 후 id=canonical_id)
+            const orderItemRows = orderItemsData.map((itemData) => [
+                orderId,
+                itemData.product_id,
+                itemData.product_name,
+                itemData.size || null,
+                itemData.color || null,
+                itemData.product_image,
+                itemData.quantity,
+                itemData.unit_price,
+                itemData.subtotal
+            ]);
             if (orderItemRows.length > 0) {
                 const valuesPlaceholders = orderItemRows.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
                 const flatValues = orderItemRows.flat();
@@ -837,33 +824,43 @@ router.get('/orders', authenticateToken, async (req, res) => {
             [userId]
         );
 
-        // 각 주문의 상품 정보 조회 (size, color 포함)
-        const ordersWithItems = await Promise.all(
-            orders.map(async (order) => {
-                const [items] = await connection.execute(
-                    `SELECT order_item_id, product_id, product_name, size, color, product_image, 
-                            quantity, unit_price, subtotal 
-                     FROM order_items 
-                     WHERE order_id = ?`,
-                    [order.order_id]
-                );
+        // N+1 방지: 해당 유저 주문들의 order_items를 한 번에 조회 후 order_id별로 매핑
+        let itemsByOrderId = new Map();
+        if (orders.length > 0) {
+            const orderIds = orders.map(o => o.order_id);
+            const placeholders = orderIds.map(() => '?').join(',');
+            const [allItems] = await connection.execute(
+                `SELECT order_item_id, order_id, product_id, product_name, size, color, product_image,
+                        quantity, unit_price, subtotal
+                 FROM order_items
+                 WHERE order_id IN (${placeholders})
+                 ORDER BY order_id, order_item_id`,
+                orderIds
+            );
+            for (const row of allItems) {
+                const list = itemsByOrderId.get(row.order_id) || [];
+                list.push(row);
+                itemsByOrderId.set(row.order_id, list);
+            }
+        }
 
-                return {
-                    ...order,
-                    items: items.map(item => ({
-                        item_id: item.order_item_id,
-                        product_id: item.product_id,
-                        name: item.product_name,
-                        size: item.size,
-                        color: item.color,
-                        image: item.product_image,
-                        quantity: item.quantity,
-                        unit_price: parseFloat(item.unit_price),
-                        subtotal: parseFloat(item.subtotal)
-                    }))
-                };
-            })
-        );
+        const ordersWithItems = orders.map((order) => {
+            const items = itemsByOrderId.get(order.order_id) || [];
+            return {
+                ...order,
+                items: items.map(item => ({
+                    item_id: item.order_item_id,
+                    product_id: item.product_id,
+                    name: item.product_name,
+                    size: item.size,
+                    color: item.color,
+                    image: item.product_image,
+                    quantity: item.quantity,
+                    unit_price: parseFloat(item.unit_price),
+                    subtotal: parseFloat(item.subtotal)
+                }))
+            };
+        });
 
         // 마스킹된 정보로 로깅
         Logger.log('주문 목록 조회 성공', { 
@@ -891,6 +888,91 @@ router.get('/orders', authenticateToken, async (req, res) => {
         if (connection) {
             await connection.end();
         }
+    }
+});
+
+// 회원 인보이스 PDF 다운로드 (통합 주문 상세 페이지용, JWT·order_number 검증)
+router.get('/orders/:orderId/invoice/pdf', authenticateToken, pdfDownloadLimiter, async (req, res) => {
+    let connection;
+    try {
+        const userId = req.user.userId;
+        const orderIdParam = req.params.orderId;
+        const ORDER_NUMBER_REGEX = /^ORD-\d{8}-\d{6}-[A-Z0-9]{6}$/;
+        const isOrderNumber = ORDER_NUMBER_REGEX.test(orderIdParam);
+
+        connection = await mysql.createConnection(dbConfig);
+        let orderRow;
+        if (isOrderNumber) {
+            const [rows] = await connection.execute(
+                'SELECT order_id, order_number FROM orders WHERE order_number = ? AND user_id = ? LIMIT 1',
+                [orderIdParam, userId]
+            );
+            orderRow = rows.length ? rows[0] : null;
+        } else {
+            const numId = parseInt(orderIdParam, 10);
+            if (isNaN(numId)) {
+                await connection.end();
+                return res.status(400).json({ success: false, message: '유효하지 않은 주문 식별자입니다.' });
+            }
+            const [rows] = await connection.execute(
+                'SELECT order_id, order_number FROM orders WHERE order_id = ? AND user_id = ? LIMIT 1',
+                [numId, userId]
+            );
+            orderRow = rows.length ? rows[0] : null;
+        }
+        if (!orderRow) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: '주문을 찾을 수 없거나 접근 권한이 없습니다.',
+                code: 'NOT_FOUND'
+            });
+        }
+        const orderNumber = orderRow.order_number;
+        const orderId = orderRow.order_id;
+
+        const [invoices] = await connection.execute(
+            `SELECT invoice_id, order_id, invoice_number, type, status, currency, total_amount,
+                    tax_amount, net_amount, billing_name, billing_email, billing_phone, billing_address_json,
+                    shipping_name, shipping_email, shipping_phone, shipping_address_json,
+                    payload_json, issued_at
+             FROM invoices
+             WHERE order_id = ? AND type = 'invoice' AND status = 'issued'
+             ORDER BY issued_at DESC
+             LIMIT 1`,
+            [orderId]
+        );
+        await connection.end();
+
+        if (invoices.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: '해당 주문의 인보이스를 찾을 수 없습니다.',
+                code: 'INVOICE_NOT_FOUND'
+            });
+        }
+
+        let pdfBuffer = getCachedPdf(orderNumber);
+        if (!pdfBuffer) {
+            pdfBuffer = await generateInvoicePdfBuffer(invoices[0]);
+            setCachedPdf(orderNumber, pdfBuffer);
+        }
+        const filename = `Prepmood-Invoice-${orderNumber}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        if (connection) await connection.end();
+        Logger.error('[MEMBER_INVOICE_PDF] 인보이스 PDF 생성 실패', {
+            orderIdParam: req.params.orderId,
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            message: '인보이스 PDF 생성에 실패했습니다.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 

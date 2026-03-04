@@ -122,10 +122,10 @@
 - **구현**: `POST /api/payments/confirm` — optionalAuth, 주문 조회 회원 `user_id = ?` / 비회원 `user_id IS NULL` 분기. 이미 처리됨 시 guest_order_access_tokens에서 유효 토큰(헬퍼) 조회해 `user_id`·`guest_access_token` 응답. 데드 코드 제거, userId null 시 장바구니 쿼리 스킵, 이메일/인보이스 블록 finally. `order-complete-script.js`에서 비회원도 confirm 성공 시 주문 정보·이메일 수신·세션 교환 가능. **체크리스트**: 12.6, 16.7 Phase 2 완료.
 
 ### 4.2 비회원 인보이스 (조회 불필요, PDF만)
-- **상태**: ❌ **미구현** (PDF 다운로드만 해당)
-- **사실**: 비회원은 인보이스 **조회(화면 표시)는 하지 않음**. 주문 상세에서 **PDF 다운로드만** 제공하면 됨.  
-  현재 `GET /api/guest/orders/:orderNumber/invoice/pdf` 라우트 없음. `guest/orders.js` 의 `downloadInvoice` 는 TODO·alert 상태.
-- **필요**: guest 세션 검증 후 `GET /api/guest/orders/:orderNumber/invoice/pdf` 구현 및 "PDF 다운로드" 버튼 연동. (인보이스 조회 API·조회 UI는 구현 대상 아님.)
+- **상태**: ✅ **구현 완료** (코드 검증 2026-02-18)
+- **구현**: 비회원은 인보이스 조회 UI 없이 주문 상세에서 **PDF 다운로드만** 제공.  
+  - **Backend**: `GET /api/guest/orders/:orderNumber/invoice/pdf` (order-routes.js 2005~2109). 세션(guest_session_token)·수평 권한 검증(`o.user_id IS NULL`), invoice 조회 후 pdfkit으로 동적 생성, 인메모리 캐시(TTL 10분), Rate limit IP당 1분 3회.
+  - **Frontend**: `guest/orders.js` `downloadInvoice()` — API 호출 후 Blob 다운로드, 파일명 `Prepmood-Invoice-${orderNumber}.pdf`.
 
 ### 4.3 보증서 활성화 상세 경고 문구
 - **상태**: ✅ **해결됨** (코드 검증 기준)
@@ -138,10 +138,8 @@
 - **필요**: 비회원/회원 구분 없이 토큰 또는 로그인 기반으로 진입하는 통합 주문 상세 페이지(문서상 7개 섹션) 및 필요 시 PDF/인보이스 링크 연동.
 
 ### 4.5 인보이스 PDF 다운로드
-- **상태**: ❌ **미구현**
-- **사실**: `guest/orders.js` 294~301 — `downloadInvoice(orderId)` 내부가 `alert('인보이스 다운로드 기능은 준비 중입니다.')` 및 TODO.  
-  백엔드에 `GET /api/invoices/:invoiceId/download` 또는 guest용 PDF 다운로드 API 없음.
-- **필요**: 인보이스 PDF 생성 API 및 프론트 다운로드 연동.
+- **상태**: ✅ **구현 완료** (4.2와 동일 경로, 코드 검증 2026-02-18)
+- **구현**: guest 세션·order_number 검증 후 PDF 반환(8.4·11절 3단계). 4.2 항목 참고.
 
 ---
 
@@ -165,10 +163,10 @@
 
 | 우선순위 | 항목 | 비고 |
 |---------|------|------|
-| 1 | 비회원 결제 확인(confirm) 허용 | order-complete 주문 정보·이메일 수신 위해 필수 |
-| 2 | 보증서 활성화 상세 경고 문구 | 정책·고지 의무 |
-| 3 | 인보이스 PDF 다운로드 (비회원) | 비회원은 조회 없이 PDF만. guest 세션·order_number 검증 |
-| 4 | 통합 주문 상세 페이지 | Secure 링크 대상, 선택적 |
+| 1 | 비회원 결제 확인(confirm) 허용 | ✅ 완료 (4.1) |
+| 2 | 보증서 활성화 상세 경고 문구 | ✅ 완료 (4.3) |
+| 3 | 인보이스 PDF 다운로드 (비회원) | ✅ 완료 (4.2·4.5) |
+| 4 | 통합 주문 상세 페이지 | ❌ 미구현. Secure 링크 대상, 선택적 |
 
 ---
 

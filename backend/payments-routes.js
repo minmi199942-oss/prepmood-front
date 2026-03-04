@@ -687,9 +687,9 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                             const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
                             orderLink = `${baseUrl}/guest-order-access.html?token=${orderInfo.guest_access_token}`;
                         } else {
-                            // 회원 주문: 주문 내역 페이지
+                            // 회원 주문: 통합 주문 상세 (비회원과 동일 목적지)
                             const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                            orderLink = `${baseUrl}/my-orders.html`;
+                            orderLink = `${baseUrl}/guest/orders.html?order=${encodeURIComponent(orderInfo.order_number)}`;
                         }
 
                         // 이메일 발송 (비동기, 실패해도 주문 성공은 유지)
@@ -1469,9 +1469,9 @@ router.post('/payments/inicis/return', async (req, res) => {
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
                                 orderLink = `${baseUrl}/guest-order-access.html?token=${orderInfoForEmail.guest_access_token}`;
                             } else {
-                                // 회원 주문: 주문 내역 페이지
+                                // 회원 주문: 통합 주문 상세 (비회원과 동일 목적지)
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                orderLink = `${baseUrl}/my-orders.html`;
+                                orderLink = `${baseUrl}/guest/orders.html?order=${encodeURIComponent(orderInfoForEmail.order_number)}`;
                             }
 
                             // 이메일 발송 (비동기, 실패해도 주문 성공은 유지)
@@ -2152,9 +2152,9 @@ router.post('/payments/webhook', async (req, res) => {
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
                                 orderLink = `${baseUrl}/guest-order-access.html?token=${emailInfo.orderInfo.guest_access_token}`;
                             } else {
-                                // 회원 주문: 주문 내역 페이지
+                                // 회원 주문: 통합 주문 상세 (비회원과 동일 목적지)
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                orderLink = `${baseUrl}/my-orders.html`;
+                                orderLink = `${baseUrl}/guest/orders.html?order=${encodeURIComponent(emailInfo.orderInfo.order_number)}`;
                             }
 
                             // 이메일 발송 (비동기, 실패해도 주문 성공은 유지)
