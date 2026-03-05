@@ -932,13 +932,25 @@ router.get('/orders/:orderId/invoice/pdf', authenticateToken, pdfDownloadLimiter
         const orderId = orderRow.order_id;
 
         const [invoices] = await connection.execute(
-            `SELECT invoice_id, order_id, invoice_number, type, status, currency, total_amount,
-                    tax_amount, net_amount, billing_name, billing_email, billing_phone, billing_address_json,
-                    shipping_name, shipping_email, shipping_phone, shipping_address_json,
-                    payload_json, issued_at
-             FROM invoices
-             WHERE order_id = ? AND type = 'invoice' AND status = 'issued'
-             ORDER BY issued_at DESC
+            `SELECT i.invoice_id, i.order_id, i.invoice_number, i.type, i.status, i.currency, i.total_amount,
+                    i.tax_amount, i.net_amount, i.billing_name, i.billing_email, i.billing_phone, i.billing_address_json,
+                    i.shipping_name, i.shipping_email, i.shipping_phone, i.shipping_address_json,
+                    i.payload_json, i.issued_at,
+                    u.membership_id,
+                    p.gateway AS payment_method
+             FROM invoices i
+             INNER JOIN orders o ON i.order_id = o.order_id
+             LEFT JOIN users u ON o.user_id = u.user_id
+             LEFT JOIN (
+                 SELECT order_number, gateway FROM payments p1
+                 WHERE status = 'captured'
+                 AND NOT EXISTS (
+                     SELECT 1 FROM payments p2
+                     WHERE p2.order_number = p1.order_number AND p2.status = 'captured' AND p2.created_at > p1.created_at
+                 )
+             ) p ON o.order_number = p.order_number
+             WHERE i.order_id = ? AND i.type = 'invoice' AND i.status = 'issued'
+             ORDER BY i.issued_at DESC
              LIMIT 1`,
             [orderId]
         );
@@ -2144,13 +2156,25 @@ router.get('/guest/orders/:orderNumber/invoice/pdf', pdfDownloadLimiter, async (
         }
 
         const [invoices] = await connection.execute(
-            `SELECT invoice_id, order_id, invoice_number, type, status, currency, total_amount,
-                    tax_amount, net_amount, billing_name, billing_email, billing_phone, billing_address_json,
-                    shipping_name, shipping_email, shipping_phone, shipping_address_json,
-                    payload_json, issued_at
-             FROM invoices
-             WHERE order_id = ? AND type = 'invoice' AND status = 'issued'
-             ORDER BY issued_at DESC
+            `SELECT i.invoice_id, i.order_id, i.invoice_number, i.type, i.status, i.currency, i.total_amount,
+                    i.tax_amount, i.net_amount, i.billing_name, i.billing_email, i.billing_phone, i.billing_address_json,
+                    i.shipping_name, i.shipping_email, i.shipping_phone, i.shipping_address_json,
+                    i.payload_json, i.issued_at,
+                    u.membership_id,
+                    p.gateway AS payment_method
+             FROM invoices i
+             INNER JOIN orders o ON i.order_id = o.order_id
+             LEFT JOIN users u ON o.user_id = u.user_id
+             LEFT JOIN (
+                 SELECT order_number, gateway FROM payments p1
+                 WHERE status = 'captured'
+                 AND NOT EXISTS (
+                     SELECT 1 FROM payments p2
+                     WHERE p2.order_number = p1.order_number AND p2.status = 'captured' AND p2.created_at > p1.created_at
+                 )
+             ) p ON o.order_number = p.order_number
+             WHERE i.order_id = ? AND i.type = 'invoice' AND i.status = 'issued'
+             ORDER BY i.issued_at DESC
              LIMIT 1`,
             [session.order_id]
         );

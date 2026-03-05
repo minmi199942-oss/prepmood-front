@@ -3,6 +3,10 @@
  * - generateInvoicePdfBuffer: pdfkit 기반 단순 레이아웃 (폴백용)
  * - generateInvoiceHtml: invoice-detail-grid와 동일한 HTML 문자열 (Puppeteer PDF용 1단계)
  * 한글 표시: prep_server/static/fonts/NotoSansKR-Regular.ttf 가 있으면 사용 (없으면 기본 폰트로 한글 깨짐).
+ *
+ * VPS에서 Puppeteer 실패 시 (libatk-1.0.so.0: cannot open shared object file):
+ *   Debian/Ubuntu: sudo apt-get update && sudo apt-get install -y libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libnss3 libnspr4 libxss1 libpangocairo-1.0-0 libpango-1.0-0 libcairo2
+ *   (Ubuntu 25+: libasound2 대신 libasound2t64 사용 가능; 없으면 생략해도 headless는 동작할 수 있음)
  */
 
 const path = require('path');
@@ -35,9 +39,14 @@ function pdfRelease() {
     }
 }
 
-const FONT_KR_PATH = process.env.INVOICE_PDF_FONT_KR
-    || path.join(__dirname, '..', '..', 'prep_server', 'static', 'fonts', 'NotoSansKR-Regular.ttf');
-const HAS_KOREAN_FONT = fs.existsSync(FONT_KR_PATH);
+/** 한글 폰트 경로: 환경변수 → prep_server → Windows 맑은고딕 순으로 탐색 */
+const FONT_KR_CANDIDATES = [
+    process.env.INVOICE_PDF_FONT_KR,
+    path.join(__dirname, '..', '..', 'prep_server', 'static', 'fonts', 'NotoSansKR-Regular.ttf'),
+    process.platform === 'win32' ? path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'malgun.ttf') : null
+].filter(Boolean);
+const FONT_KR_PATH = FONT_KR_CANDIDATES.find(p => fs.existsSync(p)) || null;
+const HAS_KOREAN_FONT = !!FONT_KR_PATH;
 
 // ---------------------------------------------------------------------------
 // HTML 템플릿 (Puppeteer PDF 1단계) — invoice-detail-grid.css PC 블록 인라인
@@ -308,8 +317,10 @@ function generateInvoicePdfBuffer(invoiceRow) {
 
         try {
             if (HAS_KOREAN_FONT) {
-                doc.registerFont('NotoSansKR', FONT_KR_PATH);
-                doc.font('NotoSansKR');
+                doc.registerFont('KoreanFont', FONT_KR_PATH);
+                doc.font('KoreanFont');
+            } else {
+                Logger.warn('[INVOICE_PDF] pdfkit 폴백: 한글 폰트 없음. 한글이 깨질 수 있음.', { tried: FONT_KR_CANDIDATES });
             }
             const payload = (invoiceRow.payload_json && typeof invoiceRow.payload_json === 'object')
                 ? invoiceRow.payload_json
@@ -384,7 +395,16 @@ async function generateInvoicePdfBufferPuppeteer(invoiceRow) {
     try {
         const puppeteer = require('puppeteer');
         const html = generateInvoiceHtml(invoiceRow);
-        const launchArgs = process.env.PUPPETEER_NO_SANDBOX === 'true' ? ['--no-sandbox'] : [];
+        const launchArgs = [
+            '--disable-gpu',
+            '--disable-dev-shm-usage',
+            '--disable-software-rasterizer',
+            '--no-first-run',
+            '--no-zygote'
+        ];
+        if (process.env.PUPPETEER_NO_SANDBOX === 'true' || (process.platform === 'linux' && process.getuid && process.getuid() === 0)) {
+            launchArgs.push('--no-sandbox', '--disable-setuid-sandbox');
+        }
         browser = await puppeteer.launch({
             headless: true,
             args: launchArgs,
@@ -423,10 +443,8 @@ async function generateInvoicePdfBufferPreferred(invoiceRow) {
     try {
         return await generateInvoicePdfBufferPuppeteer(invoiceRow);
     } catch (err) {
-        Logger.warn('[INVOICE_PDF] Puppeteer PDF 실패, pdfkit 폴백', {
-            error: err.message,
-            stack: err.stack
-        });
+        Logger.warn('[INVOICE_PDF] Puppeteer PDF 실패, pdfkit 폴백. 원인:', err.message);
+        Logger.warn('[INVOICE_PDF] stack:', err.stack);
         return await generateInvoicePdfBuffer(invoiceRow);
     }
 }
