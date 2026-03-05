@@ -7,6 +7,8 @@
  * VPS에서 Puppeteer 실패 시 (libatk-1.0.so.0: cannot open shared object file):
  *   Debian/Ubuntu: sudo apt-get update && sudo apt-get install -y libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libnss3 libnspr4 libxss1 libpangocairo-1.0-0 libpango-1.0-0 libcairo2
  *   (Ubuntu 25+: libasound2 대신 libasound2t64 사용 가능; 없으면 생략해도 headless는 동작할 수 있음)
+ * pdfkit 폴백에서 한글이 깨지면 (Puppeteer가 실패하는 경우): VPS에 한글 폰트 설치 후 재시작
+ *   Ubuntu: sudo apt-get install -y fonts-noto-cjk   (또는 fonts-noto-cjk-extra)
  */
 
 const path = require('path');
@@ -39,11 +41,14 @@ function pdfRelease() {
     }
 }
 
-/** 한글 폰트 경로: 환경변수 → prep_server → Windows 맑은고딕 순으로 탐색 */
+/** 한글 폰트 경로: 환경변수 → prep_server → Windows 맑은고딕 → Linux Noto/Nanum 순으로 탐색 */
 const FONT_KR_CANDIDATES = [
     process.env.INVOICE_PDF_FONT_KR,
     path.join(__dirname, '..', '..', 'prep_server', 'static', 'fonts', 'NotoSansKR-Regular.ttf'),
-    process.platform === 'win32' ? path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'malgun.ttf') : null
+    process.platform === 'win32' ? path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'malgun.ttf') : null,
+    process.platform === 'linux' ? '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc' : null,
+    process.platform === 'linux' ? '/usr/share/fonts/opentype/noto/NotoSansCJK.ttc' : null,
+    process.platform === 'linux' ? '/usr/share/fonts/truetype/nanum/NanumGothic.ttf' : null
 ].filter(Boolean);
 const FONT_KR_PATH = FONT_KR_CANDIDATES.find(p => fs.existsSync(p)) || null;
 const HAS_KOREAN_FONT = !!FONT_KR_PATH;
@@ -54,8 +59,8 @@ const HAS_KOREAN_FONT = !!FONT_KR_PATH;
 // ---------------------------------------------------------------------------
 
 const INVOICE_PC_CSS = `*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Paperlogy',Georgia,serif;color:#000;}
-.invoice-page{width:751.4px;height:990px;background-color:#fff;box-shadow:9px 9px 6px -2px rgba(41,41,41,0.5);display:grid;grid-template-rows:159px 1px 238px 1px 247.5px 1px 162px;grid-template-columns:1fr;padding:80px 85px 80px 100px;position:relative;overflow:hidden;}
+body{font-family:'Paperlogy',Georgia,serif;color:#000;background-color:transparent;padding:0;margin:0;}
+.invoice-page{width:751.4px;height:990px;background-color:#fff;box-shadow:none;margin:0;border:none;display:grid;grid-template-rows:159px 1px 238px 1px 247.5px 1px 162px;grid-template-columns:1fr;padding:80px 85px 80px 100px;position:relative;overflow:hidden;}
 .invoice-page.extended-items{grid-template-rows:159px 1px 486.5px 1px 162px;}
 .invoice-page .grid-sep{grid-column:1;min-height:0;overflow:visible;display:flex;align-items:flex-start;justify-content:stretch;}
 .invoice-page .grid-sep-inner{width:100%;height:0.5px;background-color:#e0e0e0;margin-left:10px;margin-right:0;}
@@ -95,6 +100,7 @@ body{font-family:'Paperlogy',Georgia,serif;color:#000;}
 .invoice-page .invoice-footer-section:last-child .invoice-footer-row{gap:12px;}
 .invoice-page .invoice-footer-section:last-child .invoice-footer-label{text-align:right;padding-left:41px;}
 .invoice-page .invoice-footer-section:last-child .invoice-footer-title{padding-left:40px;}
+@page{size:751.4px 990px;margin:0;}
 @media print{.invoice-page{page-break-after:always}.invoice-page:last-child{page-break-after:avoid}}
 `;
 
@@ -416,9 +422,9 @@ async function generateInvoicePdfBufferPuppeteer(invoiceRow) {
             timeout: PUPPETEER_SET_CONTENT_TIMEOUT_MS
         });
         const pdfBytes = await page.pdf({
-            format: 'A4',
             printBackground: true,
             margin: { top: 0, right: 0, bottom: 0, left: 0 },
+            preferCSSPageSize: true,
             timeout: PUPPETEER_PDF_TIMEOUT_MS
         });
         return Buffer.from(pdfBytes);
