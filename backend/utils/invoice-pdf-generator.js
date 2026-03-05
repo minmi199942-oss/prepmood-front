@@ -306,6 +306,7 @@ function generateInvoiceHtml(invoiceRow) {
     const pages = splitItemsIntoPagesPC(items);
     const pagesHtml = pages.map((p, idx) => createPageHTMLString(p, invoiceRow, idx + 1)).join('');
     return '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=751.4">'
+        + '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fonts-archive/Paperlogy/Paperlogy.css" type="text/css">'
         + '<style>' + INVOICE_PC_CSS + '</style></head><body>' + pagesHtml + '</body></html>';
 }
 
