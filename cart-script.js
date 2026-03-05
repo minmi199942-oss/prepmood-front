@@ -69,7 +69,14 @@ async function toggleCartItemEdit(itemId) {
   const productId = item.product_id || item.id;
   const currentSize = item.size || '';
   const currentColor = item.color || '';
-  const options = await fetchProductOptions(productId);
+  let options = await fetchProductOptions(productId);
+  // 개발 환경(API 없음)에서 편집 패널이 열리도록 목 옵션 사용 → 디자인/여백 조정 가능
+  if (options.error && isDevHost()) {
+    options = {
+      colors: currentColor ? [currentColor, '(개발)'] : ['(개발)'],
+      sizes: currentSize ? [currentSize, 'M'] : ['S', 'M']
+    };
+  }
   if (options.error) {
     showCartToast('옵션을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
     return;
@@ -711,8 +718,6 @@ async function renderCartItems() {
 }
 
 function bindEventListeners() {
-  console.log('🔧 bindEventListeners 시작');
-  
   // document에서 클릭 이벤트 위임
   document.addEventListener('click', function(e) {
     if (e.target && e.target.id === 'checkout-btn') {
@@ -722,10 +727,7 @@ function bindEventListeners() {
       handleCheckout();
     }
   });
-  
-  console.log('✅ 이벤트 위임 설정 완료');
-  Logger.log('✅ 이벤트 위임 설정 완료');
-  
+
   // 도움말 아이템들
   const helpItems = document.querySelectorAll('.help-item');
   helpItems.forEach(item => {

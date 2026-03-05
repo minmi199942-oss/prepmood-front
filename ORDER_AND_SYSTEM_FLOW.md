@@ -101,8 +101,7 @@
 - **결제 확인**: `POST /api/payments/confirm` — **optionalAuth**(회원/비회원 모두), 주문 조회 `user_id = ?` / `user_id IS NULL` 분기, 토스 Confirm API, payments 저장, **paid_events 먼저 확인 후 처리** (SSOT 준수). 이미 처리됨 시 `user_id`·`guest_access_token`(헬퍼) 응답, 이메일·인보이스 커넥션 finally 보장.
 - **paid_events**: `createPaidEvent` — INSERT 시 `order_id` 포함 (`paid-event-creator.js` 80~82). 복구 스크립트: `fix_missing_paid_events.js`, `recover_pipeline_batch.js` 등.
 - **processPaidOrder**: 재고 배정, order_item_units, warranties, invoices, guest_order_access_tokens.
-- **주문 확인 이메일**: `sendOrderConfirmationEmail` (confirm/inicis/webhook).
-- **인보이스 이메일**: `sendInvoiceEmail` 구현 및 호출 (`mailer.js` 622줄, `payments-routes.js` confirm/inicis/webhook), `invoices.emailed_at` 업데이트.
+- **이메일 발송**: Paid 처리 후 **주문 확인 이메일 1통만** 발송 (`sendOrderConfirmationEmail`, confirm/inicis/webhook). 이메일 내 Secure 링크로 주문·인보이스 조회 가능. 별도 인보이스 전용 이메일 없음 (문서: SYSTEM_FLOW_DETAILED 9단계, ORDER_FLOW_IMPLEMENTATION_STATUS).
 - **비회원 주문 조회**: `GET /api/guest/orders/session`, `GET /api/guest/orders/:orderNumber` (세션 토큰). **Claim 방어**: 세션 기반 조회 시 `o.user_id IS NULL` 조건으로 Claim된 주문은 403.
 - **Claim**: `POST /api/orders/:orderId/claim-token`, `POST /api/orders/:orderId/claim`.
 - **보증서 활성화**: `POST /api/warranties/:warrantyId/activate` (인보이스 연동 확인).

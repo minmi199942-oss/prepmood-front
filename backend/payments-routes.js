@@ -28,7 +28,7 @@ const router = express.Router();
 const mysql = require('mysql2/promise');
 const { authenticateToken, optionalAuth } = require('./auth-middleware');
 const { verifyCSRF } = require('./csrf-middleware');
-const { sendOrderConfirmationEmail, sendInvoiceEmail } = require('./mailer');
+const { sendOrderConfirmationEmail } = require('./mailer');
 const Logger = require('./logger');
 const crypto = require('crypto');
 const { createInvoiceFromOrder } = require('./utils/invoice-creator');
@@ -718,79 +718,8 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                             });
                         }
 
-                        // 인보이스 이메일 발송 (인보이스가 생성된 경우에만)
-                        if (paidResult?.data?.invoiceId && paidResult?.data?.invoiceNumber) {
-                            try {
-                                const invoiceId = paidResult.data.invoiceId;
-                                const invoiceNumber = paidResult.data.invoiceNumber;
-                                
-                                // 인보이스 링크 생성
-                                let invoiceLink;
-                                if (orderInfo.guest_access_token) {
-                                    // 비회원 주문: 세션 토큰 교환 링크 (주문 상세 페이지에서 인보이스 접근)
-                                    const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                    invoiceLink = `${baseUrl}/guest-order-access.html?token=${orderInfo.guest_access_token}`;
-                                } else {
-                                    // 회원 주문: 인보이스 상세 페이지
-                                    const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                    invoiceLink = `${baseUrl}/invoice-detail.html?invoiceId=${invoiceId}`;
-                                }
-
-                                // 인보이스 이메일 발송
-                                const invoiceEmailResult = await sendInvoiceEmail(recipientEmail, {
-                                    invoiceNumber: invoiceNumber,
-                                    invoiceId: invoiceId,
-                                    invoiceLink: invoiceLink,
-                                    orderNumber: orderInfo.order_number,
-                                    customerName: customerName
-                                });
-
-                                if (invoiceEmailResult.success) {
-                                    Logger.log('[payments][confirm] 인보이스 이메일 발송 완료', {
-                                        order_id: orderInfo.order_id,
-                                        invoice_id: invoiceId,
-                                        invoice_number: invoiceNumber,
-                                        recipient: recipientEmail
-                                    });
-
-                                    // 이메일 발송 성공 후 invoices.emailed_at 업데이트
-                                    try {
-                                        const updateConnection = await mysql.createConnection(dbConfig);
-                                        await updateConnection.execute(
-                                            `UPDATE invoices 
-                                             SET emailed_at = NOW() 
-                                             WHERE invoice_id = ?`,
-                                            [invoiceId]
-                                        );
-                                        await updateConnection.end();
-                                        Logger.log('[payments][confirm] invoices.emailed_at 업데이트 완료', {
-                                            invoice_id: invoiceId
-                                        });
-                                    } catch (updateError) {
-                                        // 업데이트 실패는 로깅만 (이메일 발송은 성공)
-                                        Logger.error('[payments][confirm] invoices.emailed_at 업데이트 실패 (이메일은 발송됨)', {
-                                            invoice_id: invoiceId,
-                                            error: updateError.message
-                                        });
-                                    }
-                                } else {
-                                    Logger.warn('[payments][confirm] 인보이스 이메일 발송 실패 (주문은 성공)', {
-                                        order_id: orderInfo.order_id,
-                                        invoice_id: invoiceId,
-                                        invoice_number: invoiceNumber,
-                                        recipient: recipientEmail,
-                                        error: invoiceEmailResult.error
-                                    });
-                                }
-                            } catch (invoiceEmailError) {
-                                // 인보이스 이메일 발송 실패는 로깅만 (주문 성공은 유지)
-                                Logger.error('[payments][confirm] 인보이스 이메일 발송 중 오류 (주문은 성공)', {
-                                    order_id: orderInfo.order_id,
-                                    error: invoiceEmailError.message,
-                                    stack: invoiceEmailError.stack
-                                });
-                            }
-                        }
+                        // 이메일은 주문 확인 1통만 발송 (문서: SYSTEM_FLOW_DETAILED 9단계, ORDER_FLOW_IMPLEMENTATION_STATUS "이메일로 주문서 발송")
+                        // 인보이스 링크는 주문 확인 이메일 내 Secure 링크로 접근 (별도 Digital Invoice 이메일 없음)
                     }
                 } finally {
                     if (emailConnection) await emailConnection.end();
@@ -1500,99 +1429,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                                 });
                             }
 
-                            // 인보이스 이메일 발송 (인보이스가 생성된 경우에만)
-                            // ⚠️ 주의: paidResult는 트랜잭션 내에서 생성되므로, 
-                            // 이메일 발송 시점에는 이미 커밋된 상태입니다.
-                            // 따라서 별도 커넥션으로 인보이스 정보를 조회해야 합니다.
-                            try {
-                                let invoiceConnection = null;
-                                try {
-                                    invoiceConnection = await mysql.createConnection(dbConfig);
-                                    const [invoiceRows] = await invoiceConnection.execute(
-                                        `SELECT invoice_id, invoice_number 
-                                         FROM invoices 
-                                         WHERE order_id = ? 
-                                           AND type = 'invoice' 
-                                           AND status = 'issued'
-                                         ORDER BY issued_at DESC 
-                                         LIMIT 1`,
-                                        [orderInfoForEmail.order_id]
-                                    );
-
-                                    if (invoiceRows.length > 0) {
-                                        const invoiceId = invoiceRows[0].invoice_id;
-                                        const invoiceNumber = invoiceRows[0].invoice_number;
-                                        
-                                        // 인보이스 링크 생성
-                                        let invoiceLink;
-                                        if (orderInfoForEmail.guest_access_token) {
-                                            // 비회원 주문: 세션 토큰 교환 링크 (주문 상세 페이지에서 인보이스 접근)
-                                            const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                            invoiceLink = `${baseUrl}/guest-order-access.html?token=${orderInfoForEmail.guest_access_token}`;
-                                        } else {
-                                            // 회원 주문: 인보이스 상세 페이지
-                                            const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                            invoiceLink = `${baseUrl}/invoice-detail.html?invoiceId=${invoiceId}`;
-                                        }
-
-                                        // 인보이스 이메일 발송
-                                        const invoiceEmailResult = await sendInvoiceEmail(recipientEmail, {
-                                            invoiceNumber: invoiceNumber,
-                                            invoiceId: invoiceId,
-                                            invoiceLink: invoiceLink,
-                                            orderNumber: orderInfoForEmail.order_number,
-                                            customerName: customerName
-                                        });
-
-                                        if (invoiceEmailResult.success) {
-                                            Logger.log('[payments][inicis] 인보이스 이메일 발송 완료', {
-                                                order_id: orderInfoForEmail.order_id,
-                                                invoice_id: invoiceId,
-                                                invoice_number: invoiceNumber,
-                                                recipient: recipientEmail
-                                            });
-
-                                            // 이메일 발송 성공 후 invoices.emailed_at 업데이트
-                                            try {
-                                                const updateConnection = await mysql.createConnection(dbConfig);
-                                                await updateConnection.execute(
-                                                    `UPDATE invoices 
-                                                     SET emailed_at = NOW() 
-                                                     WHERE invoice_id = ?`,
-                                                    [invoiceId]
-                                                );
-                                                await updateConnection.end();
-                                                Logger.log('[payments][inicis] invoices.emailed_at 업데이트 완료', {
-                                                    invoice_id: invoiceId
-                                                });
-                                            } catch (updateError) {
-                                                // 업데이트 실패는 로깅만 (이메일 발송은 성공)
-                                                Logger.error('[payments][inicis] invoices.emailed_at 업데이트 실패 (이메일은 발송됨)', {
-                                                    invoice_id: invoiceId,
-                                                    error: updateError.message
-                                                });
-                                            }
-                                        } else {
-                                            Logger.warn('[payments][inicis] 인보이스 이메일 발송 실패 (주문은 성공)', {
-                                                order_id: orderInfoForEmail.order_id,
-                                                invoice_id: invoiceId,
-                                                invoice_number: invoiceNumber,
-                                                recipient: recipientEmail,
-                                                error: invoiceEmailResult.error
-                                            });
-                                        }
-                                    }
-                                } finally {
-                                    if (invoiceConnection) await invoiceConnection.end();
-                                }
-                            } catch (invoiceEmailError) {
-                                // 인보이스 이메일 발송 실패는 로깅만 (주문 성공은 유지)
-                                Logger.error('[payments][inicis] 인보이스 이메일 발송 중 오류 (주문은 성공)', {
-                                    order_id: orderInfoForEmail.order_id,
-                                    error: invoiceEmailError.message,
-                                    stack: invoiceEmailError.stack
-                                });
-                            }
+                            // 이메일은 주문 확인 1통만 (인보이스 별도 이메일 없음)
                         }
                     } catch (emailError) {
                         // 이메일 발송 실패는 로깅만 (주문 성공은 유지)
@@ -2183,76 +2020,7 @@ router.post('/payments/webhook', async (req, res) => {
                                 });
                             }
 
-                            // 인보이스 이메일 발송 (인보이스가 생성된 경우에만)
-                            if (emailInfo.invoiceId && emailInfo.invoiceNumber) {
-                                try {
-                                    // 인보이스 링크 생성
-                                    let invoiceLink;
-                                    if (emailInfo.orderInfo.guest_access_token) {
-                                        // 비회원 주문: 세션 토큰 교환 링크 (주문 상세 페이지에서 인보이스 접근)
-                                        const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                        invoiceLink = `${baseUrl}/guest-order-access.html?token=${emailInfo.orderInfo.guest_access_token}`;
-                                    } else {
-                                        // 회원 주문: 인보이스 상세 페이지
-                                        const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                                        invoiceLink = `${baseUrl}/invoice-detail.html?invoiceId=${emailInfo.invoiceId}`;
-                                    }
-
-                                    // 인보이스 이메일 발송
-                                    const invoiceEmailResult = await sendInvoiceEmail(recipientEmail, {
-                                        invoiceNumber: emailInfo.invoiceNumber,
-                                        invoiceId: emailInfo.invoiceId,
-                                        invoiceLink: invoiceLink,
-                                        orderNumber: emailInfo.orderInfo.order_number,
-                                        customerName: customerName
-                                    });
-
-                                    if (invoiceEmailResult.success) {
-                                        Logger.log('[payments][webhook] 인보이스 이메일 발송 완료', {
-                                            order_id: emailInfo.orderId,
-                                            invoice_id: emailInfo.invoiceId,
-                                            invoice_number: emailInfo.invoiceNumber,
-                                            recipient: recipientEmail
-                                        });
-
-                                        // 이메일 발송 성공 후 invoices.emailed_at 업데이트
-                                        try {
-                                            const updateConnection = await mysql.createConnection(dbConfig);
-                                            await updateConnection.execute(
-                                                `UPDATE invoices 
-                                                 SET emailed_at = NOW() 
-                                                 WHERE invoice_id = ?`,
-                                                [emailInfo.invoiceId]
-                                            );
-                                            await updateConnection.end();
-                                            Logger.log('[payments][webhook] invoices.emailed_at 업데이트 완료', {
-                                                invoice_id: emailInfo.invoiceId
-                                            });
-                                        } catch (updateError) {
-                                            // 업데이트 실패는 로깅만 (이메일 발송은 성공)
-                                            Logger.error('[payments][webhook] invoices.emailed_at 업데이트 실패 (이메일은 발송됨)', {
-                                                invoice_id: emailInfo.invoiceId,
-                                                error: updateError.message
-                                            });
-                                        }
-                                    } else {
-                                        Logger.warn('[payments][webhook] 인보이스 이메일 발송 실패 (주문은 성공)', {
-                                            order_id: emailInfo.orderId,
-                                            invoice_id: emailInfo.invoiceId,
-                                            invoice_number: emailInfo.invoiceNumber,
-                                            recipient: recipientEmail,
-                                            error: invoiceEmailResult.error
-                                        });
-                                    }
-                                } catch (invoiceEmailError) {
-                                    // 인보이스 이메일 발송 실패는 로깅만 (주문 성공은 유지)
-                                    Logger.error('[payments][webhook] 인보이스 이메일 발송 중 오류 (주문은 성공)', {
-                                        order_id: emailInfo.orderId,
-                                        error: invoiceEmailError.message,
-                                        stack: invoiceEmailError.stack
-                                    });
-                                }
-                            }
+                            // 이메일은 주문 확인 1통만 (인보이스 별도 이메일 없음)
                         }
                     } finally {
                         if (emailConnection) await emailConnection.end();

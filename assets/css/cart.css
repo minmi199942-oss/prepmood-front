@@ -1,8 +1,21 @@
 /* ===== 장바구니 페이지 스타일 ===== */
+/* 여백 조정: 아래 변수를 오버라이드하면 됨 (DevTools 또는 별도 스타일) */
+.cart-page {
+  --cart-page-padding-y: clamp(20px, 4vw, 40px);
+  --cart-section-gap: 24px;
+  --cart-header-padding-bottom: 32px;
+  --cart-container-row-gap: 32px;
+  --cart-items-gap: 12px;
+  --cart-item-padding: 20px;
+  --cart-item-gap: 20px;
+  --cart-edit-label-width: 54px; /* 사이즈/색상 라벨과 값 사이 여백 (줄이면 더 붙음) */
+  --cart-actions-gap: 16px;
+  --cart-actions-margin-top: 12px;
+}
 
 .cart-page {
   min-height: calc(100vh - var(--header-height, 72px) - 200px);
-  padding: clamp(20px, 4vw, 40px) var(--cart-checkout-page-padding-x);
+  padding: var(--cart-page-padding-y) var(--cart-checkout-page-padding-x);
   background-color: #fff;
 }
 
@@ -13,7 +26,7 @@
   display: grid;
   grid-template-columns: 1fr 480px;
   grid-template-rows: auto 1fr;
-  row-gap: 32px;
+  row-gap: var(--cart-container-row-gap);
   column-gap: var(--cart-checkout-gap);
   align-items: start;
 }
@@ -22,13 +35,13 @@
 .cart-items-section {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--cart-section-gap);
 }
 
 .cart-header {
   grid-column: 1 / -1;
   border-bottom: 1px solid #eee;
-  padding-bottom: 32px; /* 장바구니 제목과 밑줄 간격 32px */
+  padding-bottom: var(--cart-header-padding-bottom);
 }
 
 .cart-title {
@@ -41,15 +54,15 @@
 .cart-items {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cart-items-gap);
 }
 
 /* ===== 장바구니 아이템 ===== */
 .cart-item {
   display: flex;
   align-items: flex-start;
-  gap: 20px;
-  padding: 20px;
+  gap: var(--cart-item-gap);
+  padding: var(--cart-item-padding);
   border-top: 1px solid #e0e0e0;
   border-bottom: none;
   border-left: none;
@@ -231,7 +244,7 @@
 .cart-edit-row {
   position: relative;
   min-height: 32px;
-  padding-left: 64px;
+  padding-left: var(--cart-edit-label-width);
 }
 
 .cart-edit-label {
@@ -245,6 +258,7 @@
   top: 0;
   line-height: 32px;
   min-width: 56px;
+  max-width: calc(var(--cart-edit-label-width) - 8px);
   z-index: 1;
   cursor: pointer;
 }
@@ -267,7 +281,7 @@
   width: 100%;
   height: 100%;
   padding: 0 6px 0 0;
-  padding-left: 64px;
+  padding-left: var(--cart-edit-label-width);
   box-sizing: border-box;
   border: none;
   background: transparent;
@@ -365,7 +379,7 @@
   width: 100%;
   height: 100%;
   padding: 0 6px 0 0;
-  padding-left: 64px;
+  padding-left: var(--cart-edit-label-width);
   box-sizing: border-box;
   border: none;
   background: transparent;
@@ -458,8 +472,8 @@
 .cart-item-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-top: 12px;
+  gap: var(--cart-actions-gap);
+  margin-top: var(--cart-actions-margin-top);
 }
 
 .cart-item-edit,

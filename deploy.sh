@@ -214,6 +214,7 @@ rsync -av \
   --include="wishlist.html" \
   --include="buy.html" \
   --include="order-complete.html" \
+  --include="guest-order-access.html" \
   --include="search.html" \
   --include="email-verification.html" \
   --include="authenticity.html" \
