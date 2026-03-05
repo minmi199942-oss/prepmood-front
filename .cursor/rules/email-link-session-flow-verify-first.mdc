@@ -1,0 +1,26 @@
+---
+description: 이메일 링크·비회원 세션·주문 상세 진입 시 관련 문서와 코드를 먼저 읽고 답변
+globs: ["**/payments-routes.js", "**/order-routes.js", "**/guest-order-access.html", "**/ORDER_AND_SYSTEM_FLOW.md"]
+alwaysApply: false
+---
+
+# 이메일 링크·세션 흐름: 문서·코드 먼저 읽기
+
+이메일 주문 링크, 비회원 권한, guest 세션, 랜딩/주문 상세 진입을 **건드리거나 원인 분석할 때**:
+
+1. **문서**: `ORDER_AND_SYSTEM_FLOW.md` 해당 절(0-A, 0-B, 4.4, 8.1, 14.2, 14.8, 16절 등)을 읽을 것.
+2. **코드**: 아래를 실제로 읽은 뒤에만 결론·수정 제안할 것.
+   - **이메일 링크 생성**: `backend/payments-routes.js` (confirm / inicis / webhook 경로의 `orderLink`, 회원 vs 비회원 분기)
+   - **랜딩 + POST 세션**: `guest-order-access.html` (token 추출, POST `/api/guest/orders/session`, redirectUrl 이동)
+   - **세션 교환·쿠키**: `backend/order-routes.js` (POST `/api/guest/orders/session`, `exchangeGuestTokenForSession`, `setGuestSessionCookie`, `redirectUrl`)
+
+추측으로 "아마 이렇게 되어 있을 것이다"라고 말하지 말 것. 읽은 코드·문서에만 기대어 답할 것.
+
+**SSOT 명칭** (문서와 일치):
+- `guest_order_access_token`: 이메일 링크·랜딩 URL에만 있는 1회성 세션 교환용. API는 POST body로만 수신.
+- `guest_session_token`: POST 세션 교환 후 서버가 설정하는 httpOnly 쿠키. 주문 조회·PDF 등 권한 검증에 사용.
+
+**404 진단**: 이메일 링크 접속 시 404면 서버에서 다음 확인.
+- `ls -la $REPO_DIR/guest-order-access.html` (리포에 파일 있는지)
+- `ls -la $LIVE_ROOT/guest-order-access.html` (서비스 디렉터리에 복사됐는지)
+- 배포 로그에 "guest-order-access.html 복사됨" ✅ 여부

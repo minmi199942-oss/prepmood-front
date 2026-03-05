@@ -253,6 +253,17 @@ rsync -av \
 
 echo "  ✅ 루트 파일 동기화 완료 (허용 목록 기반, 기존 파일 보호)"
 
+# 랜딩 페이지 필수 확인 (이메일 링크 404 방지)
+if [ -f "$LIVE_ROOT/guest-order-access.html" ]; then
+  echo "  ✅ guest-order-access.html 복사됨 (이메일 주문 링크 랜딩)"
+else
+  echo "  ⚠️  guest-order-access.html 없음 - 이메일 링크 접속 시 404 발생. rsync 목록 및 REPO_DIR 확인 필요."
+  echo "  📋 404 진단 (서버에서 실행):"
+  echo "     ls -la $REPO_DIR/guest-order-access.html   # 리포에 파일 있는지"
+  echo "     ls -la $LIVE_ROOT/guest-order-access.html  # 서비스 디렉터리에 복사됐는지"
+  echo "     grep -n guest-order-access deploy.sh      # rsync include 포함 여부"
+fi
+
 # 3-3. assets 디렉토리 동기화 (별도 처리)
 echo "📦 assets 디렉토리 동기화 중..."
 if [ -d "$REPO_DIR/assets" ]; then
@@ -423,8 +434,8 @@ fi
 echo "🔍 배포 후 검증 중..."
 VERIFICATION_FAILED=0
 
-# 필수 파일 존재 및 크기 확인
-REQUIRED_FILES=("login.html" "index.html" "utils.js")
+# 필수 파일 존재 및 크기 확인 (guest-order-access.html = 이메일 주문 링크 랜딩 페이지, 없으면 404)
+REQUIRED_FILES=("login.html" "index.html" "utils.js" "guest-order-access.html")
 for file in "${REQUIRED_FILES[@]}"; do
   if [ -f "$LIVE_ROOT/$file" ]; then
     FILE_SIZE=$(stat -c %s "$LIVE_ROOT/$file" 2>/dev/null || echo "0")
