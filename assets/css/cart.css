@@ -227,10 +227,11 @@
   gap: 8px;
 }
 
+/* 라벨 "색상:"/"사이즈:" 전용 너비 (한글+영문 겹침 방지) */
 .cart-edit-row {
   position: relative;
   min-height: 32px;
-  padding-left: 40px;
+  padding-left: 64px;
 }
 
 .cart-edit-label {
@@ -243,6 +244,7 @@
   left: 0;
   top: 0;
   line-height: 32px;
+  min-width: 56px;
   z-index: 1;
   cursor: pointer;
 }
@@ -264,9 +266,8 @@
   justify-content: space-between;
   width: 100%;
   height: 100%;
-  padding: 0 0 0 0;
-  padding-left: 40px;
-  padding-right: 6px;
+  padding: 0 6px 0 0;
+  padding-left: 64px;
   box-sizing: border-box;
   border: none;
   background: transparent;
@@ -363,9 +364,8 @@
   justify-content: space-between;
   width: 100%;
   height: 100%;
-  padding: 0 0 0 0;
-  padding-left: 40px;
-  padding-right: 6px;
+  padding: 0 6px 0 0;
+  padding-left: 64px;
   box-sizing: border-box;
   border: none;
   background: transparent;
