@@ -35,6 +35,7 @@
     "archiver": "^7.0.1",
     "geoip-lite": "^1.4.10",
     "commander": "^12.1.0",
-    "pdfkit": "^0.15.0"
+    "pdfkit": "^0.15.0",
+    "puppeteer": "^23.0.0"
   }
 }

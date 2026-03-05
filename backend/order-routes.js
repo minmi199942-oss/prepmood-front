@@ -10,7 +10,7 @@ const Logger = require('./logger');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { generateUniqueGuestId } = require('./utils/user-id-generator');
 const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
-const { generateInvoicePdfBuffer } = require('./utils/invoice-pdf-generator');
+const { generateInvoicePdfBufferPreferred } = require('./utils/invoice-pdf-generator');
 const crypto = require('crypto');
 
 // 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
@@ -954,7 +954,7 @@ router.get('/orders/:orderId/invoice/pdf', authenticateToken, pdfDownloadLimiter
 
         let pdfBuffer = getCachedPdf(orderNumber);
         if (!pdfBuffer) {
-            pdfBuffer = await generateInvoicePdfBuffer(invoices[0]);
+            pdfBuffer = await generateInvoicePdfBufferPreferred(invoices[0]);
             setCachedPdf(orderNumber, pdfBuffer);
         }
         const filename = `Prepmood-Invoice-${orderNumber}.pdf`;
@@ -2167,7 +2167,7 @@ router.get('/guest/orders/:orderNumber/invoice/pdf', pdfDownloadLimiter, async (
         let pdfBuffer = getCachedPdf(orderNumber);
         if (!pdfBuffer) {
             const invoiceRow = invoices[0];
-            pdfBuffer = await generateInvoicePdfBuffer(invoiceRow);
+            pdfBuffer = await generateInvoicePdfBufferPreferred(invoiceRow);
             setCachedPdf(orderNumber, pdfBuffer);
         }
 
