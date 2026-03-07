@@ -1344,8 +1344,8 @@ app.use('/api', paymentsRoutes);
 const qrcodeDownloadRoutes = require('./qrcode-download-routes');
 app.use('/', qrcodeDownloadRoutes);
 
-// 서버 시작
-app.listen(PORT, async () => {
+// 서버 시작 (§2 Graceful Shutdown: SIGINT 시 신규 TCP 수신 차단)
+const server = app.listen(PORT, async () => {
     // 프로덕션 환경 validation (서버 시작 후 즉시 체크)
     if (process.env.NODE_ENV === 'production') {
         if (!process.env.WEBHOOK_SHARED_SECRET || process.env.WEBHOOK_SHARED_SECRET === 'your_webhook_secret_here') {
@@ -1358,6 +1358,10 @@ app.listen(PORT, async () => {
     }
     
     Logger.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
+
+    process.on('SIGINT', () => {
+        server.close(() => Logger.log('[Shutdown] HTTP 서버 수신 종료.'));
+    });
     
     // SMTP 연결 테스트
     Logger.log('📧 SMTP 서버 연결 테스트 중...');
