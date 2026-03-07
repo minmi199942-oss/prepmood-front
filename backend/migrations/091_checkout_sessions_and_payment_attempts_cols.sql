@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS checkout_sessions (
 -- 090 수정본 배포 이후에는 pg_order_id, refund_required, refund_status 및
 -- idx_pg_order_id, idx_refund_track 이 090 CREATE에 포함되어 아래 ALTER 불필요.
 -- 구버전 090(해당 컬럼 없음) 적용 DB만 091로 보완하는 경우 아래 주석 해제 후 1회 실행.
--- ALTER TABLE payment_attempts ADD COLUMN pg_order_id VARCHAR(100) NULL COMMENT 'PG 전달 orderId' AFTER external_ref_id;
+-- ALTER TABLE payment_attempts ADD COLUMN pg_order_id VARCHAR(100) NOT NULL DEFAULT '' COMMENT 'PG 전달 orderId, Intent Binding (NULL 금지)' AFTER external_ref_id;
 -- ALTER TABLE payment_attempts ADD COLUMN refund_required TINYINT(1) NOT NULL DEFAULT 0 AFTER status_history, ADD COLUMN refund_status VARCHAR(20) NOT NULL DEFAULT 'NONE' AFTER refund_required;
 -- ALTER TABLE payment_attempts ADD INDEX idx_pg_order_id (pg_order_id);
 -- ALTER TABLE payment_attempts ADD INDEX idx_refund_track (refund_status, updated_at);
