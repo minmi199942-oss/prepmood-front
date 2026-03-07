@@ -125,6 +125,11 @@ async function withPaymentAttempt({
     processOrderFn,
     executeRefundFn
 }) {
+    if (pgOrderId == null || String(pgOrderId).trim() === '') {
+        const err = new Error('pgOrderId required for Intent Binding');
+        err.status = 400;
+        throw err;
+    }
     if (isShuttingDown) {
         const err = new Error('SERVER_SHUTTING_DOWN');
         err.status = 503;

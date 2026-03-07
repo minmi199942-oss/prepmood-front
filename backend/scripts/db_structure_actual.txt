@@ -3,3 +3,13 @@ ERROR 1045 (28000): Access denied for user 'prepmood_user'@'localhost' (using pa
 -- 스키마 변경 기록 (수동 반영): migration 089 — warranty_transfers
 -- ADD COLUMN failed_attempts INT NOT NULL DEFAULT 0
 -- ADD COLUMN locked_until DATETIME NULL
+
+-- migration 090 — payment_attempts, payment_payloads, stock_holds
+-- payment_attempts: id, order_id, external_ref_id, pg_order_id(NOT NULL), gateway, attempt_seq, status, amount, currency, stock_hold_id, expires_at, recon_started_at, refund_required, refund_status, created_at, updated_at (status_history 제거, 로그는 payment_attempt_logs)
+--   UK (gateway, external_ref_id), UK (order_id, attempt_seq), IDX (order_id), IDX (status, expires_at), IDX (pg_order_id), IDX (refund_status, updated_at), FK order_id -> orders
+-- payment_payloads: attempt_id PK, payload_json, created_at, updated_at. FK attempt_id -> payment_attempts(id) ON DELETE RESTRICT
+-- stock_holds: id, stock_unit_id, order_id, status, expires_at, created_at, released_at. IDX (expires_at), (status, expires_at), (status, created_at), (order_id), (stock_unit_id). FK stock_unit_id, order_id
+
+-- migration 091 — checkout_sessions, payment_attempt_logs
+-- checkout_sessions: session_key PK, order_id, status, attempt_id, expires_at, created_at, updated_at. IDX (order_id), (status, expires_at). FK order_id -> orders
+-- payment_attempt_logs: id, attempt_id, from_status, to_status, reason, server_ip, request_id, created_at. IDX (attempt_id). FK attempt_id -> payment_attempts(id) ON DELETE RESTRICT (감사 로그 보존)

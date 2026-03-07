@@ -9,10 +9,12 @@ USE prepmood;
 -- ============================================================
 -- 1. payment_attempts (결제 시도 메타데이터)
 -- ============================================================
+-- [배치 PR 체크리스트] 리콘/GC 배치 추가 시 필수: status 없이 expires_at만 조회하면 (status,expires_at) 인덱스 미활용 → idx(expires_at) 추가 여부 검토. 미반영 시 풀스캔으로 커넥션 고갈 위험.
 CREATE TABLE IF NOT EXISTS payment_attempts (
     id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
     order_id INT NOT NULL COMMENT 'orders.order_id',
     external_ref_id VARCHAR(150) NOT NULL COMMENT '토스 paymentKey 등 게이트웨이 고유 키',
+    pg_order_id VARCHAR(100) NOT NULL COMMENT 'PG 전달 orderId, Intent Binding·응답 대조용 (NULL 금지)',
     gateway VARCHAR(32) NOT NULL DEFAULT 'toss',
     attempt_seq SMALLINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '동일 주문 내 시도 순서',
     status VARCHAR(30) NOT NULL COMMENT 'PROCESSING|CONFIRMED|FAILED|ABORTED_CHECK_REQUIRED|RECON_PROCESSING|TIMEOUT_WAITING|MANUAL_INTERVENTION_REQUIRED',
@@ -21,13 +23,16 @@ CREATE TABLE IF NOT EXISTS payment_attempts (
     stock_hold_id BIGINT UNSIGNED NULL COMMENT '연결된 stock_holds.id, 주문/홀딩 전이면 NULL',
     expires_at DATETIME NOT NULL COMMENT '선점 타임아웃·배치 GC. INSERT 시 필수(선점: NOW()+타임아웃)',
     recon_started_at DATETIME NULL COMMENT 'RECON_PROCESSING 전이 시각',
-    status_history JSON NULL COMMENT '배열: [{ at, from, to, reason }]. 업데이트 시 JSON_ARRAY_APPEND 사용',
+    refund_required TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0|1. Path C·리콘',
+    refund_status VARCHAR(20) NOT NULL DEFAULT 'NONE' COMMENT 'NONE|PENDING|SUCCESS|FAILED',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_gateway_external_ref (gateway, external_ref_id),
     UNIQUE KEY uk_order_attempt (order_id, attempt_seq) COMMENT '동일 주문 내 attempt_seq 중복 선점 방지',
     KEY idx_payment_attempts_order (order_id),
     KEY idx_payment_attempts_status_expires (status, expires_at),
+    KEY idx_pg_order_id (pg_order_id),
+    KEY idx_refund_track (refund_status, updated_at),
     CONSTRAINT fk_payment_attempts_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -55,6 +60,7 @@ CREATE TABLE IF NOT EXISTS stock_holds (
     released_at DATETIME NULL COMMENT 'RELEASED/EXPIRED/CONSUMED 전이 시각',
     KEY idx_stock_holds_expires (expires_at),
     KEY idx_stock_holds_status_expires (status, expires_at),
+    KEY idx_stock_holds_status_created (status, created_at) COMMENT '고아 홀드 Fallback Cleaner용 §10.10',
     KEY idx_stock_holds_order (order_id),
     KEY idx_stock_holds_stock_unit (stock_unit_id),
     CONSTRAINT fk_stock_holds_stock_unit FOREIGN KEY (stock_unit_id) REFERENCES stock_units(stock_unit_id) ON DELETE RESTRICT,
