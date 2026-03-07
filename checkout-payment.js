@@ -301,6 +301,10 @@ async function proceedWithTossPayment(data) {
 
     const orderNumber = created.data.order_number;
     const amount = created.data.amount;
+    const checkoutSessionKey = created.data?.checkoutSessionKey;
+    if (checkoutSessionKey) {
+      sessionStorage.setItem('checkoutSessionKey_' + orderNumber, checkoutSessionKey);
+    }
 
     // 2. 토스페이먼츠 결제 위젯 실행
     // MOCK 모드 체크 (환경변수 또는 설정으로 제어 가능)
@@ -317,7 +321,8 @@ async function proceedWithTossPayment(data) {
         body: JSON.stringify({
           orderNumber: orderNumber,
           paymentKey: 'mock_key_' + Date.now(),
-          amount: amount
+          amount: amount,
+          checkoutSessionKey: checkoutSessionKey || sessionStorage.getItem('checkoutSessionKey_' + orderNumber)
         })
       });
       
@@ -475,6 +480,10 @@ async function proceedWithInicisPayment(data) {
     const created = await createRes.json();
     const orderNumber = created.data.order_number;
     const amount = created.data.amount;
+    const checkoutSessionKeyInicis = created.data?.checkoutSessionKey;
+    if (checkoutSessionKeyInicis) {
+      sessionStorage.setItem('checkoutSessionKey_' + orderNumber, checkoutSessionKeyInicis);
+    }
 
     // 2. 이니시스 결제창 요청 (서버에서 결제 정보 생성)
     const paymentRes = await window.secureFetch(`${API_BASE}/payments/inicis/request`, {

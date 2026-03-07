@@ -593,8 +593,13 @@
 }
 
 /* ===== 반응형 디자인 ===== */
-/* 1024px 이하: 1열로 전환, 좌측(배송 정보)이 전체 너비 사용 */
+/* 1024px 이하: 1열로 전환, checkout-page 좌우 24px */
 @media (max-width: 1024px) {
+  .checkout-page {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
   .checkout-container {
     grid-template-columns: 1fr;
     row-gap: 24px;
@@ -614,7 +619,7 @@
 
 @media (max-width: 768px) {
   .checkout-page {
-    padding: 16px 20px 16px 20px;
+    padding: 16px 16px;
   }
 
   .form-row {
@@ -1229,10 +1234,6 @@
 
 /* 반응형: 모바일 */
 @media (max-width: 768px) {
-  .checkout-payment-page {
-    padding-top: 16px;
-  }
-  
   .checkout-form-section > .checkout-breadcrumb,
   .checkout-payment-main > .checkout-breadcrumb {
     padding: 0 16px 12px 0 !important;

@@ -531,22 +531,29 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
             // 주문 조회 시 user_id 또는 guest_id로 조회
             const [rows] = await connection.execute(
                 userId
-                    ? `SELECT order_number, total_price AS amount, estimated_delivery AS eta, status
+                    ? `SELECT order_id, order_number, total_price AS amount, estimated_delivery AS eta, status
                        FROM orders WHERE order_number = ? AND user_id = ? LIMIT 1`
-                    : `SELECT order_number, total_price AS amount, estimated_delivery AS eta, status
+                    : `SELECT order_id, order_number, total_price AS amount, estimated_delivery AS eta, status
                        FROM orders WHERE order_number = ? AND guest_id = ? LIMIT 1`,
                 [prevOrder, userId || guestId]
             );
             if (rows.length) {
+                const checkoutSessionKey = crypto.randomUUID();
+                await connection.execute(
+                    `INSERT INTO checkout_sessions (session_key, order_id, status, attempt_id, expires_at)
+                     VALUES (?, ?, 'PENDING', NULL, DATE_ADD(NOW(), INTERVAL 15 MINUTE))`,
+                    [checkoutSessionKey, rows[0].order_id]
+                );
                 await connection.end();
-                return res.status(200).json({ 
-                    success: true, 
+                return res.status(200).json({
+                    success: true,
                     data: {
                         order_number: rows[0].order_number,
                         amount: rows[0].amount,
                         currency: determineCurrency(req.body?.shipping?.country) || 'KRW',
                         fraction: COUNTRY_RULES[req.body?.shipping?.country]?.fraction ?? 2,
-                        eta: rows[0].eta
+                        eta: rows[0].eta,
+                        checkoutSessionKey
                     }
                 });
             }
@@ -737,16 +744,23 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
                 // price는 서버에서 재계산되므로 로깅하지 않음
             }));
             
-            Logger.log('주문 생성 성공', { 
-                orderId, 
-                orderNumber, 
-                userId, 
-                totalPrice: finalTotal, 
+            Logger.log('주문 생성 성공', {
+                orderId,
+                orderNumber,
+                userId,
+                totalPrice: finalTotal,
                 shipping: maskedShipping,
                 items: maskedItems
             });
 
-            // 응답 규격 고정
+            const checkoutSessionKey = crypto.randomUUID();
+            await connection.execute(
+                `INSERT INTO checkout_sessions (session_key, order_id, status, attempt_id, expires_at)
+                 VALUES (?, ?, 'PENDING', NULL, DATE_ADD(NOW(), INTERVAL 15 MINUTE))`,
+                [checkoutSessionKey, orderId]
+            );
+
+            // 응답 규격 고정 (checkoutSessionKey: confirm 시 필수, §5 CheckoutSessionKey)
             res.json({
                 success: true,
                 data: {
@@ -755,7 +769,8 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
                     currency: currency,
                     eta: etaStr,
                     fraction: COUNTRY_RULES[shipping.country]?.fraction ?? 2,
-                    localeHint: COUNTRY_RULES[shipping.country]?.locale || 'ko-KR'
+                    localeHint: COUNTRY_RULES[shipping.country]?.locale || 'ko-KR',
+                    checkoutSessionKey
                 }
             });
 

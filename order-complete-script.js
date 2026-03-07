@@ -526,6 +526,7 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     showPaymentProcessing();
     
     // 서버에 결제 확인 요청 (타임아웃 60초로 증가 - processPaidOrder가 오래 걸릴 수 있음)
+    const checkoutSessionKey = sessionStorage.getItem('checkoutSessionKey_' + orderId);
     const response = await window.secureFetch(`${API_BASE}/payments/confirm`, {
       method: 'POST',
       headers: {
@@ -536,7 +537,8 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
       body: JSON.stringify({
         orderNumber: orderId,
         paymentKey: paymentKey,
-        amount: parseFloat(amount)
+        amount: parseFloat(amount),
+        checkoutSessionKey: checkoutSessionKey || undefined
       })
     });
     
@@ -567,7 +569,8 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     }
     
     const result = await response.json();
-    
+    // checkoutSessionKey는 삭제하지 않음: 뒤로가기 후 재요청 시 서버가 CONSUMED 멱등으로 200 반환 가능 (§Gemini 검토)
+
     // ⚠️ 회원/비회원 구분: user_id가 있으면 회원 주문, 없으면 비회원 주문
     const userId = result.data?.user_id;
     const guestToken = result.data?.guest_access_token;

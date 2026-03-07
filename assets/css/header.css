@@ -87,6 +87,22 @@ header.main-header .header-container {
   }
 }
 
+/* 1024px 이하: header-container 좌우 패딩 24px */
+@media (max-width: 1024px) {
+  header.main-header .header-container {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* 768px 이하: header-container 좌우 패딩 16px */
+@media (max-width: 768px) {
+  header.main-header .header-container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
 /* ===== Header Components ===== */
 /* 로고–mega-root 간격 64px, mega-root 항목 간격은 아래 .mega-root에서 별도 */
 .header-content {

@@ -38,6 +38,10 @@
  * 3. processOrderFn: createPaidEvent(별도 커넥션) → processPaidOrder(connB) → updateOrderStatus(connB).
  * 4. executeRefundFn: 토스 취소 API 호출 함수 전달 (없으면 Path C 시 로그만).
  * 5. 409 응답 시 error.attemptId 포함하여 retry_after_seconds·recon_recommended 클라이언트 전달 (§10.23).
+ *
+ * === 선행 존재 원칙 (Phase 1) ===
+ * checkout_sessions 행은 반드시 POST /orders 시점에 PENDING으로 생성됨. 래퍼 진입 시 행이 없으면
+ * CHECKOUT_SESSION_NOT_FOUND(400) throw — INSERT로 새 행을 만들지 않음. 레이스/위조 키 방어.
  */
 
 const { pool } = require('../db');
@@ -109,7 +113,7 @@ async function getSafeConnection(signal, timeoutMs) {
  * @param {number|string} params.amount - 결제 금액 (BigInt 호환으로 내부에서 toString)
  * @param {string} [params.currency='KRW']
  * @param {Function} params.fetchPgFn - (signal) => Promise<pgResponse> 토스 Confirm API 호출
- * @param {Function} params.processOrderFn - (connB, attemptId, pgResponse) => Promise<void> createPaidEvent + processPaidOrder + updateOrderStatus
+ * @param {Function} params.processOrderFn - (connB, attemptId, pgResponse) => Promise<void|Object> createPaidEvent + processPaidOrder + updateOrderStatus; 반환 객체는 응답 data에 병합(paidEventId, paidResult 등)
  * @param {Function} [params.executeRefundFn] - (cancelKey, paymentKey, reason) => Promise<void> Path C PG 취소
  * @returns {Promise<{ status: number, message?: string, data?: any }>}
  */
@@ -158,12 +162,31 @@ async function withPaymentAttempt({
 
     try {
         // ---------- Phase 1: 선점 (Conn A) ----------
+        // TOCTOU 방지: 검증(PENDING)과 진입 사이 레이스 시 동일 세션으로 두 요청이 들어와도
+        // Phase 1에서 checkout_sessions를 FOR UPDATE로 잡고 IN_PROGRESS/CONSUMED면 재진입 차단.
         let connA;
         try {
             connA = await getSafeConnection(signal, 3000);
             await connA.beginTransaction();
 
             await connA.query('SELECT order_id FROM orders WHERE order_id = ? FOR UPDATE', [orderId]);
+
+            // 선행 존재 원칙: checkout_sessions 행은 반드시 POST /orders 시점에 PENDING으로 생성됨. 없으면 위조/만료 키.
+            const [sessionCheckRows] = await connA.query(
+                'SELECT session_key, status, attempt_id FROM checkout_sessions WHERE session_key = ? FOR UPDATE',
+                [sessionKey]
+            );
+            if (sessionCheckRows.length === 0) {
+                const err = new Error('CHECKOUT_SESSION_NOT_FOUND');
+                err.status = 400;
+                throw err;
+            }
+            const existingStatus = sessionCheckRows[0].status;
+            if (existingStatus === 'IN_PROGRESS' || existingStatus === 'CONSUMED') {
+                const err = new Error('SESSION_ALREADY_IN_USE');
+                err.status = 409;
+                throw err;
+            }
 
             const [seqRows] = await connA.query(
                 'SELECT COALESCE(MAX(attempt_seq), 0) + 1 AS next_seq FROM payment_attempts WHERE order_id = ?',
@@ -225,7 +248,7 @@ async function withPaymentAttempt({
             }
 
             if (signal.aborted) throw new Error(signal.reason || 'WATCHDOG_TIMEOUT');
-            await processOrderFn(connB, attemptId, pgResponse);
+            const processResult = await processOrderFn(connB, attemptId, pgResponse);
             if (signal.aborted) throw new Error(signal.reason || 'WATCHDOG_TIMEOUT');
 
             await connB.query(
@@ -249,7 +272,8 @@ async function withPaymentAttempt({
             await connB.commit();
             isLocalSuccess = true;
             statusHandled = true;
-            return { status: 200, data: pgResponse };
+            const mergedData = processResult && typeof processResult === 'object' ? { ...pgResponse, ...processResult } : pgResponse;
+            return { status: 200, data: mergedData };
         } catch (err) {
             if (connB) await connB.rollback().catch(() => {});
             throw err;
