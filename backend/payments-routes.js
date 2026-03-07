@@ -189,7 +189,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
 
         const order = orderRows[0];
 
-        // 2. Zero-Trust: ??-?? ??? + ?? + CONSUMED ??. [????] ?? ???? 1??: ?? ?? ??(§10.24).
+        // 2. Zero-Trust: ??-?? ??? + ?? + CONSUMED ??. [????] ?? ???? 1??: ?? ?? ??(?10.24).
         const [sessionRows] = await connection.execute(
             `SELECT order_id, status, expires_at FROM checkout_sessions WHERE session_key = ? LIMIT 1`,
             [checkoutSessionKey.trim()]
@@ -377,7 +377,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         const isMockMode = process.env.MOCK_GATEWAY === '1';
         const paymentMode = isMockMode ? 'MOCK' : 'TOSS';
         const orderId = order.order_id;
-        const amount = serverAmount;
+        const amountForPg = serverAmount;
         const currencyVal = currency;
 
         const fetchPgFn = isMockMode
@@ -409,7 +409,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             const paidEventResult = await createPaidEvent({
                 orderId,
                 paymentKey,
-                amount,
+                amount: amountForPg,
                 currency: currencyVal,
                 eventSource: 'redirect',
                 rawPayload: pgResponse
@@ -426,7 +426,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 paidEventId,
                 orderId,
                 paymentKey,
-                amount,
+                amount: amountForPg,
                 currency: currencyVal,
                 eventSource: 'redirect',
                 rawPayload: pgResponse
@@ -461,7 +461,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 orderId,
                 pgOrderId: orderNumber,
                 paymentKey,
-                amount,
+                amount: amountForPg,
                 currency: currencyVal,
                 fetchPgFn,
                 processOrderFn,
