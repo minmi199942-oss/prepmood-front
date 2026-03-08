@@ -592,7 +592,12 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     
   } catch (error) {
     Logger.error('❌ 결제 확인 실패:', error);
-    showPaymentError(error.message || '결제 확인 중 오류가 발생했습니다.');
+    // 타임아웃/Abort 시 서버는 완료했을 수 있음 → "실패" 단정 대신 내역 확인 유도
+    const isAbortOrTimeout = error.name === 'AbortError' || error.__timeout === true;
+    const message = isAbortOrTimeout
+      ? '결제 확인이 시간 초과되었습니다. 주문이 완료되었을 수 있으니 주문 조회에서 확인해 주세요.'
+      : (error.message || '결제 확인 중 오류가 발생했습니다.');
+    showPaymentError(message);
   }
 }
 

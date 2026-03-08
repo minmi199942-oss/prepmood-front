@@ -121,6 +121,10 @@ function secureFetch(url, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const csrfToken = getCookie('xsrf-token');
   const timeoutMs = options.timeoutMs || DEFAULT_FETCH_TIMEOUT;
+  // 결제 확인 API는 processPaidOrder 등으로 15초 이상 걸릴 수 있음. 캐시된 스크립트 대비 최소 60초 보장
+  const resolvedTimeout = (typeof url === 'string' && url.includes('/payments/confirm'))
+    ? Math.max(timeoutMs, 60000)
+    : timeoutMs;
   const hasIdempotencyKey = () => {
     const headers = options.headers;
     if (!headers) return false;
@@ -159,7 +163,7 @@ function secureFetch(url, options = {}) {
     const timeoutId = setTimeout(() => {
       didTimeout = true;
       controller.abort();
-    }, timeoutMs);
+    }, resolvedTimeout);
 
     const externalSignal = baseOptions.signal;
     const abortHandler = () => controller.abort();

@@ -36,6 +36,7 @@ const { createPaidEvent } = require('./utils/paid-event-creator');
 const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
 const { updateOrderStatus } = require('./utils/order-status-aggregator');
 const { withPaymentAttempt } = require('./utils/payment-wrapper');
+const { pool } = require('./db');
 const https = require('https');
 const http = require('http');
 require('dotenv').config();
@@ -158,7 +159,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             });
         }
 
-        connection = await mysql.createConnection(dbConfig);
+        connection = await pool.getConnection();
         await connection.beginTransaction();
 
         // 1. 주문 조회 (회원: user_id 일치, 비회원: user_id IS NULL)
@@ -177,7 +178,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
 
         if (orderRows.length === 0) {
             await connection.rollback();
-            await connection.end();
+            connection.release();
             return res.status(404).json({
                 code: 'NOT_FOUND',
                 details: {
@@ -196,7 +197,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         );
         if (sessionRows.length === 0) {
             await connection.rollback();
-            await connection.end();
+            connection.release();
             return res.status(400).json({
                 code: 'VALIDATION_ERROR',
                 details: {
@@ -208,7 +209,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         const sessionRow = sessionRows[0];
         if (new Date(sessionRow.expires_at) <= new Date()) {
             await connection.rollback();
-            await connection.end();
+            connection.release();
             return res.status(400).json({
                 code: 'VALIDATION_ERROR',
                 details: {
@@ -219,7 +220,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         }
         if (sessionRow.order_id !== order.order_id) {
             await connection.rollback();
-            await connection.end();
+            connection.release();
             return res.status(400).json({
                 code: 'VALIDATION_ERROR',
                 details: {
@@ -261,7 +262,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 cartCleared = (cartCountRows[0].itemCount || 0) === 0;
             }
             await connection.rollback();
-            await connection.end();
+            connection.release();
             return res.json({
                 success: true,
                 data: {
@@ -335,7 +336,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             }
 
             await connection.rollback();
-            await connection.end();
+            connection.release();
 
             return res.json({
                 success: true,
@@ -354,7 +355,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
 
         if (Math.abs(serverAmount - clientAmount) > 0.01) { // Zero-Trust 금액 불일치
             await connection.rollback();
-            await connection.end();
+            connection.release();
             Logger.log('결제 금액 불일치', {
                 orderNumber,
                 serverAmount,
@@ -371,7 +372,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
 
         // Conn A 여기서 해제. 이후 Fetch 및 DB 결과 반영은 withPaymentAttempt에서. withPaymentAttempt는 Conn A/B를 db.js 풀에서 사용.
         await connection.rollback();
-        await connection.end();
+        connection.release();
         connection = null;
 
         const isMockMode = process.env.MOCK_GATEWAY === '1';
@@ -483,16 +484,18 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
 
             let cartCleared = false;
             if (userId) {
+                let cartConn = null;
                 try {
-                    const cartConn = await mysql.createConnection(dbConfig);
+                    cartConn = await pool.getConnection();
                     await cartConn.execute(
                         `DELETE ci FROM cart_items ci INNER JOIN carts c ON ci.cart_id = c.cart_id WHERE c.user_id = ?`,
                         [userId]
                     );
                     cartCleared = true;
-                    await cartConn.end();
                 } catch (cartError) {
                     Logger.log('[payments][confirm] 장바구니 비우기 실패 (무시)', { userId, error: cartError.message });
+                } finally {
+                    if (cartConn) cartConn.release();
                 }
             }
 
@@ -508,36 +511,47 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             if (paidResult?.data?.orderInfo) {
                 try {
                     const orderInfo = paidResult.data.orderInfo;
-                    let emailConnection = null;
-                    try {
-                        emailConnection = await mysql.createConnection(dbConfig);
-                        const [orderItems] = await emailConnection.execute(
-                            `SELECT product_name, size, color, quantity, unit_price, subtotal FROM order_items WHERE order_id = ? ORDER BY order_item_id`,
-                            [orderInfo.order_id]
-                        );
-                        const [orderDetails] = await emailConnection.execute(
-                            `SELECT o.shipping_name, u.name as user_name FROM orders o LEFT JOIN users u ON o.user_id = u.user_id WHERE o.order_id = ?`,
-                            [orderInfo.order_id]
-                        );
-                        const recipientEmail = orderInfo.user_email || orderInfo.shipping_email;
-                        const customerName = orderDetails.length ? (orderDetails[0].user_name || orderDetails[0].shipping_name || null) : null;
-                        if (recipientEmail) {
-                            const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
-                            const orderLink = orderInfo.guest_access_token
-                                ? `${baseUrl}/guest-order-access.html?token=${orderInfo.guest_access_token}`
-                                : `${baseUrl}/guest/orders.html?order=${encodeURIComponent(orderInfo.order_number)}`;
-                            await sendOrderConfirmationEmail(recipientEmail, {
-                                orderNumber: orderInfo.order_number,
-                                orderDate: orderInfo.order_date,
-                                totalAmount: orderInfo.total_amount,
-                                items: orderItems,
-                                orderLink,
-                                isGuest: !!orderInfo.guest_access_token,
-                                customerName
-                            });
+                    const recipientEmail = orderInfo.user_email || orderInfo.shipping_email;
+                    if (recipientEmail) {
+                        const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
+                        const orderLink = orderInfo.guest_access_token
+                            ? `${baseUrl}/guest-order-access.html?token=${orderInfo.guest_access_token}`
+                            : `${baseUrl}/guest/orders.html?order=${encodeURIComponent(orderInfo.order_number)}`;
+
+                        // P2: processPaidOrder에서 이미 넘어온 items·customerName 사용 시 DB 조회 0회
+                        let orderItems = orderInfo.items;
+                        let customerName = orderInfo.customerName;
+                        if (!Array.isArray(orderItems) || orderItems.length === 0) {
+                            let emailConnection = null;
+                            try {
+                                emailConnection = await pool.getConnection();
+                                const [itemsRows] = await emailConnection.execute(
+                                    `SELECT product_name, size, color, quantity, unit_price, subtotal FROM order_items WHERE order_id = ? ORDER BY order_item_id`,
+                                    [orderInfo.order_id]
+                                );
+                                const [orderDetails] = await emailConnection.execute(
+                                    `SELECT o.shipping_name, u.name as user_name FROM orders o LEFT JOIN users u ON o.user_id = u.user_id WHERE o.order_id = ?`,
+                                    [orderInfo.order_id]
+                                );
+                                orderItems = itemsRows;
+                                customerName = orderDetails.length ? (orderDetails[0].user_name || orderDetails[0].shipping_name || null) : null;
+                            } finally {
+                                if (emailConnection) emailConnection.release();
+                            }
                         }
-                    } finally {
-                        if (emailConnection) await emailConnection.end();
+
+                        // P0: 이메일은 부가 작업 — 응답 지연 제거를 위해 비동기(Fire-and-Forget)
+                        sendOrderConfirmationEmail(recipientEmail, {
+                            orderNumber: orderInfo.order_number,
+                            orderDate: orderInfo.order_date,
+                            totalAmount: orderInfo.total_amount,
+                            items: orderItems,
+                            orderLink,
+                            isGuest: !!orderInfo.guest_access_token,
+                            customerName
+                        }).catch(err => {
+                            Logger.error('[payments][confirm] 주문 확인 이메일 발송 실패 (무시)', { orderNumber, error: err.message });
+                        });
                     }
                 } catch (emailError) {
                     Logger.error('[payments][confirm] 주문 확인 이메일 발송 실패 (무시)', {
@@ -614,7 +628,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         // (confirm 라우트 단계에서만 사용한 connection - withPaymentAttempt 호출 전 이미 해제됨)
         if (connection) {
             try { await connection.rollback(); } catch (_) {}
-            await connection.end();
+            connection.release();
         }
         const paymentMode = process.env.MOCK_GATEWAY === '1' ? 'MOCK' : 'TOSS';
         Logger.error(`[payments][mode=${paymentMode}] 결제 확인 중 예외 발생`, {

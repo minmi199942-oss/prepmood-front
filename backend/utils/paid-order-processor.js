@@ -108,8 +108,10 @@ async function processPaidOrder({
                 o.guest_id, 
                 o.status,
                 o.shipping_email,
+                o.shipping_name,
                 o.created_at,
-                u.email as user_email
+                u.email as user_email,
+                u.name as user_name
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.user_id
             WHERE o.order_id = ? 
@@ -711,7 +713,7 @@ async function processPaidOrder({
                 warrantiesCreated: createdWarranties.length,
                 invoiceId,
                 invoiceNumber,
-                // 이메일 발송용 정보
+                // 이메일 발송용 정보 (P2: 중복 조회 제거 — confirm에서 추가 SELECT 없이 사용)
                 orderInfo: {
                     order_id: orderId,
                     order_number: order.order_number,
@@ -721,7 +723,16 @@ async function processPaidOrder({
                     shipping_email: order.shipping_email,
                     user_id: order.user_id,
                     guest_id: order.guest_id,
-                    guest_access_token: guestAccessToken
+                    guest_access_token: guestAccessToken,
+                    customerName: order.user_name || order.shipping_name || null,
+                    items: orderItems.map(row => ({
+                        product_name: row.product_name,
+                        size: row.size,
+                        color: row.color,
+                        quantity: row.quantity,
+                        unit_price: row.unit_price,
+                        subtotal: row.subtotal
+                    }))
                 }
             }
         };
