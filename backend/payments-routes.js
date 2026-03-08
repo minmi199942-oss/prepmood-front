@@ -1,26 +1,25 @@
 /**
- * payments-routes.js - ?? ???API
- * 
- * ??? ???:
- * 1. ??????????????????? ?????? ?? ??
- * 2. ?? ??? ??successUrl?????????(paymentKey, orderId, amount ???)
- * 3. ????????????????POST /api/payments/confirm ???
- *    - ?????? ?? ?? ??????????(?????????? ??? ???)
- *    - ???????? Confirm API ??? (???????? Basic Auth)
- *    - ?? ??? ??payments ????? ????(status='captured' ??? 'authorized')
- *    - ?? ?????'confirmed' ??? 'processing'??? ???
- *    - ??? ???? ?????'failed'?????
- * 
- * ??? ??:
+ * payments-routes.js - 결제 관리 API
+ *
+ * 흐름 요약:
+ * 1. 클라이언트에서 결제창 진입 시 checkoutSessionKey 발급·전달
+ * 2. 결제 성공 후 successUrl로 리다이렉트 (paymentKey, orderId, amount 전달)
+ * 3. 클라이언트에서 서버로 POST /api/payments/confirm 호출
+ *    - 서버에서 withPaymentAttempt로 선점·Fetch·결과 반영
+ *    - 토스 Confirm API 호출 (시크릿 키로 Basic Auth)
+ *    - 결제 성공 시 payments 테이블에 저장 (status='captured' 또는 'authorized')
+ *    - 주문 상태: 'confirmed' 또는 'processing'으로 전이
+ *    - 실패 시 'failed'로 전이
+ *
+ * 웹훅 처리:
  * - POST /api/payments/webhook
- * - ??????????? ?? ??? ????????
- * - ?? HMAC ??? ????? ??? (?????HMAC ?????????)
- * - ?????? ??payments & orders ?????(??? ??????)
- * 
- * ??: ???????? ??? ??
- * - ???: https://docs.tosspayments.com/guides/v2/widget/overview
- * - ?? ???: https://docs.tosspayments.com/guides/v2/payment/confirm
- * - ???: https://docs.tosspayments.com/guides/v2/webhook/overview
+ * - 토스에서 결제 상태 변경 시 호출. WEBHOOK_SHARED_SECRET로 HMAC 검증
+ * - 검증 통과 시 payments & orders 동기화 (handlePaymentStatusChange)
+ *
+ * 참고: 토스페이먼츠 통합 문서
+ * - 위젯: https://docs.tosspayments.com/guides/v2/widget/overview
+ * - 결제 확정: https://docs.tosspayments.com/guides/v2/payment/confirm
+ * - 웹훅: https://docs.tosspayments.com/guides/v2/webhook/overview
  */
 
 const express = require('express');
@@ -42,9 +41,9 @@ const http = require('http');
 require('dotenv').config();
 
 /**
- * processPaidOrder ??? ????? ??? (Phase 3, 14.7?16.5)
- * PAID_ORDER_FAILURE_WEBHOOK_URL ??? ???????. Slack/Discord ??POST JSON.
- * ?????: ????, ????, ??? ???, paymentKey (?? 16.5)
+ * processPaidOrder 실패 시 웹훅 알림 (Phase 3, 14.7·16.5)
+ * PAID_ORDER_FAILURE_WEBHOOK_URL 설정 시에만 발송. Slack/Discord 등 POST JSON.
+ * payload: 주문번호, 결제금액, 에러 메시지, paymentKey (문서 16.5)
  */
 function notifyProcessPaidOrderFailure({ orderNumber, amount, paymentKey, error }) {
     const url = process.env.PAID_ORDER_FAILURE_WEBHOOK_URL;
@@ -54,7 +53,7 @@ function notifyProcessPaidOrderFailure({ orderNumber, amount, paymentKey, error 
     const stackFirst = (error && error.stack && error.stack.split('\n')[1]) ? error.stack.split('\n')[1].trim() : '';
 
     const payload = {
-        text: `[processPaidOrder ???] ????: ${orderNumber || '-'}, ????: ${amount ?? '-'}, paymentKey: ${paymentKey ? String(paymentKey).substring(0, 12) + '...' : '-'}, ???: ${errMsg || '-'}${stackFirst ? ` | ${stackFirst}` : ''}`
+        text: `[processPaidOrder 실패] 주문번호: ${orderNumber || '-'}, 결제금액: ${amount ?? '-'}, paymentKey: ${paymentKey ? String(paymentKey).substring(0, 12) + '...' : '-'}, 에러: ${errMsg || '-'}${stackFirst ? ` | ${stackFirst}` : ''}`
     };
 
     const u = new URL(url.trim());
@@ -73,16 +72,16 @@ function notifyProcessPaidOrderFailure({ orderNumber, amount, paymentKey, error 
 
     const req = (isHttps ? https : http).request(options, (res) => {
         if (res.statusCode >= 400) {
-            Logger.warn('[payments] processPaidOrder ??? ??? ??? ??? ???', { statusCode: res.statusCode, orderNumber });
+            Logger.warn('[payments] processPaidOrder 실패 알림 웹훅 응답 오류', { statusCode: res.statusCode, orderNumber });
         }
     });
-    req.on('error', (e) => Logger.warn('[payments] processPaidOrder ??? ??? ??? ??? ???', { error: e.message, orderNumber }));
+    req.on('error', (e) => Logger.warn('[payments] processPaidOrder 실패 알림 웹훅 전송 실패', { error: e.message, orderNumber }));
     req.setTimeout(5000, () => { req.destroy(); });
     req.write(postData);
     req.end();
 }
 
-// MySQL ??? ??? (order-routes.js?? ???)
+// MySQL 연결 설정 (order-routes.js와 동일)
 const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -94,22 +93,23 @@ const dbConfig = {
 
 /**
  * POST /api/payments/confirm
- * 
- * ??????????????????? ??? ?? ??? ????? ??? ???
- * 
- * ??? ??:
+ *
+ * checkoutSessionKey 필수. 선점·Fetch·결과 반영은 withPaymentAttempt에서 수행.
+ *
+ * 요청 body:
  * {
  *   "orderNumber": "ORD-2025-...",
  *   "paymentKey": "tgen_...",
- *   "amount": 129000
+ *   "amount": 129000,
+ *   "checkoutSessionKey": "uuid..."
  * }
- * 
- * ???:
- * 1. ?? ?? (JWT???? ?? ???? ???)
- * 2. ?????? ?? ?? ?????(?????????? ??? ???)
- * 3. ??? Confirm API ??? (???????? Basic Auth)
- * 4. payments ????? ????(status = 'captured' ??? 'authorized')
- * 5. ?? ??? ?????? ('confirmed' ??? 'processing' / ??? ??'failed')
+ *
+ * 동작:
+ * 1. 주문 조회 (JWT 회원: user_id 일치, 비회원: user_id IS NULL)
+ * 2. checkoutSessionKey로 세션 조회 후 CONSUMED 여부 확인(이미 완료 시 멱등 200)
+ * 3. 토스 Confirm API 호출 (시크릿 키로 Basic Auth)
+ * 4. payments 테이블에 저장 (status = 'captured' 또는 'authorized')
+ * 5. 주문 상태 업데이트 ('confirmed' 또는 'processing' / 실패 시 'failed')
  */
 router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
     let connection;
@@ -117,8 +117,8 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         const { orderNumber, paymentKey, amount, checkoutSessionKey } = req.body;
         const userId = req.user?.userId;
 
-        // userId ?????
-        Logger.log('[payments][confirm] ?? ??? ??? - userId ???', {
+        // userId 검증 로그
+        Logger.log('[payments][confirm] 결제 확인 요청 - userId 확인', {
             userId: userId,
             userIdType: typeof userId,
             userInfo: userId ? { userId } : 'null',
@@ -126,13 +126,13 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             userKeys: req.user ? Object.keys(req.user) : []
         });
 
-        // ??? ???(?5 CheckoutSessionKey: ????????????)
+        // Step 5: CheckoutSessionKey 검증 (멱등·세션 소비 전)
         if (!checkoutSessionKey || typeof checkoutSessionKey !== 'string' || !checkoutSessionKey.trim()) {
             return res.status(400).json({
                 code: 'VALIDATION_ERROR',
                 details: {
                     field: 'checkoutSessionKey',
-                    message: 'checkoutSessionKey? ???????? ?? ??? ?????checkoutSessionKey???????????.'
+                    message: 'checkoutSessionKey가 필요합니다. 주문/결제창에서 발급한 checkoutSessionKey를 전달해주세요.'
                 }
             });
         }
@@ -141,19 +141,19 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 code: 'VALIDATION_ERROR',
                 details: {
                     field: 'body',
-                    message: 'orderNumber, paymentKey, amount? ????????'
+                    message: 'orderNumber, paymentKey, amount가 필요합니다.'
                 }
             });
         }
 
-        // ?? ???(???, ???)
+        // 금액 검증 (숫자, 양수)
         const clientAmount = parseFloat(amount);
         if (isNaN(clientAmount) || clientAmount <= 0) {
             return res.status(400).json({
                 code: 'VALIDATION_ERROR',
                 details: {
                     field: 'amount',
-                    message: '???????????????.'
+                    message: '유효한 금액이 아닙니다.'
                 }
             });
         }
@@ -161,7 +161,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         connection = await mysql.createConnection(dbConfig);
         await connection.beginTransaction();
 
-        // 1. ?? ?? (???: user_id ???, ???? user_id IS NULL)
+        // 1. 주문 조회 (회원: user_id 일치, 비회원: user_id IS NULL)
         const [orderRows] = await connection.execute(
             userId != null
                 ? `SELECT order_id, order_number, user_id, total_price, shipping_country, status
@@ -182,14 +182,14 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 code: 'NOT_FOUND',
                 details: {
                     field: 'orderNumber',
-                    message: '?????? ????????.'
+                    message: '주문을 찾을 수 없습니다.'
                 }
             });
         }
 
         const order = orderRows[0];
 
-        // 2. Zero-Trust: ??-?? ??? + ?? + CONSUMED ??. [????] ?? ???? 1??: ?? ?? ??(?10.24).
+        // 2. Zero-Trust: 세션 조회 + 만료 + CONSUMED 검사. [문서] GEMINI §6 Step 5·§10.24.
         const [sessionRows] = await connection.execute(
             `SELECT order_id, status, expires_at FROM checkout_sessions WHERE session_key = ? LIMIT 1`,
             [checkoutSessionKey.trim()]
@@ -201,7 +201,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 code: 'VALIDATION_ERROR',
                 details: {
                     field: 'checkoutSessionKey',
-                    message: '???? ?? ?? ?? ???? ???????.'
+                    message: '유효한 결제 세션을 찾을 수 없습니다.'
                 }
             });
         }
@@ -213,7 +213,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 code: 'VALIDATION_ERROR',
                 details: {
                     field: 'checkoutSessionKey',
-                    message: '?? ??? ???????. ??/?? ???? ?? ??? ???.'
+                    message: '결제 세션이 만료되었습니다. 주문/결제창에서 다시 진행해주세요.'
                 }
             });
         }
@@ -224,12 +224,12 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 code: 'VALIDATION_ERROR',
                 details: {
                     field: 'checkoutSessionKey',
-                    message: '?? ??? ?? ??? ???? ????.'
+                    message: '세션이 해당 주문과 일치하지 않습니다.'
                 }
             });
         }
         if (sessionRow.status === 'CONSUMED') {
-            // ??: ?? ??? ?? ? payments?? ?? ?? ?? ?? (????/??? ? UI ????)
+            // 이미 완료: 동일 세션으로 이미 결제된 경우 payments 기준으로 멱등 응답 (새로고침/재진입 시 UI 안내)
             const [existingPaymentRows] = await connection.execute(
                 `SELECT status, amount, currency, payment_key, gateway FROM payments
                  WHERE order_number = ? ORDER BY created_at DESC LIMIT 1`,
@@ -278,20 +278,20 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             });
         }
 
-        // 3. ?? ?? ??? (order.total_price ??, ????? ?? ?? ??)
+        // 3. 서버 금액 (order.total_price 기준, Zero-Trust)
         const serverAmount = parseFloat(order.total_price);
-        const currency = order.shipping_country === 'KR' ? 'KRW' : 
-                        order.shipping_country === 'US' ? 'USD' : 
+        const currency = order.shipping_country === 'KR' ? 'KRW' :
+                        order.shipping_country === 'US' ? 'USD' :
                         order.shipping_country === 'JP' ? 'JPY' : 'KRW';
 
-        // SSOT ??? paid_events????? ??? (order.status???? ??????????? ??? ?????? ??????? ???)
+        // SSOT: paid_events 먼저 확인 (order.status는 집계용, 정책은 paid_events)
         const [existingPaidEvents] = await connection.execute(
             `SELECT event_id FROM paid_events WHERE order_id = ?`,
             [order.order_id]
         );
 
         if (existingPaidEvents.length > 0) {
-            // paid_events? ???? ????? "???? ??????? ??
+            // paid_events 존재: 이미 처리된 주문, 멱등 200
             const [existingPaymentRows] = await connection.execute(
                 `SELECT status, amount, currency, payment_key FROM payments
                  WHERE order_number = ?
@@ -306,7 +306,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 : currency;
             const existingPaymentKey = existingPaymentRows.length ? existingPaymentRows[0].payment_key : paymentKey;
 
-            // ?????????? ?????guest_access_token ?? (??? ???: expires_at > NOW() AND revoked_at IS NULL)
+            // 비회원 시: guest_access_token 조회 (헬퍼: expires_at > NOW() AND revoked_at IS NULL)
             let guestAccessToken = null;
             if (order.user_id == null) {
                 const [tokenRows] = await connection.execute(
@@ -321,7 +321,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 }
             }
 
-            // ????? ??? ???: ????? DB ??, ?????? localStorage(pm_cart_v1)????? ?????? ?? ???
+            // 장바구니 상태: 회원은 DB 조회, 비회원은 localStorage(pm_cart_v1)에 있어 서버에서 미조회
             let cartCleared = false;
             if (userId != null) {
                 const [cartCountRows] = await connection.execute(
@@ -352,10 +352,10 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             });
         }
 
-        if (Math.abs(serverAmount - clientAmount) > 0.01) { // ??????? ??? ???
+        if (Math.abs(serverAmount - clientAmount) > 0.01) { // Zero-Trust 금액 불일치
             await connection.rollback();
             await connection.end();
-            Logger.log('?? ?? ???', {
+            Logger.log('결제 금액 불일치', {
                 orderNumber,
                 serverAmount,
                 clientAmount
@@ -364,12 +364,12 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 code: 'VALIDATION_ERROR',
                 details: {
                     field: 'amount',
-                    message: '?? ??? ?? ??? ???? ????.'
+                    message: '주문 금액과 결제 금액이 일치하지 않습니다.'
                 }
             });
         }
 
-        // Conn A ?? ? ??? ??? ?? ??. ??: ?? Fetch ?? DB ? ???. withPaymentAttempt ?? Conn A/B? db.js ? ??.
+        // Conn A 여기서 해제. 이후 Fetch 및 DB 결과 반영은 withPaymentAttempt에서. withPaymentAttempt는 Conn A/B를 db.js 풀에서 사용.
         await connection.rollback();
         await connection.end();
         connection = null;
@@ -392,7 +392,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             : (signal) => {
                 const tossApiBase = process.env.TOSS_API_BASE || 'https://api.tosspayments.com';
                 const tossSecretKey = process.env.TOSS_SECRET_KEY;
-                if (!tossSecretKey) return Promise.reject(new Error('TOSS_SECRET_KEY ????));
+                if (!tossSecretKey) return Promise.reject(new Error('TOSS_SECRET_KEY 미설정'));
                 const authHeader = Buffer.from(`${tossSecretKey}:`).toString('base64');
                 return fetch(`${tossApiBase}/v1/payments/confirm`, {
                     method: 'POST',
@@ -400,7 +400,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                     body: JSON.stringify({ paymentKey, orderId: orderNumber, amount: serverAmount }),
                     signal
                 }).then(r => r.json()).then(data => {
-                    if (!data.paymentKey) throw new Error(data.message || 'Confirm ???');
+                    if (!data.paymentKey) throw new Error(data.message || 'Confirm API 실패');
                     return data;
                 });
             };
@@ -415,7 +415,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 rawPayload: pgResponse
             });
             const paidEventId = paidEventResult.eventId;
-            if (!paidEventId) throw new Error('paid_events ??? ???: eventId? null?????');
+            if (!paidEventId) throw new Error('paid_events 생성 실패: eventId가 null입니다.');
             const paymentStatus = pgResponse.status === 'DONE' ? 'captured' : pgResponse.status === 'IN_PROGRESS' ? 'authorized' : 'failed';
             await connB.execute(
                 `INSERT INTO payments (order_number, gateway, payment_key, status, amount, currency, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -447,9 +447,9 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                     'Content-Type': 'application/json',
                     'Idempotency-Key': cancelKey
                 },
-                body: JSON.stringify({ cancelReason: reason || '?? ?? ???' })
+                body: JSON.stringify({ cancelReason: reason || '재고 부족 등 주문 처리 실패' })
             }).then(r => {
-                if (!r.ok) return r.json().then(d => Promise.reject(new Error(d.message || '?? ???')));
+                if (!r.ok) return r.json().then(d => Promise.reject(new Error(d.message || '취소 실패')));
                 return r.json();
             });
         };
@@ -472,7 +472,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 return res.status(result.status || 500).json({
                     success: false,
                     code: 'PAYMENT_ERROR',
-                    details: { message: result.message || '?? ?? ???' }
+                    details: { message: result.message || '결제 처리 중 오류가 발생했습니다.' }
                 });
             }
 
@@ -492,11 +492,11 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                     cartCleared = true;
                     await cartConn.end();
                 } catch (cartError) {
-                    Logger.log('[payments][confirm] ????? ??? ?????', { userId, error: cartError.message });
+                    Logger.log('[payments][confirm] 장바구니 비우기 실패 (무시)', { userId, error: cartError.message });
                 }
             }
 
-            Logger.log(`[payments][mode=${paymentMode}] ?? ??? ??? (withPaymentAttempt)`, {
+            Logger.log(`[payments][mode=${paymentMode}] 결제 확인 성공 (withPaymentAttempt)`, {
                 orderNumber,
                 paymentKey,
                 amount: serverAmount,
@@ -540,7 +540,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                         if (emailConnection) await emailConnection.end();
                     }
                 } catch (emailError) {
-                    Logger.error('[payments][confirm] ?? ??? ??????? ????? (???? ???)', {
+                    Logger.error('[payments][confirm] 주문 확인 이메일 발송 실패 (무시)', {
                         orderNumber,
                         error: emailError.message
                     });
@@ -569,7 +569,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                     code: 'VALIDATION_ERROR',
                     details: {
                         field: 'checkoutSessionKey',
-                        message: '???? ?? ?? ?? ???? ???????.'
+                        message: '유효한 결제 세션을 찾을 수 없습니다.'
                     }
                 });
             }
@@ -577,7 +577,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 return res.status(409).json({
                     code: 'SESSION_ALREADY_IN_USE',
                     details: {
-                        message: '?? ??? ?? ???? ??? ?????. ???? ? ?? ???? ??? ???.'
+                        message: '이미 진행 중인 결제가 있습니다. 잠시 후 주문/결제 상태를 다시 확인해주세요.'
                     }
                 });
             }
@@ -585,7 +585,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 return res.status(409).json({
                     code: wrapperError.message === 'INSUFFICIENT_STOCK' ? 'INSUFFICIENT_STOCK' : 'ZERO_TRUST_VIOLATION',
                     details: {
-                        message: wrapperError.message === 'INSUFFICIENT_STOCK' ? '???? ??????.' : '?? ??????.',
+                        message: wrapperError.message === 'INSUFFICIENT_STOCK' ? '재고가 부족합니다.' : '금액 검증에 실패했습니다.',
                         order_number: orderNumber,
                         payment_key: paymentKey
                     }
@@ -595,7 +595,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 return res.status(409).json({
                     code: 'PAYMENT_IN_PROGRESS',
                     details: {
-                        message: '??? ?? ???? ????????????',
+                        message: '결제가 진행 중입니다. 잠시 후 다시 확인해주세요.',
                         attemptId: wrapperError.attemptId,
                         retry_after_seconds: 3,
                         recon_recommended: true
@@ -606,18 +606,18 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             return res.status(status).json({
                 success: false,
                 code: status === 503 ? 'SERVICE_UNAVAILABLE' : 'PAYMENT_ERROR',
-                details: { message: wrapperError.message || '?? ?? ?????? ????????.' }
+                details: { message: wrapperError.message || '결제 처리 중 오류가 발생했습니다.' }
             });
         }
 
     } catch (error) {
-        // (?? ?? ?? ?????- withPaymentAttempt ???????)
+        // (confirm 라우트 단계에서만 사용한 connection - withPaymentAttempt 호출 전 이미 해제됨)
         if (connection) {
             try { await connection.rollback(); } catch (_) {}
             await connection.end();
         }
         const paymentMode = process.env.MOCK_GATEWAY === '1' ? 'MOCK' : 'TOSS';
-        Logger.error(`[payments][mode=${paymentMode}] ?? ??? ?? ???`, {
+        Logger.error(`[payments][mode=${paymentMode}] 결제 확인 중 예외 발생`, {
             error: error.message,
             error_code: error.code,
             error_sql_state: error.sqlState,
@@ -629,7 +629,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         return res.status(500).json({
             code: 'INTERNAL_ERROR',
             details: {
-                message: '?? ?? ?????? ????????.'
+                message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
             }
         });
     }
@@ -637,8 +637,8 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
 
 /**
  * POST /api/payments/inicis/request
- * ?? ??: orderNumber, amount, orderName, buyerName, buyerEmail, buyerTel
- * ??: success, data.formData (INIStdPay.pay() ???)
+ * 요청 body: orderNumber, amount, orderName, buyerName, buyerEmail, buyerTel
+ * 반환: success, data.formData (INIStdPay.pay() 호출용)
  */
 router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (req, res) => {
     let connection;
@@ -646,11 +646,12 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
         const { orderNumber, amount, orderName, buyerName, buyerEmail, buyerTel } = req.body;
         const userId = req.user?.userId;
 
-        // ??? ???        if (!orderNumber || !amount || !orderName || !buyerName) {
+        // 필수 검증
+        if (!orderNumber || !amount || !orderName || !buyerName) {
             return res.status(400).json({
                 code: 'VALIDATION_ERROR',
                 details: {
-                    message: '??? ???? ???????????'
+                    message: '주문번호, 금액, 상품명, 구매자명이 필요합니다.'
                 }
             });
         }
@@ -658,7 +659,7 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
         connection = await mysql.createConnection(dbConfig);
         await connection.beginTransaction();
 
-        // ?? ???
+        // 주문 조회 (inicis request)
         const [orders] = await connection.execute(
             `SELECT order_id, order_number, user_id, total_price, status
              FROM orders 
@@ -673,14 +674,15 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
             return res.status(404).json({
                 code: 'ORDER_NOT_FOUND',
                 details: {
-                    message: '?????? ????????.'
+                    message: '주문을 찾을 수 없습니다.'
                 }
             });
         }
 
         const order = orders[0];
 
-        // ?? ???        const serverAmount = parseFloat(order.total_price);
+        // 금액 검증
+        const serverAmount = parseFloat(order.total_price);
         const clientAmount = parseFloat(amount);
         
         if (Math.abs(serverAmount - clientAmount) > 0.01) {
@@ -689,12 +691,12 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
             return res.status(400).json({
                 code: 'VALIDATION_ERROR',
                 details: {
-                    message: '?? ?????? ??????????? ??????.'
+                    message: '주문 금액과 결제 금액이 일치하지 않습니다.'
                 }
             });
         }
 
-        // ?????? ???
+        // 이니시스 환경 변수
         const inicisMid = process.env.INICIS_MID;
         const inicisSignKey = process.env.INICIS_SIGN_KEY;
         const inicisReturnUrl = process.env.INICIS_RETURN_URL || `${req.protocol}://${req.get('host')}/api/payments/inicis/return`;
@@ -702,23 +704,23 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
         if (!inicisMid || !inicisSignKey) {
             await connection.rollback();
             await connection.end();
-            Logger.log('[payments][inicis] ?????? ??? ????, {
+            Logger.log('[payments][inicis] 이니시스 환경 미설정', {
                 hasMid: !!inicisMid,
                 hasSignKey: !!inicisSignKey
             });
             return res.status(503).json({
                 code: 'SERVICE_UNAVAILABLE',
                 details: {
-                    message: '?????? ?? ??????? ??? ??????? ???????? ?????? ????????.',
-                    reason: 'INICIS_MID ??? INICIS_SIGN_KEY? ??????? ????????'
+                    message: '이니시스 결제가 일시적으로 불가합니다. 잠시 후 다시 시도해주세요.',
+                    reason: 'INICIS_MID 또는 INICIS_SIGN_KEY가 설정되지 않음'
                 }
             });
         }
 
-        // ???????? ???
+        // 타임스탬프 생성
         const timestamp = Math.floor(Date.now() / 1000).toString();
         
-        // ?????? ?? ??? ???????? (??????????? ???????
+        // 이니시스 formData (서명 대상: version + mid + goodname + oid + price + timestamp + signKey)
         const formData = {
             version: '1.0',
             mid: inicisMid,
@@ -732,14 +734,14 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
             timestamp: timestamp,
             returnUrl: inicisReturnUrl,
             closeUrl: `${req.protocol}://${req.get('host')}/checkout-payment.html?status=fail`,
-            gopaymethod: 'Card',  // ????? ???
-            acceptmethod: 'HPP(1):no_receipt:va_receipt:below1000',  // ????? + ??????+ ?????
+            gopaymethod: 'Card',  // 카드 결제
+            acceptmethod: 'HPP(1):no_receipt:va_receipt:below1000',  // 카드 + 가상계좌 + 1000원이하
             language: 'ko',
             charset: 'UTF-8',
-            payViewType: 'overlay'  // ?????? ??
+            payViewType: 'overlay'  // 레이어 팝업
         };
 
-        // ??? ??? (?????? ???? ??: version + mid + goodname + oid + price + timestamp + signKey)
+        // 서명 생성 (서명 대상: version + mid + goodname + oid + price + timestamp + signKey)
         const signString = [
             formData.version,
             formData.mid,
@@ -755,7 +757,7 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
         await connection.commit();
         await connection.end();
 
-        Logger.log('[payments][inicis] ?? ??? ???', {
+        Logger.log('[payments][inicis] 이니시스 요청 성공', {
             orderNumber,
             amount
         });
@@ -772,14 +774,14 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
             await connection.rollback();
             await connection.end();
         }
-        Logger.log('[payments][inicis] ?? ??? ???', {
+        Logger.log('[payments][inicis] 이니시스 요청 실패', {
             error: error.message,
             stack: error.stack
         });
         return res.status(500).json({
             code: 'INTERNAL_ERROR',
             details: {
-                message: '?? ??? ?? ?????? ????????.'
+                message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
             }
         });
     }
@@ -787,9 +789,9 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
 
 /**
  * POST /api/payments/inicis/return
- * 
- * ?????? ?? ??? ???? URL
- * ?? ??????????? ??
+ *
+ * 이니시스 결제 후 콜백 리다이렉트 URL
+ * resultCode로 성공/실패 판단
  */
 router.post('/payments/inicis/return', async (req, res) => {
     let connection;
@@ -868,21 +870,20 @@ router.post('/payments/inicis/return', async (req, res) => {
         const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountNum = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountNum;
         const vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountDepositor = req.body.vactBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountBankAccountDepositor;
 
-        // ?? ??? ??
+        // 결제 실패 시
         if (resultCode !== '00') {
-            Logger.log('[payments][inicis] ?? ???', {
+            Logger.log('[payments][inicis] 결제 실패', {
                 orderNumber,
                 resultCode,
                 resultMsg
             });
-            
-            // ??? ?????????????            return res.redirect(`/checkout-payment.html?status=fail&code=${resultCode}&message=${encodeURIComponent(resultMsg)}`);
+            return res.redirect(`/checkout-payment.html?status=fail&code=${resultCode}&message=${encodeURIComponent(resultMsg)}`);
         }
 
         connection = await mysql.createConnection(dbConfig);
         await connection.beginTransaction();
 
-        // ?? ???
+        // 주문 조회 (inicis return)
         const [orders] = await connection.execute(
             `SELECT order_id, order_number, user_id, total_price, status
              FROM orders 
@@ -894,41 +895,43 @@ router.post('/payments/inicis/return', async (req, res) => {
         if (orders.length === 0) {
             await connection.rollback();
             await connection.end();
-            Logger.log('[payments][inicis] ?????? ?????', { orderNumber });
-            return res.redirect(`/checkout-payment.html?status=fail&code=ORDER_NOT_FOUND&message=${encodeURIComponent('?????? ????????.')}`);
+            Logger.log('[payments][inicis] 주문 없음', { orderNumber });
+            return res.redirect(`/checkout-payment.html?status=fail&code=ORDER_NOT_FOUND&message=${encodeURIComponent('주문을 찾을 수 없습니다.')}`);
         }
 
         const order = orders[0];
 
-        // ?? ???        const serverAmount = parseFloat(order.total_price);
+        // 금액 검증
+        const serverAmount = parseFloat(order.total_price);
         const clientAmount = parseFloat(amount);
         
         if (Math.abs(serverAmount - clientAmount) > 0.01) {
             await connection.rollback();
             await connection.end();
-            Logger.log('[payments][inicis] ?? ????, {
+            Logger.log('[payments][inicis] 금액 불일치', {
                 orderNumber,
                 serverAmount,
                 clientAmount
             });
-            return res.redirect(`/checkout-payment.html?status=fail&code=AMOUNT_MISMATCH&message=${encodeURIComponent('?? ??????????? ??????.')}`);
+            return res.redirect(`/checkout-payment.html?status=fail&code=AMOUNT_MISMATCH&message=${encodeURIComponent('주문 금액과 결제 금액이 일치하지 않습니다.')}`);
         }
 
-        // ???? ?????????? ??? (????
+        // 중복 결제 방지 (tid 기준)
         const [existingPayments] = await connection.execute(
             'SELECT payment_id FROM payments WHERE payment_key = ? LIMIT 1',
             [tid]
         );
 
         if (existingPayments.length > 0) {
-            // ???? ??????
+            // 이미 결제됨 (멱등)
             await connection.commit();
             await connection.end();
-            Logger.log('[payments][inicis] ???? ??????', { orderNumber, tid });
+            Logger.log('[payments][inicis] 이미 결제됨 멱등 (tid)', { orderNumber, tid });
             return res.redirect(`/order-complete.html?orderId=${orderNumber}&amount=${amount}`);
         }
 
-        // payments ????? ????        const paymentStatus = (payMethod === 'Card' && resultCode === '00') ? 'captured' : 
+        // payments 테이블 insert
+        const paymentStatus = (payMethod === 'Card' && resultCode === '00') ? 'captured' : 
                              (payMethod === 'VBank' && resultCode === '00') ? 'authorized' : 'failed';
         
         const orderStatus = paymentStatus === 'captured' ? 'processing' : 
@@ -949,40 +952,40 @@ router.post('/payments/inicis/return', async (req, res) => {
             ]
         );
 
-        // Paid ?? (?? ??? ?????
-        // ??: paid_events???? ????autocommit)??? ??? ??? (?? ?? ??)
-        // ????? processPaidOrder()????? ??, ?? ??? ???, ???????, ?????? ???????
-        // ??? ??: paid_events ??? ??? ???? ?????processing??? ?????????? ???
+        // Paid 이벤트 생성 및 processPaidOrder (captured 시에만)
+        // 참고: paid_events insert는 autocommit으로 별도 커넥션 (문서 16.5)
+        // 참고: processPaidOrder() 실패 시 rollback해도 paid_events는 유지
+        // 참고: paid_events 존재 시 주문 상태는 processing 등으로 집계
         let paidProcessError = null;
         if (paymentStatus === 'captured') {
             try {
-                // paid_events ??? (?? ???? autocommit - ???? ????)
-                // ??? ??: ?????? ?????? ?? ?????processing??? ?????????? ???
+                // paid_events 생성 (별도 autocommit - 결제 증거 보존)
+                // 참고: processPaidOrder 실패 시 rollback, paid_events는 유지
                 const paidEventResult = await createPaidEvent({
                     orderId: order.order_id,
                     paymentKey: tid,
                     amount: serverAmount,
                     currency: 'KRW',
-                    eventSource: 'redirect', // ??? ???: 'inicis_return' ??'redirect' (ENUM?????)
+                    eventSource: 'redirect', // 참고: 'inicis_return' 또는 'redirect' (ENUM 동일)
                     rawPayload: req.body
                 });
 
                 const paidEventId = paidEventResult.eventId;
 
                 if (!paidEventId) {
-                    throw new Error('paid_events ??? ???: eventId? null?????');
+                    throw new Error('paid_events 생성 실패: eventId가 null입니다.');
                 }
 
                 if (paidEventResult.alreadyExists) {
-                    Logger.log('[payments][inicis] ???? ????? paid_events (????????', {
+                    Logger.log('[payments][inicis] 이미 존재 paid_events (멱등)', {
                         order_id: order.order_id,
                         order_number: orderNumber,
                         paidEventId
                     });
                 }
 
-                // ?? ?? ??????? (?? connection ???)
-                // ??? ??: orders.status???? ????? ?? (?? ?????? ???)
+                // processPaidOrder 호출 (동일 connection 사용)
+                // 참고: orders.status는 집계 함수로만 갱신 (SSOT는 order_item_units)
                 const paidResult = await processPaidOrder({
                     connection,
                     paidEventId: paidEventId,
@@ -990,15 +993,15 @@ router.post('/payments/inicis/return', async (req, res) => {
                     paymentKey: tid,
                     amount: serverAmount,
                     currency: 'KRW',
-                    eventSource: 'redirect', // ??? ???: 'inicis_return' ??'redirect' (??????
+                    eventSource: 'redirect', // 참고: 'inicis_return' 또는 'redirect'
                     rawPayload: req.body
                 });
                 
-                // orders.status ?? ??? ??? (processPaidOrder ??
-                // ??? ??: orders.status??order_item_units.unit_status?? paid_events ????? ??
+                // orders.status 집계 (processPaidOrder 완료 후)
+                // 참고: orders.status는 order_item_units.unit_status와 paid_events 기반 집계
                 await updateOrderStatus(connection, order.order_id);
                 
-                Logger.log('[payments][inicis] Paid ?? ???', {
+                Logger.log('[payments][inicis] Paid 처리 완료', {
                     order_id: order.order_id,
                     order_number: orderNumber,
                     paidEventId,
@@ -1008,10 +1011,10 @@ router.post('/payments/inicis/return', async (req, res) => {
                     invoiceNumber: paidResult.data.invoiceNumber
                 });
             } catch (err) {
-                // ??? ??: processPaidOrder() ??? ????????? ?? (??? ?? ???)
+                // 참고: processPaidOrder() 실패 시 rollback (paid_events는 별도 커넥션으로 유지)
                 paidProcessError = err;
                 
-                Logger.error('[payments][inicis] Paid ?? ??? - ??????? ?? ???', {
+                Logger.error('[payments][inicis] Paid 처리 실패 - processPaidOrder 예외', {
                     order_id: order.order_id,
                     order_number: orderNumber,
                     error: err.message,
@@ -1021,32 +1024,31 @@ router.post('/payments/inicis/return', async (req, res) => {
                     stack: err.stack
                 });
                 
-                // ??? ??????? ?? (processPaidOrder() ???? ??? ?? ??)
+                // 참고: rollback 후 (processPaidOrder() 내부 작업만 취소됨)
                 await connection.rollback();
                 
-                // ??? ?? ?????orders.status ?? ??? ??? (paid_events? ?????paid, ?????pending)
-                // ?? ???? ??????????
+                // 집계만 갱신: orders.status 재계산 (paid_events 있으면 paid, 없으면 pending)
                 try {
                     const statusConnection = await mysql.createConnection(dbConfig);
                     await updateOrderStatus(statusConnection, order.order_id);
                     await statusConnection.end();
                 } catch (statusError) {
-                    Logger.error('[payments][inicis] updateOrderStatus ??? (?????? ???)', {
+                    Logger.error('[payments][inicis] updateOrderStatus 실패 (무시)', {
                         order_id: order.order_id,
                         error: statusError.message
                     });
                 }
                 
-                // ??? ???????? ????? ??? ????? ???
-                // ??? paidProcessError ????? ????            }
+                // paidProcessError 유지 (catch 블록 밖에서 처리)
+            }
         } else {
-            // ??? ??: paymentStatus? 'captured'? ??? ????? orders.status???? ????? ??
-            // (paid_events? ?????pending ?????????
+            // 참고: paymentStatus가 'captured'가 아니면 orders.status만 집계
+            // (paid_events 없으면 pending 등)
             await updateOrderStatus(connection, order.order_id);
         }
 
-        // ??? ??: processPaidOrder() ??? ???????????? ??
-        // paidProcessError? ????????? ????????????????? ?????? ???
+        // 분기: processPaidOrder() 실패 시 500/리다이렉트
+        // paidProcessError가 있으면 이미 rollback, 웹훅 알림 발송
         if (paidProcessError) {
             await connection.end();
 
@@ -1057,7 +1059,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                 error: paidProcessError
             });
 
-            Logger.error('[payments][inicis] ??????????????? ?? ???', {
+            Logger.error('[payments][inicis] processPaidOrder 실패 - 웹훅 알림 발송', {
                 orderNumber,
                 tid,
                 amount: serverAmount,
@@ -1065,7 +1067,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                 error_code: paidProcessError.code
             });
             
-            // ??? ????????????? ????????? ?????(7??UX). ???????????????? ???
+            // 재고 부족 시 리다이렉트 (더 나은 UX). 그 외 500 JSON
             if (paidProcessError.code === 'INSUFFICIENT_STOCK') {
                 return res.redirect('/checkout-payment.html?status=fail&code=INSUFFICIENT_STOCK');
             }
@@ -1073,13 +1075,13 @@ router.post('/payments/inicis/return', async (req, res) => {
             return res.status(500).json({
                 code: 'ORDER_PROCESSING_FAILED',
                 details: {
-                    message: '??????????????? ??? ??????? ???????? ??? ????? ?????????.',
+                    message: '주문 처리 중 오류가 발생했습니다. 잠시 후 주문/결제 상태를 확인해주세요.',
                     order_number: orderNumber
                 }
             });
         }
 
-        // ????? ??? (??????? ?????
+        // 회원 장바구니 비우기 (결제 성공 시)
         if (order.user_id) {
             try {
                 await connection.execute(
@@ -1089,18 +1091,18 @@ router.post('/payments/inicis/return', async (req, res) => {
                     [order.user_id]
                 );
             } catch (cartError) {
-                Logger.log('[payments][inicis] ????? ??? ?????', {
+                Logger.log('[payments][inicis] 장바구니 비우기 실패 (무시)', {
                     userId: order.user_id,
                     error: cartError.message
                 });
             }
         }
 
-        // ?? ??? ??? ????????? ??
+        // 트랜잭션 커밋 및 커넥션 종료
         await connection.commit();
         await connection.end();
 
-        Logger.log('[payments][inicis] ?? ???', {
+        Logger.log('[payments][inicis] 이니시스 결제 완료', {
             orderNumber,
             tid,
             amount: serverAmount,
@@ -1109,16 +1111,16 @@ router.post('/payments/inicis/return', async (req, res) => {
         });
 
         // ============================================================
-        // ?? ??? ??????? (??????? ????)
+        // 주문 확인 이메일 발송 (captured 시에만)
         // ============================================================
         if (paymentStatus === 'captured' && !paidProcessError) {
             try {
-                // paidResult? ?????? ???? ???
+                // paidResult에서 orderInfo 사용 (이메일용)
                 let orderInfoForEmail = null;
                 if (typeof paidResult !== 'undefined' && paidResult?.data?.orderInfo) {
                     orderInfoForEmail = paidResult.data.orderInfo;
                 } else {
-                    // paidResult? ??????? ???????????
+                    // paidResult 없으면 DB에서 주문 정보 조회
                     let emailConnection = null;
                     try {
                         emailConnection = await mysql.createConnection(dbConfig);
@@ -1143,7 +1145,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                         if (orderRows.length > 0) {
                             const orderRow = orderRows[0];
                             
-                            // guest_order_access_tokens ?? (??????????, ??? ??: ??? ???)
+                            // guest_order_access_tokens 조회 (비회원 주문 시, 유효 토큰만)
                             let guestAccessToken = null;
                             if (orderRow.guest_id && !orderRow.user_id) {
                                 const [tokenRows] = await emailConnection.execute(
@@ -1175,7 +1177,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                 }
                 
                 if (orderInfoForEmail) {
-                    // ?? ???? ??? ?? (?? ????
+                    // 주문 상세 조회 (이메일용)
                     let emailConnection2 = null;
                     try {
                         emailConnection2 = await mysql.createConnection(dbConfig);
@@ -1193,7 +1195,7 @@ router.post('/payments/inicis/return', async (req, res) => {
                             [orderInfoForEmail.order_id]
                         );
 
-                        // ?? ??? ??
+                        // 수취인 정보
                         const [orderDetails] = await emailConnection2.execute(
                             `SELECT 
                                 o.shipping_name,
@@ -1204,33 +1206,33 @@ router.post('/payments/inicis/return', async (req, res) => {
                             [orderInfoForEmail.order_id]
                         );
 
-                        // ????????????
+                        // 수취 이메일
                         const recipientEmail = orderInfoForEmail.user_email || orderInfoForEmail.shipping_email;
                         
-                        // ?? ??? ??
+                        // 고객명
                         const customerName = orderDetails.length > 0 
                             ? (orderDetails[0].user_name || orderDetails[0].shipping_name || null)
                             : null;
                         
                         if (!recipientEmail) {
-                            Logger.warn('[payments][inicis] ??????? ???? (?????????????)', {
+                            Logger.warn('[payments][inicis] 수취 이메일 없음 (이메일 미발송)', {
                                 order_id: orderInfoForEmail.order_id,
                                 order_number: orderInfoForEmail.order_number
                             });
                         } else {
-                            // ?? ?? ???
+                            // 주문 링크 생성
                             let orderLink;
                             if (orderInfoForEmail.guest_access_token) {
-                                // ??????: ??? ??? ?? ??
+                                // 비회원: 토큰 기반 주문 조회
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
                                 orderLink = `${baseUrl}/guest-order-access.html?token=${orderInfoForEmail.guest_access_token}`;
                             } else {
-                                // ??? ??: ??? ?? ??? (????? ??? ???)
+                                // 회원: 내 주문 목록 (동일 URL)
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
                                 orderLink = `${baseUrl}/guest/orders.html?order=${encodeURIComponent(orderInfoForEmail.order_number)}`;
                             }
 
-                            // ??????? (???? ?????? ?? ????? ????)
+                            // 주문 확인 이메일 발송 (성공 시에만, 실패 시 로그)
                             const emailResult = await sendOrderConfirmationEmail(recipientEmail, {
                                 orderNumber: orderInfoForEmail.order_number,
                                 orderDate: orderInfoForEmail.order_date,
@@ -1242,13 +1244,13 @@ router.post('/payments/inicis/return', async (req, res) => {
                             });
 
                             if (emailResult.success) {
-                                Logger.log('[payments][inicis] ?? ??? ??????? ???', {
+                                Logger.log('[payments][inicis] 주문 확인 이메일 발송 완료', {
                                     order_id: orderInfoForEmail.order_id,
                                     order_number: orderInfoForEmail.order_number,
                                     recipient: recipientEmail
                                 });
                             } else {
-                                Logger.warn('[payments][inicis] ?? ??? ??????? ??? (???? ???)', {
+                                Logger.warn('[payments][inicis] 주문 확인 이메일 발송 실패 (무시)', {
                                     order_id: orderInfoForEmail.order_id,
                                     order_number: orderInfoForEmail.order_number,
                                     recipient: recipientEmail,
@@ -1256,11 +1258,11 @@ router.post('/payments/inicis/return', async (req, res) => {
                                 });
                             }
 
-                            // ??????? ?? ??? 1??? (?????? ?? ????????)
+                            // 이메일 커넥션 1회 사용 (finally에서 end)
                         }
                     } catch (emailError) {
-                        // ??????? ?????????(?? ????? ????)
-                        Logger.error('[payments][inicis] ?? ??? ??????? ????? (???? ???)', {
+                        // 이메일 발송 실패만 로그 (결제 성공에는 영향 없음)
+                        Logger.error('[payments][inicis] 주문 확인 이메일 발송 실패 (무시)', {
                             order_id: orderInfoForEmail?.order_id,
                             order_number: orderInfoForEmail?.order_number,
                             orderNumber,
@@ -1273,8 +1275,8 @@ router.post('/payments/inicis/return', async (req, res) => {
                     }
                 }
             } catch (emailSectionError) {
-                // ?????????? ?? ?????????(?? ????? ????)
-            Logger.warn('[payments][inicis] ???????? ??? (???? ???)', {
+                // 이메일 블록 전체 예외 (결제 성공에는 영향 없음)
+            Logger.warn('[payments][inicis] 이메일 블록 예외 (무시)', {
                 orderNumber,
                 error: emailSectionError?.message,
                 stack: emailSectionError?.stack
@@ -1282,66 +1284,69 @@ router.post('/payments/inicis/return', async (req, res) => {
         }
         }
 
-        // ??? ?????????????        return res.redirect(`/order-complete.html?orderId=${orderNumber}&amount=${amount}`);
+        // 이니시스 결제 성공 시 주문 완료 페이지로 리다이렉트
+        return res.redirect(`/order-complete.html?orderId=${orderNumber}&amount=${amount}`);
 
     } catch (error) {
         if (connection) {
             await connection.rollback();
             await connection.end();
         }
-        Logger.log('[payments][inicis] ?? ?? ???', {
+        Logger.log('[payments][inicis] 이니시스 return 예외', {
             error: error.message,
             stack: error.stack
         });
-        return res.redirect(`/checkout-payment.html?status=fail&code=INTERNAL_ERROR&message=${encodeURIComponent('?? ?? ?????? ????????.')}`);
+        return res.redirect(`/checkout-payment.html?status=fail&code=INTERNAL_ERROR&message=${encodeURIComponent('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')}`);
     }
 });
 
 /**
- * ??? HMAC ??? ??????
- * 
- * ???????? ??? ??? ?????:
- * 1. ??? ??(body)??????? ????(JSON.stringify)
- * 2. WEBHOOK_SHARED_SECRET??? HMAC-SHA256 ??
- * 3. Base64 ??????????? ????? ??
- * 
- * @param {Object} body - ??? ?? ??
- * @param {String} signature - x-toss-signature ??? ?? * @param {String} secret - WEBHOOK_SHARED_SECRET
- * @returns {Boolean} ??? ?????
+ * 토스 웹훅 HMAC 서명 검증
+ *
+ * 검증 절차:
+ * 1. body를 문자열로 직렬화 (JSON.stringify)
+ * 2. WEBHOOK_SHARED_SECRET으로 HMAC-SHA256 계산
+ * 3. Base64 인코딩 후 x-toss-signature와 비교
+ *
+ * @param {Object} body - 웹훅 요청 body
+ * @param {String} signature - x-toss-signature 헤더값
+ * @param {String} secret - WEBHOOK_SHARED_SECRET
+ * @returns {Boolean} 서명 일치 여부
  */
 function verifyWebhookSignature(body, signature, secret) {
-    // ??????: signature??secret???????false ??
+    // 필수 검사: signature 또는 secret 없으면 false 반환
     if (!signature || !secret) {
-        Logger.log('[payments][webhook] ??? ??? ??????????', {
+        Logger.log('[payments][webhook] 웹훅 서명 검증 스킵 (시크릿 없음)', {
             hasSignature: !!signature,
             hasSecret: !!secret
         });
         return false;
     }
 
-    // secret??????????????????
+    // secret이 기본값이면 검증 거부
     if (secret === 'your_webhook_secret_here') {
-        Logger.log('[payments][webhook] ????????? ???????', {
+        Logger.log('[payments][webhook] 웹훅 시크릿 기본값 사용 중', {
             hasSignature: !!signature
         });
         return false;
     }
 
     try {
-        // ??? ????????? ????        const bodyString = typeof body === 'string' ? body : JSON.stringify(body);
+        // body 직렬화 (문자열이면 그대로)
+        const bodyString = typeof body === 'string' ? body : JSON.stringify(body);
         
-        // HMAC-SHA256 ??
+        // HMAC-SHA256 계산
         const hmac = crypto.createHmac('sha256', secret);
         hmac.update(bodyString);
         const calculatedSignature = hmac.digest('base64');
 
-        // ??? ?? (????? ?? ???????? crypto.timingSafeEqual ??? ??)
-        // ??? ???? ???????(??? ??? ????? ???? ??? ?????)
+        // 문자열 비교 (권장: crypto.timingSafeEqual 사용)
+        // 참고: 바이트 길이 다르면 Node 신규/구버전에서 crypto.timingSafeEqual 예외 가능
         const isValid = calculatedSignature === signature;
 
         if (!isValid) {
-            Logger.log('[payments][webhook] ??? ??????', {
-                receivedSignature: signature.substring(0, 20) + '...', // ??????? ??? ??? ???
+            Logger.log('[payments][webhook] 웹훅 서명 불일치', {
+                receivedSignature: signature.substring(0, 20) + '...', // 로그 시 앞 20자만
                 calculatedSignature: calculatedSignature.substring(0, 20) + '...',
                 bodyLength: bodyString.length
             });
@@ -1349,7 +1354,7 @@ function verifyWebhookSignature(body, signature, secret) {
 
         return isValid;
     } catch (error) {
-        Logger.log('[payments][webhook] ??? ????????', {
+        Logger.log('[payments][webhook] 웹훅 서명 검증 예외', {
             error: error.message
         });
         return false;
@@ -1357,9 +1362,10 @@ function verifyWebhookSignature(body, signature, secret) {
 }
 
 /**
- * ???????? ?? ?? API (????????)
- * 
- * @param {string} paymentKey - ?? ?? * @returns {Object|null} ??? API ??? ??? null
+ * 토스 결제 조회 API (Zero-Trust 검증용)
+ *
+ * @param {string} paymentKey - 결제 키
+ * @returns {Object|null} 조회 API 응답 또는 null
  */
 async function verifyPaymentWithToss(paymentKey) {
     try {
@@ -1367,7 +1373,7 @@ async function verifyPaymentWithToss(paymentKey) {
         const tossSecretKey = process.env.TOSS_SECRET_KEY;
 
         if (!tossSecretKey) {
-            Logger.log('[payments][webhook] TOSS_SECRET_KEY? ??????? ??? ???????? ???????');
+            Logger.log('[payments][webhook] TOSS_SECRET_KEY 미설정으로 조회 스킵');
             return null;
         }
 
@@ -1380,7 +1386,7 @@ async function verifyPaymentWithToss(paymentKey) {
         });
 
         if (!response.ok) {
-            Logger.log('[payments][webhook] ??? ?? ?? ???', {
+            Logger.log('[payments][webhook] 토스 조회 API 실패', {
                 paymentKey: paymentKey.substring(0, 10) + '...',
                 status: response.status,
                 statusText: response.statusText
@@ -1389,7 +1395,7 @@ async function verifyPaymentWithToss(paymentKey) {
         }
 
         const paymentData = await response.json();
-        Logger.log('??[payments][webhook] ??? ?? ????????', {
+        Logger.log('[payments][webhook] 토스 조회 성공', {
             paymentKey: paymentKey.substring(0, 10) + '...',
             status: paymentData.status,
             orderId: paymentData.orderId
@@ -1397,7 +1403,7 @@ async function verifyPaymentWithToss(paymentKey) {
 
         return paymentData;
     } catch (error) {
-        Logger.log('[payments][webhook] ??? ?? ?? ?????', {
+        Logger.log('[payments][webhook] 토스 조회 예외', {
             error: error.message,
             paymentKey: paymentKey ? paymentKey.substring(0, 10) + '...' : 'unknown'
         });
@@ -1406,47 +1412,49 @@ async function verifyPaymentWithToss(paymentKey) {
 }
 
 /**
- * ??? ????? ?? ??? ?????
- * 
- * @param {Object} connection - MySQL ???
- * @param {Object} data - ??? ????? */
+ * 결제 상태 변경 시 payments·orders 동기화
+ *
+ * @param {Object} connection - MySQL 커넥션
+ * @param {Object} data - 웹훅 payload
+ */
 async function handlePaymentStatusChange(connection, data) {
     if (!data) {
-        Logger.log('[payments][webhook] ?? ??? ??? ????????');
+        Logger.log('[payments][webhook] 웹훅 payload 없음');
         return;
     }
 
-    // ???????? ??? ??????????? ??? ??
-    // seller.changed ?????? ?? data ??? ???? ?????
+    // 토스 페이먼츠 이벤트 구조에 맞게 필드 추출
+    // seller.changed 등 구 이벤트명도 data 내부 구조로 처리
     const paymentKey = data.paymentKey || data.payment?.paymentKey || data.id;
     const orderId = data.orderId || data.payment?.orderId || data.order?.orderId;
     const webhookStatus = data.status || data.payment?.status || data.state;
     const webhookAmount = data.totalAmount || data.payment?.totalAmount || data.amount;
 
     if (!paymentKey) {
-        Logger.log('[payments][webhook] ?? ??? ??? paymentKey ???', { data });
+        Logger.log('[payments][webhook] 웹훅 payload에 paymentKey 없음', { data });
         return;
     }
 
-    // ??? ??: ??? API??????????(??? payload?????????????? ???)
+    // Zero-Trust: 토스 API로 실제 조회 (웹훅 payload 단독 신뢰 금지)
     const verifiedPayment = await verifyPaymentWithToss(paymentKey);
     
     if (!verifiedPayment) {
-        Logger.warn('[payments][webhook] ??? ???????? - ??? ?? ??', {
+        Logger.warn('[payments][webhook] 토스 조회 실패 - 검증 스킵', {
             paymentKey: paymentKey.substring(0, 10) + '...',
             orderId
         });
-        // ???????? ????? ?? ?? (??)
+        // 웹훅만으로 승인 반영 금지 (리콘 등 다른 경로 대기)
         return;
     }
 
-    // ???????????? ??? ???
+    // 토스 API 조회 결과 기준으로 상태 결정
     const status = verifiedPayment.status;
     const verifiedOrderId = verifiedPayment.orderId;
     const verifiedAmount = verifiedPayment.totalAmount;
 
-    // ??? payload?? ??????? ??? ???? ???    if (orderId && verifiedOrderId && orderId !== verifiedOrderId) {
-        Logger.warn('[payments][webhook] orderId ????- ??? ?? ??', {
+    // 웹훅 payload와 조회 결과 orderId 불일치 시 무시
+    if (orderId && verifiedOrderId && orderId !== verifiedOrderId) {
+        Logger.warn('[payments][webhook] orderId 불일치 - 검증 스킵', {
             webhookOrderId: orderId,
             verifiedOrderId: verifiedOrderId,
             paymentKey: paymentKey.substring(0, 10) + '...'
@@ -1455,7 +1463,7 @@ async function handlePaymentStatusChange(connection, data) {
     }
 
     if (webhookAmount && verifiedAmount && webhookAmount !== verifiedAmount) {
-        Logger.warn('[payments][webhook] amount ????- ??? ?? ??', {
+        Logger.warn('[payments][webhook] amount 불일치 - 검증 스킵', {
             webhookAmount,
             verifiedAmount,
             paymentKey: paymentKey.substring(0, 10) + '...'
@@ -1463,13 +1471,13 @@ async function handlePaymentStatusChange(connection, data) {
         return;
     }
 
-    // ??????????????? ??? ?? (??? payload? ??? ??? ??? ??? ???)
+    // 토스 상태를 우리 paymentStatus로 매핑 (웹훅 payload 단독 신뢰 금지)
     
-    // ???????? ????????? ??????? (??????? ???)
+    // paymentStatus: payments 테이블 status (captured, cancelled, failed 등)
     let paymentStatus;
-    // ??? orderStatus ??????: orders.status???? ????? ??
+    // orderStatus 참고: orders.status는 집계 결과만 갱신
     
-    // ???????? ???: DONE, CANCELED, PARTIAL_CANCELED, ABORTED, EXPIRED
+    // 토스 상태값: DONE, CANCELED, PARTIAL_CANCELED, ABORTED, EXPIRED
     const statusUpper = String(status || '').toUpperCase();
     
     if (statusUpper === 'DONE' || statusUpper === 'COMPLETED' || statusUpper === 'CONFIRMED') {
@@ -1479,17 +1487,17 @@ async function handlePaymentStatusChange(connection, data) {
     } else if (statusUpper === 'ABORTED' || statusUpper === 'EXPIRED' || statusUpper === 'FAILED') {
         paymentStatus = 'failed';
     } else {
-        Logger.log('[payments][webhook] ??????? ?? ??? (???????)', { 
+        Logger.log('[payments][webhook] 알 수 없는 상태값 무시 (로깅)', { 
             status,
             statusUpper,
             paymentKey: paymentKey.substring(0, 10) + '...',
             orderId: verifiedOrderId
         });
-        // ??????? ???????????????????? ???
+        // 알 수 없는 상태는 payments 업데이트 스킵
         return;
     }
 
-    // ??????: ???? ????paymentKey???? ???
+    // 참고: 이미 존재하는 paymentKey로 기존 행 조회
     const [existingPayments] = await connection.execute(
         `SELECT status, updated_at FROM payments WHERE payment_key = ?`,
         [paymentKey]
@@ -1497,9 +1505,9 @@ async function handlePaymentStatusChange(connection, data) {
 
     if (existingPayments.length > 0) {
         const existingStatus = existingPayments[0].status;
-        // ???? ??? ????????????? ?????
+        // 이미 동일 상태면 업데이트 스킵 (멱등)
         if (existingStatus === paymentStatus) {
-            Logger.log('[payments][webhook] ???? ?????? (????', {
+            Logger.log('[payments][webhook] 이미 동일 상태 (멱등)', {
                 paymentKey: paymentKey.substring(0, 10) + '...',
                 status: paymentStatus,
                 orderId: verifiedOrderId
@@ -1509,7 +1517,7 @@ async function handlePaymentStatusChange(connection, data) {
     }
 
     try {
-        // payments ???????????
+        // payments 테이블 상태 갱신
         const [paymentRows] = await connection.execute(
             `UPDATE payments 
              SET status = ?, updated_at = NOW() 
@@ -1518,22 +1526,22 @@ async function handlePaymentStatusChange(connection, data) {
         );
 
         if (paymentRows.affectedRows === 0) {
-            Logger.log('[payments][webhook] payments ????? ??? payment_key ???', { paymentKey });
+            Logger.log('[payments][webhook] payments 업데이트 없음 (payment_key 없음)', { paymentKey });
         } else {
-            Logger.log('??[payments][webhook] payments ??????????? ???', {
+            Logger.log('[payments][webhook] payments 상태 갱신 완료', {
                 paymentKey,
                 status: paymentStatus,
                 affectedRows: paymentRows.affectedRows
             });
         }
 
-        // orders ??????????? (?????????orderId ???)
-        // ??? ??: orders.status???? ????? ?? (?? ?????? ???)
+        // orders 집계 갱신 (order_number는 orderId와 동일)
+        // 참고: orders.status는 집계 함수로만 갱신 (SSOT는 order_item_units)
         const finalOrderId = verifiedOrderId || orderId;
         let orderIdForPaidProcess = null;
         
         if (finalOrderId) {
-            // order_number??order_id ??
+            // order_number로 order_id 조회
             const [orderRows] = await connection.execute(
                 `SELECT order_id FROM orders WHERE order_number = ?`,
                 [finalOrderId]
@@ -1542,16 +1550,16 @@ async function handlePaymentStatusChange(connection, data) {
             if (orderRows.length > 0) {
                 orderIdForPaidProcess = orderRows[0].order_id;
                 
-                // ?????????: ?? ??? ???
+                // 집계만: 상태 재계산
                 await updateOrderStatus(connection, orderIdForPaidProcess);
                 
-                Logger.log('??[payments][webhook] orders.status ?? ???', {
+                Logger.log('[payments][webhook] orders.status 집계 갱신', {
                     orderId: finalOrderId,
                     order_id: orderIdForPaidProcess
                 });
             }
         } else {
-            // orderId? ?????payment_key??orders ??
+            // orderId 없으면 payment_key로 orders 조회
             const [orderRows] = await connection.execute(
                 `SELECT o.order_id, o.order_number
                  FROM orders o
@@ -1564,10 +1572,10 @@ async function handlePaymentStatusChange(connection, data) {
                 orderIdForPaidProcess = orderRows[0].order_id;
                 const orderNumber = orderRows[0].order_number;
                 
-                // ?????????: ?? ??? ???
+                // 집계만: 상태 재계산
                 await updateOrderStatus(connection, orderIdForPaidProcess);
                 
-                Logger.log('[payments][webhook] orders.status ?? ??? (payment_key????)', {
+                Logger.log('[payments][webhook] orders.status 집계 갱신 (payment_key 기준)', {
                     paymentKey: paymentKey.substring(0, 10) + '...',
                     order_number: orderNumber,
                     order_id: orderIdForPaidProcess
@@ -1575,12 +1583,12 @@ async function handlePaymentStatusChange(connection, data) {
             }
         }
 
-        // Paid ?? (?? ??? ?????
-        // ??: paid_events???? ????autocommit)??? ??? ??? (?? ?? ??)
+        // Paid 이벤트 생성 (captured 시에만)
+        // 참고: paid_events insert는 autocommit으로 별도 (문서 16.5)
         let paidResultForEmail = null;
         if (paymentStatus === 'captured' && orderIdForPaidProcess) {
             try {
-                // paid_events ??? (?? ???? autocommit - ???? ????)
+                // paid_events 생성 (별도 autocommit - 결제 증거 보존)
                 const paidEventResult = await createPaidEvent({
                     orderId: orderIdForPaidProcess,
                     paymentKey: paymentKey,
@@ -1593,15 +1601,15 @@ async function handlePaymentStatusChange(connection, data) {
                 const paidEventId = paidEventResult.eventId;
 
                 if (paidEventResult.alreadyExists) {
-                    Logger.log('[payments][webhook] ???? ????? paid_events (????????', {
+                    Logger.log('[payments][webhook] 이미 존재 paid_events (멱등)', {
                         order_id: orderIdForPaidProcess,
                         order_number: finalOrderId,
                         paidEventId
                     });
                 }
 
-                // ?? ?? ??????? (?? connection ???)
-                // ??? ??: orders.status???? ????? ?? (?? ?????? ???)
+                // processPaidOrder 호출 (동일 connection 사용)
+                // 참고: orders.status는 집계 함수로만 갱신 (SSOT는 order_item_units)
                 const paidResult = await processPaidOrder({
                     connection,
                     paidEventId: paidEventId,
@@ -1613,13 +1621,14 @@ async function handlePaymentStatusChange(connection, data) {
                     rawPayload: verifiedPayment
                 });
                 
-                // ???????????? ??? ????                paidResultForEmail = paidResult;
+                // 이메일 발송용 반환값 보관
+                paidResultForEmail = paidResult;
                 
-                // orders.status ?? ??? ??? (processPaidOrder ??
-                // ??? ??: orders.status??order_item_units.unit_status?? paid_events ????? ??
+                // orders.status 집계만 재계산 (processPaidOrder 완료 후)
+                // 참고: orders.status는 order_item_units.unit_status와 paid_events 기반 집계
                 await updateOrderStatus(connection, orderIdForPaidProcess);
                 
-                Logger.log('[payments][webhook] Paid ?? ???', {
+                Logger.log('[payments][webhook] Paid 처리 완료', {
                     order_id: orderIdForPaidProcess,
                     order_number: finalOrderId,
                     paidEventId,
@@ -1629,8 +1638,8 @@ async function handlePaymentStatusChange(connection, data) {
                     invoiceNumber: paidResult.data.invoiceNumber
                 });
             } catch (err) {
-                // ??? ??: processPaidOrder() ??? ????????? ?? (??? ?? ???)
-                Logger.error('[payments][webhook] Paid ?? ??? - ??????? ?? ???', {
+                // 참고: processPaidOrder() 실패 시 rollback (paid_events는 별도 커넥션으로 유지)
+                Logger.error('[payments][webhook] Paid 처리 실패 - processPaidOrder 예외', {
                     order_id: orderIdForPaidProcess,
                     order_number: finalOrderId,
                     error: err.message,
@@ -1647,17 +1656,16 @@ async function handlePaymentStatusChange(connection, data) {
                     error: err
                 });
 
-                // ??? ??????? ?? (processPaidOrder() ???? ??? ?? ??)
-                // paid_events???? ????autocommit)??? ?????? ????????????
+                // 참고: 트랜잭션 rollback (processPaidOrder() 내부 작업만 취소)
+                // paid_events는 별도(autocommit)로 이미 커밋되어 유지
                 await connection.rollback();
 
-                // ??? ???????? ????? ??? ??????                // ????? ??? ??????????, ?? ??????? ????????
-                // ?????????????(paid_events??????
+                // paid_events는 유지되므로 리콘 등 다른 경로에서 처리 가능
             }
         }
 
     } catch (error) {
-        Logger.log('[payments][webhook] ?? ??? ????? ???', {
+        Logger.log('[payments][webhook] handlePaymentStatusChange 예외', {
             error: error.message,
             paymentKey: paymentKey ? paymentKey.substring(0, 10) + '...' : 'unknown',
             orderId: verifiedOrderId || orderId
@@ -1665,8 +1673,8 @@ async function handlePaymentStatusChange(connection, data) {
         throw error;
     }
     
-    // Paid ?? ??? ?????????????? ??? ??
-    // (?????? ????commit ?????????)
+    // Paid 처리 성공 시 이메일 발송 여부 반환
+    // (handlePaymentStatusChange 호출부에서 commit 후 이메일 발송)
     if (paymentStatus === 'captured' && orderIdForPaidProcess && paidResultForEmail?.data?.orderInfo) {
         return {
             shouldSendEmail: true,
@@ -1681,38 +1689,40 @@ async function handlePaymentStatusChange(connection, data) {
 }
 
 /**
- * ??? ????? ??? ?? ??
- * 
- * @param {Object} connection - MySQL ???
- * @param {Object} data - ??? ????? */
+ * 입금 콜백 처리 (미구현)
+ *
+ * @param {Object} connection - MySQL 커넥션
+ * @param {Object} data - 웹훅 payload
+ */
 async function handleDepositCallback(connection, data) {
-    // ??? ???? ???????
-    Logger.log('[payments][webhook] ??? ?? ???', { data });
+    // 입금 알림만 로깅
+    Logger.log('[payments][webhook] 입금 콜백 수신', { data });
 }
 
 /**
  * POST /api/payments/webhook
- * 
- * ???????? ??? ??? ???????? * 
- * ??? ??: ??????????
- * - ???????? ????? HMAC ???????????? ??????.
- * - ??? payload?????????????? ???, ??? API????????????????.
- * - handlePaymentStatusChange ??????? verifyPaymentWithToss() ???
- * - ???????? ??? ?????????????? ?? ??
- * 
- * ??: ??? ??? ??
+ *
+ * 토스 페이먼츠 웹훅 수신.
+ * 참고: 토스 문서
+ * - 토스에서 전달하는 서명을 WEBHOOK_SHARED_SECRET으로 HMAC 검증 (미구현 시 로깅만).
+ * - 웹훅 payload만으로 승인 반영 금지, 조회 API(verifyPaymentWithToss)로 검증.
+ * - handlePaymentStatusChange 내부에서 verifyPaymentWithToss() 호출.
+ * - 검증 통과 시 payments & orders 동기화 후 이메일 발송 여부 반환.
+ *
+ * 참고: 토스 웹훅 문서
  * https://docs.tosspayments.com/guides/v2/webhook/overview
  */
 router.post('/payments/webhook', async (req, res) => {
     try {
-        // ??? ??: ??? ????? ????????????????? ??????        // ??????????????(handlePaymentStatusChange ??????? ???)
-        // WEBHOOK_SHARED_SECRET?? ???? ???????? ??? (??? ?????? ????
+        // 참고: 실제 환경에서는 WEBHOOK_SHARED_SECRET으로 서명 검증 후 처리
+        // (handlePaymentStatusChange 내부에서 verifyPaymentWithToss로 검증)
+        // WEBHOOK_SHARED_SECRET 미설정 시 서명 검증 스킵 (문서 참고)
         
-        Logger.log('??[payments][webhook] ??? ??? - ???????????? ???');
+        Logger.log('[payments][webhook] 웹훅 수신 - 이벤트 분기 처리');
 
         const { eventType, data } = req.body;
 
-        Logger.log('??[payments][webhook] ??? ??? (??? ??????)', {
+        Logger.log('[payments][webhook] 웹훅 수신 (이벤트 타입)', {
             eventType,
             data: data ? {
                 orderId: data.orderId,
@@ -1721,14 +1731,14 @@ router.post('/payments/webhook', async (req, res) => {
             } : null
         });
 
-        // ??? ?????? ??? payments & orders ?????(??? ??????)
+        // 트랜잭션으로 payments & orders 동기화 (상태 업데이트)
         let connection;
         try {
             connection = await mysql.createConnection(dbConfig);
             await connection.beginTransaction();
 
-            // ?????????? ??? ??
-            // ???????? ????: seller.changed = ?? ??? ????????            let emailInfo = null;
+            // 웹훅 이벤트별 분기 (seller.changed = 토스 구 이벤트명). 이메일 발송 정보는 handlePaymentStatusChange 반환값으로 채움.
+            let emailInfo = null;
             if (eventType === 'PAYMENT_STATUS_CHANGED' || 
                 eventType === 'CANCEL_STATUS_CHANGED' || 
                 eventType === 'seller.changed') {
@@ -1736,10 +1746,10 @@ router.post('/payments/webhook', async (req, res) => {
             } else if (eventType === 'DEPOSIT_CALLBACK') {
                 await handleDepositCallback(connection, data);
             } else if (eventType === 'payout.changed') {
-                // ????????? ???(???????)
-                Logger.log('[payments][webhook] ????????? ??????', { data });
+                // 정산 관련 이벤트(미처리)
+                Logger.log('[payments][webhook] payout.changed 수신', { data });
             } else {
-                Logger.log('[payments][webhook] ??????? ?????????(??????)', { 
+                Logger.log('[payments][webhook] 미지원 이벤트 타입 (무시)', { 
                     eventType,
                     hasData: !!data
                 });
@@ -1747,14 +1757,14 @@ router.post('/payments/webhook', async (req, res) => {
 
             await connection.commit();
             await connection.end();
-            Logger.log('??[payments][webhook] ??? ?? ???', { eventType });
+            Logger.log('[payments][webhook] 웹훅 처리 완료', { eventType });
 
             // ============================================================
-            // ?? ??? ??????? (??????? ????)
+            // 주문 확인 이메일 발송 (captured 시에만)
             // ============================================================
             if (emailInfo && emailInfo.shouldSendEmail) {
                 try {
-                    // ?? ???? ??? ?? (?? ????
+                    // 이메일용 별도 커넥션 (트랜잭션 외)
                     let emailConnection = null;
                     try {
                         emailConnection = await mysql.createConnection(dbConfig);
@@ -1772,7 +1782,7 @@ router.post('/payments/webhook', async (req, res) => {
                             [emailInfo.orderId]
                         );
 
-                        // ?? ??? ??
+                        // 수취인 정보
                         const [orderDetails] = await emailConnection.execute(
                             `SELECT 
                                 o.shipping_name,
@@ -1783,33 +1793,33 @@ router.post('/payments/webhook', async (req, res) => {
                             [emailInfo.orderId]
                         );
 
-                        // ????????????
+                        // 수취 이메일
                         const recipientEmail = emailInfo.orderInfo.user_email || emailInfo.orderInfo.shipping_email;
                         
-                        // ?? ??? ??
+                        // 고객명
                         const customerName = orderDetails.length > 0 
                             ? (orderDetails[0].user_name || orderDetails[0].shipping_name || null)
                             : null;
                         
                         if (!recipientEmail) {
-                            Logger.warn('[payments][webhook] ??????? ???? (?????????????)', {
+                            Logger.warn('[payments][webhook] 수취 이메일 없음 (이메일 미발송)', {
                                 order_id: emailInfo.orderId,
                                 order_number: emailInfo.orderInfo.order_number
                             });
                         } else {
-                            // ?? ?? ???
+                            // 주문 링크 생성
                             let orderLink;
                             if (emailInfo.orderInfo.guest_access_token) {
-                                // ??????: ??? ??? ?? ??
+                                // 비회원: 토큰 기반 주문 조회
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
                                 orderLink = `${baseUrl}/guest-order-access.html?token=${emailInfo.orderInfo.guest_access_token}`;
                             } else {
-                                // ??? ??: ??? ?? ??? (????? ??? ???)
+                                // 회원: 내 주문 목록 (동일 URL)
                                 const baseUrl = process.env.FRONTEND_URL || (req.get('x-forwarded-proto') === 'https' ? 'https://' : 'http://') + req.get('host');
                                 orderLink = `${baseUrl}/guest/orders.html?order=${encodeURIComponent(emailInfo.orderInfo.order_number)}`;
                             }
 
-                            // ??????? (???? ?????? ?? ????? ????)
+                            // 주문 확인 이메일 발송 (성공 시 로그, 실패 시 경고)
                             const emailResult = await sendOrderConfirmationEmail(recipientEmail, {
                                 orderNumber: emailInfo.orderInfo.order_number,
                                 orderDate: emailInfo.orderInfo.order_date,
@@ -1821,13 +1831,13 @@ router.post('/payments/webhook', async (req, res) => {
                             });
 
                             if (emailResult.success) {
-                                Logger.log('[payments][webhook] ?? ??? ??????? ???', {
+                                Logger.log('[payments][webhook] 주문 확인 이메일 발송 완료', {
                                     order_id: emailInfo.orderId,
                                     order_number: emailInfo.orderInfo.order_number,
                                     recipient: recipientEmail
                                 });
                             } else {
-                                Logger.warn('[payments][webhook] ?? ??? ??????? ??? (???? ???)', {
+                                Logger.warn('[payments][webhook] 주문 확인 이메일 발송 실패 (무시)', {
                                     order_id: emailInfo.orderId,
                                     order_number: emailInfo.orderInfo.order_number,
                                     recipient: recipientEmail,
@@ -1835,14 +1845,14 @@ router.post('/payments/webhook', async (req, res) => {
                                 });
                             }
 
-                            // ??????? ?? ??? 1??? (?????? ?? ????????)
+                            // 이메일은 주문 확인 1통만
                         }
                     } finally {
                         if (emailConnection) await emailConnection.end();
                     }
                 } catch (emailError) {
-                    // ??????? ?????????(?? ????? ????)
-                    Logger.error('[payments][webhook] ?? ??? ??????? ????? (???? ???)', {
+                    // 이메일 발송 실패는 로깅만 (웹훅 200 유지)
+                    Logger.error('[payments][webhook] 주문 확인 이메일 발송 실패 (무시)', {
                         order_id: emailInfo?.orderId,
                         order_number: emailInfo?.orderInfo?.order_number,
                         orderId: emailInfo?.orderId,
@@ -1857,21 +1867,21 @@ router.post('/payments/webhook', async (req, res) => {
                 await connection.rollback();
                 await connection.end();
             }
-            Logger.log('[payments][webhook] ??? ?? ?????', {
+            Logger.log('[payments][webhook] 웹훅 처리 예외', {
                 error: webhookError.message,
                 stack: webhookError.stack
             });
-            // ??? ??????????????200 ?? (???????? ????????)
+            // 토스 재전송 방지를 위해 200 반환 (문서 권장)
         }
 
-        // ????? ???? 200 OK ?? (???????? ????????)
+        // 항상 200 OK 반환 (토스 재전송 방지)
         res.status(200).json({ received: true });
 
     } catch (error) {
-        Logger.log('[payments][webhook] ??? ?? ???', {
+        Logger.log('[payments][webhook] 웹훅 최상위 예외', {
             error: error.message
         });
-        // ??? ?????200 ?? (???????? ????????)
+        // 토스 재전송 방지를 위해 200 반환 (문서 권장)
         res.status(200).json({ received: true, error: 'Internal error' });
     }
 });
