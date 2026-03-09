@@ -35,11 +35,18 @@ const { processPaidOrder } = require('./utils/paid-order-processor');
 const { createPaidEvent, updateProcessingStatus } = require('./utils/paid-event-creator');
 const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
 const { updateOrderStatus } = require('./utils/order-status-aggregator');
-const { withPaymentAttempt } = require('./utils/payment-wrapper');
+const { withPaymentAttempt, getSafeConnection } = require('./utils/payment-wrapper');
 const { pool } = require('./db');
 const https = require('https');
 const http = require('http');
 require('dotenv').config();
+
+const CONFIRM_CONN_TIMEOUT_MS = 5000;
+
+async function getConfirmConnection(timeoutMs = CONFIRM_CONN_TIMEOUT_MS) {
+    const controller = new AbortController();
+    return getSafeConnection(controller.signal, timeoutMs);
+}
 
 /**
  * processPaidOrder 실패 시 웹훅 알림 (Phase 3, 14.7·16.5)
@@ -159,7 +166,21 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             });
         }
 
-        connection = await pool.getConnection();
+        try {
+            connection = await getConfirmConnection();
+        } catch (connErr) {
+            const message = connErr && connErr.message ? connErr.message : 'CONN_ERROR';
+            if (message === 'CONN_TIMEOUT' || message === 'CLIENT_ABORTED') {
+                return res.status(503).json({
+                    success: false,
+                    code: 'SERVICE_UNAVAILABLE',
+                    details: {
+                        message: '결제 서버가 혼잡합니다. 잠시 후 다시 시도해주세요.'
+                    }
+                });
+            }
+            throw connErr;
+        }
         await connection.beginTransaction();
 
         // 1. 주문 조회 (회원: user_id 일치, 비회원: user_id IS NULL)
@@ -421,7 +442,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
 
                 let retryConn = null;
                 try {
-                    retryConn = await pool.getConnection();
+                    retryConn = await getConfirmConnection();
                     await retryConn.beginTransaction();
                     Logger.log('[payments][confirm] §C failed 재시도 진입', { orderId: order.order_id, eventId: failedRow.event_id });
 
@@ -446,7 +467,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                     if (userId) {
                         let cartConn = null;
                         try {
-                            cartConn = await pool.getConnection();
+                            cartConn = await getConfirmConnection();
                             await cartConn.execute(
                                 `DELETE ci FROM cart_items ci INNER JOIN carts c ON ci.cart_id = c.cart_id WHERE c.user_id = ?`,
                                 [userId]
@@ -658,7 +679,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             if (userId) {
                 let cartConn = null;
                 try {
-                    cartConn = await pool.getConnection();
+                    cartConn = await getConfirmConnection();
                     await cartConn.execute(
                         `DELETE ci FROM cart_items ci INNER JOIN carts c ON ci.cart_id = c.cart_id WHERE c.user_id = ?`,
                         [userId]
@@ -703,9 +724,9 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                         let orderItems = orderInfo.items;
                         let customerName = orderInfo.customerName;
                         if (!Array.isArray(orderItems) || orderItems.length === 0) {
-                            let emailConnection = null;
-                            try {
-                                emailConnection = await pool.getConnection();
+                        let emailConnection = null;
+                        try {
+                            emailConnection = await getConfirmConnection();
                                 const [itemsRows] = await emailConnection.execute(
                                     `SELECT product_name, size, color, quantity, unit_price, subtotal FROM order_items WHERE order_id = ? ORDER BY order_item_id`,
                                     [orderInfo.order_id]

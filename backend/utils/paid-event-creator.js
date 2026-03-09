@@ -22,6 +22,29 @@ require('dotenv').config();
 /** raw_payload_json 최대 길이 (바이트). MySQL/네트워크 부하·악용 방지 */
 const RAW_PAYLOAD_MAX_LENGTH = 65535;
 
+async function getEventCreatorConnection(timeoutMs) {
+    const connectionPromise = pool.getConnection();
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            clearTimeout(timer);
+            connectionPromise
+                .then((conn) => conn.release())
+                .catch(() => {});
+            reject(new Error('CONN_TIMEOUT'));
+        }, timeoutMs);
+
+        connectionPromise
+            .then((conn) => {
+                clearTimeout(timer);
+                resolve(conn);
+            })
+            .catch((err) => {
+                clearTimeout(timer);
+                reject(err);
+            });
+    });
+}
+
 /**
  * paid_events 생성 (별도 커넥션, autocommit)
  *
@@ -54,8 +77,8 @@ async function createPaidEvent({
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         let connection;
         try {
-            // [풀 누수 방지] Promise.race 제거. queueLimit으로 풀 고갈 시 즉시 에러 (문서 §1)
-            connection = await pool.getConnection();
+            // [풀 누수 방지] queueLimit + 타임아웃으로 풀 고갈 시 빠르게 실패 (문서 §1)
+            connection = await getEventCreatorConnection(3000);
             connection.config.autocommit = true;
 
             Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 시도', {
@@ -196,7 +219,7 @@ async function createPaidEvent({
 async function updateProcessingStatus(eventId, status, lastError = null) {
     let connection = null;
     try {
-        connection = await pool.getConnection();
+        connection = await getEventCreatorConnection(2000);
         connection.config.autocommit = true;
 
         await connection.execute(
@@ -239,7 +262,7 @@ async function updateProcessingStatus(eventId, status, lastError = null) {
 async function recordStockIssue(eventId, orderId, productId, requiredQty, availableQty) {
     let connection = null;
     try {
-        connection = await pool.getConnection();
+        connection = await getEventCreatorConnection(2000);
         connection.config.autocommit = true;
 
         await connection.execute(
