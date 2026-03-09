@@ -181,6 +181,8 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             }
             throw connErr;
         }
+        // 웹훅과 동시 요청 시 50초 대기 방지 — 락 대기 10초 후 실패·재시도 유도
+        await connection.execute('SET SESSION innodb_lock_wait_timeout = 10').catch(() => {});
         await connection.beginTransaction();
 
         // 1. 주문 조회 (회원: user_id 일치, 비회원: user_id IS NULL)
@@ -816,6 +818,14 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                         retry_after_seconds: 3,
                         recon_recommended: true
                     }
+                });
+            }
+            // DB 락 대기 타임아웃(웹훅·confirm 동시 요청 등) → 503 재시도 유도
+            if (wrapperError.code === 'ER_LOCK_WAIT_TIMEOUT') {
+                return res.status(503).json({
+                    success: false,
+                    code: 'SERVICE_UNAVAILABLE',
+                    details: { message: '결제 서버가 혼잡합니다. 잠시 후 다시 시도해주세요.' }
                 });
             }
             const status = wrapperError.status || 500;
@@ -1732,6 +1742,9 @@ async function handlePaymentStatusChange(connection, data) {
         }
     }
 
+    // 함수 전체에서 사용 (return 시 참조) — try 밖에서 선언 필수
+    let orderIdForPaidProcess = null;
+
     try {
         // payments 테이블 상태 갱신
         const [paymentRows] = await connection.execute(
@@ -1754,7 +1767,6 @@ async function handlePaymentStatusChange(connection, data) {
         // orders 집계 갱신 (order_number는 orderId와 동일)
         // 참고: orders.status는 집계 함수로만 갱신 (SSOT는 order_item_units)
         const finalOrderId = verifiedOrderId || orderId;
-        let orderIdForPaidProcess = null;
         
         if (finalOrderId) {
             // order_number로 order_id 조회
@@ -1951,6 +1963,8 @@ router.post('/payments/webhook', async (req, res) => {
         let connection;
         try {
             connection = await mysql.createConnection(dbConfig);
+            // confirm과 동시 요청 시 50초 대기 방지 — 락 대기 10초 후 실패·재시도 유도
+            await connection.execute('SET SESSION innodb_lock_wait_timeout = 10').catch(() => {});
             await connection.beginTransaction();
 
             // 웹훅 이벤트별 분기 (seller.changed = 토스 구 이벤트명). 이메일 발송 정보는 handlePaymentStatusChange 반환값으로 채움.
