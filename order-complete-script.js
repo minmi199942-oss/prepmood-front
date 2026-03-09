@@ -520,12 +520,19 @@ function getStatusText(status) {
  * 토스페이먼츠 결제 성공 처리
  * successUrl에서 paymentKey, orderId, amount를 받아 서버에 결제 확인 요청
  */
-async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
+/**
+ * @param {string} paymentKey
+ * @param {string} orderId
+ * @param {number|string} amount
+ * @param {{ retried?: boolean }} [options] - retried: true면 409 시 재시도하지 않음 (1회만 재시도)
+ */
+async function handleTossPaymentSuccess(paymentKey, orderId, amount, options) {
+  const retried = options?.retried === true;
   try {
     // 로딩 상태 표시
     showPaymentProcessing();
     
-    // 서버에 결제 확인 요청 (타임아웃 60초로 증가 - processPaidOrder가 오래 걸릴 수 있음)
+    // 서버에 결제 확인 요청 (타임아웃 120초 - 서버·네트워크 지연 대비)
     const checkoutSessionKey = sessionStorage.getItem('checkoutSessionKey_' + orderId);
     const response = await window.secureFetch(`${API_BASE}/payments/confirm`, {
       method: 'POST',
@@ -533,7 +540,7 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
         'Content-Type': 'application/json'
       },
       credentials: 'include',
-      timeoutMs: 60000, // 60초로 증가 (기본값: 15초)
+      timeoutMs: 120000, // 120초 (utils.js에서도 confirm 전용 최소 120초 적용)
       body: JSON.stringify({
         orderNumber: orderId,
         paymentKey: paymentKey,
@@ -544,6 +551,12 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount) {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      // 409 ORDER_PROCESSING_INCOMPLETE: 처리 미완료 상태 → 서버 권장 시 1회만 재시도 (Gemini 409 가이드)
+      if (!retried && response.status === 409 && errorData.code === 'ORDER_PROCESSING_INCOMPLETE' && errorData.details?.retry_once_recommended) {
+        const delayMs = (errorData.details.retry_after_seconds || 3) * 1000;
+        await new Promise(function (r) { setTimeout(r, delayMs); });
+        return handleTossPaymentSuccess(paymentKey, orderId, amount, { retried: true });
+      }
       // 재고 부족 시 전용 메시지 + 장바구니로 유도 (7번 UX)
       if (errorData.code === 'INSUFFICIENT_STOCK') {
         const orderInfoSection = document.getElementById('order-info-section');

@@ -69,20 +69,34 @@ process.on('SIGINT', () => {
 
 // ---------------------------------------------------------
 // [가용성] AbortSignal과 Race하는 안전한 커넥션 획득 (§10.14)
+// [풀 누수 방지] 타임아웃/abort 시 나중에 도착한 커넥션 즉시 release (PAID_EVENT_CREATOR_SENIOR_FIX_VERIFICATION.md §5, §8.4)
 // ---------------------------------------------------------
+function releaseOrphanConnection(connectionPromise) {
+    connectionPromise.then((conn) => conn.release()).catch(() => {});
+}
+
 async function getSafeConnection(signal, timeoutMs) {
+    const connectionPromise = pool.getConnection();
+
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('CONN_TIMEOUT')), timeoutMs);
+        const timer = setTimeout(() => {
+            clearTimeout(timer);
+            if (signal) signal.removeEventListener('abort', abortHandler);
+            releaseOrphanConnection(connectionPromise);
+            reject(new Error('CONN_TIMEOUT'));
+        }, timeoutMs);
 
         const abortHandler = () => {
             clearTimeout(timer);
+            if (signal) signal.removeEventListener('abort', abortHandler);
+            releaseOrphanConnection(connectionPromise);
             reject(new Error(signal && signal.reason ? signal.reason : 'CLIENT_ABORTED'));
         };
 
         if (signal && signal.aborted) return abortHandler();
         if (signal) signal.addEventListener('abort', abortHandler);
 
-        pool.getConnection()
+        connectionPromise
             .then((conn) => {
                 clearTimeout(timer);
                 if (signal) signal.removeEventListener('abort', abortHandler);
@@ -313,7 +327,7 @@ async function withPaymentAttempt({
 
         if (!isLocalSuccess && !statusHandled && attemptId) {
             const fallbackStatus =
-                error.message === 'WATCHDOG_TIMEOUT' || error.message === 'CONN_TIMEOUT'
+                (error.message === 'WATCHDOG_TIMEOUT' || error.message === 'CONN_TIMEOUT' || error.message === 'TOSS_FETCH_TIMEOUT')
                     ? 'TIMEOUT_WAITING'
                     : 'ABORTED_CHECK_REQUIRED';
             try {

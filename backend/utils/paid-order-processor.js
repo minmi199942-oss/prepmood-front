@@ -89,6 +89,84 @@ async function processPaidOrder({
     
     try {
         // ============================================================
+        // 0. 멱등성: 이미 처리 완료된 event면 동일 data 스키마로 Early Return (§4.2, CONFIRM_FLOW_SENIOR_REVIEW_AND_GEMINI_FEEDBACK)
+        // 동일 connection으로 SELECT하므로 단일 DB 기준 최신성 보장 (Replica 사용 시에는 읽기 커넥션 일관성 정책에 따름)
+        // ============================================================
+        const [pepRows] = await connection.execute(
+            'SELECT status FROM paid_event_processing WHERE event_id = ?',
+            [paidEventId]
+        );
+        if (pepRows.length > 0 && pepRows[0].status === 'success') {
+            Logger.log('[PAID_PROCESSOR] 이미 처리됨 - Early Return', { orderId, paidEventId });
+            // 기존 성공 시와 동일한 data 구조로 반환 (confirm/이니시스/웹훅 응답 호환)
+            const [orderRowsRead] = await connection.execute(
+                `SELECT o.order_id, o.order_number, o.total_price, o.shipping_email, o.shipping_name, o.created_at, o.user_id, o.guest_id,
+                        u.email AS user_email, u.name AS user_name
+                 FROM orders o LEFT JOIN users u ON o.user_id = u.user_id WHERE o.order_id = ?`,
+                [orderId]
+            );
+            if (orderRowsRead.length === 0) {
+                throw new Error(`주문을 찾을 수 없습니다: order_id=${orderId}`);
+            }
+            const orderRead = orderRowsRead[0];
+            const [orderItemsRead] = await connection.execute(
+                `SELECT order_item_id, product_id, product_name, size, color, quantity, unit_price, subtotal
+                 FROM order_items WHERE order_id = ? ORDER BY order_item_id`,
+                [orderId]
+            );
+            let guestAccessToken = null;
+            const [tokenRows] = await connection.execute(
+                `SELECT token FROM guest_order_access_tokens got
+                 WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')} ORDER BY got.created_at DESC LIMIT 1`,
+                [orderId]
+            );
+            if (tokenRows.length > 0) guestAccessToken = tokenRows[0].token;
+            let invoiceId = null;
+            let invoiceNumber = null;
+            const [invRows] = await connection.execute(
+                'SELECT id, invoice_number FROM invoices WHERE order_id = ? ORDER BY created_at DESC LIMIT 1',
+                [orderId]
+            );
+            if (invRows.length > 0) {
+                invoiceId = invRows[0].id;
+                invoiceNumber = invRows[0].invoice_number;
+            }
+            return {
+                success: true,
+                alreadyProcessed: true,
+                message: '이미 처리됨',
+                data: {
+                    paidEventId,
+                    stockUnitsReserved: 0,
+                    orderItemUnitsCreated: 0,
+                    warrantiesCreated: 0,
+                    invoiceId,
+                    invoiceNumber,
+                    orderInfo: {
+                        order_id: orderId,
+                        order_number: orderRead.order_number,
+                        order_date: orderRead.created_at,
+                        total_amount: orderRead.total_price,
+                        user_email: orderRead.user_email,
+                        shipping_email: orderRead.shipping_email,
+                        user_id: orderRead.user_id,
+                        guest_id: orderRead.guest_id,
+                        guest_access_token: guestAccessToken,
+                        customerName: orderRead.user_name || orderRead.shipping_name || null,
+                        items: orderItemsRead.map(row => ({
+                            product_name: row.product_name,
+                            size: row.size,
+                            color: row.color,
+                            quantity: row.quantity,
+                            unit_price: row.unit_price,
+                            subtotal: row.subtotal
+                        }))
+                    }
+                }
+            };
+        }
+
+        // ============================================================
         // 1. 주문 잠금 및 금액 검증 (락 순서: orders)
         // ============================================================
         Logger.log('[PAID_PROCESSOR] 주문 잠금 및 검증 시작', {
@@ -167,6 +245,70 @@ async function processPaidOrder({
 
         if (!paidEventId) {
             throw new Error('paidEventId가 필요합니다. paid_events가 먼저 생성되어야 합니다.');
+        }
+
+        // Double-Check: 락 획득 후 동시 요청이 먼저 success로 바꿨을 수 있음 → 이중 처리 방지 (CONFIRM_FLOW §Gemini 레이스)
+        const [pepRows2] = await connection.execute(
+            'SELECT status FROM paid_event_processing WHERE event_id = ?',
+            [paidEventId]
+        );
+        if (pepRows2.length > 0 && pepRows2[0].status === 'success') {
+            Logger.log('[PAID_PROCESSOR] 이미 처리됨 - Double-Check (락 획득 후)', { orderId, paidEventId });
+            const [orderItemsRead] = await connection.execute(
+                `SELECT order_item_id, product_id, product_name, size, color, quantity, unit_price, subtotal
+                 FROM order_items WHERE order_id = ? ORDER BY order_item_id`,
+                [orderId]
+            );
+            let guestAccessToken = null;
+            const [tokenRows2] = await connection.execute(
+                `SELECT token FROM guest_order_access_tokens got
+                 WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')} ORDER BY got.created_at DESC LIMIT 1`,
+                [orderId]
+            );
+            if (tokenRows2.length > 0) guestAccessToken = tokenRows2[0].token;
+            let invoiceId = null;
+            let invoiceNumber = null;
+            const [invRows2] = await connection.execute(
+                'SELECT id, invoice_number FROM invoices WHERE order_id = ? ORDER BY created_at DESC LIMIT 1',
+                [orderId]
+            );
+            if (invRows2.length > 0) {
+                invoiceId = invRows2[0].id;
+                invoiceNumber = invRows2[0].invoice_number;
+            }
+            return {
+                success: true,
+                alreadyProcessed: true,
+                message: '이미 처리됨',
+                data: {
+                    paidEventId,
+                    stockUnitsReserved: 0,
+                    orderItemUnitsCreated: 0,
+                    warrantiesCreated: 0,
+                    invoiceId,
+                    invoiceNumber,
+                    orderInfo: {
+                        order_id: orderId,
+                        order_number: order.order_number,
+                        order_date: order.created_at,
+                        total_amount: order.total_price,
+                        user_email: order.user_email,
+                        shipping_email: order.shipping_email,
+                        user_id: order.user_id,
+                        guest_id: order.guest_id,
+                        guest_access_token: guestAccessToken,
+                        customerName: order.user_name || order.shipping_name || null,
+                        items: orderItemsRead.map(row => ({
+                            product_name: row.product_name,
+                            size: row.size,
+                            color: row.color,
+                            quantity: row.quantity,
+                            unit_price: row.unit_price,
+                            subtotal: row.subtotal
+                        }))
+                    }
+                }
+            };
         }
 
         // paid_event_processing 상태를 'processing'으로 업데이트

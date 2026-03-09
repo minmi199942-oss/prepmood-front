@@ -32,7 +32,7 @@ const Logger = require('./logger');
 const crypto = require('crypto');
 const { createInvoiceFromOrder } = require('./utils/invoice-creator');
 const { processPaidOrder } = require('./utils/paid-order-processor');
-const { createPaidEvent } = require('./utils/paid-event-creator');
+const { createPaidEvent, updateProcessingStatus } = require('./utils/paid-event-creator');
 const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
 const { updateOrderStatus } = require('./utils/order-status-aggregator');
 const { withPaymentAttempt } = require('./utils/payment-wrapper');
@@ -285,14 +285,36 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                         order.shipping_country === 'US' ? 'USD' :
                         order.shipping_country === 'JP' ? 'JPY' : 'KRW';
 
-        // SSOT: paid_events 먼저 확인 (order.status는 집계용, 정책은 paid_events)
-        const [existingPaidEvents] = await connection.execute(
-            `SELECT event_id FROM paid_events WHERE order_id = ?`,
+        // 환불 함수: confirm 성공 경로(Path C) 및 §C failed 재시도 시 재고 부족 자동 환불에서 공용
+        const executeRefundFn = (cancelKey, refundPaymentKey, reason) => {
+            const tossSecretKeyRef = process.env.TOSS_SECRET_KEY;
+            if (!tossSecretKeyRef) return Promise.resolve();
+            const tossApiBase = process.env.TOSS_API_BASE || 'https://api.tosspayments.com';
+            const authHeader = Buffer.from(`${tossSecretKeyRef}:`).toString('base64');
+            return fetch(`${tossApiBase}/v1/payments/${refundPaymentKey}/cancel`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${authHeader}`,
+                    'Content-Type': 'application/json',
+                    'Idempotency-Key': cancelKey
+                },
+                body: JSON.stringify({ cancelReason: reason || '재고 부족 등 주문 처리 실패' })
+            }).then(r => {
+                if (!r.ok) return r.json().then(d => Promise.reject(new Error(d.message || '취소 실패')));
+                return r.json();
+            });
+        };
+
+        // SSOT: "이미 완료" = paid_event_processing.status = 'success'인 event가 해당 주문에 있을 때만 (유령 주문 방지, CONFIRM_FLOW_SENIOR_REVIEW_AND_GEMINI_FEEDBACK §4.1)
+        const [existingSuccessRows] = await connection.execute(
+            `SELECT pe.event_id FROM paid_events pe
+             INNER JOIN paid_event_processing pep ON pe.event_id = pep.event_id
+             WHERE pe.order_id = ? AND pep.status = 'success' LIMIT 1`,
             [order.order_id]
         );
 
-        if (existingPaidEvents.length > 0) {
-            // paid_events 존재: 이미 처리된 주문, 멱등 200
+        if (existingSuccessRows.length > 0) {
+            // 실제 주문 처리까지 완료된 경우에만 멱등 200
             const [existingPaymentRows] = await connection.execute(
                 `SELECT status, amount, currency, payment_key FROM payments
                  WHERE order_number = ?
@@ -353,6 +375,157 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             });
         }
 
+        // paid_events + pep 상태로 분기: success(이미 처리됨), processing(409), failed(§C 재시도 또는 환불)
+        const [pepRows] = await connection.execute(
+            `SELECT pe.event_id, pe.payment_key, pe.amount, pe.currency, pep.status
+             FROM paid_events pe
+             INNER JOIN paid_event_processing pep ON pe.event_id = pep.event_id
+             WHERE pe.order_id = ?`,
+            [order.order_id]
+        );
+        if (pepRows.length > 0) {
+            const hasProcessing = pepRows.some(r => r.status === 'processing');
+            if (hasProcessing) {
+                await connection.rollback();
+                connection.release();
+                return res.status(409).json({
+                    success: false,
+                    code: 'ORDER_PROCESSING_INCOMPLETE',
+                    details: {
+                        message: '주문이 처리 중입니다. 잠시 후 다시 시도해 주세요.',
+                        retry_after_seconds: 3,
+                        retry_once_recommended: true
+                    }
+                });
+            }
+
+            const failedRow = pepRows.find(r => r.status === 'failed');
+            if (failedRow) {
+                // §C: CAS로 한 요청만 재시도 선점 (광클릭·동시 재시도 방지)
+                const [updRes] = await connection.execute(
+                    `UPDATE paid_event_processing SET status = 'processing', updated_at = NOW() WHERE event_id = ? AND status = 'failed'`,
+                    [failedRow.event_id]
+                );
+                if (updRes.affectedRows === 0) {
+                    await connection.rollback();
+                    connection.release();
+                    return res.status(409).json({
+                        success: false,
+                        code: 'CONCURRENT_RETRY_DETECTED',
+                        details: { message: '다른 요청이 이미 재시도 중입니다. 잠시 후 다시 확인해 주세요.' }
+                    });
+                }
+                await connection.rollback();
+                connection.release();
+                connection = null;
+
+                let retryConn = null;
+                try {
+                    retryConn = await pool.getConnection();
+                    await retryConn.beginTransaction();
+                    Logger.log('[payments][confirm] §C failed 재시도 진입', { orderId: order.order_id, eventId: failedRow.event_id });
+
+                    // 재고 검증·차감은 processPaidOrder 내부 트랜잭션에 위임 (TOCTOU 방지)
+                    const paidResult = await processPaidOrder({
+                        connection: retryConn,
+                        paidEventId: failedRow.event_id,
+                        orderId: order.order_id,
+                        paymentKey: failedRow.payment_key,
+                        amount: parseFloat(failedRow.amount),
+                        currency: failedRow.currency || 'KRW',
+                        eventSource: 'failed_retry',
+                        rawPayload: null
+                    });
+                    await updateOrderStatus(retryConn, order.order_id);
+                    await retryConn.commit();
+                    retryConn.release();
+                    retryConn = null;
+
+                    // 성공 시 일반 confirm과 동일한 200 응답 (장바구니·이메일 등은 아래 공통 블록 전에 여기서 처리 가능하나, 구조 단순화를 위해 200만 반환 후 클라이언트가 order-complete 등으로 처리)
+                    let cartCleared = false;
+                    if (userId) {
+                        let cartConn = null;
+                        try {
+                            cartConn = await pool.getConnection();
+                            await cartConn.execute(
+                                `DELETE ci FROM cart_items ci INNER JOIN carts c ON ci.cart_id = c.cart_id WHERE c.user_id = ?`,
+                                [userId]
+                            );
+                            cartCleared = true;
+                        } catch (cartErr) {
+                            Logger.log('[payments][confirm] §C 재시도 후 장바구니 비우기 실패 (무시)', { userId, error: cartErr.message });
+                        } finally {
+                            if (cartConn) cartConn.release();
+                        }
+                    }
+                    const guestAccessToken = paidResult?.data?.orderInfo?.guest_access_token ?? null;
+                    return res.json({
+                        success: true,
+                        data: {
+                            order_number: orderNumber,
+                            amount: serverAmount,
+                            currency: failedRow.currency || currency,
+                            payment_status: 'captured',
+                            cartCleared,
+                            invoice_created: !!paidResult?.data?.invoiceNumber,
+                            invoice_number: paidResult?.data?.invoiceNumber ?? null,
+                            alreadyConfirmed: false,
+                            user_id: order.user_id,
+                            guest_access_token: guestAccessToken
+                        }
+                    });
+                } catch (retryErr) {
+                    if (retryConn) {
+                        try { await retryConn.rollback(); } catch (_) {}
+                        retryConn.release();
+                    }
+                    if (retryErr.code === 'INSUFFICIENT_STOCK') {
+                        try {
+                            const cancelKey = `order_${order.order_id}_failed_retry_CANCEL`;
+                            await executeRefundFn(cancelKey, failedRow.payment_key, '재고 소진으로 인한 자동 취소');
+                            await updateProcessingStatus(failedRow.event_id, 'failed', 'AUTO_REFUNDED_OUT_OF_STOCK');
+                            return res.status(400).json({
+                                success: false,
+                                code: 'AUTO_REFUNDED',
+                                details: { message: '결제 진행 중 재고가 소진되어 자동으로 결제가 취소(환불)되었습니다.' }
+                            });
+                        } catch (refundErr) {
+                            Logger.error('[payments][confirm] §C 자동 환불 API 실패. 수동 대사 필요', {
+                                orderId: order.order_id,
+                                payment_key: failedRow.payment_key?.substring(0, 20) + '...',
+                                error: refundErr.message
+                            });
+                            await updateProcessingStatus(failedRow.event_id, 'failed', 'REFUND_API_FAILED');
+                            return res.status(500).json({
+                                success: false,
+                                code: 'REFUND_PENDING',
+                                details: { message: '재고 부족으로 취소 중 지연이 발생했습니다. 고객센터로 문의해 주세요.' }
+                            });
+                        }
+                    }
+                    await updateProcessingStatus(failedRow.event_id, 'failed', (retryErr.message || '알 수 없는 에러').substring(0, 255));
+                    return res.status(500).json({
+                        success: false,
+                        code: 'PAYMENT_ERROR',
+                        details: { message: retryErr.message || '주문 처리 재시도 중 오류가 발생했습니다.' }
+                    });
+                }
+            }
+
+            // paid_events 있으나 success/processing/failed 아님(pending 등) → 409
+            await connection.rollback();
+            connection.release();
+            return res.status(409).json({
+                success: false,
+                code: 'ORDER_PROCESSING_INCOMPLETE',
+                details: {
+                    message: '이전 결제 시도에서 주문 처리까지 완료되지 않았습니다. 잠시 후 다시 시도하거나 고객센터에 문의해 주세요.',
+                    retry_after_seconds: 3,
+                    retry_once_recommended: true
+                }
+            });
+        }
+
         if (Math.abs(serverAmount - clientAmount) > 0.01) { // Zero-Trust 금액 불일치
             await connection.rollback();
             connection.release();
@@ -395,14 +568,30 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 const tossSecretKey = process.env.TOSS_SECRET_KEY;
                 if (!tossSecretKey) return Promise.reject(new Error('TOSS_SECRET_KEY 미설정'));
                 const authHeader = Buffer.from(`${tossSecretKey}:`).toString('base64');
+                // 토스 API 전용 10초 타임아웃: 외부 지연 시 DB 락 점유 방지 (문서 §타임아웃 계층, Fetch 타임아웃)
+                const TOSS_FETCH_TIMEOUT_MS = 10000;
+                const tossAbort = new AbortController();
+                const timeoutId = setTimeout(() => tossAbort.abort(), TOSS_FETCH_TIMEOUT_MS);
+                if (signal) {
+                    if (signal.aborted) {
+                        clearTimeout(timeoutId);
+                        return Promise.reject(new Error(signal.reason || 'ABORTED'));
+                    }
+                    signal.addEventListener('abort', () => { clearTimeout(timeoutId); tossAbort.abort(); }, { once: true });
+                }
                 return fetch(`${tossApiBase}/v1/payments/confirm`, {
                     method: 'POST',
                     headers: { 'Authorization': `Basic ${authHeader}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ paymentKey, orderId: orderNumber, amount: serverAmount }),
-                    signal
+                    signal: tossAbort.signal
                 }).then(r => r.json()).then(data => {
+                    clearTimeout(timeoutId);
                     if (!data.paymentKey) throw new Error(data.message || 'Confirm API 실패');
                     return data;
+                }).catch(err => {
+                    clearTimeout(timeoutId);
+                    if (err.name === 'AbortError' && tossAbort.signal.aborted) throw new Error('TOSS_FETCH_TIMEOUT');
+                    throw err;
                 });
             };
 
@@ -436,26 +625,8 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             return { paidEventId, paidResult };
         };
 
-        const tossSecretKeyRef = process.env.TOSS_SECRET_KEY;
-        const executeRefundFn = (cancelKey, refundPaymentKey, reason) => {
-            if (!tossSecretKeyRef) return Promise.resolve();
-            const tossApiBase = process.env.TOSS_API_BASE || 'https://api.tosspayments.com';
-            const authHeader = Buffer.from(`${tossSecretKeyRef}:`).toString('base64');
-            return fetch(`${tossApiBase}/v1/payments/${refundPaymentKey}/cancel`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Basic ${authHeader}`,
-                    'Content-Type': 'application/json',
-                    'Idempotency-Key': cancelKey
-                },
-                body: JSON.stringify({ cancelReason: reason || '재고 부족 등 주문 처리 실패' })
-            }).then(r => {
-                if (!r.ok) return r.json().then(d => Promise.reject(new Error(d.message || '취소 실패')));
-                return r.json();
-            });
-        };
-
         try {
+            const tStart = process.hrtime.bigint();
             const result = await withPaymentAttempt({
                 req,
                 sessionKey: checkoutSessionKey.trim(),
@@ -468,6 +639,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 processOrderFn,
                 executeRefundFn
             });
+            const tAfterWrapper = process.hrtime.bigint();
 
             if (result.status !== 200) {
                 return res.status(result.status || 500).json({
@@ -498,14 +670,23 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                     if (cartConn) cartConn.release();
                 }
             }
+            const tAfterCart = process.hrtime.bigint();
 
+            const wrapperMs = Number((tAfterWrapper - tStart) / 1000000n);
+            const cartMs = Number((tAfterCart - tAfterWrapper) / 1000000n);
+            const totalMs = Number((tAfterCart - tStart) / 1000000n);
+            const poolStatus = typeof pool._allConnections !== 'undefined'
+                ? { all: pool._allConnections.length, free: pool._freeConnections ? pool._freeConnections.length : 'n/a' }
+                : 'n/a';
             Logger.log(`[payments][mode=${paymentMode}] 결제 확인 성공 (withPaymentAttempt)`, {
                 orderNumber,
                 paymentKey,
                 amount: serverAmount,
                 cartCleared,
                 invoiceCreated,
-                invoiceNumber
+                invoiceNumber,
+                duration_ms: { wrapperMs, cartMs, totalMs },
+                poolStatus
             });
 
             if (paidResult?.data?.orderInfo) {
