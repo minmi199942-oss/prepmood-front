@@ -1312,9 +1312,10 @@
 }
 .checkout-email-sent-hint {
   font-size: 12px;
-  color: #555;
+  /* 안내 문구를 조금 더 눈에 띄게: 기본 텍스트보다 진한 색상·두께 */
+  color: #333;
   margin: 4px 0 0;
-  font-weight: 400;
+  font-weight: 500;
 }
 .checkout-email-row {
   display: flex;

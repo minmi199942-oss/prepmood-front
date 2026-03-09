@@ -498,11 +498,9 @@ function bindEventListeners(cartItems) {
   if (shippingForm) {
     shippingForm.addEventListener('input', function (e) {
       if (e.target && (e.target.id === 'verify-code' || e.target.id === 'email')) return;
-      clearCheckoutError('checkout-formError');
       if (e.target && e.target.classList && e.target.classList.contains('error')) e.target.classList.remove('error');
     });
     shippingForm.addEventListener('change', function (e) {
-      clearCheckoutError('checkout-formError');
       if (e.target && e.target.classList && e.target.classList.contains('error')) e.target.classList.remove('error');
     });
   }
@@ -608,7 +606,8 @@ async function handleCompleteOrder() {
       }
       const verified = getCheckoutEmailVerified();
       if (verified !== email) {
-        showCheckoutError('checkout-formError', '이메일 인증을 완료해주세요. 아래에서 인증 요청 후 코드를 입력해 주세요.');
+        // 통합 폼 오류 대신 이메일 영역에 개별 안내 문구 표시
+        showCheckoutError('checkout-emailError', '이메일 인증을 완료해주세요. 아래에서 인증 요청 후 코드를 입력해 주세요.');
         const block = document.getElementById('checkout-email-verify-block');
         if (block) block.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
@@ -690,7 +689,7 @@ function clearCheckoutError(elementId) {
 
 function clearAllCheckoutErrors() {
   Object.keys(CHECKOUT_ERROR_INPUT_MAP).forEach(clearCheckoutError);
-  clearCheckoutError('checkout-formError');
+  // 통합 폼 오류(버튼 위 한 줄)는 더 이상 사용하지 않음
   document.querySelectorAll('.form-group input.error, .form-group select.error').forEach(function (el) { el.classList.remove('error'); });
 }
 
@@ -784,23 +783,17 @@ function resetEmailVerificationUI() {
   updateCheckoutCTAState();
 }
 
-/** 비회원 + 미가입 이메일 + 미인증 시 확인 버튼 비활성 및 안내 문구 표시 */
+/** 확인 버튼 상태/안내 문구 제어
+ *  - 기존: 비회원 + 미가입 이메일 + 미인증 시 버튼 비활성 및 안내 문구 표시
+ *  - 변경: 입력 시 버튼 색상 변경·안내 문구 노출 로직 제거 (버튼은 항상 활성, 힌트는 숨김)
+ */
 function updateCheckoutCTAState() {
   const btn = document.getElementById('complete-order-btn');
   const hint = document.getElementById('checkout-cta-hint');
   if (!btn) return;
-  const isLoggedIn = window.__checkout_is_logged_in__ === true;
-  const emailEl = document.getElementById('email');
-  const email = (emailEl && emailEl.value) ? emailEl.value.trim().toLowerCase() : '';
-  const verified = getCheckoutEmailVerified();
-  const needVerify = !isLoggedIn && email && verified !== email;
-  if (needVerify) {
-    btn.disabled = true;
-    if (hint) hint.style.display = 'block';
-  } else {
-    btn.disabled = false;
-    if (hint) hint.style.display = 'none';
-  }
+  // 항상 클릭 가능하도록 두고, 힌트 문구는 사용하지 않는다.
+  btn.disabled = false;
+  if (hint) hint.style.display = 'none';
 }
 
 async function handleRequestVerify() {
@@ -954,13 +947,29 @@ function validateShippingForms() {
   ];
   let isValid = true;
   const errors = {};
-  clearCheckoutError('checkout-formError');
+  clearAllCheckoutErrors();
   requiredFields.forEach(function (fieldId) {
     const field = document.getElementById(fieldId);
     if (!field) return;
     if (!field.value.trim()) {
       isValid = false;
       field.classList.add('error');
+      // 필수 항목 누락 시 각 필드 하단에 개별 안내 문구 노출
+      if (fieldId === 'name') {
+        errors.name = '이름을 입력해주세요.';
+      } else if (fieldId === 'email') {
+        errors.email = '이메일을 입력해주세요.';
+      } else if (fieldId === 'phone') {
+        errors.phone = '전화번호를 입력해주세요.';
+      } else if (fieldId === 'address') {
+        errors.address = errors.address || '주소를 입력해주세요.';
+      } else if (fieldId === 'city') {
+        errors.city = '도시를 입력해주세요.';
+      } else if (fieldId === 'postalCode') {
+        errors.postalCode = '우편번호를 입력해주세요.';
+      } else if (fieldId === 'country') {
+        errors.country = '국가를 선택해주세요.';
+      }
     } else {
       field.classList.remove('error');
     }
@@ -1011,13 +1020,37 @@ function validateShippingForms() {
       errors.address = '주소를 입력해주세요.';
     }
   }
+  // 통합 경고 문구 대신 각 필드 하단에 개별 오류 표시
   if (!isValid) {
-    const errorMessages = Object.values(errors);
-    const formErrorEl = document.getElementById('checkout-formError');
-    if (formErrorEl) {
-      formErrorEl.textContent = errorMessages.length > 0 ? errorMessages.join(' ') : '모든 필수 항목을 올바르게 입력해주세요.';
-      formErrorEl.style.display = 'block';
-      formErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (errors.name) showCheckoutError('checkout-nameError', errors.name);
+    if (errors.email) showCheckoutError('checkout-emailError', errors.email);
+    if (errors.phone) showCheckoutError('checkout-phoneError', errors.phone);
+    if (errors.address) {
+      const detailErrorEl = document.getElementById('checkout-addressDetailError');
+      // 주소 길이 초과 등으로 이미 상세 오류가 세팅된 경우를 제외하고 기본 주소 에러 표시
+      if (!detailErrorEl || !detailErrorEl.textContent) {
+        showCheckoutError('checkout-addressError', errors.address);
+      }
+    }
+    if (errors.city) showCheckoutError('checkout-cityError', errors.city);
+    if (errors.postalCode) showCheckoutError('checkout-postalCodeError', errors.postalCode);
+    if (errors.country) showCheckoutError('checkout-countryError', errors.country);
+    // 첫 번째 에러 필드로 스크롤
+    const firstErrorKey = Object.keys(errors)[0];
+    if (firstErrorKey) {
+      const firstInputId = {
+        name: 'name',
+        email: 'email',
+        phone: 'phone',
+        address: 'address',
+        city: 'city',
+        postalCode: 'postalCode',
+        country: 'country'
+      }[firstErrorKey];
+      const firstEl = firstInputId ? document.getElementById(firstInputId) : null;
+      if (firstEl && typeof firstEl.scrollIntoView === 'function') {
+        firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   }
   return isValid;
