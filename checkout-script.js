@@ -19,6 +19,8 @@ let currentCountryRule = COUNTRY_RULES.KR;
 // 인증 코드 재발송 타이머 (이메일 변경 시 클리어)
 let checkoutResendTimerId = null;
 let checkoutResendTimeoutId = null;
+// 재발송 타이머 활성 상태 플래그 (리셋 후 좀비 콜백 방지)
+let checkoutResendActive = false;
 // 자동 인증 진행 중 플래그 (중복 요청 방지)
 let checkoutVerifyInProgress = false;
 
@@ -606,10 +608,18 @@ async function handleCompleteOrder() {
       }
       const verified = getCheckoutEmailVerified();
       if (verified !== email) {
-        // 통합 폼 오류 대신 이메일 영역에 개별 안내 문구 표시
-        showCheckoutError('checkout-emailError', '이메일 인증을 완료해주세요. 아래에서 인증 요청 후 코드를 입력해 주세요.');
+        // UI와 상태를 함께 초기화한 뒤, 다시 인증 흐름으로 유도
+        resetEmailVerificationUI();
+        showCheckoutError('checkout-emailError', '이메일 인증이 만료되었습니다. 다시 인증해 주세요.');
         const block = document.getElementById('checkout-email-verify-block');
-        if (block) block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (block) {
+          block.style.display = 'block';
+          block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        const reqBtn = document.getElementById('checkout-request-verify-btn');
+        if (reqBtn && typeof reqBtn.focus === 'function') {
+          reqBtn.focus();
+        }
         return;
       }
     } finally {
@@ -752,6 +762,7 @@ function resetEmailVerificationUI() {
   clearCheckoutEmailVerified();
   clearCheckoutError('checkout-emailError');
   clearCheckoutError('checkout-codeError');
+  checkoutResendActive = false;
   if (checkoutResendTimerId) {
     clearInterval(checkoutResendTimerId);
     checkoutResendTimerId = null;
@@ -797,14 +808,19 @@ function updateCheckoutCTAState() {
 }
 
 async function handleRequestVerify() {
+  const btn = document.getElementById('checkout-request-verify-btn');
+  // 이미 진행 중이면 중복 요청 방지
+  if (btn && btn.disabled) return;
+
   const emailEl = document.getElementById('email');
   const email = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
+  // 이메일 값은 유지하되, 인증 UI 상태를 초기화
+  resetEmailVerificationUI();
   clearCheckoutError('checkout-emailError');
   if (!email || !isValidEmail(email)) {
     showCheckoutError('checkout-emailError', '유효한 이메일을 입력해주세요.');
     return;
   }
-  const btn = document.getElementById('checkout-request-verify-btn');
   if (btn) btn.disabled = true;
   let sendSuccess = false;
   try {
@@ -838,6 +854,9 @@ async function handleRequestVerify() {
       const RESEND_COOLDOWN_SEC = 180;
       let remaining = RESEND_COOLDOWN_SEC;
       const updateResendLabel = () => {
+        if (!checkoutResendActive) {
+          return;
+        }
         if (remaining <= 0) {
           clearInterval(checkoutResendTimerId);
           checkoutResendTimerId = null;
@@ -854,6 +873,7 @@ async function handleRequestVerify() {
       };
       checkoutResendTimeoutId = setTimeout(function () {
         checkoutResendTimeoutId = null;
+        checkoutResendActive = true;
         updateResendLabel();
         checkoutResendTimerId = setInterval(updateResendLabel, 1000);
       }, 2000);

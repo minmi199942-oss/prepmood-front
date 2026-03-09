@@ -1343,7 +1343,7 @@
   margin: 0;
   padding: 0;
 }
-/* 코드 보내기 버튼: 높이 36px 고정 (global .btn-secondary min-height 오버라이드) */
+/* 코드 보내기 버튼: 실제 높이 36px (상하 10px + 내부 16px), 주소 찾기와 동일 */
 .checkout-email-row .checkout-email-btn-wrap .btn-secondary {
   min-width: 125px;
   height: 36px;
@@ -1417,10 +1417,12 @@
   flex: 0 0 auto;
   align-self: flex-end;
 }
-/* 주소 찾기 버튼: 높이 36px, 상하 10px·좌우 20px */
+/* 주소 찾기 버튼: 실제 높이 36px (상하 10px + 내부 16px), global min-height 오버라이드 */
 .checkout-address-row .checkout-address-btn-wrap .btn-secondary {
   min-width: 100px;
   height: 36px;
+  min-height: 36px;
+  max-height: 36px;
   padding: 10px 20px;
   box-sizing: border-box;
   font-size: 12px;
@@ -1454,6 +1456,8 @@
     width: 100%;
     min-width: 0;
     height: 36px;
+    min-height: 36px;
+    max-height: 36px;
     padding: 10px 20px;
   }
   .checkout-address-field {
