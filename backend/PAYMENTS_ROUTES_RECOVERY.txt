@@ -1,0 +1,23 @@
+# payments-routes.js 복구 가이드
+
+## 백업 파일 (2025-03-05 기준)
+
+- **payments-routes.js.backup**
+  - 현재 디스크에 있던 버전 그대로의 복사본입니다.
+  - CheckoutSessionKey / withPaymentAttempt 없음 (main 쪽 로직).
+  - 한글 주석·메시지 정상.
+
+## 복구 방법
+
+1. **현재 작업 취소하고 백업으로 되돌리기**
+   - backend 폴더에서:
+     - payments-routes.js.backup 을 payments-routes.js 로 덮어쓰면 됩니다.
+
+2. **CheckoutSessionKey 버전을 참조용으로 보관하려면**
+   - 보내주신 1887줄 버전(CheckoutSessionKey + withPaymentAttempt, 한글 깨진 버전)을
+     **payments-routes-feat-reference.js** 같은 이름으로 backend에 저장해두시면,
+     그 파일을 기준으로 한글만 수정한 뒤 payments-routes.js 에 적용하는 식으로 진행할 수 있습니다.
+   - 이렇게 하면 로직은 reference와 동일하게 유지한 채 한글만 복구할 수 있습니다.
+
+3. **실수로 덮어썼을 때**
+   - payments-routes.js.backup → payments-routes.js 로 복사하면 백업 시점으로 복구됩니다.

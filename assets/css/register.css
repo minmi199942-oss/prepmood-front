@@ -346,45 +346,27 @@
 }
 
 .consent-checkbox {
-    display: flex;
-    align-items: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
     cursor: pointer;
     font-size: clamp(11px, 2.5vw, 13px);
     line-height: 1.4;
     margin-bottom: clamp(6px, 1.2vw, 8px);
 }
 
+/* 장바구니(cart)와 동일한 스타일: 브라우저 기본 체크박스 + accent-color */
 .consent-checkbox input[type="checkbox"] {
-    display: none;
-}
-
-.checkmark {
-    width: clamp(16px, 3vw, 18px);
-    height: clamp(16px, 3vw, 18px);
-    border: none;
-    border-radius: 3px;
-    margin-right: clamp(10px, 2vw, 12px);
-    margin-top: 2px;
+    width: 13px;
+    height: 13px;
+    accent-color: #111;
+    cursor: pointer;
     flex-shrink: 0;
-    position: relative;
-    background-color: #fff;
-    transition: all 0.2s ease;
 }
 
-.consent-checkbox input[type="checkbox"]:checked + .checkmark {
-    background-color: #000;
-    border-color: #000;
-}
-
-.consent-checkbox input[type="checkbox"]:checked + .checkmark::after {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    font-size: clamp(10px, 2vw, 12px);
-    font-weight: bold;
+/* 기존 커스텀 사각형은 숨겨서 DOM 구조만 유지 */
+.checkmark {
+    display: none;
 }
 
 .consent-text {

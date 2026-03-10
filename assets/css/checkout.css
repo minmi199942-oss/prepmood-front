@@ -1417,13 +1417,16 @@
   flex: 0 0 auto;
   align-self: flex-end;
 }
-/* 주소 찾기 버튼: 실제 높이 36px (상하 10px + 내부 16px), global min-height 오버라이드 */
-.checkout-address-row .checkout-address-btn-wrap .btn-secondary {
+/* 주소 찾기 버튼: 실제 높이 36px (상하 10px + 내부 16px), global/page 오버라이드 */
+.checkout-container .checkout-form-section .checkout-address-row .checkout-address-btn-wrap .btn-secondary {
   min-width: 100px;
-  height: 36px;
-  min-height: 36px;
-  max-height: 36px;
-  padding: 10px 20px;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  padding-left: 20px;
+  padding-right: 20px;
   box-sizing: border-box;
   font-size: 12px;
   font-weight: 500;
@@ -1432,7 +1435,7 @@
   color: #fff;
   border: 1px solid #111;
 }
-.checkout-address-row .checkout-address-btn-wrap .btn-secondary:hover {
+.checkout-container .checkout-form-section .checkout-address-row .checkout-address-btn-wrap .btn-secondary:hover {
   background: #333;
   color: #fff;
   border-color: #333;
@@ -1452,13 +1455,16 @@
   .checkout-address-row .checkout-address-btn-wrap {
     align-self: stretch;
   }
-  .checkout-address-row .checkout-address-btn-wrap .btn-secondary {
+  .checkout-container .checkout-form-section .checkout-address-row .checkout-address-btn-wrap .btn-secondary {
     width: 100%;
     min-width: 0;
-    height: 36px;
-    min-height: 36px;
-    max-height: 36px;
-    padding: 10px 20px;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    padding-left: 20px;
+    padding-right: 20px;
   }
   .checkout-address-field {
     gap: 8px;
