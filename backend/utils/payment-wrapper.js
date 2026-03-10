@@ -243,12 +243,14 @@ async function withPaymentAttempt({
         }
 
         // ---------- Phase 3: 결과 반영 (Conn B) ----------
+        // orders FOR UPDATE 제거: createPaidEvent(별도 autocommit conn)가 paid_events INSERT 시
+        // FK check로 orders 행에 shared lock을 요청 — connB가 exclusive lock을 잡으면 self-deadlock.
+        // processPaidOrder가 자체적으로 orders FOR UPDATE를 수행하므로 여기서 중복 잠금 불필요.
         let connB;
         try {
             connB = await getSafeConnection(signal, 5000);
             await connB.beginTransaction();
 
-            await connB.query('SELECT order_id FROM orders WHERE order_id = ? FOR UPDATE', [orderId]);
             const [[attemptRow]] = await connB.query(
                 'SELECT status FROM payment_attempts WHERE id = ? FOR UPDATE',
                 [attemptId]

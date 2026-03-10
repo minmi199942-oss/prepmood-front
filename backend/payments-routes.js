@@ -172,6 +172,10 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         } catch (connErr) {
             const message = connErr && connErr.message ? connErr.message : 'CONN_ERROR';
             if (message === 'CONN_TIMEOUT' || message === 'CLIENT_ABORTED') {
+                Logger.warn('[payments][confirm] 503 (커넥션)', {
+                    reason: message,
+                    orderNumber: req.body?.orderNumber
+                });
                 return res.status(503).json({
                     success: false,
                     code: 'SERVICE_UNAVAILABLE',
@@ -182,7 +186,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             }
             throw connErr;
         }
-        // 웹훅과 동시 요청 시 50초 대기 방지 — 락 대기 5초 후 실패·Polling 유도 (PAYMENT_PENDING §1-3)
+        // 웹훅과 동시 요청 시 50초 대기 방지 — 락 대기 10초 후 실패·Polling 유도 (5초→10초 완화: 503 과다 시)
         await connection.execute('SET SESSION innodb_lock_wait_timeout = 5').catch(() => {});
         await connection.beginTransaction();
 
@@ -824,13 +828,27 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             }
             // DB 락 대기 타임아웃·8초 Budget 초과(웹훅·confirm 동시 요청 등) → 503 Polling 유도
             if (wrapperError.code === 'ER_LOCK_WAIT_TIMEOUT' || wrapperError.message === 'REQUEST_BUDGET_EXCEEDED') {
+                Logger.warn('[payments][confirm] 503 원인', {
+                    code: wrapperError.code,
+                    message: wrapperError.message,
+                    orderNumber: req.body?.orderNumber
+                });
                 return res.status(503).json({
                     success: false,
                     code: 'SERVICE_UNAVAILABLE',
-                    details: { message: '결제 서버가 혼잡합니다. 잠시 후 다시 시도해주세요.' }
+                    details: {
+                        message: '결제 서버가 혼잡합니다. 잠시 후 다시 시도해주세요.',
+                        reason: wrapperError.code || wrapperError.message
+                    }
                 });
             }
             const status = wrapperError.status || 500;
+            if (status === 503) {
+                Logger.warn('[payments][confirm] 503 (wrapper)', {
+                    message: wrapperError.message,
+                    orderNumber: req.body?.orderNumber
+                });
+            }
             return res.status(status).json({
                 success: false,
                 code: status === 503 ? 'SERVICE_UNAVAILABLE' : 'PAYMENT_ERROR',
@@ -1888,30 +1906,18 @@ async function handlePaymentStatusChange(connection, data, requestStartedAt = nu
             });
         }
 
-        // orders 집계 갱신 (order_number는 orderId와 동일)
-        // 참고: orders.status는 집계 함수로만 갱신 (SSOT는 order_item_units)
+        // order_id 조회 (orders 행에 lock을 걸지 않고 읽기만 — self-deadlock 방지)
         const finalOrderId = verifiedOrderId || orderId;
         
         if (finalOrderId) {
-            // order_number로 order_id 조회
             const [orderRows] = await connection.execute(
                 `SELECT order_id FROM orders WHERE order_number = ?`,
                 [finalOrderId]
             );
-
             if (orderRows.length > 0) {
                 orderIdForPaidProcess = orderRows[0].order_id;
-                
-                // 집계만: 상태 재계산
-                await updateOrderStatus(connection, orderIdForPaidProcess);
-                
-                Logger.log('[payments][webhook] orders.status 집계 갱신', {
-                    orderId: finalOrderId,
-                    order_id: orderIdForPaidProcess
-                });
             }
         } else {
-            // orderId 없으면 payment_key로 orders 조회
             const [orderRows] = await connection.execute(
                 `SELECT o.order_id, o.order_number
                  FROM orders o
@@ -1919,24 +1925,39 @@ async function handlePaymentStatusChange(connection, data, requestStartedAt = nu
                  WHERE p.payment_key = ?`,
                 [paymentKey]
             );
-
             if (orderRows.length > 0) {
                 orderIdForPaidProcess = orderRows[0].order_id;
-                const orderNumber = orderRows[0].order_number;
-                
-                // 집계만: 상태 재계산
-                await updateOrderStatus(connection, orderIdForPaidProcess);
-                
-                Logger.log('[payments][webhook] orders.status 집계 갱신 (payment_key 기준)', {
-                    paymentKey: paymentKey.substring(0, 10) + '...',
-                    order_number: orderNumber,
-                    order_id: orderIdForPaidProcess
-                });
             }
         }
 
+        // confirm(redirect)이 이미 처리 중이면 웹훅은 스킵 → 토스에 200 반환 (경합 방지)
+        if (orderIdForPaidProcess && paymentStatus === 'captured') {
+            const [activeSession] = await connection.execute(
+                `SELECT session_key FROM checkout_sessions WHERE order_id = ? AND status = 'IN_PROGRESS' LIMIT 1`,
+                [orderIdForPaidProcess]
+            );
+            if (activeSession.length > 0) {
+                Logger.log('[payments][webhook] confirm이 처리 중 (IN_PROGRESS) — 웹훅 스킵', {
+                    order_id: orderIdForPaidProcess,
+                    order_number: finalOrderId
+                });
+                return { shouldSendEmail: false };
+            }
+        }
+
+        // non-captured (cancelled, failed 등): orders.status 집계 갱신
+        // captured 시에는 createPaidEvent → processPaidOrder → updateOrderStatus 순서로 처리
+        // (updateOrderStatus를 createPaidEvent 앞에서 호출하면 orders 행 exclusive lock으로 self-deadlock)
+        if (paymentStatus !== 'captured' && orderIdForPaidProcess) {
+            await updateOrderStatus(connection, orderIdForPaidProcess);
+            Logger.log('[payments][webhook] orders.status 집계 갱신 (non-captured)', {
+                orderId: finalOrderId,
+                order_id: orderIdForPaidProcess,
+                paymentStatus
+            });
+        }
+
         // Paid 이벤트 생성 (captured 시에만)
-        // 참고: paid_events insert는 autocommit으로 별도 (문서 16.5)
         if (paymentStatus === 'captured' && orderIdForPaidProcess) {
             try {
                 // paid_events 생성 (별도 autocommit - 결제 증거 보존)
@@ -2088,7 +2109,7 @@ router.post('/payments/webhook', async (req, res) => {
         let connection;
         try {
             connection = await mysql.createConnection(dbConfig);
-            // confirm과 동시 요청 시 50초 대기 방지 — 락 대기 5초 후 실패·Polling 유도 (PAYMENT_PENDING §1-3)
+            // confirm과 동시 요청 시 50초 대기 방지 — 락 대기 10초 후 실패·Polling 유도 (5초→10초 완화)
             await connection.execute('SET SESSION innodb_lock_wait_timeout = 5').catch(() => {});
             await connection.beginTransaction();
 

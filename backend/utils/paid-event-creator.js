@@ -45,7 +45,7 @@ async function getEventCreatorConnection(timeoutMs) {
     });
 }
 
-/** 8초 Global Budget — 락 경합 시 워커 고사 방지 (PAYMENT_PENDING §12.2, §13) */
+/** 8초 Global Budget — self-deadlock 해결 후 5초 락이면 충분 */
 const REQUEST_BUDGET_MS = 8000;
 
 /**
@@ -95,7 +95,7 @@ async function createPaidEvent({
             connection = await getEventCreatorConnection(3000);
             connection.config.autocommit = true;
 
-            // 5초 락 타임아웃 (PAYMENT_PENDING §1-3, §7.1)
+            // 5초 락 타임아웃 — self-deadlock 해결됨, 5초면 충분
             await connection.execute('SET SESSION innodb_lock_wait_timeout = 5').catch(() => {});
 
             Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 시도', {
