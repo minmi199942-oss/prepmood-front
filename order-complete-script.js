@@ -517,6 +517,76 @@ function getStatusText(status) {
 }
 
 /**
+ * 경량 Status API로 주문 상태 Polling (409 SESSION_ALREADY_IN_USE 시 자가 치유)
+ * @param {string} orderNumber
+ * @param {string|null} checkoutSessionKey
+ * @param {number} maxAttempts
+ * @param {number} intervalMs
+ * @returns {{ success: boolean, userId?: number, guestToken?: string, pendingAfterMax?: boolean, paymentError?: boolean }}
+ */
+async function pollOrderStatus(orderNumber, checkoutSessionKey, maxAttempts, intervalMs) {
+  if (!checkoutSessionKey) {
+    return { success: false, pendingAfterMax: true };
+  }
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(function (r) { setTimeout(r, i === 0 ? 0 : intervalMs); });
+    try {
+      const url = `${API_BASE}/payments/orders/${encodeURIComponent(orderNumber)}/status?checkoutSessionKey=${encodeURIComponent(checkoutSessionKey)}`;
+      const res = await window.secureFetch(url, { method: 'GET', credentials: 'include', timeoutMs: 10000 });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success && data.data) {
+        const status = data.data.status;
+        if (status === 'paid' || status === 'processing' || status === 'partial_shipped' || status === 'shipped' || status === 'delivered') {
+          return {
+            success: true,
+            userId: data.data.user_id,
+            guestToken: data.data.guest_access_token || null
+          };
+        }
+        if (status === 'payment_error' || status === 'payment_investigate') {
+          return { success: false, paymentError: true };
+        }
+      }
+    } catch (e) {
+      Logger.warn('Status API Polling 실패', { attempt: i + 1, error: e.message });
+    }
+  }
+  return { success: false, pendingAfterMax: true };
+}
+
+/**
+ * 3회 Polling 초과 시 수동 확인 요청 UI (PAYMENT_PENDING §3-1)
+ */
+function showPaymentManualCheck(orderNumber) {
+  const orderInfoSection = document.getElementById('order-info-section');
+  if (orderInfoSection) {
+    orderInfoSection.style.display = 'block';
+    orderInfoSection.innerHTML = `
+      <div class="error-content" style="text-align: center; padding: 40px;">
+        <h2 style="color: #111; margin-bottom: 16px;">결제가 진행 중일 수 있습니다</h2>
+        <p style="color: #666; margin-bottom: 24px;">결제 확인이 지연되고 있습니다. 주문 내역에서 상태를 확인해 주세요.</p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <a href="my-orders.html" style="display: inline-block; padding: 12px 24px; background: #111; color: #fff; text-decoration: none; border-radius: 4px; font-size: 14px;">주문 내역</a>
+          <button type="button" id="retry-status-check-btn" style="padding: 12px 24px; background: #f0f0f0; color: #111; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 14px;">다시 확인</button>
+        </div>
+      </div>
+    `;
+    const retryBtn = document.getElementById('retry-status-check-btn');
+    if (retryBtn) {
+      const urlParams = new URLSearchParams(window.location.search);
+      retryBtn.addEventListener('click', () => {
+        const paymentKey = urlParams.get('paymentKey');
+        const orderId = urlParams.get('orderId');
+        const amount = urlParams.get('amount');
+        if (paymentKey && orderId && amount) {
+          handleTossPaymentSuccess(paymentKey, orderId, amount);
+        }
+      });
+    }
+  }
+}
+
+/**
  * 토스페이먼츠 결제 성공 처리
  * successUrl에서 paymentKey, orderId, amount를 받아 서버에 결제 확인 요청
  */
@@ -551,11 +621,39 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount, options) {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      // 409 SESSION_ALREADY_IN_USE: 웹훅이 처리 중 → Polling으로 자가 치유 (PAYMENT_PENDING §3-1)
+      if (response.status === 409 && errorData.code === 'SESSION_ALREADY_IN_USE') {
+        const pollResult = await pollOrderStatus(orderId, checkoutSessionKey, 3, 2000);
+        if (pollResult.success) {
+          if (pollResult.userId) {
+            await loadOrderDetails(orderId);
+          } else if (pollResult.guestToken) {
+            await loadGuestOrderDetails(orderId, pollResult.guestToken);
+          } else {
+            await loadOrderDetails(orderId);
+          }
+          showPaymentSuccess();
+          return;
+        }
+        if (pollResult.pendingAfterMax) {
+          showPaymentManualCheck(orderId);
+          return;
+        }
+        if (pollResult.paymentError) {
+          showPaymentError('결제는 되었으나 주문 처리 중 오류가 발생했습니다. 고객센터로 문의해 주세요.');
+          return;
+        }
+      }
       // 409 ORDER_PROCESSING_INCOMPLETE: 처리 미완료 상태 → 서버 권장 시 1회만 재시도 (Gemini 409 가이드)
       if (!retried && response.status === 409 && errorData.code === 'ORDER_PROCESSING_INCOMPLETE' && errorData.details?.retry_once_recommended) {
         const delayMs = (errorData.details.retry_after_seconds || 3) * 1000;
         await new Promise(function (r) { setTimeout(r, delayMs); });
         return handleTossPaymentSuccess(paymentKey, orderId, amount, { retried: true });
+      }
+      // 503: 락 경합·Budget 초과 → Polling 유도 (PAYMENT_PENDING §3-2)
+      if (response.status === 503 && (errorData.code === 'SERVICE_UNAVAILABLE' || !errorData.code)) {
+        showPaymentError('결제 서버가 혼잡합니다. 잠시 후 다시 시도해 주세요. 주문 내역에서 상태를 확인해 주세요.');
+        return;
       }
       // 재고 부족 시 전용 메시지 + 장바구니로 유도 (7번 UX)
       if (errorData.code === 'INSUFFICIENT_STOCK') {

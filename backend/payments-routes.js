@@ -120,6 +120,7 @@ const dbConfig = {
  * 5. 주문 상태 업데이트 ('confirmed' 또는 'processing' / 실패 시 'failed')
  */
 router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
+    const requestStartedAt = Date.now(); // 8초 Budget용 (PAYMENT_PENDING §12.2)
     let connection;
     try {
         const { orderNumber, paymentKey, amount, checkoutSessionKey } = req.body;
@@ -181,8 +182,8 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             }
             throw connErr;
         }
-        // 웹훅과 동시 요청 시 50초 대기 방지 — 락 대기 10초 후 실패·재시도 유도
-        await connection.execute('SET SESSION innodb_lock_wait_timeout = 10').catch(() => {});
+        // 웹훅과 동시 요청 시 50초 대기 방지 — 락 대기 5초 후 실패·Polling 유도 (PAYMENT_PENDING §1-3)
+        await connection.execute('SET SESSION innodb_lock_wait_timeout = 5').catch(() => {});
         await connection.beginTransaction();
 
         // 1. 주문 조회 (회원: user_id 일치, 비회원: user_id IS NULL)
@@ -625,7 +626,8 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 amount: amountForPg,
                 currency: currencyVal,
                 eventSource: 'redirect',
-                rawPayload: pgResponse
+                rawPayload: pgResponse,
+                requestStartedAt
             });
             const paidEventId = paidEventResult.eventId;
             if (!paidEventId) throw new Error('paid_events 생성 실패: eventId가 null입니다.');
@@ -820,8 +822,8 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                     }
                 });
             }
-            // DB 락 대기 타임아웃(웹훅·confirm 동시 요청 등) → 503 재시도 유도
-            if (wrapperError.code === 'ER_LOCK_WAIT_TIMEOUT') {
+            // DB 락 대기 타임아웃·8초 Budget 초과(웹훅·confirm 동시 요청 등) → 503 Polling 유도
+            if (wrapperError.code === 'ER_LOCK_WAIT_TIMEOUT' || wrapperError.message === 'REQUEST_BUDGET_EXCEEDED') {
                 return res.status(503).json({
                     success: false,
                     code: 'SERVICE_UNAVAILABLE',
@@ -858,6 +860,120 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
             }
         });
+    }
+});
+
+/**
+ * GET /api/payments/orders/:orderNumber/status
+ * 경량 Status API — 409 Polling용. checkoutSessionKey 필수 (Enumeration Attack 방지)
+ * PAYMENT_PENDING §10.1, §12.1, §13.1
+ *
+ * Query: checkoutSessionKey (또는 Header: X-Checkout-Session-Key)
+ * CONSUMED 시 403. paid 전환 최초 1회만 guest_access_token 포함 후 CONSUMED 설정.
+ */
+router.get('/payments/orders/:orderNumber/status', optionalAuth, async (req, res) => {
+    const { orderNumber } = req.params;
+    const checkoutSessionKey = req.query.checkoutSessionKey || req.get('X-Checkout-Session-Key');
+
+    if (!checkoutSessionKey || typeof checkoutSessionKey !== 'string' || !checkoutSessionKey.trim()) {
+        return res.status(403).json({
+            success: false,
+            code: 'SESSION_REQUIRED',
+            message: 'checkoutSessionKey가 필요합니다.'
+        });
+    }
+
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+
+        const [sessionRows] = await connection.execute(
+            `SELECT cs.session_key, cs.order_id, cs.status
+             FROM checkout_sessions cs
+             INNER JOIN orders o ON cs.order_id = o.order_id
+             WHERE cs.session_key = ? AND o.order_number = ? LIMIT 1`,
+            [checkoutSessionKey.trim(), orderNumber]
+        );
+
+        if (sessionRows.length === 0) {
+            return res.status(403).json({
+                success: false,
+                code: 'INVALID_SESSION',
+                message: '유효한 결제 세션을 찾을 수 없습니다.'
+            });
+        }
+
+        const session = sessionRows[0];
+
+        if (session.status === 'CONSUMED') {
+            return res.status(403).json({
+                success: false,
+                code: 'SESSION_CONSUMED',
+                message: '이미 완료된 세션입니다.'
+            });
+        }
+
+        const [orderRows] = await connection.execute(
+            `SELECT order_id, user_id, status FROM orders WHERE order_id = ? LIMIT 1`,
+            [session.order_id]
+        );
+
+        if (orderRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                code: 'ORDER_NOT_FOUND',
+                message: '주문을 찾을 수 없습니다.'
+            });
+        }
+
+        const order = orderRows[0];
+        const status = order.status;
+        const isGuest = order.user_id == null;
+
+        let guestAccessToken = null;
+        let shouldConsume = false;
+
+        if (status === 'paid' && isGuest) {
+            const [tokenRows] = await connection.execute(
+                `SELECT token FROM guest_order_access_tokens got
+                 WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')} ORDER BY got.created_at DESC LIMIT 1`,
+                [session.order_id]
+            );
+            if (tokenRows.length > 0) {
+                guestAccessToken = tokenRows[0].token;
+                shouldConsume = true; // 토큰 반환 시 1회만 — 직후 CONSUMED
+            }
+        }
+
+        if (shouldConsume) {
+            await connection.execute(
+                `UPDATE checkout_sessions SET status = 'CONSUMED', updated_at = NOW() WHERE session_key = ?`,
+                [checkoutSessionKey.trim()]
+            );
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                status,
+                order_id: session.order_id,
+                user_id: order.user_id,
+                ...(guestAccessToken != null ? { guest_access_token: guestAccessToken } : {})
+            }
+        });
+    } catch (err) {
+        Logger.error('[payments][status] Status API 오류', {
+            orderNumber,
+            error: err.message,
+            stack: err.stack
+        });
+        return res.status(500).json({
+            success: false,
+            code: 'INTERNAL_ERROR',
+            message: '서버 오류가 발생했습니다.'
+        });
+    } finally {
+        if (connection) await connection.end();
     }
 });
 
@@ -1020,6 +1136,7 @@ router.post('/payments/inicis/request', authenticateToken, verifyCSRF, async (re
  * resultCode로 성공/실패 판단
  */
 router.post('/payments/inicis/return', async (req, res) => {
+    const requestStartedAt = Date.now(); // 8초 Budget용 (PAYMENT_PENDING §12.2)
     let connection;
     try {
         const resultCode = req.body.resultCode;
@@ -1193,7 +1310,8 @@ router.post('/payments/inicis/return', async (req, res) => {
                     amount: serverAmount,
                     currency: 'KRW',
                     eventSource: 'redirect', // 참고: 'inicis_return' 또는 'redirect' (ENUM 동일)
-                    rawPayload: req.body
+                    rawPayload: req.body,
+                    requestStartedAt
                 });
 
                 const paidEventId = paidEventResult.eventId;
@@ -1643,7 +1761,12 @@ async function verifyPaymentWithToss(paymentKey) {
  * @param {Object} connection - MySQL 커넥션
  * @param {Object} data - 웹훅 payload
  */
-async function handlePaymentStatusChange(connection, data) {
+/**
+ * @param {Object} connection - MySQL 커넥션
+ * @param {Object} data - 웹훅 payload
+ * @param {number} [requestStartedAt] - 요청 진입 시각 (8초 Budget용)
+ */
+async function handlePaymentStatusChange(connection, data, requestStartedAt = null) {
     if (!data) {
         Logger.log('[payments][webhook] 웹훅 payload 없음');
         return;
@@ -1742,8 +1865,9 @@ async function handlePaymentStatusChange(connection, data) {
         }
     }
 
-    // 함수 전체에서 사용 (return 시 참조) — try 밖에서 선언 필수
+    // 함수 전체에서 사용 (return 시 참조) — try 밖에서 선언 필수 (PAYMENT_PENDING_ROOT_CAUSE §1-1)
     let orderIdForPaidProcess = null;
+    let paidResultForEmail = null;
 
     try {
         // payments 테이블 상태 갱신
@@ -1813,7 +1937,6 @@ async function handlePaymentStatusChange(connection, data) {
 
         // Paid 이벤트 생성 (captured 시에만)
         // 참고: paid_events insert는 autocommit으로 별도 (문서 16.5)
-        let paidResultForEmail = null;
         if (paymentStatus === 'captured' && orderIdForPaidProcess) {
             try {
                 // paid_events 생성 (별도 autocommit - 결제 증거 보존)
@@ -1823,7 +1946,8 @@ async function handlePaymentStatusChange(connection, data) {
                     amount: verifiedAmount || webhookAmount || 0,
                     currency: verifiedPayment.currency || 'KRW',
                     eventSource: 'webhook',
-                    rawPayload: verifiedPayment
+                    rawPayload: verifiedPayment,
+                    requestStartedAt
                 });
 
                 const paidEventId = paidEventResult.eventId;
@@ -1948,6 +2072,7 @@ router.post('/payments/webhook', async (req, res) => {
         
         Logger.log('[payments][webhook] 웹훅 수신 - 이벤트 분기 처리');
 
+        const requestStartedAt = Date.now();
         const { eventType, data } = req.body;
 
         Logger.log('[payments][webhook] 웹훅 수신 (이벤트 타입)', {
@@ -1963,8 +2088,8 @@ router.post('/payments/webhook', async (req, res) => {
         let connection;
         try {
             connection = await mysql.createConnection(dbConfig);
-            // confirm과 동시 요청 시 50초 대기 방지 — 락 대기 10초 후 실패·재시도 유도
-            await connection.execute('SET SESSION innodb_lock_wait_timeout = 10').catch(() => {});
+            // confirm과 동시 요청 시 50초 대기 방지 — 락 대기 5초 후 실패·Polling 유도 (PAYMENT_PENDING §1-3)
+            await connection.execute('SET SESSION innodb_lock_wait_timeout = 5').catch(() => {});
             await connection.beginTransaction();
 
             // 웹훅 이벤트별 분기 (seller.changed = 토스 구 이벤트명). 이메일 발송 정보는 handlePaymentStatusChange 반환값으로 채움.
@@ -1972,7 +2097,7 @@ router.post('/payments/webhook', async (req, res) => {
             if (eventType === 'PAYMENT_STATUS_CHANGED' || 
                 eventType === 'CANCEL_STATUS_CHANGED' || 
                 eventType === 'seller.changed') {
-                emailInfo = await handlePaymentStatusChange(connection, data);
+                emailInfo = await handlePaymentStatusChange(connection, data, requestStartedAt);
             } else if (eventType === 'DEPOSIT_CALLBACK') {
                 await handleDepositCallback(connection, data);
             } else if (eventType === 'payout.changed') {

@@ -106,12 +106,21 @@ async function updateOrderStatus(connection, orderId) {
             newStatus = 'paid';
         }
 
-        // 5. orders.status 업데이트
-        const [updateResult] = await connection.execute(
-            'UPDATE orders SET status = ? WHERE order_id = ?',
-            [newStatus, orderId]
-        );
+        // 5. orders.status 업데이트 — CAS: pending→paid 전이 시 덮어쓰기 방지 (PAYMENT_PENDING §2-2, §9.1)
+        const casFromStatuses = ['pending', 'payment_error', 'payment_investigate'];
+        const useCas = newStatus === 'paid'; // paid 전이 시만 CAS (웹훅·Redirect 경합)
+        const updateSql = useCas
+            ? 'UPDATE orders SET status = ? WHERE order_id = ? AND status IN (?, ?, ?)'
+            : 'UPDATE orders SET status = ? WHERE order_id = ?';
+        const updateParams = useCas ? [newStatus, orderId, ...casFromStatuses] : [newStatus, orderId];
 
+        const [updateResult] = await connection.execute(updateSql, updateParams);
+
+        if (updateResult.affectedRows === 0 && useCas) {
+            // CAS: 이미 상위 상태로 전이됨 (웹훅·Redirect 경합) — 정상, throw 없음 (PAYMENT_PENDING §11.1, §13.1)
+            Logger.info('[CAS] State already transitioned, skipping update', { orderId, newStatus });
+            return newStatus;
+        }
         if (updateResult.affectedRows !== 1) {
             // ⚠️ 주문이 없거나 이미 삭제된 경우
             Logger.error('[ORDER_STATUS_AGGREGATOR] orders.status 업데이트 실패 - 주문이 없거나 이미 삭제됨', {

@@ -45,6 +45,9 @@ async function getEventCreatorConnection(timeoutMs) {
     });
 }
 
+/** 8초 Global Budget — 락 경합 시 워커 고사 방지 (PAYMENT_PENDING §12.2, §13) */
+const REQUEST_BUDGET_MS = 8000;
+
 /**
  * paid_events 생성 (별도 커넥션, autocommit)
  *
@@ -55,6 +58,7 @@ async function getEventCreatorConnection(timeoutMs) {
  * @param {string} params.currency - 통화
  * @param {string} params.eventSource - 이벤트 소스
  * @param {Object} params.rawPayload - 원본 결제 응답
+ * @param {number} [params.requestStartedAt] - 요청 진입 시각 (Date.now()). 8초 초과 시 즉시 throw
  *
  * @returns {Promise<Object>} { eventId, alreadyExists }
  */
@@ -64,10 +68,17 @@ async function createPaidEvent({
     amount,
     currency = 'KRW',
     eventSource = 'redirect',
-    rawPayload = null
+    rawPayload = null,
+    requestStartedAt = null
 }) {
     const maxRetries = 3;
-    const retryDelay = 1000; // 1초
+    const retryDelay = 2000; // Exponential Backoff 기반: 2초, 4초 (PAYMENT_PENDING §9.2)
+
+    function checkBudget() {
+        if (requestStartedAt != null && (Date.now() - requestStartedAt > REQUEST_BUDGET_MS)) {
+            throw new Error('REQUEST_BUDGET_EXCEEDED');
+        }
+    }
 
     // [성능/보안] 루프 밖에서 1회만 직렬화 및 크기 제한 (문서 §4)
     const payloadString = rawPayload
@@ -75,11 +86,17 @@ async function createPaidEvent({
         : null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        checkBudget(); // (1) 루프 시작 시
+
         let connection;
         try {
+            checkBudget(); // (2) getConnection 직전
             // [풀 누수 방지] queueLimit + 타임아웃으로 풀 고갈 시 빠르게 실패 (문서 §1)
             connection = await getEventCreatorConnection(3000);
             connection.config.autocommit = true;
+
+            // 5초 락 타임아웃 (PAYMENT_PENDING §1-3, §7.1)
+            await connection.execute('SET SESSION innodb_lock_wait_timeout = 5').catch(() => {});
 
             Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 시도', {
                 orderId,
@@ -92,6 +109,8 @@ async function createPaidEvent({
             });
 
             try {
+                checkBudget(); // (3) execute 직전
+
                 // [증거 불변성] INSERT만 사용. 중복 시 ER_DUP_ENTRY → SELECT로 기존 event_id 반환 (문서 §2, §8.2)
                 Logger.log('[PAID_EVENT_CREATOR] paid_events INSERT 실행', {
                     orderId,
@@ -147,12 +166,12 @@ async function createPaidEvent({
                     // SELECT 실패(이론상 없음) 시 원래 에러 전파
                 }
 
-                // ER_LOCK_WAIT_TIMEOUT / ER_LOCK_DEADLOCK → 재시도
+                // ER_LOCK_WAIT_TIMEOUT / ER_LOCK_DEADLOCK → Exponential Backoff 재시도
                 if (
                     (innerError.code === 'ER_LOCK_WAIT_TIMEOUT' || innerError.code === 'ER_LOCK_DEADLOCK') &&
                     attempt < maxRetries
                 ) {
-                    const delay = retryDelay * attempt;
+                    const delay = retryDelay * Math.pow(2, attempt - 1); // 2s, 4s
                     Logger.warn('[PAID_EVENT_CREATOR] 락 대기/데드락, 재시도 예정', {
                         orderId,
                         attempt,
@@ -191,7 +210,7 @@ async function createPaidEvent({
                 (error.code === 'ER_LOCK_WAIT_TIMEOUT' || error.code === 'ER_LOCK_DEADLOCK') &&
                 attempt < maxRetries
             ) {
-                const delay = retryDelay * attempt;
+                const delay = retryDelay * Math.pow(2, attempt - 1); // 2s, 4s
                 Logger.warn('[PAID_EVENT_CREATOR] 재시도 예정', {
                     orderId,
                     attempt,
