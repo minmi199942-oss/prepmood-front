@@ -84,7 +84,14 @@ const generalLimiter = rateLimit({
 app.use('/api/send-verification', apiLimiter); // 이메일 발송은 더 엄격하게
 app.use('/api/', generalLimiter); // 다른 API는 일반적으로
 
-app.use(express.json({ limit: '10mb' })); // JSON 크기 제한
+// 웹훅 raw body: HMAC 검증 전 body 원문 필요. express.json() 전에 webhook만 raw로 파싱 (§11.2)
+app.use('/api/payments/webhook', express.raw({ type: 'application/json', limit: '64kb' }));
+app.use((req, res, next) => {
+    if (req.method === 'POST' && (req.path === '/api/payments/webhook' || req.originalUrl.split('?')[0] === '/api/payments/webhook')) {
+        return next(); // webhook은 raw body 사용, json 파싱 스킵
+    }
+    return express.json({ limit: '10mb' })(req, res, next);
+});
 app.use(cookieParser()); // 쿠키 파서 추가 (JWT 토큰용) - CSRF 미들웨어보다 앞에!
 
 // CSRF 보호 설정 (cookieParser 뒤에 와야 쿠키 읽기 가능)

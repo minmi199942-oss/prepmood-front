@@ -46,6 +46,7 @@
 
 const { pool } = require('../db');
 const Logger = require('../logger');
+const { markAttemptRecoveryRequired } = require('../services/payment-recovery-service');
 
 // ---------------------------------------------------------
 // [운영 안정성] 전역 상태 및 Graceful Shutdown 제어 (§2·§10.23)
@@ -187,7 +188,7 @@ async function withPaymentAttempt({
 
             // 선행 존재 원칙: checkout_sessions 행은 반드시 POST /orders 시점에 PENDING으로 생성됨. 없으면 위조/만료 키.
             const [sessionCheckRows] = await connA.query(
-                'SELECT session_key, status, attempt_id FROM checkout_sessions WHERE session_key = ? FOR UPDATE',
+                'SELECT session_key, status, attempt_id, expires_at FROM checkout_sessions WHERE session_key = ? FOR UPDATE',
                 [sessionKey]
             );
             if (sessionCheckRows.length === 0) {
@@ -195,8 +196,25 @@ async function withPaymentAttempt({
                 err.status = 400;
                 throw err;
             }
-            const existingStatus = sessionCheckRows[0].status;
-            if (existingStatus === 'IN_PROGRESS' || existingStatus === 'CONSUMED') {
+            const sessionRow = sessionCheckRows[0];
+            const existingStatus = sessionRow.status;
+            if (existingStatus === 'CONSUMED') {
+                const err = new Error('SESSION_ALREADY_IN_USE');
+                err.status = 409;
+                throw err;
+            }
+            // Phase 1 stale: IN_PROGRESS + expires_at<=NOW → mark-only, provider/paid_events 접근 금지
+            if (existingStatus === 'IN_PROGRESS') {
+                const expiresAt = sessionRow.expires_at ? new Date(sessionRow.expires_at) : null;
+                if (expiresAt && expiresAt <= new Date()) {
+                    const attemptIdForStale = sessionRow.attempt_id;
+                    if (attemptIdForStale) {
+                        await markAttemptRecoveryRequired(connA, attemptIdForStale, 'stale', 'phase1', orderId);
+                    }
+                    const err = new Error('STALE_SESSION_NEEDS_RECOVERY');
+                    err.status = 423;
+                    throw err;
+                }
                 const err = new Error('SESSION_ALREADY_IN_USE');
                 err.status = 409;
                 throw err;

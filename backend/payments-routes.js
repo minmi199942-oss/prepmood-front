@@ -36,6 +36,7 @@ const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
 const { updateOrderStatus } = require('./utils/order-status-aggregator');
 const { withPaymentAttempt, getSafeConnection } = require('./utils/payment-wrapper');
 const { pool } = require('./db');
+const { markAttemptRecoveryRequired } = require('./services/payment-recovery-service');
 const https = require('https');
 const http = require('http');
 require('dotenv').config();
@@ -669,6 +670,36 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 });
             }
 
+            // 멱등 재확인: paid_events + pep.status='success' → ALREADY_CONFIRMED
+            if (result.message === 'ALREADY_CONFIRMED') {
+                let guestAccessToken = null;
+                if (order && order.user_id == null) {
+                    try {
+                        const [tokenRows] = await connection.execute(
+                            `SELECT token FROM guest_order_access_tokens got
+                             WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')} ORDER BY got.created_at DESC LIMIT 1`,
+                            [order.order_id]
+                        );
+                        if (tokenRows.length > 0) guestAccessToken = tokenRows[0].token;
+                    } catch (_) {}
+                }
+                await connection.rollback().catch(() => {});
+                connection.release();
+                connection = null;
+                return res.json({
+                    success: true,
+                    code: 'ALREADY_CONFIRMED',
+                    data: {
+                        order_number: orderNumber,
+                        amount: serverAmount,
+                        currency: currencyVal,
+                        payment_status: 'captured',
+                        alreadyConfirmed: true,
+                        guest_access_token: guestAccessToken
+                    }
+                });
+            }
+
             const paidResult = result.data?.paidResult;
             const paymentStatus = result.data?.status === 'DONE' ? 'captured' : result.data?.status === 'IN_PROGRESS' ? 'authorized' : 'failed';
             const invoiceCreated = !!paidResult?.data?.invoiceNumber;
@@ -785,6 +816,31 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                     details: {
                         field: 'checkoutSessionKey',
                         message: '유효한 결제 세션을 찾을 수 없습니다.'
+                    }
+                });
+            }
+            if (wrapperError.message === 'STALE_SESSION_NEEDS_RECOVERY') {
+                let guestAccessToken = null;
+                if (order && order.user_id == null) {
+                    try {
+                        const [tokenRows] = await connection.execute(
+                            `SELECT token FROM guest_order_access_tokens got
+                             WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')} ORDER BY got.created_at DESC LIMIT 1`,
+                            [order.order_id]
+                        );
+                        if (tokenRows.length > 0) guestAccessToken = tokenRows[0].token;
+                    } catch (_) {}
+                }
+                await connection.rollback().catch(() => {});
+                connection.release();
+                connection = null;
+                return res.status(423).json({
+                    success: false,
+                    code: 'PAYMENT_STATUS_CHECK_REQUIRED',
+                    details: {
+                        message: '결제 세션이 만료되었습니다. 주문/결제 상태를 확인해주세요.',
+                        orderNumber: orderNumber || req.body?.orderNumber,
+                        guest_access_token: guestAccessToken
                     }
                 });
             }
@@ -1655,6 +1711,41 @@ router.post('/payments/inicis/return', async (req, res) => {
     }
 });
 
+// --- 웹훅 §11.2: event type·allowlist·dedupe 상수 ---
+const EVENTS_REQUIRING_SIGNATURE = ['PAYOUT_CHANGED', 'SELLER_CHANGED'];
+const EVENTS_SIGNATURE_OPTIONAL = ['PAYMENT_STATUS_CHANGED', 'DEPOSIT_CALLBACK', 'CANCEL_STATUS_CHANGED'];
+const ALLOWED_WEBHOOK_EVENTS = ['PAYMENT_STATUS_CHANGED', 'DEPOSIT_CALLBACK', 'CANCEL_STATUS_CHANGED'];
+const WEBHOOK_PROVIDER = 'toss';
+
+/**
+ * event type 정규화 (대문자, . → _). §11.2
+ * @param {string} raw - raw eventType
+ * @returns {string} normalized
+ */
+function normalizeEventType(raw) {
+    if (typeof raw !== 'string') return '';
+    return String(raw).replace(/\./g, '_').toUpperCase();
+}
+
+/**
+ * fallback dedupe 키 (timestamp 금지). §11.2
+ * @param {string} normalizedEventType
+ * @param {Object} data - 웹훅 payload data
+ * @returns {string} sha256 hash
+ */
+function buildFallbackDedupeKey(normalizedEventType, data) {
+    const d = data || {};
+    const paymentKey = (d.paymentKey || d.payment?.paymentKey || d.id || '').toString();
+    const orderId = (d.orderId || d.payment?.orderId || d.order?.orderId || '').toString();
+    const status = (d.status || d.payment?.status || d.state || '').toString();
+    const transactionKey = (d.transactionKey || '').toString();
+    const base = `toss|${normalizedEventType}|`;
+    const parts = normalizedEventType === 'DEPOSIT_CALLBACK'
+        ? `${base}${transactionKey}|${orderId}|${status}`
+        : `${base}${paymentKey}|${orderId}|${status}`;
+    return crypto.createHash('sha256').update(parts).digest('hex');
+}
+
 /**
  * 토스 웹훅 HMAC 서명 검증
  *
@@ -1717,10 +1808,10 @@ function verifyWebhookSignature(body, signature, secret) {
 }
 
 /**
- * 토스 결제 조회 API (Zero-Trust 검증용)
+ * 토스 결제 조회 API (Zero-Trust 검증용). §11.2 반환 계약.
  *
  * @param {string} paymentKey - 결제 키
- * @returns {Object|null} 조회 API 응답 또는 null
+ * @returns {Promise<{ok:boolean, data:object|null, errorCategory:string|null}>}
  */
 async function verifyPaymentWithToss(paymentKey) {
     try {
@@ -1729,7 +1820,7 @@ async function verifyPaymentWithToss(paymentKey) {
 
         if (!tossSecretKey) {
             Logger.log('[payments][webhook] TOSS_SECRET_KEY 미설정으로 조회 스킵');
-            return null;
+            return { ok: false, data: null, errorCategory: null };
         }
 
         const response = await fetch(`${tossApiBase}/v1/payments/${paymentKey}`, {
@@ -1740,29 +1831,88 @@ async function verifyPaymentWithToss(paymentKey) {
             }
         });
 
-        if (!response.ok) {
-            Logger.log('[payments][webhook] 토스 조회 API 실패', {
-                paymentKey: paymentKey.substring(0, 10) + '...',
-                status: response.status,
-                statusText: response.statusText
+        if (response.status >= 400 && response.status < 500) {
+            Logger.log('[payments][webhook] 토스 조회 API 4xx', {
+                paymentKey: paymentKey ? paymentKey.substring(0, 10) + '...' : 'unknown',
+                status: response.status
             });
-            return null;
+            return { ok: false, data: null, errorCategory: 'PROVIDER_4XX' };
+        }
+        if (response.status >= 500) {
+            Logger.log('[payments][webhook] 토스 조회 API 5xx', {
+                paymentKey: paymentKey ? paymentKey.substring(0, 10) + '...' : 'unknown',
+                status: response.status
+            });
+            return { ok: false, data: null, errorCategory: 'PROVIDER_5XX' };
+        }
+
+        if (!response.ok) {
+            return { ok: false, data: null, errorCategory: 'SCHEMA_MISMATCH' };
         }
 
         const paymentData = await response.json();
+        if (!paymentData || !paymentData.paymentKey) {
+            return { ok: false, data: null, errorCategory: 'SCHEMA_MISMATCH' };
+        }
+
         Logger.log('[payments][webhook] 토스 조회 성공', {
             paymentKey: paymentKey.substring(0, 10) + '...',
             status: paymentData.status,
             orderId: paymentData.orderId
         });
-
-        return paymentData;
+        return { ok: true, data: paymentData, errorCategory: null };
     } catch (error) {
+        const msg = (error && error.message) || '';
+        let errorCategory = null;
+        if (msg.includes('timeout') || error.name === 'AbortError') errorCategory = 'TIMEOUT';
+        else if (msg.includes('ECONNRESET') || msg.includes('socket hang up')) errorCategory = 'CONNECTION_RESET';
         Logger.log('[payments][webhook] 토스 조회 예외', {
-            error: error.message,
-            paymentKey: paymentKey ? paymentKey.substring(0, 10) + '...' : 'unknown'
+            error: msg,
+            paymentKey: paymentKey ? paymentKey.substring(0, 10) + '...' : 'unknown',
+            errorCategory
         });
-        return null;
+        return { ok: false, data: null, errorCategory: errorCategory || 'SCHEMA_MISMATCH' };
+    }
+}
+
+/**
+ * orderId로 토스 결제 조회 (DEPOSIT_CALLBACK fallback용). §11.6
+ * @param {string} orderId - 주문번호 (pg_order_id)
+ * @returns {Promise<{ok:boolean, data:object|null, errorCategory:string|null}>}
+ */
+async function fetchPaymentByOrderId(orderId) {
+    try {
+        const tossApiBase = process.env.TOSS_API_BASE || 'https://api.tosspayments.com';
+        const tossSecretKey = process.env.TOSS_SECRET_KEY;
+        if (!tossSecretKey) return { ok: false, data: null, errorCategory: null };
+
+        const response = await fetch(`${tossApiBase}/v1/payments/orders/${encodeURIComponent(orderId)}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Basic ${Buffer.from(`${tossSecretKey}:`).toString('base64')}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.status >= 400 && response.status < 500) {
+            return { ok: false, data: null, errorCategory: 'PROVIDER_4XX' };
+        }
+        if (response.status >= 500) {
+            return { ok: false, data: null, errorCategory: 'PROVIDER_5XX' };
+        }
+        if (!response.ok) {
+            return { ok: false, data: null, errorCategory: 'SCHEMA_MISMATCH' };
+        }
+
+        const data = await response.json();
+        if (!data || !data.orderId) return { ok: false, data: null, errorCategory: 'SCHEMA_MISMATCH' };
+        return { ok: true, data, errorCategory: null };
+    } catch (error) {
+        const msg = (error && error.message) || '';
+        let errorCategory = 'SCHEMA_MISMATCH';
+        if (msg.includes('timeout') || error.name === 'AbortError') errorCategory = 'TIMEOUT';
+        else if (msg.includes('ECONNRESET') || msg.includes('socket hang up')) errorCategory = 'CONNECTION_RESET';
+        return { ok: false, data: null, errorCategory };
     }
 }
 
@@ -1796,16 +1946,16 @@ async function handlePaymentStatusChange(connection, data, requestStartedAt = nu
     }
 
     // Zero-Trust: 토스 API로 실제 조회 (웹훅 payload 단독 신뢰 금지)
-    const verifiedPayment = await verifyPaymentWithToss(paymentKey);
-    
-    if (!verifiedPayment) {
+    const verifyResult = await verifyPaymentWithToss(paymentKey);
+    if (!verifyResult.ok || !verifyResult.data) {
         Logger.warn('[payments][webhook] 토스 조회 실패 - 검증 스킵', {
             paymentKey: paymentKey.substring(0, 10) + '...',
-            orderId
+            orderId,
+            errorCategory: verifyResult.errorCategory
         });
-        // 웹훅만으로 승인 반영 금지 (리콘 등 다른 경로 대기)
         return;
     }
+    const verifiedPayment = verifyResult.data;
 
     // 토스 API 조회 결과 기준으로 상태 결정
     const status = verifiedPayment.status;
@@ -1923,20 +2073,7 @@ async function handlePaymentStatusChange(connection, data, requestStartedAt = nu
             }
         }
 
-        // confirm(redirect)이 이미 처리 중이면 웹훅은 스킵 → 토스에 200 반환 (경합 방지)
-        if (orderIdForPaidProcess && paymentStatus === 'captured') {
-            const [activeSession] = await connection.execute(
-                `SELECT session_key FROM checkout_sessions WHERE order_id = ? AND status = 'IN_PROGRESS' LIMIT 1`,
-                [orderIdForPaidProcess]
-            );
-            if (activeSession.length > 0) {
-                Logger.log('[payments][webhook] confirm이 처리 중 (IN_PROGRESS) — 웹훅 스킵', {
-                    order_id: orderIdForPaidProcess,
-                    order_number: finalOrderId
-                });
-                return { shouldSendEmail: false };
-            }
-        }
+        // §11.2 IN_PROGRESS early return 제거 — paid_events 확인 후 보정 분기까지 수행
 
         // non-captured (cancelled, failed 등): orders.status 집계 갱신
         // captured 시에는 createPaidEvent → processPaidOrder → updateOrderStatus 순서로 처리
@@ -2055,87 +2192,297 @@ async function handlePaymentStatusChange(connection, data, requestStartedAt = nu
 }
 
 /**
- * 입금 콜백 처리 (미구현)
+ * DEPOSIT_CALLBACK 처리. §11.6 secret 검증 6칙.
+ * body: { createdAt, secret, status, transactionKey, orderId } (eventType/data 래퍼 없음)
  *
  * @param {Object} connection - MySQL 커넥션
- * @param {Object} data - 웹훅 payload
+ * @param {Object} body - 웹훅 본문 (DEPOSIT_CALLBACK 구조)
+ * @param {number} requestStartedAt - 요청 진입 시각
+ * @returns {Promise<{ok:boolean, emailInfo?:object, reason?:string}>}
  */
-async function handleDepositCallback(connection, data) {
-    // 입금 알림만 로깅
-    Logger.log('[payments][webhook] 입금 콜백 수신', { data });
+async function handleDepositCallback(connection, body, requestStartedAt = null) {
+    const orderId = (body && body.orderId) || '';
+    const secret = (body && body.secret) || '';
+    const status = (body && body.status) || '';
+    const transactionKey = (body && body.transactionKey) || '';
+
+    Logger.log('[payments][webhook] DEPOSIT_CALLBACK 수신', {
+        orderId,
+        status,
+        transactionKey: transactionKey ? transactionKey.substring(0, 12) + '...' : '',
+        hasSecret: !!secret
+    });
+
+    // §11.6 규칙 6: status=DONE일 때만 입금 완료. WAITING_FOR_DEPOSIT ≠ 입금완료
+    if (String(status).toUpperCase() !== 'DONE') {
+        Logger.log('[payments][webhook] DEPOSIT_CALLBACK status가 DONE 아님 — paid_events 생성 스킵', { status });
+        return { ok: true, emailInfo: null };
+    }
+
+    if (!orderId || !secret) {
+        Logger.warn('[payments][webhook] DEPOSIT_CALLBACK orderId 또는 secret 없음', { orderId: !!orderId, hasSecret: !!secret });
+        return { ok: false, reason: 'missing_fields' };
+    }
+
+    // 1. payments 최신 toss row 조회 (§11.6 규칙 1)
+    const [paymentRows] = await connection.execute(
+        `SELECT payment_id, payment_key, payload_json FROM payments 
+         WHERE order_number = ? AND gateway = 'toss' 
+         ORDER BY created_at DESC LIMIT 1`,
+        [orderId]
+    );
+
+    let storedSecret = null;
+    let paymentKey = null;
+    let paymentRowId = null;
+
+    if (paymentRows.length > 0) {
+        paymentRowId = paymentRows[0].payment_id;
+        paymentKey = paymentRows[0].payment_key;
+        const payload = paymentRows[0].payload_json;
+        if (payload) {
+            const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
+            storedSecret = (parsed && parsed.secret) || null; // §11.6 규칙 2: payload_json.secret만
+        }
+    }
+
+    // 2. 없으면 provider fallback (§11.6 규칙 3: 실패 시 500 금지)
+    if (!storedSecret) {
+        const fetchResult = await fetchPaymentByOrderId(orderId);
+        if (!fetchResult.ok || !fetchResult.data) {
+            Logger.warn('[payments][webhook] DEPOSIT_CALLBACK provider fallback 실패', {
+                orderId,
+                errorCategory: fetchResult.errorCategory
+            });
+            // attemptId 조회 시 REQUIRED 마킹 (500 반환 금지)
+            const [attemptRows] = await connection.execute(
+                `SELECT id FROM payment_attempts WHERE pg_order_id = ? LIMIT 1`,
+                [orderId]
+            );
+            if (attemptRows.length > 0) {
+                await markAttemptRecoveryRequired(connection, attemptRows[0].id, 'deposit_fallback_failed', 'webhook', null);
+            }
+            return { ok: false, reason: 'fallback_failed' };
+        }
+        const providerData = fetchResult.data;
+        storedSecret = providerData.secret || null;
+        paymentKey = providerData.paymentKey || null;
+        // §11.6 규칙 5: provider 응답 orderId와 body orderId 재비교
+        if (providerData.orderId && providerData.orderId !== orderId) {
+            Logger.warn('[payments][webhook] DEPOSIT_CALLBACK provider orderId 불일치', {
+                bodyOrderId: orderId,
+                providerOrderId: providerData.orderId
+            });
+            return { ok: false, reason: 'order_id_mismatch' };
+        }
+    }
+
+    // 3. secret 비교 (§11.6 규칙 4: mismatch 시 처리 금지, REQUIRED 아님)
+    if (secret !== storedSecret) {
+        Logger.warn('[payments][webhook] DEPOSIT_CALLBACK secret 불일치 — 처리 금지 (차단)', {
+            orderId,
+            transactionKey: transactionKey ? transactionKey.substring(0, 12) + '...' : '',
+            paymentRowId
+        });
+        return { ok: false, reason: 'secret_mismatch' };
+    }
+
+    // §11.6 규칙 5: 필드 일치 로깅
+    Logger.log('[payments][webhook] DEPOSIT_CALLBACK secret 검증 통과', {
+        orderId,
+        transactionKey: transactionKey ? transactionKey.substring(0, 12) + '...' : '',
+        status,
+        paymentRowId
+    });
+
+    if (!paymentKey) {
+        const fetchResult = await fetchPaymentByOrderId(orderId);
+        if (!fetchResult.ok || !fetchResult.data) {
+            Logger.warn('[payments][webhook] DEPOSIT_CALLBACK paymentKey 조회 실패');
+            return { ok: false, reason: 'no_payment_key' };
+        }
+        paymentKey = fetchResult.data.paymentKey;
+    }
+
+    // order_id 조회
+    const [orderRows] = await connection.execute(
+        `SELECT order_id FROM orders WHERE order_number = ?`,
+        [orderId]
+    );
+    if (orderRows.length === 0) {
+        Logger.warn('[payments][webhook] DEPOSIT_CALLBACK orders에 order_number 없음', { orderId });
+        return { ok: false, reason: 'order_not_found' };
+    }
+    const orderIdNum = orderRows[0].order_id;
+
+    const providerData = await (async () => {
+        const r = await fetchPaymentByOrderId(orderId);
+        return r.ok && r.data ? r.data : null;
+    })();
+    const amount = (providerData && (providerData.totalAmount ?? providerData.amount)) || 0;
+    const currency = (providerData && providerData.currency) || 'KRW';
+
+    try {
+        const paidEventResult = await createPaidEvent({
+            orderId: orderIdNum,
+            paymentKey,
+            amount,
+            currency,
+            eventSource: 'webhook',
+            rawPayload: providerData,
+            requestStartedAt
+        });
+        const paidEventId = paidEventResult.eventId;
+        const paidResult = await processPaidOrder({
+            connection,
+            paidEventId,
+            orderId: orderIdNum,
+            paymentKey,
+            amount,
+            currency,
+            eventSource: 'webhook',
+            rawPayload: providerData
+        });
+        await updateOrderStatus(connection, orderIdNum);
+
+        if (paidResult && paidResult.data && paidResult.data.orderInfo) {
+            return {
+                ok: true,
+                emailInfo: {
+                    shouldSendEmail: true,
+                    orderInfo: paidResult.data.orderInfo,
+                    orderId: orderIdNum,
+                    invoiceId: paidResult.data.invoiceId || null,
+                    invoiceNumber: paidResult.data.invoiceNumber || null
+                }
+            };
+        }
+        return { ok: true, emailInfo: null };
+    } catch (err) {
+        Logger.error('[payments][webhook] DEPOSIT_CALLBACK paid_events 처리 예외', {
+            orderId,
+            error: err.message
+        });
+        throw err;
+    }
 }
 
 /**
  * POST /api/payments/webhook
  *
- * 토스 페이먼츠 웹훅 수신.
- * 참고: 토스 문서
- * - 토스에서 전달하는 서명을 WEBHOOK_SHARED_SECRET으로 HMAC 검증 (미구현 시 로깅만).
- * - 웹훅 payload만으로 승인 반영 금지, 조회 API(verifyPaymentWithToss)로 검증.
- * - handlePaymentStatusChange 내부에서 verifyPaymentWithToss() 호출.
- * - 검증 통과 시 payments & orders 동기화 후 이메일 발송 여부 반환.
- *
- * 참고: 토스 웹훅 문서
- * https://docs.tosspayments.com/guides/v2/webhook/overview
+ * §11.2 raw body, dedupe, event 분기. PAYMENT_STATUS_CHANGED/DEPOSIT_CALLBACK/CANCEL_STATUS_CHANGED는 시그니처 없음.
  */
 router.post('/payments/webhook', async (req, res) => {
+    const requestStartedAt = Date.now();
+    let parsed = null;
+    let normalizedEventType = '';
+    let eventData = null;
+    let webhookEventId = null;
+
     try {
-        // 웹훅 HMAC 시그니처 검증 — 시크릿 설정 시 가짜 요청을 토스 API 호출 전에 차단
-        const webhookSecret = process.env.WEBHOOK_SHARED_SECRET;
-        if (webhookSecret && webhookSecret !== 'your_webhook_secret_here') {
-            const tossSignature = req.headers['x-toss-signature'];
-            if (!verifyWebhookSignature(req.body, tossSignature, webhookSecret)) {
-                Logger.warn('[payments][webhook] 시그니처 검증 실패 — 요청 거부', {
-                    hasSignature: !!tossSignature,
-                    ip: req.ip
-                });
+        // raw body 파싱 (§11.2: index.js에서 express.raw 적용)
+        const rawBody = req.body;
+        if (Buffer.isBuffer(rawBody)) {
+            try {
+                parsed = JSON.parse(rawBody.toString('utf8'));
+            } catch (e) {
+                Logger.warn('[payments][webhook] body JSON 파싱 실패', { error: e.message });
                 return res.status(200).json({ received: true });
             }
+        } else if (typeof rawBody === 'object' && rawBody !== null) {
+            parsed = rawBody;
+        } else {
+            Logger.warn('[payments][webhook] body 없음 또는 비객체');
+            return res.status(200).json({ received: true });
         }
-        
-        Logger.log('[payments][webhook] 웹훅 수신 - 이벤트 분기 처리');
 
-        const requestStartedAt = Date.now();
-        const { eventType, data } = req.body;
+        // event type 추론 (§11.2: DEPOSIT_CALLBACK는 eventType 없음)
+        if (parsed.eventType) {
+            normalizedEventType = normalizeEventType(parsed.eventType);
+            eventData = parsed.data || parsed;
+        } else if (parsed.secret && parsed.transactionKey && parsed.orderId) {
+            normalizedEventType = 'DEPOSIT_CALLBACK';
+            eventData = parsed;
+        } else {
+            Logger.log('[payments][webhook] eventType 추론 불가', { keys: Object.keys(parsed) });
+            return res.status(200).json({ received: true });
+        }
 
-        Logger.log('[payments][webhook] 웹훅 수신 (이벤트 타입)', {
-            eventType,
-            data: data ? {
-                orderId: data.orderId,
-                paymentKey: data.paymentKey,
-                status: data.status
-            } : null
-        });
+        // allowlist (§11.2)
+        if (!ALLOWED_WEBHOOK_EVENTS.includes(normalizedEventType)) {
+            Logger.log('[payments][webhook] 미등록 이벤트 무시', { normalizedEventType });
+            return res.status(200).json({ received: true });
+        }
 
-        // 트랜잭션으로 payments & orders 동기화 (상태 업데이트)
+        // §11.2: PAYMENT_STATUS_CHANGED, DEPOSIT_CALLBACK, CANCEL_STATUS_CHANGED는 시그니처 없음 — 검증 스킵
+        // EVENTS_REQUIRING_SIGNATURE(payout.changed, seller.changed)만 시그니처 검증
+
+        // dedupe (§11.2): transmission-id 1순위, fallback 2순위
+        const transmissionId = req.headers['tosspayments-webhook-transmission-id'];
+        const providerEventId = (transmissionId && String(transmissionId).trim()) || buildFallbackDedupeKey(normalizedEventType, eventData);
+
         let connection;
         try {
             connection = await pool.getConnection();
             await connection.execute('SET SESSION innodb_lock_wait_timeout = 5').catch(() => {});
+
+            // webhook_events INSERT (ER_DUP_ENTRY → 200 received)
+            try {
+                const [insertResult] = await connection.execute(
+                    `INSERT INTO webhook_events (provider_name, provider_event_id, event_type, processing_status)
+                     VALUES (?, ?, ?, 'RECEIVED')`,
+                    [WEBHOOK_PROVIDER, providerEventId, normalizedEventType]
+                );
+                webhookEventId = insertResult.insertId;
+            } catch (insertErr) {
+                if (insertErr.code === 'ER_DUP_ENTRY') {
+                    connection.release();
+                    Logger.log('[payments][webhook] dedupe 중복 — 이미 처리된 이벤트', {
+                        providerEventId: providerEventId.substring(0, 24) + '...',
+                        normalizedEventType
+                    });
+                    return res.status(200).json({ received: true });
+                }
+                throw insertErr;
+            }
+
             await connection.beginTransaction();
 
-            // 웹훅 이벤트별 분기 (seller.changed = 토스 구 이벤트명). 이메일 발송 정보는 handlePaymentStatusChange 반환값으로 채움.
+            // processing_status → PROCESSING
+            if (webhookEventId) {
+                await connection.execute(
+                    `UPDATE webhook_events SET processing_status = 'PROCESSING' WHERE id = ?`,
+                    [webhookEventId]
+                );
+            }
+
             let emailInfo = null;
-            if (eventType === 'PAYMENT_STATUS_CHANGED' || 
-                eventType === 'CANCEL_STATUS_CHANGED' || 
-                eventType === 'seller.changed') {
-                emailInfo = await handlePaymentStatusChange(connection, data, requestStartedAt);
-            } else if (eventType === 'DEPOSIT_CALLBACK') {
-                await handleDepositCallback(connection, data);
-            } else if (eventType === 'payout.changed') {
-                // 정산 관련 이벤트(미처리)
-                Logger.log('[payments][webhook] payout.changed 수신', { data });
-            } else {
-                Logger.log('[payments][webhook] 미지원 이벤트 타입 (무시)', { 
-                    eventType,
-                    hasData: !!data
-                });
+            let processingStatus = 'PROCESSED';
+
+            if (normalizedEventType === 'PAYMENT_STATUS_CHANGED' || normalizedEventType === 'CANCEL_STATUS_CHANGED') {
+                emailInfo = await handlePaymentStatusChange(connection, eventData, requestStartedAt);
+            } else if (normalizedEventType === 'DEPOSIT_CALLBACK') {
+                const depositResult = await handleDepositCallback(connection, eventData, requestStartedAt);
+                if (!depositResult.ok) {
+                    processingStatus = 'FAILED';
+                }
+                emailInfo = depositResult.emailInfo || null;
             }
 
             await connection.commit();
             connection.release();
             connection = null;
-            Logger.log('[payments][webhook] 웹훅 처리 완료', { eventType });
+
+            if (webhookEventId) {
+                const conn2 = await pool.getConnection();
+                await conn2.execute(
+                    `UPDATE webhook_events SET processing_status = ? WHERE id = ?`,
+                    [processingStatus, webhookEventId]
+                );
+                conn2.release();
+            }
+
+            Logger.log('[payments][webhook] 웹훅 처리 완료', { normalizedEventType });
 
             // ============================================================
             // 주문 확인 이메일 발송 (captured 시에만)
@@ -2243,11 +2590,20 @@ router.post('/payments/webhook', async (req, res) => {
                 connection.release();
                 connection = null;
             }
+            if (webhookEventId) {
+                try {
+                    const connFail = await pool.getConnection();
+                    await connFail.execute(
+                        `UPDATE webhook_events SET processing_status = 'FAILED' WHERE id = ?`,
+                        [webhookEventId]
+                    );
+                    connFail.release();
+                } catch (_) {}
+            }
             Logger.log('[payments][webhook] 웹훅 처리 예외', {
                 error: webhookError.message,
                 stack: webhookError.stack
             });
-            // 토스 재전송 방지를 위해 200 반환 (문서 권장)
         }
 
         // 항상 200 OK 반환 (토스 재전송 방지)
