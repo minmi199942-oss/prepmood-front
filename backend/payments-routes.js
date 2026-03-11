@@ -212,7 +212,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
 
         // 2. Zero-Trust: 세션 조회 + 만료 + CONSUMED 검사. [문서] GEMINI §6 Step 5·§10.24.
         const [sessionRows] = await connection.execute(
-            `SELECT order_id, status, expires_at FROM checkout_sessions WHERE session_key = ? LIMIT 1`,
+            `SELECT order_id, status, expires_at, attempt_id FROM checkout_sessions WHERE session_key = ? LIMIT 1`,
             [checkoutSessionKey.trim()]
         );
         if (sessionRows.length === 0) {
@@ -228,6 +228,33 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         }
         const sessionRow = sessionRows[0];
         if (new Date(sessionRow.expires_at) <= new Date()) {
+            // PAYMENT_ORDER_SECURITY_CHECKLIST §2.2·§10.7: IN_PROGRESS + 만료 → mark-only, 423 (REQUIRED 마킹)
+            if (sessionRow.status === 'IN_PROGRESS' && sessionRow.attempt_id) {
+                await markAttemptRecoveryRequired(connection, sessionRow.attempt_id, 'stale', 'phase1', order.order_id);
+                let guestAccessToken = null;
+                if (order.user_id == null) {
+                    try {
+                        const [tokenRows] = await connection.execute(
+                            `SELECT token FROM guest_order_access_tokens got
+                             WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')} ORDER BY got.created_at DESC LIMIT 1`,
+                            [order.order_id]
+                        );
+                        if (tokenRows.length > 0) guestAccessToken = tokenRows[0].token;
+                    } catch (_) {}
+                }
+                await connection.rollback().catch(() => {});
+                connection.release();
+                connection = null;
+                return res.status(423).json({
+                    success: false,
+                    code: 'PAYMENT_STATUS_CHECK_REQUIRED',
+                    details: {
+                        message: '결제 세션이 만료되었습니다. 주문/결제 상태를 확인해주세요.',
+                        orderNumber,
+                        guest_access_token: guestAccessToken
+                    }
+                });
+            }
             await connection.rollback();
             connection.release();
             return res.status(400).json({
