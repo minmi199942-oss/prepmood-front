@@ -242,7 +242,7 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                         if (tokenRows.length > 0) guestAccessToken = tokenRows[0].token;
                     } catch (_) {}
                 }
-                await connection.rollback().catch(() => {});
+                await connection.commit().catch(() => {});
                 connection.release();
                 connection = null;
                 return res.status(423).json({
