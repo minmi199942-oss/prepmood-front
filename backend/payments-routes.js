@@ -667,7 +667,8 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                 amount: amountForPg,
                 currency: currencyVal,
                 eventSource: 'redirect',
-                rawPayload: pgResponse
+                rawPayload: pgResponse,
+                attemptId
             });
             await updateOrderStatus(connB, orderId);
             return { paidEventId, paidResult };
@@ -2056,6 +2057,8 @@ async function handlePaymentStatusChange(connection, data, requestStartedAt = nu
     // 함수 전체에서 사용 (return 시 참조) — try 밖에서 선언 필수 (PAYMENT_PENDING_ROOT_CAUSE §1-1)
     let orderIdForPaidProcess = null;
     let paidResultForEmail = null;
+    // webhook_events.processing_status 최종 결정에 영향을 주는 관측 상태 (예: UNRESOLVED_ATTEMPT)
+    let webhookProcessingStatus = null;
 
     try {
         // payments 테이블 상태 갱신
@@ -2140,33 +2143,71 @@ async function handlePaymentStatusChange(connection, data, requestStartedAt = nu
 
                 // processPaidOrder 호출 (동일 connection 사용)
                 // 참고: orders.status는 집계 함수로만 갱신 (SSOT는 order_item_units)
-                const paidResult = await processPaidOrder({
-                    connection,
-                    paidEventId: paidEventId,
-                    orderId: orderIdForPaidProcess,
-                    paymentKey: paymentKey,
-                    amount: verifiedAmount || webhookAmount || 0,
-                    currency: verifiedPayment.currency || 'KRW',
-                    eventSource: 'webhook',
-                    rawPayload: verifiedPayment
-                });
-                
-                // 이메일 발송용 반환값 보관
-                paidResultForEmail = paidResult;
-                
-                // orders.status 집계만 재계산 (processPaidOrder 완료 후)
-                // 참고: orders.status는 order_item_units.unit_status와 paid_events 기반 집계
-                await updateOrderStatus(connection, orderIdForPaidProcess);
-                
-                Logger.log('[payments][webhook] Paid 처리 완료', {
-                    order_id: orderIdForPaidProcess,
-                    order_number: finalOrderId,
-                    paidEventId,
-                    stockUnitsReserved: paidResult.data.stockUnitsReserved,
-                    orderItemUnitsCreated: paidResult.data.orderItemUnitsCreated,
-                    warrantiesCreated: paidResult.data.warrantiesCreated,
-                    invoiceNumber: paidResult.data.invoiceNumber
-                });
+                // webhook 경로에서도 가능한 경우 동일 attempt/use_hold 규칙을 적용하기 위해
+                // paymentKey(external_ref_id) 기반으로 대응되는 payment_attempts.id 를 찾아 attemptId 로 넘긴다.
+                let attemptIdForWebhook = null;
+                try {
+                    const [attemptRows] = await connection.execute(
+                        `SELECT id
+                         FROM payment_attempts
+                         WHERE order_id = ?
+                           AND external_ref_id = ?
+                           AND gateway = 'toss'
+                         ORDER BY created_at DESC
+                         LIMIT 1`,
+                        [orderIdForPaidProcess, paymentKey]
+                    );
+                    if (attemptRows.length > 0) {
+                        attemptIdForWebhook = attemptRows[0].id;
+                    }
+                } catch (attemptErr) {
+                    Logger.error('[payments][webhook] payment_attempts 조회 실패 (attemptId 연동 없이 처리)', {
+                        orderId: orderIdForPaidProcess,
+                        paymentKey,
+                        error: attemptErr.message
+                    });
+                    attemptIdForWebhook = null;
+                }
+
+                if (!attemptIdForWebhook) {
+                    // attempt를 결정적으로 찾지 못한 webhook은 hold-enabled 규칙을 자동 적용하지 않는다.
+                    // 이 경우에는 강한 로그만 남기고, recovery/재처리 경로에 맡긴다.
+                    webhookProcessingStatus = 'UNRESOLVED_ATTEMPT';
+                    Logger.error('[payments][webhook] WEBHOOK_ATTEMPT_UNRESOLVED - payment_attempts를 찾지 못해 자동 Paid 처리를 건너뜀', {
+                        order_id: orderIdForPaidProcess,
+                        order_number: finalOrderId,
+                        paymentKey
+                    });
+                } else {
+                    const paidResult = await processPaidOrder({
+                        connection,
+                        paidEventId: paidEventId,
+                        orderId: orderIdForPaidProcess,
+                        paymentKey: paymentKey,
+                        amount: verifiedAmount || webhookAmount || 0,
+                        currency: verifiedPayment.currency || 'KRW',
+                        eventSource: 'webhook',
+                        rawPayload: verifiedPayment,
+                        attemptId: attemptIdForWebhook
+                    });
+                    
+                    // 이메일 발송용 반환값 보관
+                    paidResultForEmail = paidResult;
+                    
+                    // orders.status 집계만 재계산 (processPaidOrder 완료 후)
+                    // 참고: orders.status는 order_item_units.unit_status와 paid_events 기반 집계
+                    await updateOrderStatus(connection, orderIdForPaidProcess);
+                    
+                    Logger.log('[payments][webhook] Paid 처리 완료', {
+                        order_id: orderIdForPaidProcess,
+                        order_number: finalOrderId,
+                        paidEventId,
+                        stockUnitsReserved: paidResult.data.stockUnitsReserved,
+                        orderItemUnitsCreated: paidResult.data.orderItemUnitsCreated,
+                        warrantiesCreated: paidResult.data.warrantiesCreated,
+                        invoiceNumber: paidResult.data.invoiceNumber
+                    });
+                }
             } catch (err) {
                 // 참고: processPaidOrder() 실패 시 rollback (paid_events는 별도 커넥션으로 유지)
                 Logger.error('[payments][webhook] Paid 처리 실패 - processPaidOrder 예외', {
@@ -2203,19 +2244,20 @@ async function handlePaymentStatusChange(connection, data, requestStartedAt = nu
         throw error;
     }
     
-    // Paid 처리 성공 시 이메일 발송 여부 반환
-    // (handlePaymentStatusChange 호출부에서 commit 후 이메일 발송)
-    if (paymentStatus === 'captured' && orderIdForPaidProcess && paidResultForEmail?.data?.orderInfo) {
-        return {
-            shouldSendEmail: true,
-            orderInfo: paidResultForEmail.data.orderInfo,
-            orderId: orderIdForPaidProcess,
-            invoiceId: paidResultForEmail.data.invoiceId || null,
-            invoiceNumber: paidResultForEmail.data.invoiceNumber || null
-        };
-    }
-    
-    return { shouldSendEmail: false };
+        // Paid 처리 성공 시 이메일 발송 여부 + webhook 처리 상태 반환
+        // (handlePaymentStatusChange 호출부에서 commit 후 이메일 발송)
+        if (paymentStatus === 'captured' && orderIdForPaidProcess && paidResultForEmail?.data?.orderInfo) {
+            return {
+                shouldSendEmail: true,
+                orderInfo: paidResultForEmail.data.orderInfo,
+                orderId: orderIdForPaidProcess,
+                invoiceId: paidResultForEmail.data.invoiceId || null,
+                invoiceNumber: paidResultForEmail.data.invoiceNumber || null,
+                webhookProcessingStatus: webhookProcessingStatus
+            };
+        }
+        
+        return { shouldSendEmail: false, webhookProcessingStatus: webhookProcessingStatus };
 }
 
 /**
@@ -2488,6 +2530,11 @@ router.post('/payments/webhook', async (req, res) => {
 
             if (normalizedEventType === 'PAYMENT_STATUS_CHANGED' || normalizedEventType === 'CANCEL_STATUS_CHANGED') {
                 emailInfo = await handlePaymentStatusChange(connection, eventData, requestStartedAt);
+                // PAYMENT_STATUS_CHANGED/CANCEL_STATUS_CHANGED 경로에서 handlePaymentStatusChange가
+                // UNRESOLVED_ATTEMPT 등 관측 상태를 반환한 경우, 이를 최종 processing_status로 우선 적용한다.
+                if (emailInfo && emailInfo.webhookProcessingStatus) {
+                    processingStatus = emailInfo.webhookProcessingStatus;
+                }
             } else if (normalizedEventType === 'DEPOSIT_CALLBACK') {
                 const depositResult = await handleDepositCallback(connection, eventData, requestStartedAt);
                 if (!depositResult.ok) {

@@ -1,10 +1,8 @@
 ERROR 1045 (28000): Access denied for user 'prepmood_user'@'localhost' (using password: YES)
 
--- 스키마 변경 기록 (수동 반영): migration 089 — warranty_transfers
 -- ADD COLUMN failed_attempts INT NOT NULL DEFAULT 0
 -- ADD COLUMN locked_until DATETIME NULL
 
--- migration 090 — payment_attempts, payment_payloads, stock_holds
 -- payment_attempts: id, order_id, external_ref_id, pg_order_id(NOT NULL), gateway, attempt_seq, status, amount, currency, stock_hold_id, expires_at, recon_started_at, refund_required, refund_status, created_at, updated_at (status_history 제거, 로그는 payment_attempt_logs)
 --   UK (gateway, external_ref_id), UK (order_id, attempt_seq), IDX (order_id), IDX (status, expires_at), IDX (pg_order_id), IDX (refund_status, updated_at), FK order_id -> orders
 -- payment_payloads: attempt_id PK, payload_json, created_at, updated_at. FK attempt_id -> payment_attempts(id) ON DELETE RESTRICT
@@ -13,3 +11,13 @@ ERROR 1045 (28000): Access denied for user 'prepmood_user'@'localhost' (using pa
 -- migration 091 — checkout_sessions, payment_attempt_logs
 -- checkout_sessions: session_key PK, order_id, status, attempt_id, expires_at, created_at, updated_at. IDX (order_id), (status, expires_at). FK order_id -> orders
 -- payment_attempt_logs: id, attempt_id, from_status, to_status, reason, server_ip, request_id, created_at. IDX (attempt_id). FK attempt_id -> payment_attempts(id) ON DELETE RESTRICT (감사 로그 보존)
+
+-- migration 094 — stock_holds ACTIVE 중복 방지
+-- stock_holds: active_lock VIRTUAL (status='ACTIVE'일 때만 1), UNIQUE (stock_unit_id, active_lock)로 같은 재고에 ACTIVE hold 1개만 허용
+
+-- migration 095 — payment_attempts.use_hold 추가
+-- payment_attempts: use_hold TINYINT(1) NOT NULL DEFAULT 0 (0=legacy, 1=hold-enabled 경로 구분)
+
+-- migration 096 — recovery 이슈 관측/로그용 투영본
+-- recovery_issues: order_id, payment_key, issue_code(상위 이슈), reason_code(세부 진단), recommended_action, first_seen_at, last_seen_at, last_retry_result, last_error_code, payload_snapshot. SSOT 아님.
+-- recovery_action_logs: issue_id, order_id, actor, actor_type, request_id, action, issue_code, reason_code, pre_state_snapshot, result, error_code, created_at. 복구 액션 감사 로그용.

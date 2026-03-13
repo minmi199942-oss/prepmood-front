@@ -12,6 +12,8 @@ const mysql = require('mysql2/promise');
 const { createPaidEvent } = require('../utils/paid-event-creator');
 const { processPaidOrder } = require('../utils/paid-order-processor');
 const { updateOrderStatus } = require('../utils/order-status-aggregator');
+const { resolveRecoveryAttempt } = require('../services/payment-recovery-service');
+const { upsertRecoveryIssue } = require('../services/recovery-issue-service');
 const Logger = require('../logger');
 require('dotenv').config();
 
@@ -63,7 +65,53 @@ async function fixMissingPaidEvents(orderId) {
             throw new Error(`결제 상태가 'captured'가 아닙니다. 현재 상태: ${payment.status}`);
         }
 
-        // 3. paid_events 확인
+        // 3. recovery용 attemptId 결정 (개발 단계: use_hold=1 하나만 허용, 나머지는 unresolved)
+        const resolution = await resolveRecoveryAttempt({
+            connection,
+            orderId: order.order_id,
+            paymentKey: payment.payment_key,
+            gateway: 'toss'
+        });
+
+        if (resolution.mode !== 'hold') {
+            Logger.error('[FIX_MISSING_PAID_EVENTS] resolveRecoveryAttempt 결과가 hold 아님 - USE_HOLD_RECOVERY_UNRESOLVED', {
+                order_id: order.order_id,
+                order_number: order.order_number,
+                payment_key: payment.payment_key,
+                reasonCode: resolution.reasonCode,
+                holdAttemptIds: resolution.holdAttemptIds,
+                legacyAttemptIds: resolution.legacyAttemptIds,
+                matchedAttemptIds: resolution.matchedAttemptIds
+            });
+            // recovery_issues 투영본에 이슈 upsert (관측용)
+            try {
+                await upsertRecoveryIssue({
+                    connection,
+                    orderId: order.order_id,
+                    paymentKey: payment.payment_key,
+                    issueCode: 'USE_HOLD_RECOVERY_UNRESOLVED',
+                    reasonCode: resolution.reasonCode,
+                    recommendedAction: 'MANUAL_REVIEW',
+                    useHold: 1,
+                    payloadSnapshot: {
+                        orderId: order.order_id,
+                        paymentKey: payment.payment_key,
+                        gateway: 'toss',
+                        reasonCode: resolution.reasonCode,
+                        holdAttemptIds: resolution.holdAttemptIds,
+                        legacyAttemptIds: resolution.legacyAttemptIds,
+                        matchedAttemptIds: resolution.matchedAttemptIds
+                    }
+                });
+            } catch (e) {
+                // upsert 실패는 복구 실패보다 우선하지 않음
+            }
+            throw new Error('USE_HOLD_RECOVERY_UNRESOLVED');
+        }
+
+        const attemptIdForRecovery = resolution.attemptId;
+
+        // 4. paid_events 확인
         const [existingPaidEvents] = await connection.execute(
             `SELECT event_id FROM paid_events WHERE order_id = ?`,
             [orderId]
@@ -84,7 +132,8 @@ async function fixMissingPaidEvents(orderId) {
                 amount: parseFloat(payment.amount),
                 currency: payment.currency || 'KRW',
                 eventSource: 'manual_verify', // ⚠️ 수정: 'manual_fix' → 'manual_verify' (ENUM에 맞춤)
-                rawPayload: payment.payload_json ? JSON.parse(payment.payload_json) : null
+                rawPayload: payment.payload_json ? JSON.parse(payment.payload_json) : null,
+                attemptId: attemptIdForRecovery
             });
 
             // orders.status 집계 함수 호출
@@ -140,7 +189,8 @@ async function fixMissingPaidEvents(orderId) {
             amount: parseFloat(payment.amount),
             currency: payment.currency || 'KRW',
             eventSource: 'manual_verify', // ⚠️ 수정: 'manual_fix' → 'manual_verify' (ENUM에 맞춤)
-            rawPayload: payment.payload_json ? JSON.parse(payment.payload_json) : null
+            rawPayload: payment.payload_json ? JSON.parse(payment.payload_json) : null,
+            attemptId: attemptIdForRecovery
         });
 
         // orders.status 집계 함수 호출

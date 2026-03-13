@@ -216,6 +216,43 @@ WHERE o.order_id = [order_id];
 **원인**: 잘못된 `order_id` 입력
 **해결**: 올바른 `order_id` 확인 후 재실행
 
+### 💡 참고: WEBHOOK_ATTEMPT_UNRESOLVED (webhook 미해결 결제)
+
+토스 웹훅 처리 중 `payment_attempts`를 paymentKey 기준으로 결정적으로 찾지 못한 경우,
+백엔드는 자동으로 processPaidOrder를 실행하지 않고 다음을 남깁니다.
+
+- `paid_events`: 이미 생성된 상태일 수 있음 (결제 증거)
+- `payments.status`: 'captured' 등으로 갱신됨
+- `orders`: 아직 paid 처리/재고 배정/보증서 생성이 안 된 상태 (processPaidOrder 미실행)
+- `webhook_events.processing_status`: `UNRESOLVED_ATTEMPT` (webhook_events 테이블 기준, 최종 처리 상태 — 같은 요청 안에서 PROCESSED/FAILED로 덮지 않음)
+- 로그: `[payments][webhook] WEBHOOK_ATTEMPT_UNRESOLVED` 메시지
+
+이 경우 복구는 다음 순서로 진행합니다.
+
+1. **미해결 webhook 이벤트 조회**
+   ```sql
+   SELECT id, provider_name, provider_event_id, event_type, received_at
+   FROM webhook_events
+   WHERE processing_status = 'UNRESOLVED_ATTEMPT'
+   ORDER BY received_at ASC;
+   ```
+2. 각 이벤트에 대해 관련 주문/결제를 식별:
+   - `payments.payment_key` = 토스 웹훅의 `paymentKey`
+   - `payments.order_number` 또는 `orders.order_number` 로 주문 찾기
+3. 해당 주문이 위의 5단계 결과 검증 기준에서
+   - `paid_events_count >= 1` 이고
+   - `order_item_units_count = 0` 인 경우  
+   → **시나리오 B**(paid_events는 있지만 order_item_units 없음)로 보고,
+   `fix_missing_paid_events.js` 또는 `recover_pipeline_batch.js` 를 사용해 `processPaidOrder()`를 재실행합니다.
+
+> 중요: 현재 복구 스크립트들은 `webhook_events` 테이블을 직접 읽지 않습니다.  
+> `payments.status='captured'` 이면서 `paid_events`/`order_item_units` 구조가 비정상인 주문을 기준으로 자동 복구 대상을 찾으며,  
+> `UNRESOLVED_ATTEMPT`로 마킹된 webhook 이벤트에 해당하는 주문도 이 구조에 해당하는 경우 자동 복구 범위에 자연스럽게 포함됩니다.
+>
+> 요약: WEBHOOK_ATTEMPT_UNRESOLVED는 "웹훅에서 자동 처리하지 않은 결제"를 의미하는 **관측용/운영용 표식**이며,  
+> recovery 스크립트나 수동 점검 시 **우선 확인해야 하는 미해결 결제 리스트**이지만  
+> 그 자체가 "자동 복구 성공" 상태를 뜻하지는 않습니다.
+
 ---
 
 ## 📚 관련 스크립트

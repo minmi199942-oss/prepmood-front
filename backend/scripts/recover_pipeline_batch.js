@@ -19,6 +19,8 @@ const mysql = require('mysql2/promise');
 const { createPaidEvent } = require('../utils/paid-event-creator');
 const { processPaidOrder } = require('../utils/paid-order-processor');
 const { updateOrderStatus } = require('../utils/order-status-aggregator');
+const { resolveRecoveryAttempt } = require('../services/payment-recovery-service');
+const { upsertRecoveryIssue } = require('../services/recovery-issue-service');
 const Logger = require('../logger');
 require('dotenv').config();
 
@@ -131,10 +133,57 @@ async function recoverOrder(connection, order, payment) {
             });
         }
 
-        // 2. processPaidOrder() 실행
+        // 2. recovery용 attemptId 결정 (개발 단계: use_hold=1 하나만 허용, 나머지는 unresolved)
+        const resolution = await resolveRecoveryAttempt({
+            connection,
+            orderId: order.order_id,
+            paymentKey: payment.payment_key,
+            gateway: 'toss'
+        });
+
+        if (resolution.mode !== 'hold') {
+            const err = new Error('USE_HOLD_RECOVERY_UNRESOLVED');
+            Logger.error('[RECOVER_PIPELINE_BATCH] resolveRecoveryAttempt 결과가 hold 아님 - USE_HOLD_RECOVERY_UNRESOLVED', {
+                order_id: order.order_id,
+                order_number: order.order_number,
+                payment_key: payment.payment_key,
+                reasonCode: resolution.reasonCode,
+                holdAttemptIds: resolution.holdAttemptIds,
+                legacyAttemptIds: resolution.legacyAttemptIds,
+                matchedAttemptIds: resolution.matchedAttemptIds
+            });
+            try {
+                await upsertRecoveryIssue({
+                    connection,
+                    orderId: order.order_id,
+                    paymentKey: payment.payment_key,
+                    issueCode: 'USE_HOLD_RECOVERY_UNRESOLVED',
+                    reasonCode: resolution.reasonCode,
+                    recommendedAction: 'MANUAL_REVIEW',
+                    useHold: 1,
+                    payloadSnapshot: {
+                        orderId: order.order_id,
+                        paymentKey: payment.payment_key,
+                        gateway: 'toss',
+                        reasonCode: resolution.reasonCode,
+                        holdAttemptIds: resolution.holdAttemptIds,
+                        legacyAttemptIds: resolution.legacyAttemptIds,
+                        matchedAttemptIds: resolution.matchedAttemptIds
+                    }
+                });
+            } catch (e) {
+                // upsert 실패는 복구 실패보다 우선하지 않음
+            }
+            throw err;
+        }
+
+        const attemptIdForRecovery = resolution.attemptId;
+
+        // 3. processPaidOrder() 실행
         Logger.log('[RECOVER_PIPELINE_BATCH] processPaidOrder 시작', {
             order_id: orderId,
-            paidEventId
+            paidEventId,
+            attemptIdForRecovery
         });
 
         const paidResult = await processPaidOrder({
@@ -145,10 +194,11 @@ async function recoverOrder(connection, order, payment) {
             amount: parseFloat(payment.amount),
             currency: payment.currency || 'KRW',
             eventSource: 'manual_verify',
-            rawPayload: payment.payload_json ? JSON.parse(payment.payload_json) : null
+            rawPayload: payment.payload_json ? JSON.parse(payment.payload_json) : null,
+            attemptId: attemptIdForRecovery
         });
 
-        // 3. orders.status 집계 함수 호출
+        // 4. orders.status 집계 함수 호출
         await updateOrderStatus(connection, order.order_id);
 
         await connection.commit();

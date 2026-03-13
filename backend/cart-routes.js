@@ -2,8 +2,41 @@ const express = require('express');
 const router = express.Router();
 const mysql = require('mysql2/promise');
 const { authenticateToken } = require('./auth-middleware');
+const { resolveProductId } = require('./utils/product-id-resolver');
 const Logger = require('./logger');
 require('dotenv').config();
+
+/** 색상 정규화 (product-routes.js GET /products/stock-count 및 paid-order-processor와 동일) */
+function normalizeColorForStock(color) {
+    if (!color) return null;
+    const t = String(color).trim();
+    if (!t) return null;
+    const map = {
+        'LightBlue': 'Light Blue', 'Light-Blue': 'Light Blue', 'LB': 'Light Blue',
+        'LightGrey': 'Light Grey', 'Light-Grey': 'Light Grey', 'LG': 'Light Grey', 'LGY': 'Light Grey',
+        'BK': 'Black', 'NV': 'Navy', 'WH': 'White', 'WT': 'White', 'GY': 'Grey', 'Gray': 'Grey'
+    };
+    return map[t] || t;
+}
+
+/**
+ * product_id + size + color 기준 가용 재고 개수 조회 (stock_units.status = 'in_stock')
+ * @returns {Promise<number>}
+ */
+async function getAvailableStockCount(connection, productId, size, color) {
+    const canonicalId = await resolveProductId(productId, connection);
+    if (!canonicalId) return 0;
+    const sizeVal = (size === null || size === undefined) ? '' : String(size).trim();
+    const colorVal = normalizeColorForStock(color == null ? '' : color) || '';
+    const [rows] = await connection.execute(
+        `SELECT COUNT(*) as cnt FROM stock_units
+         WHERE product_id = ? AND status = 'in_stock'
+           AND (size = ? OR (? = '' AND (size IS NULL OR size = '')))
+           AND (color = ? OR (? = '' AND (color IS NULL OR color = '')))`,
+        [canonicalId, sizeVal, sizeVal, colorVal, colorVal]
+    );
+    return parseInt(rows[0]?.cnt || 0, 10);
+}
 
 // 데이터베이스 연결 설정
 const dbConfig = {
@@ -126,6 +159,16 @@ router.post('/cart/add', authenticateToken, async (req, res) => {
               (color = ? OR (color IS NULL AND ? IS NULL))
       `, [cartId, productId, size, size, color, color]);
 
+      const currentQty = existing.length ? existing[0].quantity : 0;
+      const afterQty = currentQty + quantity;
+      const available = await getAvailableStockCount(connection, productId, size, color);
+      if (afterQty > available) {
+        return res.status(400).json({
+          success: false,
+          message: '이 제품의 제한 수량에 도달했습니다.'
+        });
+      }
+
       if (existing.length > 0) {
         // 기존 상품의 수량 증가
         await connection.execute(
@@ -183,15 +226,23 @@ router.put('/cart/item/:itemId', authenticateToken, async (req, res) => {
 
     const connection = await mysql.createConnection(dbConfig);
     try {
-      // 아이템이 사용자의 장바구니에 속하는지 확인
+      // 아이템이 사용자의 장바구니에 속하는지 확인 (product_id, size, color 포함)
       const [items] = await connection.execute(`
-        SELECT ci.item_id FROM cart_items ci
+        SELECT ci.item_id, ci.product_id, ci.size, ci.color FROM cart_items ci
         JOIN carts c ON ci.cart_id = c.cart_id
         WHERE ci.item_id = ? AND c.user_id = ?
       `, [itemId, req.user.userId]);
 
       if (items.length === 0) {
         return res.status(404).json({ success: false, message: '장바구니 아이템을 찾을 수 없습니다.' });
+      }
+
+      const available = await getAvailableStockCount(connection, items[0].product_id, items[0].size, items[0].color);
+      if (quantity > available) {
+        return res.status(400).json({
+          success: false,
+          message: '이 제품의 제한 수량에 도달했습니다.'
+        });
       }
 
       // 수량 업데이트
@@ -245,9 +296,17 @@ router.put('/cart/:itemId', authenticateToken, async (req, res) => {
       `, [itemId, req.user.userId]);
 
       if (items.length === 0) {
-        return res.status(404).json({ 
-          success: false, 
-          message: '장바구니 아이템을 찾을 수 없습니다.' 
+        return res.status(404).json({
+          success: false,
+          message: '장바구니 아이템을 찾을 수 없습니다.'
+        });
+      }
+
+      const available = await getAvailableStockCount(connection, items[0].product_id, sizeVal, colorVal);
+      if (quantity > available) {
+        return res.status(400).json({
+          success: false,
+          message: '이 제품의 제한 수량에 도달했습니다.'
         });
       }
 

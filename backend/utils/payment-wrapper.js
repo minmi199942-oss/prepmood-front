@@ -45,6 +45,12 @@
  */
 
 const { pool } = require('../db');
+const {
+    loadOrderItemsSnapshot,
+    loadActiveHoldsForOrder,
+    validateHoldReuseForOrder,
+    acquireNewHoldsForOrder
+} = require('./stock-hold-service');
 const Logger = require('../logger');
 const { markAttemptRecoveryRequired } = require('../services/payment-recovery-service');
 
@@ -228,8 +234,8 @@ async function withPaymentAttempt({
 
             const [insertRes] = await connA.query(
                 `INSERT INTO payment_attempts
-                 (order_id, external_ref_id, gateway, attempt_seq, status, amount, currency, expires_at, pg_order_id)
-                 VALUES (?, ?, 'toss', ?, 'PROCESSING', ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), ?)`,
+                 (order_id, external_ref_id, gateway, attempt_seq, status, amount, currency, expires_at, pg_order_id, use_hold)
+                 VALUES (?, ?, 'toss', ?, 'PROCESSING', ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), ?, 1)`,
                 [orderId, paymentKey, attemptSeq, amountStr, currency, pgOrderId]
             );
             attemptId = insertRes.insertId;
@@ -247,6 +253,65 @@ async function withPaymentAttempt({
             throw err;
         } finally {
             if (connA) connA.release();
+        }
+
+        // ---------- Phase 1.5: 재고 hold 확보 (Conn H - 짧은 트랜잭션) ----------
+        // Phase 1: redirect 기반 confirm만 hold-enabled로 본다.
+        // - Conn A에서 orders/session/attempt 선점이 끝난 뒤,
+        //   별도 짧은 트랜잭션(Conn H)에서 stock_units FOR UPDATE SKIP LOCKED + stock_holds INSERT 수행.
+        let connH;
+        try {
+            connH = await getSafeConnection(signal, 3000);
+            await connH.beginTransaction();
+
+            const orderItems = await loadOrderItemsSnapshot(connH, orderId);
+            const existingHolds = await loadActiveHoldsForOrder(connH, orderId);
+
+            let needNewHolds = true;
+            if (existingHolds.length > 0) {
+                const reuseCheck = validateHoldReuseForOrder({
+                    holds: existingHolds,
+                    orderItems
+                });
+                if (reuseCheck.reusable) {
+                    Logger.log('[payment-wrapper] 기존 ACTIVE holds 재사용', {
+                        orderId,
+                        attemptId,
+                        holdCount: existingHolds.length
+                    });
+                    needNewHolds = false;
+                } else {
+                    Logger.log('[payment-wrapper] 기존 ACTIVE holds 재사용 불가, 새로 acquire 시도', {
+                        orderId,
+                        attemptId,
+                        reason: reuseCheck.reason
+                    });
+                }
+            }
+
+            if (needNewHolds) {
+                const acquireResult = await acquireNewHoldsForOrder({
+                    connection: connH,
+                    orderId,
+                    orderItems,
+                    holdTtlMinutes: 12
+                });
+                if (!acquireResult.created) {
+                    Logger.error('[payment-wrapper] stock_holds acquire 실패', {
+                        orderId,
+                        attemptId,
+                        reason: acquireResult.reason
+                    });
+                    throw new Error('INSUFFICIENT_STOCK_FOR_HOLD');
+                }
+            }
+
+            await connH.commit();
+        } catch (err) {
+            if (connH) await connH.rollback().catch(() => {});
+            throw err;
+        } finally {
+            if (connH) connH.release();
         }
 
         // ---------- Phase 2: 무상태 Fetch ----------
@@ -359,6 +424,7 @@ async function withPaymentAttempt({
                 Logger.error('[payment-wrapper] fallback status 전이 실패', e);
             }
         }
+
         throw error;
     } finally {
         clearTimeout(watchdog);

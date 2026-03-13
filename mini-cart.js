@@ -445,9 +445,44 @@ class MiniCart {
     // 로그인 상태 확인 (401/403과 그 외 에러 분리)
     const loginStatus = await this.checkLoginStatus();
     
-    // ⚠️ 비회원(guest)일 때만 localStorage에 저장
+    // ⚠️ 비회원(guest)일 때만 localStorage에 저장 (재고 한도 적용)
     if (loginStatus.status === 'guest') {
       debugLog('🛒 비회원 장바구니 추가 (localStorage)');
+      let cartItems = [];
+      try {
+        const raw = localStorage.getItem(GUEST_CART_KEY) || '[]';
+        cartItems = JSON.parse(raw);
+        if (!Array.isArray(cartItems)) cartItems = [];
+      } catch (e) {
+        cartItems = [];
+      }
+      const existingIndex = cartItems.findIndex(item =>
+        (item.id === product.id || item.product_id === product.id) &&
+        (item.size || '') === (product.size || '') &&
+        (item.color || '') === (product.color || '')
+      );
+      const currentQty = existingIndex >= 0 ? cartItems[existingIndex].quantity : 0;
+      const addQty = product.quantity || 1;
+      let available = 999;
+      try {
+        const params = new URLSearchParams({ product_id: product.id || product.product_id });
+        if (product.size) params.set('size', product.size);
+        if (product.color) params.set('color', product.color);
+        const res = await fetch(`${API_BASE}/products/stock-count?${params}`);
+        const data = await res.json();
+        if (data.success && typeof data.available_count === 'number') available = data.available_count;
+      } catch (e) {
+        Logger.warn('재고 조회 실패', e.message || e);
+      }
+      if (currentQty + addQty > available) {
+        const capped = Math.max(0, available - currentQty);
+        if (capped <= 0) {
+          alert('이 제품의 제한 수량에 도달했습니다.');
+          return false;
+        }
+        product = { ...product, quantity: capped };
+        alert('이 제품의 제한 수량에 도달했습니다. 재고 한도만큼만 담았습니다.');
+      }
       return this.addToCartLocalStorage(product);
     }
     
@@ -632,8 +667,26 @@ class MiniCart {
       return;
     }
 
-    // ⚠️ 비회원(guest)일 때만 localStorage에서 수량 업데이트
+    // ⚠️ 비회원(guest)일 때만 localStorage에서 수량 업데이트 (재고 한도 적용)
     if (loginStatus.status === 'guest') {
+      const item = this.cartItems.find(i => String(i.item_id || i.id) === String(itemId));
+      if (item) {
+        let available = 999;
+        try {
+          const params = new URLSearchParams({ product_id: item.product_id || item.id });
+          if (item.size) params.set('size', item.size);
+          if (item.color) params.set('color', item.color);
+          const res = await fetch(`${API_BASE}/products/stock-count?${params}`);
+          const data = await res.json();
+          if (data.success && typeof data.available_count === 'number') available = data.available_count;
+        } catch (e) {
+          Logger.warn('재고 조회 실패', e.message || e);
+        }
+        if (newQuantity > available) {
+          newQuantity = available;
+          alert('이 제품의 제한 수량에 도달했습니다.');
+        }
+      }
       this.updateQuantityLocalStorage(itemId, newQuantity);
       return;
     }

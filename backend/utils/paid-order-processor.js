@@ -83,7 +83,8 @@ async function processPaidOrder({
     amount,
     currency = 'KRW',
     eventSource = 'redirect',
-    rawPayload = null
+    rawPayload = null,
+    attemptId = null
 }) {
     const startTime = Date.now();
     
@@ -236,6 +237,47 @@ async function processPaidOrder({
         }
 
         // ============================================================
+        // 3. hold-aware 재고 처리 (Phase 1)
+        // ============================================================
+        // Phase 1: payment_attempts.use_hold 플래그를 기준으로 hold-enabled 여부를 판단.
+        // - attemptId가 없으면 legacy 경로(useHold=false)
+        // - attemptId가 있는데 행 조회/컬럼 접근이 실패하면 구조적 오류로 간주 (fail-closed)
+        let useHold = false;
+        if (attemptId != null) {
+            try {
+                const [attemptRows] = await connection.execute(
+                    'SELECT use_hold FROM payment_attempts WHERE id = ?',
+                    [attemptId]
+                );
+                if (attemptRows.length === 0) {
+                    const err = new Error('USE_HOLD_RESOLUTION_FAILED');
+                    err.code = 'USE_HOLD_RESOLUTION_FAILED';
+                    Logger.error('[PAID_PROCESSOR] payment_attempts 행을 찾을 수 없음 (use_hold 판단 불가)', {
+                        orderId,
+                        paidEventId,
+                        attemptId
+                    });
+                    throw err;
+                }
+                const val = Number(attemptRows[0].use_hold);
+                if (val === 1) {
+                    useHold = true;
+                }
+            } catch (e) {
+                // 새 경로인데 use_hold 판단 자체를 못 하면 구조적 오류로 본다.
+                const err = new Error('USE_HOLD_RESOLUTION_FAILED');
+                err.code = 'USE_HOLD_RESOLUTION_FAILED';
+                Logger.error('[PAID_PROCESSOR] payment_attempts.use_hold 조회 실패 (fail-closed)', {
+                    orderId,
+                    paidEventId,
+                    attemptId,
+                    error: e.message
+                });
+                throw err;
+            }
+        }
+
+        // ============================================================
         // 2. paidEventId 검증 (이미 별도 커넥션에서 생성됨)
         // ============================================================
         Logger.log('[PAID_PROCESSOR] paidEventId 검증', {
@@ -344,154 +386,325 @@ async function processPaidOrder({
         });
 
         // ============================================================
-        // 4. 재고 배정 (락 순서 1단계: stock_units)
+        // 4. 재고 배정 (useHold 여부에 따라 분기)
         // ============================================================
         Logger.log('[PAID_PROCESSOR] 재고 배정 시작', {
             orderId,
-            itemCount: orderItems.length
+            itemCount: orderItems.length,
+            useHold,
+            attemptId
         });
 
-        // ⚠️ 중요: 모든 상품의 재고를 먼저 검증 (사전 검증)
-        // 부분 예약 방지: 전부 가능할 때만 예약 시작
-        const stockValidationResults = [];
-        for (const item of orderItems) {
-            const needQty = item.quantity;
-            const productId = item.product_id;
-            const size = item.size || null;
-            const rawColor = item.color || null;
-
-            // color 정규화 적용 (리스크 2 단기 정규화)
-            const color = rawColor ? normalizeColor(rawColor) : null;
-
-            // 재고 조회 쿼리 구성 (FOR UPDATE 없이 먼저 검증)
-            let stockQuery = `SELECT COUNT(*) as available_count
-                FROM stock_units
-                WHERE product_id = ? 
-                  AND status = 'in_stock'`;
-            
-            const stockParams = [productId];
-            
-            if (size !== null && size !== undefined && size !== '') {
-                stockQuery += ` AND size = ?`;
-                stockParams.push(size);
-            } else {
-                stockQuery += ` AND size IS NULL`;
-            }
-            
-            if (color !== null && color !== undefined && color !== '') {
-                stockQuery += ` AND color = ?`;
-                stockParams.push(color);
-            } else {
-                stockQuery += ` AND color IS NULL`;
-            }
-            
-            const [countResult] = await connection.execute(stockQuery, stockParams);
-            const availableCount = countResult[0]?.available_count || 0;
-
-            if (availableCount < needQty) {
-                // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)
-                await recordStockIssue(paidEventId, orderId, productId, needQty, availableCount);
-                const err = new Error(`재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableCount}`);
-                err.code = 'INSUFFICIENT_STOCK';
-                throw err;
-            }
-
-            stockValidationResults.push({
-                item,
-                needQty,
-                productId,
-                size,
-                color,  // 정규화된 color 저장
-                availableCount
-            });
-        }
-
-        // ⚠️ 모든 상품 재고 검증 완료 후 예약 시작
         const reservedStockUnits = [];
         const orderItemUnitsToCreate = [];
 
-        for (const validation of stockValidationResults) {
-            const { item, needQty, productId, size, color } = validation;
+        if (useHold) {
+            // ---------- hold 기반 소비 ----------
+            // 1) 현재 ACTIVE hold 세트 조회
+            const [holdRows] = await connection.execute(
+                `SELECT 
+                    sh.id as hold_id,
+                    sh.stock_unit_id,
+                    sh.status,
+                    sh.expires_at,
+                    su.token_pk,
+                    su.product_id,
+                    su.size,
+                    su.color
+                 FROM stock_holds sh
+                 INNER JOIN stock_units su ON su.stock_unit_id = sh.stock_unit_id
+                 WHERE sh.order_id = ?
+                   AND sh.status = 'ACTIVE'
+                   AND sh.expires_at > NOW()
+                 ORDER BY sh.id`,
+                [orderId]
+            );
 
-            // 재고 조회 및 잠금 (FOR UPDATE SKIP LOCKED)
-            // color는 이미 위에서 정규화되었으므로 그대로 사용
-            let stockQuery = `SELECT stock_unit_id, token_pk, product_id, size, color
-                FROM stock_units
-                WHERE product_id = ? 
-                  AND status = 'in_stock'`;
-            
-            const stockParams = [productId];
-            
-            if (size !== null && size !== undefined && size !== '') {
-                stockQuery += ` AND size = ?`;
-                stockParams.push(size);
-            } else {
-                stockQuery += ` AND size IS NULL`;
-            }
-            
-            if (color !== null && color !== undefined && color !== '') {
-                stockQuery += ` AND color = ?`;
-                stockParams.push(color);
-            } else {
-                stockQuery += ` AND color IS NULL`;
-            }
-            
-            stockQuery += ` ORDER BY stock_unit_id
-                LIMIT ${parseInt(needQty)}
-                FOR UPDATE SKIP LOCKED`;
-            
-            const [availableStock] = await connection.execute(stockQuery, stockParams);
-
-            // ⚠️ 재검증: 잠금 중에 재고가 변경되었을 수 있음
-            if (availableStock.length < needQty) {
-                // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)
-                await recordStockIssue(paidEventId, orderId, productId, needQty, availableStock.length);
-                const err = new Error(`재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableStock.length} (잠금 중 재고 변경)`);
-                err.code = 'INSUFFICIENT_STOCK';
+            if (holdRows.length === 0) {
+                const err = new Error('HOLD_MISSING');
+                err.code = 'HOLD_MISSING';
+                Logger.error('[PAID_PROCESSOR] hold-enabled 경로에서 ACTIVE hold 없음', {
+                    orderId,
+                    paidEventId,
+                    attemptId
+                });
                 throw err;
             }
 
-            // 재고 상태 업데이트 (reserved로 변경)
-            for (let i = 0; i < availableStock.length; i++) {
-                const stockUnit = availableStock[i];
-                
+            // 2) hold 세트가 현재 order_items 스냅샷과 일치하는지 검증 및 매핑
+            const remainingHolds = holdRows.map(h => ({
+                hold_id: h.hold_id,
+                stock_unit_id: h.stock_unit_id,
+                token_pk: h.token_pk,
+                product_id: h.product_id,
+                size: h.size || null,
+                color: h.color ? normalizeColor(h.color) : null
+            }));
+
+            const pickHoldsForItem = (item) => {
+                const needQty = Number(item.quantity) || 0;
+                const picked = [];
+                const normalizedColor = item.color ? normalizeColor(item.color) : null;
+                for (let i = 0; i < needQty; i++) {
+                    const idx = remainingHolds.findIndex(h =>
+                        h.product_id === item.product_id &&
+                        ((item.size || null) === (h.size || null)) &&
+                        ((normalizedColor || null) === (h.color || null))
+                    );
+                    if (idx === -1) {
+                        return null;
+                    }
+                    picked.push(remainingHolds[idx]);
+                    remainingHolds.splice(idx, 1);
+                }
+                return picked;
+            };
+
+            for (const item of orderItems) {
+                const picked = pickHoldsForItem(item);
+                if (!picked) {
+                    const err = new Error('HOLD_REUSE_INVALID');
+                    err.code = 'HOLD_REUSE_INVALID';
+                    Logger.error('[PAID_PROCESSOR] hold 세트가 주문 스냅샷과 일치하지 않음', {
+                        orderId,
+                        paidEventId,
+                        attemptId,
+                        order_item_id: item.order_item_id
+                    });
+                    throw err;
+                }
+                picked.forEach((h, idx) => {
+                    reservedStockUnits.push({
+                        stock_unit_id: h.stock_unit_id,
+                        token_pk: h.token_pk,
+                        product_id: h.product_id,
+                        order_item_id: item.order_item_id,
+                        hold_id: h.hold_id
+                    });
+                    orderItemUnitsToCreate.push({
+                        order_id: orderId,
+                        order_item_id: item.order_item_id,
+                        unit_seq: idx + 1,
+                        stock_unit_id: h.stock_unit_id,
+                        token_pk: h.token_pk,
+                        product_name: item.product_name
+                    });
+                });
+            }
+
+            if (remainingHolds.length > 0) {
+                // 남는 hold가 있으면 스냅샷 불일치로 본다.
+                const err = new Error('HOLD_REUSE_INVALID');
+                err.code = 'HOLD_REUSE_INVALID';
+                Logger.error('[PAID_PROCESSOR] hold 세트에 사용되지 않은 ACTIVE hold가 남음', {
+                    orderId,
+                    paidEventId,
+                    attemptId,
+                    remainingHoldCount: remainingHolds.length
+                });
+                throw err;
+            }
+
+            // 3) hold 에 연결된 stock_units 를 reserved 로 전이
+            // 데드락 방지를 위해 stock_unit_id ASC 기준으로 잠금 순서 통일
+            const reservedSorted = [...reservedStockUnits].sort((a, b) => {
+                if (a.stock_unit_id === b.stock_unit_id) return 0;
+                return a.stock_unit_id < b.stock_unit_id ? 1 * -1 : 1;
+            });
+
+            for (const unit of reservedSorted) {
                 const [updateResult] = await connection.execute(
                     `UPDATE stock_units
-                    SET status = 'reserved',
-                        reserved_at = NOW(),
-                        reserved_by_order_id = ?
-                    WHERE stock_unit_id = ? AND status = 'in_stock'`,
-                    [orderId, stockUnit.stock_unit_id]
+                     SET status = 'reserved',
+                         reserved_at = NOW(),
+                         reserved_by_order_id = ?
+                     WHERE stock_unit_id = ? AND status = 'in_stock'`,
+                    [orderId, unit.stock_unit_id]
                 );
 
                 if (updateResult.affectedRows !== 1) {
-                    throw new Error(
-                        `재고 상태 업데이트 실패: stock_unit_id=${stockUnit.stock_unit_id}, affectedRows=${updateResult.affectedRows} (동시성 경합 가능)`
-                    );
+                    const err = new Error('HOLD_STOCK_MISMATCH');
+                    err.code = 'HOLD_STOCK_MISMATCH';
+                    Logger.error('[PAID_PROCESSOR] hold 이후 재고 상태 불일치(HOLD_STOCK_MISMATCH)', {
+                        orderId,
+                        paidEventId,
+                        attemptId,
+                        stock_unit_id: unit.stock_unit_id,
+                        affectedRows: updateResult.affectedRows
+                    });
+                    throw err;
+                }
+            }
+
+            // 4) stock_holds CONSUMED 로 전이
+            const holdIds = reservedStockUnits
+                .map(u => u.hold_id)
+                .filter((v, i, arr) => arr.indexOf(v) === i);
+
+            if (holdIds.length > 0) {
+                const placeholders = holdIds.map(() => '?').join(',');
+                const [updateHolds] = await connection.execute(
+                    `UPDATE stock_holds
+                     SET status = 'CONSUMED',
+                         released_at = NOW()
+                     WHERE id IN (${placeholders}) AND status = 'ACTIVE'`,
+                    holdIds
+                );
+                if (updateHolds.affectedRows !== holdIds.length) {
+                    const err = new Error('HOLD_CONSUME_MISMATCH');
+                    err.code = 'HOLD_CONSUME_MISMATCH';
+                    Logger.error('[PAID_PROCESSOR] CONSUMED 전이 대상 hold 수와 affectedRows 불일치', {
+                        orderId,
+                        paidEventId,
+                        attemptId,
+                        expected: holdIds.length,
+                        affected: updateHolds.affectedRows
+                    });
+                    throw err;
+                }
+            }
+        } else {
+            // ---------- 기존 in_stock 기반 재고 배정 ----------
+            // ⚠️ 중요: 모든 상품의 재고를 먼저 검증 (사전 검증)
+            // 부분 예약 방지: 전부 가능할 때만 예약 시작
+            const stockValidationResults = [];
+            for (const item of orderItems) {
+                const needQty = item.quantity;
+                const productId = item.product_id;
+                const size = item.size || null;
+                const rawColor = item.color || null;
+
+                // color 정규화 적용 (리스크 2 단기 정규화)
+                const color = rawColor ? normalizeColor(rawColor) : null;
+
+                // 재고 조회 쿼리 구성 (FOR UPDATE 없이 먼저 검증)
+                let stockQuery = `SELECT COUNT(*) as available_count
+                    FROM stock_units
+                    WHERE product_id = ? 
+                      AND status = 'in_stock'`;
+                
+                const stockParams = [productId];
+                
+                if (size !== null && size !== undefined && size !== '') {
+                    stockQuery += ` AND size = ?`;
+                    stockParams.push(size);
+                } else {
+                    stockQuery += ` AND size IS NULL`;
+                }
+                
+                if (color !== null && color !== undefined && color !== '') {
+                    stockQuery += ` AND color = ?`;
+                    stockParams.push(color);
+                } else {
+                    stockQuery += ` AND color IS NULL`;
+                }
+                
+                const [countResult] = await connection.execute(stockQuery, stockParams);
+                const availableCount = countResult[0]?.available_count || 0;
+
+                if (availableCount < needQty) {
+                    // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)
+                    await recordStockIssue(paidEventId, orderId, productId, needQty, availableCount);
+                    const err = new Error(`재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableCount}`);
+                    err.code = 'INSUFFICIENT_STOCK';
+                    throw err;
                 }
 
-                reservedStockUnits.push({
-                    stock_unit_id: stockUnit.stock_unit_id,
-                    token_pk: stockUnit.token_pk,
-                    product_id: productId,
-                    order_item_id: item.order_item_id
+                stockValidationResults.push({
+                    item,
+                    needQty,
+                    productId,
+                    size,
+                    color,  // 정규화된 color 저장
+                    availableCount
                 });
+            }
 
-                // order_item_units 생성 준비
-                orderItemUnitsToCreate.push({
-                    order_id: orderId,
-                    order_item_id: item.order_item_id,
-                    unit_seq: i + 1,
-                    stock_unit_id: stockUnit.stock_unit_id,
-                    token_pk: stockUnit.token_pk,
-                    product_name: item.product_name  // warranties에 저장하기 위해 추가
-                });
+            // ⚠️ 모든 상품 재고 검증 완료 후 예약 시작
+            for (const validation of stockValidationResults) {
+                const { item, needQty, productId, size, color } = validation;
+
+                // 재고 조회 및 잠금 (FOR UPDATE SKIP LOCKED)
+                // color는 이미 위에서 정규화되었으므로 그대로 사용
+                let stockQuery = `SELECT stock_unit_id, token_pk, product_id, size, color
+                    FROM stock_units
+                    WHERE product_id = ? 
+                      AND status = 'in_stock'`;
+                
+                const stockParams = [productId];
+                
+                if (size !== null && size !== undefined && size !== '') {
+                    stockQuery += ` AND size = ?`;
+                    stockParams.push(size);
+                } else {
+                    stockQuery += ` AND size IS NULL`;
+                }
+                
+                if (color !== null && color !== undefined && color !== '') {
+                    stockQuery += ` AND color = ?`;
+                    stockParams.push(color);
+                } else {
+                    stockQuery += ` AND color IS NULL`;
+                }
+                
+                stockQuery += ` ORDER BY stock_unit_id
+                    LIMIT ${parseInt(needQty)}
+                    FOR UPDATE SKIP LOCKED`;
+                
+                const [availableStock] = await connection.execute(stockQuery, stockParams);
+
+                // ⚠️ 재검증: 잠금 중에 재고가 변경되었을 수 있음
+                if (availableStock.length < needQty) {
+                    // 재고 부족 이슈 기록 (별도 커넥션, 트랜잭션과 분리)
+                    await recordStockIssue(paidEventId, orderId, productId, needQty, availableStock.length);
+                    const err = new Error(`재고 부족: 상품 ${productId}, 필요: ${needQty}, 가용: ${availableStock.length} (잠금 중 재고 변경)`);
+                    err.code = 'INSUFFICIENT_STOCK';
+                    throw err;
+                }
+
+                // 재고 상태 업데이트 (reserved로 변경)
+                for (let i = 0; i < availableStock.length; i++) {
+                    const stockUnit = availableStock[i];
+                    
+                    const [updateResult] = await connection.execute(
+                        `UPDATE stock_units
+                        SET status = 'reserved',
+                            reserved_at = NOW(),
+                            reserved_by_order_id = ?
+                        WHERE stock_unit_id = ? AND status = 'in_stock'`,
+                        [orderId, stockUnit.stock_unit_id]
+                    );
+
+                    if (updateResult.affectedRows !== 1) {
+                        throw new Error(
+                            `재고 상태 업데이트 실패: stock_unit_id=${stockUnit.stock_unit_id}, affectedRows=${updateResult.affectedRows} (동시성 경합 가능)`
+                        );
+                    }
+
+                    reservedStockUnits.push({
+                        stock_unit_id: stockUnit.stock_unit_id,
+                        token_pk: stockUnit.token_pk,
+                        product_id: productId,
+                        order_item_id: item.order_item_id
+                    });
+
+                    // order_item_units 생성 준비
+                    orderItemUnitsToCreate.push({
+                        order_id: orderId,
+                        order_item_id: item.order_item_id,
+                        unit_seq: i + 1,
+                        stock_unit_id: stockUnit.stock_unit_id,
+                        token_pk: stockUnit.token_pk,
+                        product_name: item.product_name  // warranties에 저장하기 위해 추가
+                    });
+                }
             }
         }
 
         Logger.log('[PAID_PROCESSOR] 재고 배정 완료', {
             orderId,
-            reservedCount: reservedStockUnits.length
+            reservedCount: reservedStockUnits.length,
+            useHold
         });
 
         // ============================================================

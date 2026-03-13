@@ -1320,6 +1320,7 @@ const inquiryRoutes = require('./inquiry-routes');
 const invoiceRoutes = require('./invoice-routes');
 const stockRoutes = require('./stock-routes');
 const tokenAdminRoutes = require('./token-admin-routes');
+const recoveryAdminRoutes = require('./recovery-admin-routes');
 const warrantyEventRoutes = require('./warranty-event-routes');
 const warrantyRoutes = require('./warranty-routes');
 const refundRoutes = require('./refund-routes');
@@ -1333,6 +1334,7 @@ app.use('/api', inquiryRoutes);
 app.use('/api', invoiceRoutes);
 app.use('/api', stockRoutes);
 app.use('/api', tokenAdminRoutes);
+app.use('/api', recoveryAdminRoutes);
 app.use('/api', warrantyEventRoutes);
 app.use('/api', warrantyRoutes);
 // warranty-routes의 HTML 렌더링 라우트는 루트에 마운트 (예: /warranty-activate-success)

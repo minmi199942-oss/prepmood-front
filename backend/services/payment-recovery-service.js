@@ -119,6 +119,130 @@ async function ensurePaidEventProcessing(connection, paidEventId) {
 }
 
 /**
+ * recovery에서 payment_attempts 패턴을 분석해 자동 복구 가능 여부를 판정.
+ * - 개발 단계 기준: 기본값은 'unresolved' (fail-closed)
+ * - hold-aware (use_hold=1) attempt가 정확히 1개인 경우에만 mode='hold' 로 자동 복구 허용
+ *
+ * @param {Object} params
+ * @param {Object} params.connection
+ * @param {number} params.orderId
+ * @param {string} params.paymentKey
+ * @param {string} [params.gateway='toss']
+ * @returns {Promise<{
+ *   mode: 'hold'|'unresolved',
+ *   attemptId: number|null,
+ *   reasonCode: string,
+ *   holdAttemptIds: number[],
+ *   legacyAttemptIds: number[],
+ *   matchedAttemptIds: number[],
+ *   debugContext: Object
+ * }>}
+ */
+async function resolveRecoveryAttempt({
+    connection,
+    orderId,
+    paymentKey,
+    gateway = 'toss'
+}) {
+    const debugContext = { orderId, paymentKey, gateway };
+    let attemptRows = [];
+    try {
+        const [rows] = await connection.execute(
+            `SELECT id, use_hold
+             FROM payment_attempts
+             WHERE order_id = ?
+               AND external_ref_id = ?
+               AND gateway = ?
+             ORDER BY created_at DESC`,
+            [orderId, paymentKey, gateway]
+        );
+        attemptRows = rows || [];
+    } catch (err) {
+        Logger.error('[payment-recovery] resolveRecoveryAttempt 쿼리 실패', {
+            ...debugContext,
+            error: err.message
+        });
+        return {
+            mode: 'unresolved',
+            attemptId: null,
+            reasonCode: 'QUERY_FAILED',
+            holdAttemptIds: [],
+            legacyAttemptIds: [],
+            matchedAttemptIds: [],
+            debugContext: { ...debugContext, error: err.message }
+        };
+    }
+
+    const holdAttempts = attemptRows.filter(r => Number(r.use_hold) === 1);
+    const legacyAttempts = attemptRows.filter(r => Number(r.use_hold) === 0);
+    const holdAttemptIds = holdAttempts.map(a => a.id);
+    const legacyAttemptIds = legacyAttempts.map(a => a.id);
+    const matchedAttemptIds = attemptRows.map(a => a.id);
+
+    // 아무 attempt도 없는 경우
+    if (attemptRows.length === 0) {
+        return {
+            mode: 'unresolved',
+            attemptId: null,
+            reasonCode: 'NO_MATCHING_ATTEMPT',
+            holdAttemptIds,
+            legacyAttemptIds,
+            matchedAttemptIds,
+            debugContext
+        };
+    }
+
+    // hold-aware 단일 attempt만 존재하는 경우에만 자동 복구 허용
+    if (holdAttempts.length === 1 && legacyAttempts.length === 0) {
+        return {
+            mode: 'hold',
+            attemptId: holdAttempts[0].id,
+            reasonCode: 'HOLD_SINGLE_ATTEMPT',
+            holdAttemptIds,
+            legacyAttemptIds,
+            matchedAttemptIds,
+            debugContext
+        };
+    }
+
+    // hold-only 여러 개
+    if (holdAttempts.length > 1 && legacyAttempts.length === 0) {
+        return {
+            mode: 'unresolved',
+            attemptId: null,
+            reasonCode: 'MULTIPLE_HOLD_ATTEMPTS',
+            holdAttemptIds,
+            legacyAttemptIds,
+            matchedAttemptIds,
+            debugContext
+        };
+    }
+
+    // legacy-only 여러 개
+    if (holdAttempts.length === 0 && legacyAttempts.length > 1) {
+        return {
+            mode: 'unresolved',
+            attemptId: null,
+            reasonCode: 'MULTIPLE_LEGACY_ATTEMPTS',
+            holdAttemptIds,
+            legacyAttemptIds,
+            matchedAttemptIds,
+            debugContext
+        };
+    }
+
+    // hold/legacy 섞이거나 그 외 애매한 모든 패턴
+    return {
+        mode: 'unresolved',
+        attemptId: null,
+        reasonCode: 'MIXED_HOLD_AND_LEGACY_ATTEMPTS',
+        holdAttemptIds,
+        legacyAttemptIds,
+        matchedAttemptIds,
+        debugContext
+    };
+}
+/**
  * processPaidOrder 호출. success 여부 판단은 processPaidOrder 내부에 위임.
  * (processPaidOrder가 pep.status='success' 체크 후 early return 수행)
  *
@@ -141,7 +265,8 @@ async function processPaidEvent({
     amount,
     currency = 'KRW',
     eventSource = 'redirect',
-    rawPayload = null
+    rawPayload = null,
+    attemptId = null
 }) {
     return processPaidOrder({
         connection,
@@ -151,7 +276,8 @@ async function processPaidEvent({
         amount,
         currency,
         eventSource,
-        rawPayload
+        rawPayload,
+        attemptId
     });
 }
 
@@ -175,6 +301,122 @@ async function completeRecoveryAttempt(connection, attemptId) {
     return { completed };
 }
 
+/**
+ * 리스트용 추천 액션 후보 계산 (issue 스냅샷만 기반).
+ * - live state는 보지 않고, issueCode/reasonCode/useHold만 보고 참고용 candidate를 반환한다.
+ *
+ * @param {string} issueCode
+ * @param {string} reasonCode
+ * @param {boolean|number} useHold
+ * @returns {{ recommendedActionCandidate: string|null, recommendedActionCandidateLabel: string|null, candidateOnly: boolean }}
+ */
+function computeRecommendedActionCandidate(issueCode, reasonCode, useHold) {
+    const useHoldFlag = !!useHold;
+
+    // 기본값: 후보 없음
+    let action = null;
+    let label = null;
+
+    if (issueCode === 'UNRESOLVED_ATTEMPT') {
+        // 웹훅에서 attempt를 못 찾은 케이스 → 보통 재시도 후보
+        action = 'RETRY_RECOVERY';
+        label = '자동 복구 재시도 후보 (웹훅 미해결)';
+    } else if (issueCode === 'USE_HOLD_RECOVERY_UNRESOLVED') {
+        // hold-aware recovery에서 attempt/패턴이 애매한 케이스 → 수동 검토 후보
+        action = 'MANUAL_REVIEW';
+        label = '수동 검토 필요 (hold/use_hold 패턴 애매함)';
+    } else if (issueCode === 'RECOVERY_FAILED') {
+        // 기타 복구 실패 계열은 일단 수동 검토 후보
+        action = 'MANUAL_REVIEW';
+        label = '수동 검토 필요 (복구 실패)';
+    }
+
+    // useHold 주문이면 레이블에 힌트 추가
+    if (useHoldFlag && label) {
+        label += ' / use_hold 주문';
+    }
+
+    return {
+        recommendedActionCandidate: action,
+        recommendedActionCandidateLabel: label,
+        candidateOnly: true
+    };
+}
+
+/**
+ * 상세/재시도 전용 최종 추천 액션 계산 (live state 기반).
+ *
+ * @param {string} issueCode
+ * @param {string} reasonCode
+ * @param {Object} liveState
+ * @returns {{
+ *   recommendedAction: string|null,
+ *   recommendedActionLabel: string|null,
+ *   actionAllowed: boolean,
+ *   actionAllowedReason: string|null,
+ *   currentReasonCode: string
+ * }}
+ */
+function computeRecommendedAction(issueCode, reasonCode, liveState = {}) {
+    const {
+        paymentsStatus = null,
+        paidEventsCount = 0,
+        orderItemUnitsCount = 0,
+        hasActiveClaim = false,
+        alreadyProcessed = false
+    } = liveState;
+
+    let action = null;
+    let label = null;
+    let allowed = false;
+    let allowedReason = null;
+    let currentReasonCode = reasonCode || 'UNKNOWN';
+
+    // 예시 규칙: UNRESOLVED_ATTEMPT + liveState가 "결제 완료 + paid_events 있음 + units 없음 + claim 없음 + 아직 미처리"일 때만 재시도 허용
+    if (issueCode === 'UNRESOLVED_ATTEMPT') {
+        if (
+            paymentsStatus === 'captured' &&
+            paidEventsCount >= 1 &&
+            orderItemUnitsCount === 0 &&
+            !hasActiveClaim &&
+            !alreadyProcessed
+        ) {
+            action = 'RETRY_RECOVERY';
+            label = '자동 복구 재시도 가능 (웹훅 미해결, 결제 완료 · paid_events 있음 · units 없음)';
+            allowed = true;
+            allowedReason = 'LIVE_STATE_RETRYABLE';
+            currentReasonCode = 'RETRYABLE_UNRESOLVED_ATTEMPT';
+        } else {
+            action = 'MANUAL_REVIEW';
+            label = '조건 미충족: 수동 검토 필요';
+            allowed = false;
+            allowedReason = 'LIVE_STATE_NOT_RETRYABLE';
+            currentReasonCode = 'NON_RETRYABLE_UNRESOLVED_ATTEMPT';
+        }
+    } else if (issueCode === 'USE_HOLD_RECOVERY_UNRESOLVED') {
+        // hold/use_hold 패턴이 애매한 경우는 기본적으로 수동 검토 대상
+        action = 'MANUAL_REVIEW';
+        label = 'hold/use_hold 패턴이 애매하여 자동 복구 불가 · 수동 검토 필요';
+        allowed = false;
+        allowedReason = reasonCode || 'HOLD_PATTERN_AMBIGUOUS';
+        currentReasonCode = reasonCode || 'HOLD_PATTERN_AMBIGUOUS';
+    } else {
+        // 그 외 이슈코드는 일단 수동 검토로 모은다.
+        action = 'MANUAL_REVIEW';
+        label = '수동 검토 필요 (기타 이슈)';
+        allowed = false;
+        allowedReason = reasonCode || 'MANUAL_REVIEW_REQUIRED';
+        currentReasonCode = reasonCode || 'MANUAL_REVIEW_REQUIRED';
+    }
+
+    return {
+        recommendedAction: action,
+        recommendedActionLabel: label,
+        actionAllowed: allowed,
+        actionAllowedReason: allowedReason,
+        currentReasonCode
+    };
+}
 module.exports = {
     RECOVERY_REQUIRED,
     RECOVERY_IN_PROGRESS,
@@ -184,5 +426,8 @@ module.exports = {
     ensurePaidEvent,
     ensurePaidEventProcessing,
     processPaidEvent,
-    completeRecoveryAttempt
+    completeRecoveryAttempt,
+    resolveRecoveryAttempt,
+    computeRecommendedActionCandidate,
+    computeRecommendedAction
 };
