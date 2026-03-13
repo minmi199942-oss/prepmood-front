@@ -17,6 +17,14 @@
   let currentPage = 1;
   let totalItems = 0;
 
+  const REASON_LABELS = {
+    NO_MATCHING_ATTEMPT: '연결할 payment_attempt를 찾지 못함',
+    RETRYABLE_UNRESOLVED_ATTEMPT: '조건 만족 시 자동 재시도 후보',
+    NON_RETRYABLE_UNRESOLVED_ATTEMPT: '현재 상태에서는 자동 재시도 불가',
+    MULTIPLE_HOLD_ATTEMPTS: 'hold 시도가 여러 개라 자동 판단 불가',
+    MIXED_HOLD_AND_LEGACY_ATTEMPTS: 'hold/legacy 혼합으로 수동 검토 필요'
+  };
+
   const state = {
     list: [],
     selectedIssueId: null
@@ -333,6 +341,9 @@
     const storedReasonCode = issue.storedReasonCode || '';
     const currentReasonCode = action.currentReasonCode || '';
 
+    const storedReasonLabel = getReasonLabel(storedReasonCode);
+    const currentReasonLabel = getReasonLabel(currentReasonCode);
+
     const useHold = !!issue.useHold;
 
     const useHoldBadge = useHold
@@ -392,8 +403,8 @@
           <span class="value-strong">${orderItemUnitsCount != null ? orderItemUnitsCount : '-'}</span>
           <span class="label-muted">· holds:</span>
           <span class="value-strong">${activeHoldsCount != null ? activeHoldsCount : '-'}</span>
-          <span class="label-muted">· invoices:</span>
-          <span class="value-strong">${invoicesCount != null ? invoicesCount : '-'}</span>
+            <span class="label-muted">· invoices:</span>
+            <span class="value-strong">${invoicesCount != null ? invoicesCount : '-'}</span>
         </div>
         <div class="summary-item">
           <span class="label-muted">자동 재시도:</span>
@@ -430,22 +441,20 @@
 
         <div class="detail-section">
           <h4>이유 비교 (스냅샷 vs 현재)</h4>
-          <table class="reason-compare-table">
-            <thead>
-              <tr>
-                <th>저장 당시 이유 (storedReasonCode)</th>
-                <th>현재 상태 기준 이유 (currentReasonCode)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${escapeHtml(storedReasonCode || '-')}</td>
-                <td>${escapeHtml(currentReasonCode || '-')}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="reason-card-grid">
+            <div class="reason-card">
+              <div class="reason-title">저장 당시 이유</div>
+              <div class="reason-label">${escapeHtml(storedReasonLabel || '-')}</div>
+              <span class="code-token">${escapeHtml(storedReasonCode || '-')}</span>
+            </div>
+            <div class="reason-card is-current">
+              <div class="reason-title">현재 상태 기준 이유</div>
+              <div class="reason-label">${escapeHtml(currentReasonLabel || '-')}</div>
+              <span class="code-token">${escapeHtml(currentReasonCode || '-')}</span>
+            </div>
+          </div>
           <div class="section-note">
-            <strong>설명:</strong> 저장 당시 이유는 이슈가 기록될 때의 판단이고,<br/>
+            저장 당시 이유는 이슈가 기록될 때의 판단이고,<br/>
             현재 이유는 지금 라이브 상태를 다시 진단한 결과입니다.
           </div>
         </div>
@@ -612,4 +621,9 @@
     init
   };
 })();
+
+function getReasonLabel(code) {
+  if (!code) return '-';
+  return REASON_LABELS[code] || code;
+}
 

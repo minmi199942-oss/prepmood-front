@@ -8,9 +8,16 @@
   <link rel="stylesheet" href="admin.css">
   <style>
     /* 복구 이슈 대시보드 전용 스타일 */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                   "Noto Sans KR", "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+      line-height: 1.5;
+      letter-spacing: -0.01em;
+    }
+
     .recovery-layout {
       display: grid;
-      grid-template-columns: minmax(0, 2.1fr) minmax(0, 2fr);
+      grid-template-columns: minmax(0, 2.4fr) minmax(0, 2fr);
       gap: 1.5rem;
       align-items: flex-start;
     }
@@ -69,7 +76,7 @@
     .recovery-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
     }
 
     .recovery-table thead {
@@ -183,7 +190,7 @@
 
     .recovery-detail-body {
       padding: 1rem 1.25rem 1.1rem;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
     }
 
     .detail-summary-card {
@@ -220,7 +227,7 @@
 
     .detail-section h4 {
       margin: 0 0 0.5rem 0;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       font-weight: 600;
       color: #212529;
     }
@@ -237,7 +244,7 @@
 
     .detail-section dd {
       margin: 0 0 0.45rem 0;
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       color: #212529;
     }
 
@@ -324,26 +331,48 @@
       margin: 0.5rem 0 0.75rem;
     }
 
-    .reason-compare-table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
+    .reason-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .reason-card {
+      background: #f8f9fa;
+      border-radius: 6px;
+      padding: 0.75rem;
+      border: 1px solid #e9ecef;
+    }
+
+    .reason-card.is-current {
+      background: #fff9db;
+      border-color: #ffe066;
+    }
+
+    .reason-title {
       font-size: 0.78rem;
-      margin-bottom: 0.25rem;
-    }
-
-    .reason-compare-table th,
-    .reason-compare-table td {
-      border: 1px solid #dee2e6;
-      padding: 0.4rem 0.5rem;
-      vertical-align: top;
-    }
-
-    .reason-compare-table th {
-      background: #e9ecef;
       font-weight: 600;
-      font-size: 0.75rem;
       color: #495057;
+      margin-bottom: 0.3rem;
+    }
+
+    .reason-label {
+      font-size: 0.82rem;
+      color: #212529;
+      margin-bottom: 0.25rem;
+      word-break: keep-all;
+    }
+
+    .code-token {
+      display: block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.7rem;
+      color: #495057;
+      background: #f1f3f5;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      overflow-wrap: anywhere;
+      margin-top: 0.15rem;
     }
   </style>
 </head>
