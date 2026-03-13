@@ -90,6 +90,8 @@ router.get('/admin/recovery/issues', authenticateToken, requireAdmin, async (req
         const total = countRow ? Number(countRow.total) || 0 : 0;
 
         // 목록 조회: orders 조인으로 order_number 노출
+        // 일부 MySQL 버전에서 LIMIT ? OFFSET ? 바인딩이 mysqld_stmt_execute 오류를 유발할 수 있어,
+        // 검증된 정수 값만 사용하여 안전하게 문자열로 삽입한다.
         const [rows] = await connection.execute(
             `SELECT
                  ri.id,
@@ -107,8 +109,7 @@ router.get('/admin/recovery/issues', authenticateToken, requireAdmin, async (req
              FROM recovery_issues ri
              LEFT JOIN orders o ON o.order_id = ri.order_id
              ORDER BY ri.last_seen_at DESC
-             LIMIT ? OFFSET ?`,
-            [pageSize, offset]
+             LIMIT ${pageSize} OFFSET ${offset}`
         );
 
         const items = (rows || []).map((row) => {
