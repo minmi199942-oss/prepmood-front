@@ -18,6 +18,7 @@ const NAV_MENU = [
   { id: 'orders', label: '주문 관리', href: 'orders.html' },
   { id: 'warranties', label: '보증서 관리', href: 'warranties.html' },
   { id: 'inquiries', label: '고객 문의', href: 'inquiries.html' },
+  { id: 'recovery-issues', label: '복구 이슈', href: 'recovery-issues.html' },
 ];
 
 /**
