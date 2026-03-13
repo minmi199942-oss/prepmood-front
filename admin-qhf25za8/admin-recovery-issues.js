@@ -25,6 +25,11 @@
     MIXED_HOLD_AND_LEGACY_ATTEMPTS: 'hold/legacy 혼합으로 수동 검토 필요'
   };
 
+  function getReasonLabel(code) {
+    if (!code) return '-';
+    return REASON_LABELS[code] || code;
+  }
+
   const state = {
     list: [],
     selectedIssueId: null
@@ -621,9 +626,3 @@
     init
   };
 })();
-
-function getReasonLabel(code) {
-  if (!code) return '-';
-  return REASON_LABELS[code] || code;
-}
-
