@@ -666,10 +666,12 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
             });
             const paidEventId = paidEventResult.eventId;
             if (!paidEventId) throw new Error('paid_events 생성 실패: eventId가 null입니다.');
-            const paymentStatus = pgResponse.status === 'DONE' ? 'captured' : pgResponse.status === 'IN_PROGRESS' ? 'authorized' : 'failed';
+            const paymentStatus = (pgResponse && pgResponse.status === 'DONE') ? 'captured' : (pgResponse && pgResponse.status === 'IN_PROGRESS') ? 'authorized' : 'failed';
+            // payload_json: undefined 전달 시 MySQL2/8.0.22+에서 mysqld_stmt_execute 오류 유발 → 항상 문자열로 바인딩
+            const payloadJson = pgResponse != null ? JSON.stringify(pgResponse) : 'null';
             await connB.execute(
                 `INSERT INTO payments (order_number, gateway, payment_key, status, amount, currency, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [orderNumber, isMockMode ? 'mock' : 'toss', paymentKey, paymentStatus, serverAmount, currencyVal, JSON.stringify(pgResponse)]
+                [orderNumber, isMockMode ? 'mock' : 'toss', paymentKey, paymentStatus, serverAmount, currencyVal, payloadJson]
             );
             const paidResult = await processPaidOrder({
                 connection: connB,
