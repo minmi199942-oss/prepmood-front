@@ -131,6 +131,8 @@ async function acquireNewHoldsForOrder({ connection, orderId, orderItems, holdTt
         // stock_units 에서 in_stock + 해당 product/size/color 를 가진 unit 선별
         // 이미 ACTIVE hold 가 붙은 unit 은 제외 (NOT EXISTS)
         // 동시성 보강: stock_unit_id ASC 고정 정렬 + FOR UPDATE SKIP LOCKED
+        // LIMIT: MySQL 8.0.22+ / mysql2에서 LIMIT ? 바인딩 시 ER_WRONG_ARGUMENTS 발생 → 검증된 정수만 삽입
+        const limitInt = Math.max(0, Math.floor(Number(needed)));
         const [unitRows] = await connection.execute(
             `SELECT su.stock_unit_id
              FROM stock_units su
@@ -144,12 +146,11 @@ async function acquireNewHoldsForOrder({ connection, orderId, orderItems, holdTt
                       AND sh.status = 'ACTIVE'
                )
              ORDER BY su.stock_unit_id
-             LIMIT ? FOR UPDATE SKIP LOCKED`,
+             LIMIT ${limitInt} FOR UPDATE SKIP LOCKED`,
             [
                 item.product_id,
                 item.size, item.size,
-                item.color, item.color,
-                needed
+                item.color, item.color
             ]
         );
 
