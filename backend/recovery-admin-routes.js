@@ -79,21 +79,22 @@ router.get('/admin/recovery/issues', authenticateToken, requireAdmin, async (req
     try {
         const page = parseIntSafe(req.query.page, 1, { min: 1, max: 1000 });
         const pageSize = parseIntSafe(req.query.pageSize || req.query.limit, 20, { min: 1, max: 100 });
-        const offset = (page - 1) * pageSize;
+        const offset = Math.max(0, (page - 1) * pageSize);
+        const limitInt = Math.floor(Number(pageSize));
+        const offsetInt = Math.floor(Number(offset));
 
         connection = await mysql.createConnection(dbConfig);
 
-        // 총 개수
+        // 총 개수 (placeholder 없음 → execute 인자 1개만)
         const [[countRow]] = await connection.execute(
             'SELECT COUNT(*) AS total FROM recovery_issues'
         );
         const total = countRow ? Number(countRow.total) || 0 : 0;
 
         // 목록 조회: orders 조인으로 order_number 노출
-        // 일부 MySQL 버전에서 LIMIT ? OFFSET ? 바인딩이 mysqld_stmt_execute 오류를 유발할 수 있어,
-        // 검증된 정수 값만 사용하여 안전하게 문자열로 삽입한다.
-        const [rows] = await connection.execute(
-            `SELECT
+        // LIMIT/OFFSET은 placeholder 미사용(바인딩 시 mysqld_stmt_execute 오류 가능).
+        // 검증된 정수만 문자열로 삽입하고, execute에는 SQL만 전달(인자 1개).
+        const listSql = `SELECT
                  ri.id,
                  ri.order_id,
                  o.order_number,
@@ -109,8 +110,8 @@ router.get('/admin/recovery/issues', authenticateToken, requireAdmin, async (req
              FROM recovery_issues ri
              LEFT JOIN orders o ON o.order_id = ri.order_id
              ORDER BY ri.last_seen_at DESC
-             LIMIT ${pageSize} OFFSET ${offset}`
-        );
+             LIMIT ${limitInt} OFFSET ${offsetInt}`;
+        const [rows] = await connection.execute(listSql);
 
         const items = (rows || []).map((row) => {
             const candidate = computeRecommendedActionCandidate(
