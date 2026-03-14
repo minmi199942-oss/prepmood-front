@@ -938,6 +938,18 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
                     orderNumber: req.body?.orderNumber
                 });
             }
+            // mysqld_stmt_execute 등 DB 에러 시 원인 특정용 상세 로그 (다음 재현 시 스택·SQL로 위치 확인)
+            if (wrapperError.message && String(wrapperError.message).includes('mysqld_stmt_execute')) {
+                Logger.error('[payments][confirm] DB execute 오류 (위치 특정용)', {
+                    message: wrapperError.message,
+                    code: wrapperError.code,
+                    sql: wrapperError.sql,
+                    sqlState: wrapperError.sqlState,
+                    sqlMessage: wrapperError.sqlMessage,
+                    stack: wrapperError.stack,
+                    orderNumber: req.body?.orderNumber
+                });
+            }
             return res.status(status).json({
                 success: false,
                 code: status === 503 ? 'SERVICE_UNAVAILABLE' : 'PAYMENT_ERROR',
