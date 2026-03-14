@@ -25,15 +25,15 @@
     <div class="checkout-container order-complete-container">
       <div class="checkout-breadcrumb-row">
         <nav class="checkout-breadcrumb" aria-label="결제 단계">
-          <a href="checkout.html" class="step step-completed">1. 배송</a>
+          <span class="step step-completed" aria-current="false">1. 배송</span>
           <span class="separator" aria-hidden="true">&gt;</span>
-          <a href="checkout-payment.html" class="step step-completed">2. 결제 방법</a>
+          <span class="step step-completed" aria-current="false">2. 결제 방법</span>
           <span class="separator" aria-hidden="true">&gt;</span>
-          <span class="step step-current">3. 주문 확인</span>
+          <span class="step step-current" aria-current="true">3. 주문 확인</span>
         </nav>
       </div>
       <div class="order-complete-content">
-        <div class="order-complete-head">
+        <div class="order-complete-head" id="order-complete-head" style="display: none;">
           <div class="success-icon">✓</div>
           <h1 class="order-complete-title">주문이 완료되었습니다!</h1>
           <p class="order-complete-message">

@@ -245,9 +245,10 @@ async function processPaidOrder({
         let useHold = false;
         if (attemptId != null) {
             try {
+                const attemptIdNum = Number(attemptId);
                 const [attemptRows] = await connection.execute(
                     'SELECT use_hold FROM payment_attempts WHERE id = ?',
-                    [attemptId]
+                    [attemptIdNum]
                 );
                 if (attemptRows.length === 0) {
                     const err = new Error('USE_HOLD_RESOLUTION_FAILED');
