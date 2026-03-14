@@ -238,7 +238,7 @@ async function withPaymentAttempt({
                  VALUES (?, ?, 'toss', ?, 'PROCESSING', ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), ?, 1)`,
                 [orderId, paymentKey, attemptSeq, amountStr, currency, pgOrderId]
             );
-            attemptId = insertRes.insertId;
+            attemptId = insertRes.insertId != null ? Number(insertRes.insertId) : insertRes.insertId;
 
             await connA.query(
                 `INSERT INTO checkout_sessions (session_key, order_id, status, attempt_id, expires_at)
@@ -363,9 +363,10 @@ async function withPaymentAttempt({
             } catch (e) {
                 Logger.error('[payment-wrapper] payment_attempt_logs INSERT 실패', e);
             }
+            // 현재 세션 + 같은 order_id의 모든 세션 CONSUMED (재진입 차단, ORDER_ALREADY_PAID_REVISED_PLAN §4.3)
             await connB.query(
-                "UPDATE checkout_sessions SET status = 'CONSUMED', updated_at = NOW() WHERE session_key = ?",
-                [sessionKey]
+                "UPDATE checkout_sessions SET status = 'CONSUMED', updated_at = NOW() WHERE order_id = ?",
+                [orderId]
             );
 
             await connB.commit();

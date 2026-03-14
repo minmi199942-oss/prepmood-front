@@ -35,6 +35,7 @@ const { createPaidEvent, updateProcessingStatus } = require('./utils/paid-event-
 const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
 const { updateOrderStatus } = require('./utils/order-status-aggregator');
 const { withPaymentAttempt, getSafeConnection } = require('./utils/payment-wrapper');
+const { hasPaidEventForOrder } = require('./utils/order-paid-check');
 const { pool } = require('./db');
 const { markAttemptRecoveryRequired } = require('./services/payment-recovery-service');
 const https = require('https');
@@ -90,6 +91,58 @@ function notifyProcessPaidOrderFailure({ orderNumber, amount, paymentKey, error 
 }
 
 // DB 커넥션은 db.js의 pool로 통합 (createConnection 제거)
+
+/**
+ * 이미 결제 완료된 주문에 대한 멱등 200 응답 객체 생성.
+ * connection 사용 후 호출부에서 rollback/release 수행. release 전에 호출 필수.
+ */
+async function buildAlreadyConfirmedResponse(connection, order, orderNumber, serverAmount, currency, userId) {
+    const [existingPaymentRows] = await connection.execute(
+        `SELECT status, amount, currency, payment_key, gateway FROM payments
+         WHERE order_number = ?
+         ORDER BY created_at DESC LIMIT 1`,
+        [orderNumber]
+    );
+    const existingPaymentStatus = existingPaymentRows.length ? existingPaymentRows[0].status : 'captured';
+    const existingCurrency = existingPaymentRows.length && existingPaymentRows[0].currency
+        ? existingPaymentRows[0].currency
+        : currency;
+    const existingGateway = existingPaymentRows.length && existingPaymentRows[0].gateway
+        ? existingPaymentRows[0].gateway
+        : 'toss';
+    let guestAccessToken = null;
+    if (order.user_id == null) {
+        const [tokenRows] = await connection.execute(
+            `SELECT token FROM guest_order_access_tokens got
+             WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')}
+             ORDER BY got.created_at DESC LIMIT 1`,
+            [order.order_id]
+        );
+        if (tokenRows.length > 0) guestAccessToken = tokenRows[0].token;
+    }
+    let cartCleared = false;
+    if (userId != null) {
+        const [cartCountRows] = await connection.execute(
+            `SELECT COUNT(*) AS itemCount FROM cart_items ci INNER JOIN carts c ON ci.cart_id = c.cart_id WHERE c.user_id = ?`,
+            [userId]
+        );
+        cartCleared = (cartCountRows[0].itemCount || 0) === 0;
+    }
+    return {
+        success: true,
+        data: {
+            order_number: orderNumber,
+            amount: serverAmount,
+            currency: existingCurrency,
+            payment_status: existingPaymentStatus,
+            payment_gateway: existingGateway,
+            alreadyConfirmed: true,
+            cartCleared,
+            user_id: order.user_id,
+            ...(guestAccessToken != null ? { guest_access_token: guestAccessToken } : {})
+        }
+    };
+}
 
 /**
  * POST /api/payments/confirm
@@ -209,6 +262,19 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         }
 
         const order = orderRows[0];
+
+        // 재결제 금지: paid_events 존재 시 새 세션 발급 없이 200 멱등 (ORDER_ALREADY_PAID_REVISED_PLAN §4.3)
+        const hasPaid = await hasPaidEventForOrder(connection, order.order_id);
+        if (hasPaid) {
+            const serverAmount = parseFloat(order.total_price);
+            const currency = order.shipping_country === 'KR' ? 'KRW' :
+                order.shipping_country === 'US' ? 'USD' :
+                order.shipping_country === 'JP' ? 'JPY' : 'KRW';
+            const responseObj = await buildAlreadyConfirmedResponse(connection, order, orderNumber, serverAmount, currency, userId);
+            await connection.rollback();
+            connection.release();
+            return res.json(responseObj);
+        }
 
         // 2. Zero-Trust: 세션 조회 + 만료 + CONSUMED 검사. [문서] GEMINI §6 Step 5·§10.24.
         const [sessionRows] = await connection.execute(
@@ -361,65 +427,11 @@ router.post('/payments/confirm', optionalAuth, verifyCSRF, async (req, res) => {
         );
 
         if (existingSuccessRows.length > 0) {
-            // 실제 주문 처리까지 완료된 경우에만 멱등 200
-            const [existingPaymentRows] = await connection.execute(
-                `SELECT status, amount, currency, payment_key FROM payments
-                 WHERE order_number = ?
-                 ORDER BY created_at DESC
-                 LIMIT 1`,
-                [orderNumber]
-            );
-
-            const existingPaymentStatus = existingPaymentRows.length ? existingPaymentRows[0].status : 'captured';
-            const existingCurrency = existingPaymentRows.length && existingPaymentRows[0].currency
-                ? existingPaymentRows[0].currency
-                : currency;
-            const existingPaymentKey = existingPaymentRows.length ? existingPaymentRows[0].payment_key : paymentKey;
-
-            // 비회원 시: guest_access_token 조회 (헬퍼: expires_at > NOW() AND revoked_at IS NULL)
-            let guestAccessToken = null;
-            if (order.user_id == null) {
-                const [tokenRows] = await connection.execute(
-                    `SELECT token FROM guest_order_access_tokens got
-                     WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')}
-                     ORDER BY got.created_at DESC
-                     LIMIT 1`,
-                    [order.order_id]
-                );
-                if (tokenRows.length > 0) {
-                    guestAccessToken = tokenRows[0].token;
-                }
-            }
-
-            // 장바구니 상태: 회원은 DB 조회, 비회원은 localStorage(pm_cart_v1)에 있어 서버에서 미조회
-            let cartCleared = false;
-            if (userId != null) {
-                const [cartCountRows] = await connection.execute(
-                    `SELECT COUNT(*) AS itemCount
-                     FROM cart_items ci
-                     INNER JOIN carts c ON ci.cart_id = c.cart_id
-                     WHERE c.user_id = ?`,
-                    [userId]
-                );
-                cartCleared = (cartCountRows[0].itemCount || 0) === 0;
-            }
-
+            // 실제 주문 처리까지 완료된 경우에만 멱등 200 (helper 사용, release 전 호출)
+            const responseObj = await buildAlreadyConfirmedResponse(connection, order, orderNumber, serverAmount, currency, userId);
             await connection.rollback();
             connection.release();
-
-            return res.json({
-                success: true,
-                data: {
-                    order_number: orderNumber,
-                    amount: serverAmount,
-                    currency: existingCurrency,
-                    payment_status: existingPaymentStatus,
-                    alreadyConfirmed: true,
-                    cartCleared,
-                    user_id: order.user_id,
-                    ...(guestAccessToken != null ? { guest_access_token: guestAccessToken } : {})
-                }
-            });
+            return res.json(responseObj);
         }
 
         // paid_events + pep 상태로 분기: success(이미 처리됨), processing(409), failed(§C 재시도 또는 환불)
@@ -999,6 +1011,21 @@ router.get('/payments/orders/:orderNumber/status', optionalAuth, async (req, res
         const session = sessionRows[0];
 
         if (session.status === 'CONSUMED') {
+            // 같은 소유자 검증 후에만 SESSION_CONSUMED 반환 (ORDER_ALREADY_PAID_REVISED_PLAN §4.4)
+            const [orderRowsConsumed] = await connection.execute(
+                'SELECT user_id FROM orders WHERE order_id = ? LIMIT 1',
+                [session.order_id]
+            );
+            if (orderRowsConsumed.length > 0) {
+                const orderUserId = orderRowsConsumed[0].user_id;
+                if (orderUserId != null && req.user?.userId !== orderUserId) {
+                    return res.status(403).json({
+                        success: false,
+                        code: 'FORBIDDEN',
+                        message: '해당 주문에 대한 권한이 없습니다.'
+                    });
+                }
+            }
             return res.status(403).json({
                 success: false,
                 code: 'SESSION_CONSUMED',
@@ -1359,6 +1386,10 @@ router.post('/payments/inicis/return', async (req, res) => {
         );
 
         if (existingPayments.length > 0) {
+            await connection.execute(
+                "UPDATE checkout_sessions SET status = 'CONSUMED', updated_at = NOW() WHERE order_id = ?",
+                [order.order_id]
+            );
             await connection.commit();
             connection.release();
             Logger.log('[payments][inicis] 이미 결제됨 멱등 (tid)', { orderNumber, tid });
@@ -1537,6 +1568,12 @@ router.post('/payments/inicis/return', async (req, res) => {
                 });
             }
         }
+
+        // 같은 order_id의 checkout_sessions 모두 CONSUMED (재진입 차단, ORDER_ALREADY_PAID_REVISED_PLAN §4.3)
+        await connection.execute(
+            "UPDATE checkout_sessions SET status = 'CONSUMED', updated_at = NOW() WHERE order_id = ?",
+            [order.order_id]
+        );
 
         // 트랜잭션 커밋 및 커넥션 종료
         await connection.commit();

@@ -49,6 +49,13 @@ document.addEventListener('DOMContentLoaded', function() {
   Logger.log('💳 체크아웃 페이지 로드됨');
   Logger.log(`🔧 결제 모드: ${window.__PAYMENT_MODE__}`);
 
+  // 장바구니에서 진입한 경우에만 이전 주문용 키 제거 (진짜 새 주문 시작, ORDER_ALREADY_PAID_REVISED_PLAN §4.6)
+  if (sessionStorage.getItem('checkoutFromCart') === '1') {
+    sessionStorage.removeItem('checkoutFromCart');
+    sessionStorage.removeItem('checkoutIdemKey');
+    sessionStorage.removeItem('checkoutLastOrderNumber');
+  }
+
   // 개발 환경: 인증 UI(발송 안내·인증 블록)를 처음부터 표시해 디자인 수정 가능하도록
   const isDevForDesign = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || (typeof URLSearchParams !== 'undefined' && new URLSearchParams(window.location.search).get('dev') === '1');
   if (isDevForDesign) {

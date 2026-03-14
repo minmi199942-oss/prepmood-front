@@ -43,50 +43,74 @@ const API_BASE = (window.API_BASE)
       ? window.location.origin.replace(/\/$/, '') + '/api'
       : '/api');
 
-document.addEventListener('DOMContentLoaded', async function() {
-  // URL 파라미터 확인
+function runOrderCompleteInit() {
   const urlParams = new URLSearchParams(window.location.search);
   const paymentKey = urlParams.get('paymentKey');
-  const orderId = urlParams.get('orderId'); // 토스페이먼츠 successUrl에서 orderId로 전달
+  const orderId = urlParams.get('orderId');
   const amount = urlParams.get('amount');
-  const guestToken = urlParams.get('guestToken'); // ⚠️ 비회원 주문 토큰
+  const guestToken = urlParams.get('guestToken');
 
-  // 개발 환경: orderId 없이 접속 시 샘플 데이터로 주문확인 레이아웃 표시 (디자인 수정용)
   if (!orderId && !paymentKey && isDevHost()) {
     const sample = getDevSampleOrderData();
+    const headEl = document.getElementById('order-complete-head');
+    if (headEl) headEl.style.display = 'block';
     displayOrderInfoFromServer(sample.data, sample.orderDetail);
     Logger.log('🎨 개발 환경: 샘플 데이터로 주문확인 페이지 디자인 확인');
     return;
   }
 
-  const authStatus = await fetchAuthStatus();
-  const isAuthenticated = authStatus?.authenticated;
-  
-  // 토스페이먼츠 success URL에서 온 경우 (paymentKey가 있으면) — 회원/비회원 모두 결제 확인 API 호출
-  // 비회원이어도 confirm 응답에서 guest_access_token을 받아 주문 정보 조회 가능
   if (paymentKey && orderId && amount) {
     handleTossPaymentSuccess(paymentKey, orderId, amount);
     return;
   }
-  
-  // 일반 주문 완료 페이지 (orderId만 있는 경우)
+
   if (orderId) {
-    // ⚠️ 비회원 주문인 경우 (guestToken이 있으면)
-    if (guestToken) {
-      await loadGuestOrderDetails(orderId, guestToken);
-    } else if (!isAuthenticated) {
-      // 비회원이지만 토큰이 없는 경우
-      showOrderError('주문 정보를 확인하려면 로그인이 필요합니다.');
-      return;
-    } else {
-      // 회원 주문
-      loadOrderDetails(orderId);
-    }
+    fetchAuthStatus().then(function (authStatus) {
+      const isAuthenticated = authStatus?.authenticated;
+      if (guestToken) {
+        loadGuestOrderDetails(orderId, guestToken);
+      } else if (isAuthenticated) {
+        loadOrderDetails(orderId);
+      } else {
+        // "비로그인 확정"과 "인증 상태 확인 실패" 구분: 회원 경로 먼저 시도, 401/403일 때만 비회원 세션 시도 (GPT 피드백 반영)
+        loadOrderDetails(orderId, { fallbackToGuestOnAuthError: true }).then(function (displayed) {
+          if (!displayed) loadGuestOrderDetailsBySession(orderId);
+        });
+      }
+    }).catch(function () {
+      if (guestToken) {
+        loadGuestOrderDetails(orderId, guestToken);
+      } else if (orderId) {
+        // fetchAuthStatus 자체가 reject된 경우(드묾): 회원 경로 먼저 시도 후 실패 시 비회원 시도
+        loadOrderDetails(orderId, { fallbackToGuestOnAuthError: true }).then(function (displayed) {
+          if (!displayed) loadGuestOrderDetailsBySession(orderId);
+        });
+      }
+    });
   } else {
     Logger.warn('⚠️ 주문 ID가 없습니다');
-    // 주문 ID가 없으면 기본 메시지만 표시
     document.getElementById('order-info-section').style.display = 'none';
   }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  runOrderCompleteInit();
+});
+
+// bfcache(뒤로가기/앞으로가기) 복원 시 재검증: URL에 paymentKey가 남아 있으면 정리 후 orderId만으로 조회
+window.addEventListener('pageshow', function (event) {
+  if (event.persisted !== true) return;
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentKey = urlParams.get('paymentKey');
+  const orderId = urlParams.get('orderId');
+  if (!orderId) return;
+  if (paymentKey) {
+    var canonicalPath = window.location.pathname || '/order-complete.html';
+    var canonicalUrl = window.location.origin + canonicalPath + '?orderId=' + encodeURIComponent(orderId);
+    if (window.history.replaceState) window.history.replaceState({}, '', canonicalUrl);
+    else window.location.replace(canonicalUrl);
+  }
+  runOrderCompleteInit();
 });
 
 async function fetchAuthStatus() {
@@ -134,6 +158,12 @@ async function loadGuestOrderDetails(orderNumber, guestToken) {
     }
 
     if (sessionData.success && sessionData.orderNumber) {
+      // 토큰은 이미 세션으로 교환됐으므로 URL에서 제거 (히스토리·리퍼러 노출 최소화, GPT 피드백 반영)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('guestToken')) {
+        const cleanUrl = window.location.origin + (window.location.pathname || '/order-complete.html') + '?orderId=' + encodeURIComponent(sessionData.orderNumber);
+        if (window.history.replaceState) window.history.replaceState({}, '', cleanUrl);
+      }
       await loadGuestOrderDetailsBySession(sessionData.orderNumber);
     } else {
       showOrderError(sessionData.message || '주문 정보를 불러올 수 없습니다.');
@@ -203,7 +233,13 @@ async function loadGuestOrderDetailsBySession(orderNumber) {
   }
 }
 
-async function loadOrderDetails(orderId) {
+/**
+ * @param {string} orderId
+ * @param {{ fallbackToGuestOnAuthError?: boolean }} [options] - true면 401/403 시에만 false 반환 (비회원 세션 fallback용). 500/네트워크/파싱 오류는 에러 표시 후 true 반환(guest 미시도).
+ * @returns {Promise<boolean>} true=표시했거나 에러 처리함(guest 시도 안 함), false=401/403으로 인증 거절(호출부에서 비회원 세션 시도)
+ */
+async function loadOrderDetails(orderId, options) {
+  const fallbackToGuestOnAuthError = options?.fallbackToGuestOnAuthError === true;
   try {
     const response = await fetch(`${API_BASE}/orders/${orderId}`, {
       credentials: 'include'
@@ -212,18 +248,21 @@ async function loadOrderDetails(orderId) {
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
         Logger.warn('주문 정보 조회 권한 없음', response.status);
+        if (fallbackToGuestOnAuthError) return false;
         showOrderError('주문 정보를 확인하려면 로그인이 필요합니다.');
-        return;
+        return true;
       }
       if (response.status === 404) {
         showOrderError('주문을 찾을 수 없습니다. 주문 번호를 확인해주세요.');
-        return;
+        return true;
       }
       const errMessage = `주문 정보 조회 실패: ${response.status}`;
       throw new Error(errMessage);
     }
     
-    const result = await response.json();
+    const result = await response.json().catch(function () {
+      throw new Error('응답 형식 오류');
+    });
     
     // 서버 응답 우선 사용 (data 필드)
     if (result.success && result.data) {
@@ -236,8 +275,9 @@ async function loadOrderDetails(orderId) {
       
       // 회원 주문 표시 성공 시 장바구니 정리 (서버는 이미 비움, 미니카트 UI 동기화)
       await clearCartIfAvailable();
-      
-    } else if (result.success && result.order) {
+      return true;
+    }
+    if (result.success && result.order) {
       // 기존 호환성 유지 (order 필드만 있는 경우)
       displayOrderInfo(result.order);
       
@@ -246,14 +286,14 @@ async function loadOrderDetails(orderId) {
       sessionStorage.removeItem('checkoutShippingData');
       
       await clearCartIfAvailable();
-      
-    } else {
-      throw new Error('주문 정보를 찾을 수 없습니다');
+      return true;
     }
-    
+    throw new Error('주문 정보를 찾을 수 없습니다');
   } catch (error) {
     Logger.error('❌ 주문 정보 로딩 실패:', error);
-    showOrderError(error.message || '주문 정보를 불러오는 중 오류가 발생했습니다.');
+    // 500/네트워크/파싱 오류는 "인증 거절"이 아니므로 guest fallback 하지 않음 (GPT 잔여 리스크 §3 반영)
+    showOrderError(error.message || '주문 정보를 불러오는 중 오류가 발생했습니다. 새로고침해 주세요.');
+    return true;
   }
 }
 
@@ -263,7 +303,9 @@ function displayOrderInfoFromServer(data, orderDetail) {
     Logger.error('❌ order-info-section을 찾을 수 없습니다');
     return;
   }
-  
+  // 상태 머신: 성공 시에만 "주문이 완료되었습니다" 헤드 표시 (완료/실패 동시 표시 방지)
+  const headEl = document.getElementById('order-complete-head');
+  if (headEl) headEl.style.display = 'block';
   // showPaymentProcessing()에서 innerHTML을 교체했을 수 있으므로, HTML 구조를 다시 생성
   orderInfoSection.style.display = 'block';
   
@@ -344,6 +386,8 @@ function displayOrderInfoFromServer(data, orderDetail) {
 }
 
 function showOrderError(message) {
+  const headEl = document.getElementById('order-complete-head');
+  if (headEl) headEl.style.display = 'none';
   const orderInfoSection = document.getElementById('order-info-section');
   if (orderInfoSection) {
     orderInfoSection.style.display = 'none';
@@ -386,6 +430,8 @@ function showOrderError(message) {
 }
 
 function displayOrderInfo(order) {
+  const headEl = document.getElementById('order-complete-head');
+  if (headEl) headEl.style.display = 'block';
   // 주문 정보 섹션 표시
   const orderInfoSection = document.getElementById('order-info-section');
   orderInfoSection.style.display = 'block';
@@ -633,6 +679,10 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount, options) {
             await loadOrderDetails(orderId);
           }
           showPaymentSuccess();
+          var canonicalPath = window.location.pathname || '/order-complete.html';
+          var canonicalUrl = window.location.origin + canonicalPath + '?orderId=' + encodeURIComponent(orderId);
+          if (window.history.replaceState) window.history.replaceState({}, '', canonicalUrl);
+          else window.location.replace(canonicalUrl);
           return;
         }
         if (pollResult.pendingAfterMax) {
@@ -698,9 +748,15 @@ async function handleTossPaymentSuccess(paymentKey, orderId, amount, options) {
       await loadOrderDetails(orderId);
     }
     
-    // 성공 메시지 표시
     showPaymentSuccess();
-    
+    // 결제 파라미터 제거: 북마크/공유/뒤로가기 시 재결제 유도 방지 (canonical URL만 유지)
+    var canonicalPath = window.location.pathname || '/order-complete.html';
+    var canonicalUrl = window.location.origin + canonicalPath + '?orderId=' + encodeURIComponent(orderId);
+    if (window.history.replaceState) {
+      window.history.replaceState({}, '', canonicalUrl);
+    } else {
+      window.location.replace(canonicalUrl);
+    }
   } catch (error) {
     Logger.error('❌ 결제 확인 실패:', error);
     // 타임아웃/Abort 시 서버는 완료했을 수 있음 → "실패" 단정 대신 내역 확인 유도
@@ -746,6 +802,8 @@ function showPaymentSuccess() {
  * 결제 에러 메시지 표시
  */
 function showPaymentError(message) {
+  const headEl = document.getElementById('order-complete-head');
+  if (headEl) headEl.style.display = 'none';
   const orderInfoSection = document.getElementById('order-info-section');
   if (orderInfoSection) {
     orderInfoSection.style.display = 'block';

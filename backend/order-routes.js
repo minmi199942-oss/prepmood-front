@@ -12,6 +12,7 @@ const { generateUniqueGuestId } = require('./utils/user-id-generator');
 const { selectValidGuestTokenSql } = require('./utils/guest-token-helpers');
 const { generateInvoicePdfBufferPreferred } = require('./utils/invoice-pdf-generator');
 const crypto = require('crypto');
+const { hasPaidEventForOrder } = require('./utils/order-paid-check');
 
 // 국가별 규칙 맵 (서버판 - 프런트보다 더 엄격)
 const COUNTRY_RULES = {
@@ -538,12 +539,61 @@ router.post('/orders', optionalAuth, verifyCSRF, orderCreationLimiter, async (re
                 [prevOrder, userId || guestId]
             );
             if (rows.length) {
-                const checkoutSessionKey = crypto.randomUUID();
-                await connection.execute(
-                    `INSERT INTO checkout_sessions (session_key, order_id, status, attempt_id, expires_at)
-                     VALUES (?, ?, 'PENDING', NULL, DATE_ADD(NOW(), INTERVAL 15 MINUTE))`,
-                    [checkoutSessionKey, rows[0].order_id]
-                );
+                const orderId = rows[0].order_id;
+                const hasPaid = await hasPaidEventForOrder(connection, orderId);
+                if (hasPaid) {
+                    // 비회원 주문: order-complete에서 조회 가능하도록 guest_access_token 포함 (GPT 피드백 반영)
+                    const details = {
+                        message: '이미 결제된 주문입니다.',
+                        order_number: prevOrder
+                    };
+                    if (rows[0].user_id == null) {
+                        const [tokenRows] = await connection.execute(
+                            `SELECT token FROM guest_order_access_tokens got
+                             WHERE got.order_id = ? AND ${selectValidGuestTokenSql('got')}
+                             ORDER BY got.created_at DESC LIMIT 1`,
+                            [orderId]
+                        );
+                        if (tokenRows.length > 0) details.guest_access_token = tokenRows[0].token;
+                    }
+                    await connection.end();
+                    return res.status(409).json({
+                        success: false,
+                        code: 'ORDER_ALREADY_PAID',
+                        details
+                    });
+                }
+                // 기존 OPEN 세션 재사용(또는 1건 생성): 경쟁 조건 방지를 위해 트랜잭션 + order 행 락 (GPT 피드백 반영)
+                let checkoutSessionKey;
+                try {
+                    await connection.beginTransaction();
+                    await connection.execute(
+                        'SELECT order_id FROM orders WHERE order_id = ? FOR UPDATE',
+                        [orderId]
+                    );
+                    const [existingSessions] = await connection.execute(
+                        `SELECT session_key FROM checkout_sessions
+                         WHERE order_id = ? AND status IN ('PENDING', 'IN_PROGRESS')
+                         ORDER BY CASE WHEN status = 'IN_PROGRESS' THEN 0 ELSE 1 END, updated_at DESC
+                         LIMIT 1`,
+                        [orderId]
+                    );
+                    if (existingSessions.length > 0) {
+                        checkoutSessionKey = existingSessions[0].session_key;
+                    } else {
+                        checkoutSessionKey = crypto.randomUUID();
+                        await connection.execute(
+                            `INSERT INTO checkout_sessions (session_key, order_id, status, attempt_id, expires_at)
+                             VALUES (?, ?, 'PENDING', NULL, DATE_ADD(NOW(), INTERVAL 15 MINUTE))`,
+                            [checkoutSessionKey, orderId]
+                        );
+                    }
+                    await connection.commit();
+                } catch (txErr) {
+                    await connection.rollback().catch(() => {});
+                    await connection.end();
+                    throw txErr;
+                }
                 await connection.end();
                 return res.status(200).json({
                     success: true,

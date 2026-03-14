@@ -57,7 +57,41 @@ const TOSS_ERROR_MESSAGES = {
   INVALID_REQUEST: '결제 요청 정보가 올바르지 않습니다.'
 };
 
+/** 재진입 시 서버에 주문 상태 물어보기. 이미 결제 완료면 order-complete로, 접근 거부면 index로. 진행이면 true 반환. */
+async function runRecheckOrderStatus() {
+  const orderNumber = sessionStorage.getItem('checkoutLastOrderNumber');
+  if (!orderNumber) return true;
+  const sessionKey = sessionStorage.getItem('checkoutSessionKey_' + orderNumber);
+  if (!sessionKey) return true;
+  try {
+    const res = await fetch(
+      `${API_BASE}/payments/orders/${encodeURIComponent(orderNumber)}/status?checkoutSessionKey=${encodeURIComponent(sessionKey)}`,
+      { method: 'GET', credentials: 'include' }
+    );
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 200 && data.success && data.data && data.data.status === 'paid') {
+      window.location.replace('order-complete.html?orderId=' + encodeURIComponent(orderNumber));
+      return false;
+    }
+    if (res.status === 403 && data.code === 'SESSION_CONSUMED') {
+      window.location.replace('order-complete.html?orderId=' + encodeURIComponent(orderNumber));
+      return false;
+    }
+    if (res.status === 403 || res.status === 404) {
+      window.location.replace('index.html');
+      return false;
+    }
+  } catch (e) {
+    // 네트워크 오류 시 진행 (기존대로 결제 UI 표시)
+  }
+  return true;
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
+  // 재진입 검사: 이미 결제된 주문이면 order-complete로, 권한 없으면 index로 (ORDER_ALREADY_PAID_REVISED_PLAN §4.5)
+  const shouldContinue = await runRecheckOrderStatus();
+  if (!shouldContinue) return;
+
   // CSRF 토큰 받기 (GET 요청으로 토큰 발급)
   try {
     const statusRes = await fetch(`${API_BASE}/auth/status`, {
@@ -115,6 +149,14 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   // 이벤트 바인딩
   bindEventListeners(data);
+});
+
+// bfcache 복원 시에도 서버 재검사 (ORDER_ALREADY_PAID_REVISED_PLAN §4.5)
+window.addEventListener('pageshow', async function(event) {
+  if (event.persisted !== true) return;
+  const shouldContinue = await runRecheckOrderStatus();
+  if (!shouldContinue) return;
+  // 이미 렌더된 화면이 복원된 경우, 추가 처리 없음
 });
 
 /** 우측 주문 요약: checkout-review와 동일 구조 (cart-item, summary-rows용) */
@@ -243,8 +285,12 @@ async function proceedWithTossPayment(data) {
       proceedBtn.textContent = '처리 중...';
     }
     
-    // 1. 주문 생성 (SSOT 함수 사용) — 유효하지 않은 항목이 있으면 주문 전체 중단
-    const idemKey = uuidv4();
+    // 1. 주문 생성 (SSOT 함수 사용) — 유효하지 않은 항목이 있으면 주문 전체 중단 (같은 체크아웃 흐름에서 idemKey 유지)
+    let idemKey = sessionStorage.getItem('checkoutIdemKey');
+    if (!idemKey) {
+      idemKey = uuidv4();
+      sessionStorage.setItem('checkoutIdemKey', idemKey);
+    }
 
     if (!window.createOrderPayload) {
       throw new Error('checkout-utils.js가 로드되지 않았습니다.');
@@ -279,6 +325,17 @@ async function proceedWithTossPayment(data) {
 
     if (!createRes.ok) {
       const errorData = await createRes.json().catch(() => ({}));
+      if (createRes.status === 409 && errorData.code === 'ORDER_ALREADY_PAID') {
+        const orderNum = errorData.details?.order_number;
+        if (orderNum) {
+          const guestToken = errorData.details?.guest_access_token;
+          const url = guestToken
+            ? 'order-complete.html?orderId=' + encodeURIComponent(orderNum) + '&guestToken=' + encodeURIComponent(guestToken)
+            : 'order-complete.html?orderId=' + encodeURIComponent(orderNum);
+          window.location.replace(url);
+          return;
+        }
+      }
       if (createRes.status === 500 && errorData.code === 'ORDER_ITEMS_MISMATCH') {
         const msg = '선택하신 상품 중 일부의 정보가 변경되어 주문을 완료할 수 없습니다. 최신 상태가 반영된 장바구니로 이동하여 다시 확인해 주세요.';
         if (window.showGlobalErrorBanner) {
@@ -302,6 +359,7 @@ async function proceedWithTossPayment(data) {
     const orderNumber = created.data.order_number;
     const amount = created.data.amount;
     const checkoutSessionKey = created.data?.checkoutSessionKey;
+    if (orderNumber) sessionStorage.setItem('checkoutLastOrderNumber', orderNumber);
     if (checkoutSessionKey) {
       sessionStorage.setItem('checkoutSessionKey_' + orderNumber, checkoutSessionKey);
     }
@@ -423,8 +481,12 @@ async function proceedWithInicisPayment(data) {
       proceedBtn.textContent = '처리 중...';
     }
     
-    // 1. 주문 생성 (SSOT 함수 사용) — 유효하지 않은 항목이 있으면 주문 전체 중단
-    const idemKey = uuidv4();
+    // 1. 주문 생성 (SSOT 함수 사용) — 유효하지 않은 항목이 있으면 주문 전체 중단 (같은 체크아웃 흐름에서 idemKey 유지)
+    let idemKey = sessionStorage.getItem('checkoutIdemKey');
+    if (!idemKey) {
+      idemKey = uuidv4();
+      sessionStorage.setItem('checkoutIdemKey', idemKey);
+    }
 
     if (!window.createOrderPayload) {
       throw new Error('checkout-utils.js가 로드되지 않았습니다.');
@@ -459,6 +521,17 @@ async function proceedWithInicisPayment(data) {
 
     if (!createRes.ok) {
       const errorData = await createRes.json().catch(() => ({}));
+      if (createRes.status === 409 && errorData.code === 'ORDER_ALREADY_PAID') {
+        const orderNum = errorData.details?.order_number;
+        if (orderNum) {
+          const guestToken = errorData.details?.guest_access_token;
+          const url = guestToken
+            ? 'order-complete.html?orderId=' + encodeURIComponent(orderNum) + '&guestToken=' + encodeURIComponent(guestToken)
+            : 'order-complete.html?orderId=' + encodeURIComponent(orderNum);
+          window.location.replace(url);
+          return;
+        }
+      }
       if (createRes.status === 500 && errorData.code === 'ORDER_ITEMS_MISMATCH') {
         const msg = '선택하신 상품 중 일부의 정보가 변경되어 주문을 완료할 수 없습니다. 최신 상태가 반영된 장바구니로 이동하여 다시 확인해 주세요.';
         if (window.showGlobalErrorBanner) {
@@ -481,6 +554,7 @@ async function proceedWithInicisPayment(data) {
     const orderNumber = created.data.order_number;
     const amount = created.data.amount;
     const checkoutSessionKeyInicis = created.data?.checkoutSessionKey;
+    if (orderNumber) sessionStorage.setItem('checkoutLastOrderNumber', orderNumber);
     if (checkoutSessionKeyInicis) {
       sessionStorage.setItem('checkoutSessionKey_' + orderNumber, checkoutSessionKeyInicis);
     }

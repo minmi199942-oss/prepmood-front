@@ -764,6 +764,7 @@ function handleCheckout() {
   
   const cartItemsContainer = document.getElementById('cart-items');
   if (!cartItemsContainer) {
+    try { sessionStorage.setItem('checkoutFromCart', '1'); } catch (e) {}
     window.location.href = 'checkout.html';
     return;
   }
@@ -775,6 +776,7 @@ function handleCheckout() {
   }
   try {
     sessionStorage.setItem('pm_checkout_selected_ids', JSON.stringify(selectedIds));
+    sessionStorage.setItem('checkoutFromCart', '1');
   } catch (e) {
     console.warn('pm_checkout_selected_ids 저장 실패:', e);
   }
